@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import {
     getUserSavedLessons,
+    getUserSavedCourses,
     getUserSavedRoutines,
     getUserRoutines,
     getSavedSparringVideos,
@@ -42,8 +43,16 @@ export const SavedListView: React.FC = () => {
             try {
                 let data: any[] = [];
                 if (type === 'classes') {
-                    const res = await getUserSavedLessons(user.id);
-                    data = Array.isArray(res) ? res : ((res as any).data || []);
+                    const [lessonsRes, coursesRes] = await Promise.all([
+                        getUserSavedLessons(user.id),
+                        getUserSavedCourses(user.id)
+                    ]);
+                    const lessons = Array.isArray(lessonsRes) ? lessonsRes : ((lessonsRes as any).data || []);
+                    const courses = Array.isArray(coursesRes) ? coursesRes : ((coursesRes as any).data || []);
+
+                    // Deduplicate in case a lesson's parent course is also saved (or vice versa)
+                    // But actually they are different types, so we just combine them.
+                    data = [...courses, ...lessons];
                 } else if (type === 'routines') {
                     const savedRes = await getUserSavedRoutines(user.id);
                     const personalRes = await getUserRoutines(user.id);

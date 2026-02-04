@@ -263,7 +263,10 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
     onFollow,
     onViewRoutine,
     offset,
+    isSubscriber,
+    purchasedItemIds,
     isLoggedIn,
+    isDailyFreeDrill = false,
     onVideoReady,
 }) => {
     // Logic: 
@@ -283,8 +286,6 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
     const [isPaused, setIsPaused] = useState(false);
     const [showLikeAnimation, setShowLikeAnimation] = useState(false);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-    const [watchTime, setWatchTime] = useState(0);
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
 
 
     // Fullscreen on landscape
@@ -311,38 +312,25 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
         }
     }, [isActive, offset]);
 
+    // Access Control
+    const hasAccess = isDailyFreeDrill || (drill as any).price === 0 || (isLoggedIn && (isSubscriber || purchasedItemIds.includes(drill.id)));
+
     // Watch time tracking for history and preview
     const { user } = useAuth();
 
     // Record view for history as soon as it's active
     useEffect(() => {
-        if (isActive && user) {
+        if (isActive && user && hasAccess) {
             recordDrillView(drill.id, user.id);
         }
-    }, [isActive, drill.id, user]);
+    }, [isActive, drill.id, user, hasAccess]);
 
-    // Watch Time Timer
+    // Strictly control access: if not permitted, show login modal
     useEffect(() => {
-        if (isActive && !isPaused && isVideoReady) {
-            timerRef.current = setInterval(() => {
-                setWatchTime(prev => prev + 1);
-            }, 1000);
-        } else {
-            if (timerRef.current) clearInterval(timerRef.current);
-        }
-        return () => {
-            if (timerRef.current) clearInterval(timerRef.current);
-        };
-    }, [isActive, isPaused, isVideoReady]);
-
-    // Free Preview Check
-    useEffect(() => {
-        // If not logged in, limit to 30s
-        if (!isLoggedIn && isActive && watchTime >= 30) {
-            setIsPaused(true);
+        if (!hasAccess && isActive) {
             setIsLoginModalOpen(true);
         }
-    }, [watchTime, isLoggedIn, isActive]);
+    }, [isActive, hasAccess]);
 
 
     // Auto polling for processing status
@@ -606,10 +594,10 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
             </div>
 
             {/* Progress Bar */}
-            <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!isLoggedIn ? 'h-1.5 bg-violet-900/30' : 'h-[2px] bg-zinc-800/50'}`}>
+            <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!hasAccess ? 'h-1.5 bg-violet-900/30' : 'h-[2px] bg-zinc-800/50'}`}>
                 <div
-                    className={`h-full transition-all ease-linear ${!isLoggedIn ? 'bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,1)] duration-1000' : 'bg-violet-400 duration-100'}`}
-                    style={{ width: `${!isLoggedIn ? (watchTime / 30) * 100 : progress}%` }}
+                    className={`h-full transition-all ease-linear ${!hasAccess ? 'bg-zinc-800' : 'bg-violet-400 duration-100'}`}
+                    style={{ width: `${progress}%` }}
                 />
             </div>
 

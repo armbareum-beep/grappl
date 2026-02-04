@@ -376,16 +376,24 @@ export function Watch() {
             ].filter(Boolean));
 
             const filteredItems = allItems.filter(item => {
-                // 1. Subscribers see everything
+                // Determine if item is "free" (0 won or Daily Free)
+                const isPriceFree = (item.data as any).price === 0;
+                const isDailyFree = dailyFreeIds.has(item.data.id);
+                const isFree = isPriceFree || isDailyFree;
+
+                // 1. If it's free, everyone can see it
+                if (isFree) return true;
+
+                // 2. Subscribers see everything
                 if (userPermissions.isSubscriber) return true;
 
-                // 2. Logged-in non-subscribers see daily free + purchased
+                // 3. Logged-in non-subscribers see purchased items
                 if (user) {
-                    return dailyFreeIds.has(item.data.id) || userPermissions.purchasedItemIds.includes(item.data.id);
+                    return userPermissions.purchasedItemIds.includes(item.data.id);
                 }
 
-                // 3. Guests (not logged in) see only daily free
-                return dailyFreeIds.has(item.data.id);
+                // 4. Guests (not logged in) only see free content (already handled by step 1)
+                return false;
             });
 
             const finalizedItems = diversifyContent(filteredItems);

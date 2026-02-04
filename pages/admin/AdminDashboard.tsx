@@ -32,7 +32,9 @@ export const AdminDashboard: React.FC = () => {
 
     useEffect(() => {
         loadData();
+    }, []);
 
+    useEffect(() => {
         // Auto-refresh activity feed every 5 seconds
         const interval = setInterval(async () => {
             try {
@@ -227,7 +229,7 @@ export const AdminDashboard: React.FC = () => {
                             <h1 className="text-4xl font-extrabold tracking-tight text-white bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-500">
                                 관리자 대시보드
                             </h1>
-                            <div className="px-2 py-0.5 bg-violet-500/10 border border-violet-500/20 rounded text-[10px] font-black text-violet-400 uppercase tracking-widest">v2.5 Premium</div>
+                            <div className="px-2 py-0.5 bg-violet-500/10 border border-violet-500/20 rounded text-[10px] font-black text-violet-400 uppercase tracking-widest">v2.5 프리미엄</div>
                         </div>
                         <p className="text-zinc-400 text-lg">Grappl 플랫폼의 모든 핵심 데이터와 인프라를 관리합니다.</p>
                     </div>
@@ -457,7 +459,7 @@ export const AdminDashboard: React.FC = () => {
                 {/* Section Divider */}
                 <div className="flex items-center gap-4 mb-12">
                     <div className="h-px flex-1 bg-gradient-to-r from-transparent to-zinc-800" />
-                    <h2 className="text-sm font-black uppercase tracking-[0.3em] text-zinc-600">Infrastructure Management</h2>
+                    <h2 className="text-sm font-black uppercase tracking-[0.3em] text-zinc-600">인프라 및 시스템 관리</h2>
                     <div className="h-px flex-1 bg-gradient-to-l from-transparent to-zinc-800" />
                 </div>
 

@@ -5,6 +5,7 @@ import { SparringVideo } from '../types';
 import { Heart, Share2, ChevronLeft, Volume2, VolumeX, Bookmark, Search, PlayCircle, ChevronDown, Lock, Zap, MoreHorizontal } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { ContentBadge } from '../components/common/ContentBadge';
+import { ReelLoginModal } from '../components/auth/ReelLoginModal';
 
 import { cn } from '../lib/utils';
 /* eslint-disable react-hooks/exhaustive-deps */
@@ -114,41 +115,43 @@ const VideoItem: React.FC<{
         setIsShareModalOpen(true);
     };
 
-    const [previewEnded, setPreviewEnded] = useState(false);
-
     // Helper to get Vimeo ID and Hash
     const vimeoFullId = extractVimeoId(video.videoUrl);
 
     const isDailyFree = dailyFreeId === video.id;
-    // Allow access if: Daily Free OR Purchased OR (User Logged In AND (Subscribed OR Admin OR Creator of global video))
-    const hasAccess = isDailyFree || owns || (user && (isSubscribed || isAdmin || video.creatorId === user.id));
+    // Allow access if: Daily Free OR 0 Won Video OR Purchased OR (User Logged In AND (Subscribed OR Admin OR Creator of global video))
+    const hasAccess = isDailyFree || video.price === 0 || owns || (user && (isSubscribed || isAdmin || video.creatorId === user.id));
 
     // Determine which video to play
     // If has access -> Main Video
-    // If no access -> NULL (Do not play preview in feed, show lock screen/thumbnail only)
+    // If no access -> Play nothing (show lock screen immediately)
     const activeVimeoId = hasAccess ? vimeoFullId : null;
 
     // Record View History
     useEffect(() => {
-        if (isActive && user && video.id) {
+        if (isActive && user && video.id && hasAccess) {
             import('../lib/api').then(({ recordSparringView }) => {
                 recordSparringView(user.id, video.id).catch(console.error);
             });
         }
-    }, [isActive, user, video.id]);
+    }, [isActive, user, video.id, hasAccess]);
 
     const toggleMute = () => {
         setMuted(prev => !prev);
     };
 
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
-    // ...
+    // No preview timer for paid content anymore
+    useEffect(() => {
+        if (!hasAccess && isActive) {
+            setIsLoginModalOpen(true);
+        }
+    }, [isActive, hasAccess]);
 
     const renderVideoContent = () => {
-        // Show Lock Screen ONLY if:
-        // 1. User has NO access
-        // 2. AND (No preview available OR Preview has ended)
-        const showLockScreen = !hasAccess && (!video.previewVimeoId || previewEnded);
+        // Show Lock Screen ONLY if User has NO access
+        const showLockScreen = !hasAccess;
 
         if (showLockScreen) {
             const canPurchase = video.price && video.price > 0;
@@ -221,35 +224,54 @@ const VideoItem: React.FC<{
                     showControls={false}
                     fillContainer={true}
                     forceSquareRatio={true}
-                    onProgress={(s) => {
+                    onProgress={() => {
                         // Sparse logging to avoid too many renders if not needed
                     }}
                     onReady={onVideoReady}
                     onAutoplayBlocked={() => setMuted(true)}
                     onDoubleTap={handleLike}
                     onEnded={() => {
-                        if (!hasAccess && video.previewVimeoId) {
-                            setPreviewEnded(true);
-                        }
+                        // Logic moved to parent/state if needed, but no more automatic preview end
                     }}
                 />
             );
         }
 
         return (
-            <VideoPlayer
-                vimeoId={video.videoUrl}
-                title={video.title}
-                playing={isActive}
-                autoplay={isActive}
-                muted={muted}
-                showControls={false}
-                fillContainer={true}
-                forceSquareRatio={true}
-                onReady={onVideoReady}
-                onAutoplayBlocked={() => setMuted(true)}
-                onDoubleTap={handleLike}
-            />
+            <>
+                <VideoPlayer
+                    vimeoId={vimeoFullId || video.videoUrl}
+                    title={video.title}
+                    playing={isActive}
+                    autoplay={isActive}
+                    muted={muted}
+                    showControls={false}
+                    fillContainer={true}
+                    forceSquareRatio={true}
+                    onReady={onVideoReady}
+                    onAutoplayBlocked={() => setMuted(true)}
+                    onDoubleTap={handleLike}
+                    onEnded={() => {
+                        // Logic moved to parent/state if needed
+                    }}
+                />
+                <VideoPlayer
+                    vimeoId={vimeoFullId || video.videoUrl}
+                    title={video.title}
+                    playing={isActive}
+                    autoplay={isActive}
+                    muted={muted}
+                    showControls={false}
+                    fillContainer={true}
+                    forceSquareRatio={true}
+                    onReady={onVideoReady}
+                    onAutoplayBlocked={() => setMuted(true)}
+                    onDoubleTap={handleLike}
+                    onEnded={() => {
+                        // Ended logic
+                    }}
+                />
+            </>
         );
     };
 
@@ -356,6 +378,13 @@ const VideoItem: React.FC<{
                         text={`${video.creator?.name}님의 스파링 영상을 확인해보세요`}
                         imageUrl={video.thumbnailUrl}
                         url={`${window.location.origin}/sparring?id=${video.id}`}
+                    />
+                )}
+                {isLoginModalOpen && (
+                    <ReelLoginModal
+                        isOpen={isLoginModalOpen}
+                        onClose={() => setIsLoginModalOpen(false)}
+                        redirectUrl={`/watch?tab=sparring&id=${video.id}`}
                     />
                 )}
             </React.Suspense>
@@ -571,7 +600,7 @@ export const SparringFeed: React.FC<{
     forceViewMode?: 'grid' | 'reels';
 }> = ({ isEmbedded, activeTab, onTabChange, forceViewMode }) => {
     const [videos, setVideos] = useState<SparringVideo[]>([]);
-    const { user } = useAuth();
+    const { user, isSubscribed, isAdmin } = useAuth();
     const [activeIndex, setActiveIndex] = useState(0);
     const [dailyFreeIdState, setDailyFreeIdState] = useState<string | null>(null);
     const [searchParams, setSearchParams] = useSearchParams();
@@ -737,7 +766,17 @@ export const SparringFeed: React.FC<{
             }
         }
 
-        return matchesSearch && matchesUniform && matchesCategory && matchesOwnership;
+        const matchesSearchAndFilters = matchesSearch && matchesUniform && matchesCategory && matchesOwnership;
+
+        if (viewMode === 'reels') {
+            const isDailyFree = dailyFreeIdState === video.id;
+            const isPriceFree = video.price === 0;
+            const owns = user?.ownedVideoIds?.some(oid => String(oid).trim().toLowerCase() === String(video.id).trim().toLowerCase());
+            const hasAccess = isDailyFree || isPriceFree || owns || (user && (isSubscribed || isAdmin || video.creatorId === user.id));
+            return matchesSearchAndFilters && hasAccess;
+        }
+
+        return matchesSearchAndFilters;
     }).sort((a, b) => {
         if (sortBy === 'latest') {
             return new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime();

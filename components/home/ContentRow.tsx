@@ -79,7 +79,7 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
 
     const getShareUrl = () => {
         const origin = window.location.origin;
-        if (type === 'course') return `${origin}/courses/${item.id}`;
+        if (type === 'course') return `${origin}/courses/${item.courseId || item.id}`;
         if (type === 'routine') return `${origin}/routines/${item.id}`;
         if (type === 'sparring') return `${origin}/watch?id=${item.id}&type=sparring`;
         if (type === 'lesson') return `${origin}/watch?lessonId=${item.id}`;
@@ -272,7 +272,7 @@ export const ContentRow: React.FC<ContentRowProps> = ({
     const displayItems = items.slice(0, 15);
 
     const handleClick = (item: any) => {
-        if (type === 'course') navigate(`/courses/${item.id}`);
+        if (type === 'course') navigate(`/courses/${item.courseId || item.id}`);
         else if (type === 'routine') navigate(`/routines/${item.id}`);
         else if (type === 'sparring') navigate(`/watch?id=${item.id}&type=sparring`);
         else if (type === 'lesson') navigate(`/watch?lessonId=${item.id}`);

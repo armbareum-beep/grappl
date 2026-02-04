@@ -43,7 +43,6 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
     const [isFollowed, setIsFollowed] = useState(false);
     const [likeCount, setLikeCount] = useState((lesson as any).likes || 0);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-    const [watchTime, setWatchTime] = useState(0);
     const [progress, setProgress] = useState(0);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
@@ -61,6 +60,9 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
     }, [isPaused]);
 
     const vimeoFullId = extractVimeoId(lesson.vimeoUrl || lesson.videoUrl || '');
+
+    // Access Control
+    const hasAccess = isDailyFreeLesson || (lesson as any).price === 0 || (isLoggedIn && (isSubscriber || purchasedItemIds.includes(lesson.id)));
 
     // Notify parent when this item is ready to display
     const [videoPlayerReady, setVideoPlayerReady] = useState(false);
@@ -88,7 +90,6 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
     const accumulatedTimeRef = useRef<number>(0);
 
     // Initial View Record (mark as recent)
-    // Initial View Record (mark as recent)
     useEffect(() => {
         if (isActive && user) {
             // Record initial view to mark as recent without resetting progress
@@ -97,28 +98,14 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
     }, [isActive, user, lesson.id]);
 
     useEffect(() => {
-        // Non-logged in users: 30s preview limit
-        if (!user && isActive) {
-            // Start timer
-            setWatchTime(0);
-            timerRef.current = setInterval(() => {
-                if (!isPausedRef.current) {
-                    setWatchTime((prev: number) => {
-                        const newTime = prev + 1;
-                        if (newTime >= 30) {
-                            // 30 seconds reached, show login modal
-                            setIsLoginModalOpen(true);
-                            if (timerRef.current) {
-                                clearInterval(timerRef.current);
-                            }
-                        }
-                        return newTime;
-                    });
-                }
-            }, 1000);
+        // Enforce immediate lock for unauthorized users
+        if (!hasAccess && isActive) {
+            setIsLoginModalOpen(true);
+            return;
         }
-        // Logged-in users: Record watch progress
-        else if (user && isActive) {
+
+        // Logged-in users WITH access: Record watch progress
+        if (user && isActive && hasAccess) {
             lastTickRef.current = Date.now();
             accumulatedTimeRef.current = 0;
 
@@ -145,7 +132,6 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
             if (timerRef.current) {
                 clearInterval(timerRef.current);
             }
-            setWatchTime(0);
             accumulatedTimeRef.current = 0;
         }
 
@@ -154,7 +140,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
                 clearInterval(timerRef.current);
             }
         };
-    }, [isActive, user, lesson.id]);
+    }, [isActive, user, lesson.id, hasAccess]);
 
     const handleLike = async () => {
         if (!user) {
@@ -195,8 +181,6 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
         }
     };
 
-    // Access Control
-    const hasAccess = isDailyFreeLesson || (isLoggedIn && (isSubscriber || purchasedItemIds.includes(lesson.id)));
 
     return (
         <div
@@ -321,10 +305,10 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
             </div>
 
             {/* Progress Bar / Teaser Bar */}
-            <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!user ? 'h-1.5 bg-violet-900/30' : 'h-[2px] bg-zinc-800/50'}`}>
+            <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!hasAccess ? 'h-1.5 bg-violet-900/30' : 'h-[2px] bg-zinc-800/50'}`}>
                 <div
-                    className={`h-full transition-all ease-linear ${!user ? 'bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,1)] duration-1000' : 'bg-violet-400 duration-100'}`}
-                    style={{ width: `${!user ? (watchTime / 30) * 100 : progress}%` }}
+                    className={`h-full transition-all ease-linear ${!hasAccess ? 'bg-zinc-800' : 'bg-violet-400 duration-100'}`}
+                    style={{ width: `${progress}%` }}
                 />
             </div>
 

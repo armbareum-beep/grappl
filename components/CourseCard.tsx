@@ -164,7 +164,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
                 "relative aspect-video bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 transition-all duration-500",
                 "hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] hover:ring-1 hover:ring-violet-500/30"
             )}>
-                <Link to={`/courses/${course.id}`} className="absolute inset-0 block overflow-hidden">
+                <Link to={`/courses/${(course as any).courseId || course.id}`} className="absolute inset-0 block overflow-hidden">
                     <img
                         src={course.thumbnailUrl}
                         alt={course.title}
@@ -257,7 +257,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
                 {/* Metadata */}
                 <div className="flex-1 min-w-0 pr-1">
                     <div className="flex justify-between items-start gap-1">
-                        <Link to={`/courses/${course.id}`} className="flex-1 min-w-0">
+                        <Link to={`/courses/${(course as any).courseId || course.id}`} className="flex-1 min-w-0">
                             <h3 className="font-bold text-zinc-100 text-[13px] md:text-[14px] leading-tight mb-0 group-hover:text-violet-400 transition-colors uppercase tracking-tight">
                                 {course.title}
                             </h3>

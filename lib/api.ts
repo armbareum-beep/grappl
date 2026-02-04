@@ -5377,10 +5377,8 @@ export function transformSparringVideo(data: any): SparringVideo {
         creator: creator,
         creatorProfileImage: creatorData?.profile_image || creatorData?.avatar_url,
         createdAt: data.created_at,
-        category: data.category,
-        uniformType: data.uniform_type,
         difficulty: data.difficulty,
-        price: data.price || 0,
+        price: Number(data.price) || 0,
         isPublished: data.is_published ?? false,
         previewVimeoId: data.preview_vimeo_id || data.preview_vimeo_url
     };
