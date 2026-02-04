@@ -8722,19 +8722,20 @@ function calculateTrendingScore(
 
 export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
     // 1. Fetch a larger pool of routines (e.g., last 50) to rank from
+    // CHANGED: Removed creator join to be more robust against missing Foreign Keys
     const { data, error } = await withTimeout(
         supabase
             .from('routines')
-            .select('*, creator:creators(name, profile_image)')
+            .select('*')
             .limit(50) // Candidate pool size
             .order('created_at', { ascending: false }),
         5000
     );
 
-    if (error) return [];
+    if (error || !data || data.length === 0) return [];
 
     // 2. Calculate Score for each routine (IMPROVED)
-    let rankedRoutines = (data || []).map((r: any) => ({
+    let rankedRoutines = data.map((r: any) => ({
         ...r,
         _score: calculateTrendingScore(r, 'routine')
     }));
@@ -8762,7 +8763,7 @@ export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
             difficulty: r.difficulty || 'Beginner',
             thumbnailUrl: r.thumbnail_url,
             price: r.price || 0,
-            durationMinutes: r.duration_minutes || 10,
+            durationMinutes: r.total_duration_minutes || r.duration_minutes || 10,
             category: r.category || 'General',
             views: r.views || 0,
             likes: r.likes || 0,

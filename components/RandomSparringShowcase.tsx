@@ -66,7 +66,7 @@ export function RandomSparringShowcase({ title, subtitle }: { title?: string; su
                         <div className="hidden lg:flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                             <button
                                 className="px-8 py-4 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-lg shadow-[0_0_25px_rgba(124,58,237,0.3)] transition-all flex items-center justify-center gap-2 group"
-                                onClick={() => navigate(`/sparring/${video.id}`)}
+                                onClick={() => navigate(`/library?tab=sparring&id=${video.id}&view=reels`)}
                             >
                                 <Play className="w-5 h-5 fill-white" />
                                 <span>풀 스파링 보기</span>
@@ -120,7 +120,7 @@ export function RandomSparringShowcase({ title, subtitle }: { title?: string; su
                         <div className="flex lg:hidden flex-col sm:flex-row gap-4 mt-8 w-full">
                             <button
                                 className="flex-1 px-8 py-4 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-lg shadow-[0_0_25px_rgba(124,58,237,0.3)] transition-all flex items-center justify-center gap-2 group"
-                                onClick={() => navigate(`/sparring/${video.id}`)}
+                                onClick={() => navigate(`/library?tab=sparring&id=${video.id}&view=reels`)}
                             >
                                 <Play className="w-5 h-5 fill-white" />
                                 <span>풀 스파링 보기</span>
