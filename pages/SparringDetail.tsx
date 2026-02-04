@@ -247,7 +247,7 @@ export const SparringDetail: React.FC = () => {
     if (error || !video) return <ErrorScreen error={error || 'Video not found'} />;
 
     const creatorName = (video as any).creatorName || (video as any).creator?.name || 'Creator';
-    const creatorAvatar = (video as any).creator?.avatar_url || (video as any).creator?.image || (video as any).creator?.profileImage;
+    const creatorAvatar = (video as any).creator?.profileImage || (video as any).creator?.avatar_url || (video as any).creator?.image;
 
     // Render video content based on ownership
     const renderVideoContent = () => {

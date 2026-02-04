@@ -14,7 +14,7 @@ export const SUBSCRIPTION_PLATFORM_SHARE = 0.2;
 
 // Helper to safely wrap promises with a timeout
 export async function withTimeout<T>(
-    promise: Promise<T> | PromiseLike<T>,
+    promise: Promise<T>,
     timeoutMs: number = 10000
 ): Promise<T | { data: null; error: { message: string, code: string } }> {
     const timeout = new Promise<never>((_, reject) =>
@@ -192,8 +192,8 @@ function transformCreator(data: any): Creator {
         id: data.id,
         name: data.name,
         bio: data.bio || '',
-        // Prioritize user avatar if available (from join), then profile_image (creators table), then fallback to avatar_url (legacy/flat)
-        profileImage: data.user?.avatar_url || data.profile_image || data.avatar_url || '',
+        // Prioritize profile_image (creators table) over avatar_url (Google/Social)
+        profileImage: data.profile_image || data.user?.avatar_url || data.avatar_url || '',
         subscriberCount: data.subscriber_count || 0,
     };
 }
@@ -596,7 +596,7 @@ export async function searchContent(query: string) {
                     creator: creator ? {
                         id: creator.id,
                         name: creator.name || '알 수 없음',
-                        profileImage: creator.avatar_url,
+                        profileImage: creator.profile_image || creator.avatar_url,
                         bio: '',
                         subscriberCount: 0
                     } : undefined,
@@ -915,7 +915,7 @@ export async function getPublicSparringVideos(limit = 3): Promise<SparringVideo[
         if (creatorIds.length > 0) {
             const { data: users } = await supabase
                 .from('users')
-                .select('id, name, avatar_url')
+                .select('id, name, avatar_url, profile_image_url')
                 .in('id', creatorIds);
 
             if (users) {
@@ -944,7 +944,7 @@ export async function getPublicSparringVideos(limit = 3): Promise<SparringVideo[
                     creator: creator ? {
                         id: creator.id,
                         name: creator.name || '알 수 없음',
-                        profileImage: creator.avatar_url,
+                        profileImage: creator.profile_image_url || creator.avatar_url,
                         bio: '',
                         subscriberCount: 0
                     } : undefined,
@@ -8552,96 +8552,59 @@ export async function getUserSubscription(userId: string) {
 }
 
 export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
-    try {
-        // 1. Fetch a larger pool of routines (e.g., last 50) to rank from
-        const { data, error } = await withTimeout(
-            supabase
-                .from('routines')
-                .select('*, creator:creators(name, profile_image)')
-                .limit(50) // Candidate pool size
-                .order('created_at', { ascending: false }),
-            5000
-        );
+    // 1. Fetch a larger pool of routines (e.g., last 50) to rank from
+    const { data, error } = await withTimeout(
+        supabase
+            .from('routines')
+            .select('*, creator:creators(name, profile_image)')
+            .limit(50) // Candidate pool size
+            .order('created_at', { ascending: false }),
+        5000
+    );
 
-        if (error) {
-            console.error("Error fetching featured routines:", error);
-            // Fallback: try without JOIN
-            const { data: fallbackData } = await withTimeout(
-                supabase.from('routines').select('*').limit(limit).order('created_at', { ascending: false }),
-                3000
-            );
-            if (!fallbackData) return [];
-            return fallbackData.map((r: any) => ({
-                id: r.id,
-                title: r.title,
-                description: r.description,
-                creatorId: r.creator_id,
-                creatorName: 'Grapplay',
-                difficulty: r.difficulty || 'Beginner',
-                thumbnailUrl: r.thumbnail_url,
-                price: r.price || 0,
-                views: r.views || 0,
-                createdAt: r.created_at || new Date().toISOString(),
-            }));
-        }
+    if (error) return [];
 
-        if (!data || data.length === 0) return [];
+    // 2. Calculate Score for each routine
+    let rankedRoutines = (data || []).map((r: any) => {
+        const daysOld = (new Date().getTime() - new Date(r.created_at).getTime()) / (1000 * 60 * 60 * 24);
+        const views = r.views || 0;
+        const likes = r.likes || 0; // Assuming 'likes' column exists or is joined
 
-        // 2. If data is sparse (e.g. < 5), just return them without complex scoring to ensure visibility
-        if (data.length < 5) {
-            return data.slice(0, limit).map((r: any) => ({
-                id: r.id,
-                title: r.title,
-                description: r.description,
-                creatorId: r.creator_id,
-                creatorName: r.creator?.name || 'Grapplay',
-                creatorProfileImage: r.creator?.profile_image,
-                difficulty: r.difficulty || 'Beginner',
-                thumbnailUrl: r.thumbnail_url,
-                price: r.price || 0,
-                views: r.views || 0,
-                createdAt: r.created_at,
-            }));
-        }
+        // Algorithm Weights
+        // - Recency: Boosts new content significantly in the first few days
+        // - Popularity: High views and likes can sustain a routine's position
+        const recencyScore = 500 / (daysOld + 1);
+        const popularityScore = (views * 0.1) + (likes * 10);
 
-        // 3. Calculate Score for each routine
-        let rankedRoutines = data.map((r: any) => {
-            const daysOld = (new Date().getTime() - new Date(r.created_at).getTime()) / (1000 * 60 * 60 * 24);
-            const views = r.views || 0;
-            const likes = r.likes || 0;
+        const totalScore = recencyScore + popularityScore;
 
-            // Algorithm Weights
-            const recencyScore = 500 / (daysOld + 1);
-            const popularityScore = (views * 0.1) + (likes * 10);
-            const totalScore = recencyScore + popularityScore;
+        return {
+            ...r,
+            _score: totalScore
+        };
+    });
 
-            return {
-                ...r,
-                _score: totalScore
-            };
-        });
+    // 3. Sort by Score (Descending)
+    rankedRoutines.sort((a: any, b: any) => b._score - a._score);
 
-        // 4. Sort by Score (Descending)
-        rankedRoutines.sort((a: any, b: any) => (b._score || 0) - (a._score || 0));
-
-        // 5. Return top 'limit' items
-        return rankedRoutines.slice(0, limit).map((r: any) => ({
-            id: r.id,
-            title: r.title,
-            description: r.description,
-            creatorId: r.creator_id,
-            creatorName: r.creator?.name || 'Grapplay',
-            creatorProfileImage: r.creator?.profile_image,
-            difficulty: r.difficulty || 'Beginner',
-            thumbnailUrl: r.thumbnail_url,
-            price: r.price || 0,
-            views: r.views || 0,
-            createdAt: r.created_at,
-        }));
-    } catch (e) {
-        console.error("Critical error in getFeaturedRoutines:", e);
-        return [];
-    }
+    // 4. Return top 'limit' items
+    return rankedRoutines.slice(0, limit).map((r: any) => ({
+        id: r.id,
+        title: r.title,
+        description: r.description,
+        creatorId: r.creator_id,
+        creatorName: r.creator?.name || 'Unknown',
+        creatorProfileImage: r.creator?.profile_image,
+        difficulty: r.difficulty || 'Beginner',
+        thumbnailUrl: r.thumbnail_url,
+        price: r.price || 0,
+        durationMinutes: r.duration_minutes || 10,
+        category: r.category || 'General',
+        views: r.views || 0,
+        likes: r.likes || 0,
+        createdAt: r.created_at || new Date().toISOString(),
+        drills: []
+    }));
 }
 
 export async function getNewCourses(limit = 6): Promise<Course[]> {
@@ -8779,7 +8742,6 @@ export async function getTrendingSparring(limit = 6): Promise<SparringVideo[]> {
                 bio: '',
                 subscriberCount: 0
             } : undefined,
-            relatedItems: full.related_items || [],
             createdAt: full.created_at
         } as SparringVideo;
     });

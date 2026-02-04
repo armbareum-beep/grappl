@@ -324,7 +324,7 @@ const VideoItem: React.FC<{
                                     <div className="flex items-center gap-3 mb-2 md:mb-3">
                                         <Link to={`/creator/${video.creator.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                                             <div className="relative">
-                                                <img src={(video.creator as any).avatar_url || (video.creator as any).image || (video.creator as any).profileImage || `https://ui-avatars.com/api/?name=${video.creator.name}`} className="w-7 md:w-8 h-7 md:h-8 rounded-full border border-white/20 object-cover" />
+                                                <img src={(video.creator as any).profileImage || (video.creator as any).avatar_url || (video.creator as any).image || `https://ui-avatars.com/api/?name=${video.creator.name}`} className="w-7 md:w-8 h-7 md:h-8 rounded-full border border-white/20 object-cover" />
                                             </div>
                                             <div className="flex flex-col">
                                                 <span className="text-white font-bold text-xs md:text-sm drop-shadow-sm">{video.creator.name}</span>

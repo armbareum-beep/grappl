@@ -439,8 +439,8 @@ export const LandingPage: React.FC = () => {
                                                                     <div className="flex flex-wrap items-center gap-4 text-xs md:text-sm text-zinc-300 font-bold uppercase tracking-wider backdrop-blur-md bg-white/5 p-2 rounded-lg border border-white/5">
                                                                         <div className="flex items-center gap-2 pr-4 border-r border-white/10">
                                                                             <div className="w-7 h-7 md:w-9 md:h-9 rounded-full overflow-hidden bg-zinc-800 border-2 border-white/10 flex-shrink-0 shadow-xl">
-                                                                                {(sparring.creator as any)?.avatar_url || (sparring.creator as any)?.profileImage ? (
-                                                                                    <img src={(sparring.creator as any)?.avatar_url || (sparring.creator as any)?.profileImage} className="w-full h-full object-cover" alt="" />
+                                                                                {(sparring.creator as any)?.profileImage || (sparring.creator as any)?.avatar_url ? (
+                                                                                    <img src={(sparring.creator as any)?.profileImage || (sparring.creator as any)?.avatar_url} className="w-full h-full object-cover" alt="" />
                                                                                 ) : (
                                                                                     <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">{(sparring.creator?.name as string)?.charAt(0) || 'U'}</div>
                                                                                 )}

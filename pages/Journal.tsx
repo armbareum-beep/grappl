@@ -38,11 +38,13 @@ export const Journal: React.FC = () => {
         try {
             const { data } = await supabase
                 .from('users')
-                .select('avatar_url')
+                .select('avatar_url, profile_image_url')
                 .eq('id', user.id)
                 .single();
 
-            if (data?.avatar_url) {
+            if (data?.profile_image_url) {
+                setUserAvatar(data.profile_image_url);
+            } else if (data?.avatar_url) {
                 setUserAvatar(data.avatar_url);
             }
         } catch (err) {

@@ -109,13 +109,13 @@ export default function UserProfile() {
                     id: log.id,
                     userId: log.user_id,
                     userName: userData.name,
-                    userAvatar: userData.avatar_url,
+                    userAvatar: userData.profile_image_url || userData.avatar_url,
                     userBelt: progressData ? getBeltInfo(progressData.belt_level).name : 'White',
                     user: {
                         name: userData.name,
                         email: userData.email,
                         belt: progressData ? getBeltInfo(progressData.belt_level).name : 'White',
-                        profileImage: userData.avatar_url,
+                        profileImage: userData.profile_image_url || userData.avatar_url,
                         isInstructor: !!creatorData
                     },
                     date: log.date,
@@ -173,8 +173,8 @@ export default function UserProfile() {
                         {/* Avatar */}
                         <div className="relative">
                             <div className="w-24 h-24 rounded-full overflow-hidden ring-4 ring-slate-800">
-                                {user.avatar_url ? (
-                                    <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
+                                {user.profile_image_url || user.avatar_url ? (
+                                    <img src={user.profile_image_url || user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
                                 ) : (
                                     <div className="w-full h-full bg-slate-700 flex items-center justify-center text-3xl font-bold text-white">
                                         {user.name?.[0]}

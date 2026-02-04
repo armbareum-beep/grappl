@@ -48,11 +48,13 @@ export const Settings: React.FC = () => {
             try {
                 const { data } = await supabase
                     .from('users')
-                    .select('avatar_url')
+                    .select('avatar_url, profile_image_url')
                     .eq('id', user?.id)
                     .single();
 
-                if (data?.avatar_url) {
+                if (data?.profile_image_url) {
+                    setProfileImageUrl(data.profile_image_url);
+                } else if (data?.avatar_url) {
                     setProfileImageUrl(data.avatar_url);
                 } else if (user?.user_metadata?.avatar_url) {
                     setProfileImageUrl(user.user_metadata.avatar_url);
@@ -128,6 +130,7 @@ export const Settings: React.FC = () => {
                     id: user.id,
                     name: displayName,
                     avatar_url: url,
+                    profile_image_url: url,
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'id' });
 

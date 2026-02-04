@@ -17,11 +17,11 @@ export const ReelLoginModal: React.FC<ReelLoginModalProps> = ({
     const navigate = useNavigate();
 
     const handleLogin = () => {
-        navigate('/login', { state: { from: { pathname: redirectUrl } } });
+        navigate('/login', { state: { from: redirectUrl } });
     };
 
     const handleSignup = () => {
-        navigate('/login', { state: { from: { pathname: redirectUrl } } }); // Usually same page, maybe different tab if you have one
+        navigate('/login', { state: { from: redirectUrl } }); // Usually same page, maybe different tab if you have one
     };
 
     return (
