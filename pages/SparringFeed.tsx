@@ -141,7 +141,6 @@ const VideoItem: React.FC<{
         setMuted(prev => !prev);
     };
 
-    const [aspectRatio, setAspectRatio] = useState(1); // Default to square
 
     // ...
 

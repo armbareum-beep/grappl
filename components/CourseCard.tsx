@@ -17,9 +17,10 @@ interface CourseCardProps {
     isDailyFree?: boolean;
     rank?: number;
     hasAccess?: boolean;
+    onUnsave?: () => void;
 }
 
-export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDailyFree, rank, hasAccess = false }) => {
+export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDailyFree, rank, hasAccess = false, onUnsave }) => {
     const [isHovering, setIsHovering] = useState(false);
     const [showVideo, setShowVideo] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
@@ -47,6 +48,10 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
 
         const newStatus = !isSaved;
         setIsSaved(newStatus);
+
+        if (!newStatus && onUnsave) {
+            onUnsave();
+        }
 
         try {
             await toggleCourseSave(user.id, course.id);

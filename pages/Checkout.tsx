@@ -1,3 +1,4 @@
+import { createNotification } from '../lib/api-notifications';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { PayPalButtons, usePayPalScriptReducer } from '@paypal/react-paypal-js';
@@ -434,6 +435,20 @@ export const Checkout: React.FC = () => {
                                                             alert('결제가 취소되었습니다.');
                                                         } else {
                                                             alert(`결제 실패: ${response.message}`);
+
+                                                            // Payment Failed Notification (PG Error)
+                                                            if (user?.id) {
+                                                                createNotification({
+                                                                    type: 'payment_failed',
+                                                                    user_id: user.id,
+                                                                    title: '결제 실패',
+                                                                    message: `결제가 실패했습니다. (${response.message})`,
+                                                                    link: `/checkout/${type}/${id}`,
+                                                                    metadata: {
+                                                                        error_message: response.message
+                                                                    }
+                                                                }).catch(err => console.error('Notification error:', err));
+                                                            }
                                                         }
                                                         return;
                                                     }
@@ -465,10 +480,40 @@ export const Checkout: React.FC = () => {
 
                                                     if (!verifyResponse.ok) throw new Error('결제 검증 실패');
 
+                                                    // Payment Success Notification
+                                                    if (user?.id) {
+                                                        createNotification({
+                                                            type: 'payment_success',
+                                                            user_id: user.id,
+                                                            title: '결제 성공',
+                                                            message: `${productTitle} 결제가 완료되었습니다.`,
+                                                            link: '/payment/history',
+                                                            metadata: {
+                                                                amount: discountedAmount,
+                                                                product_id: id,
+                                                                product_title: productTitle
+                                                            }
+                                                        }).catch(err => console.error('Notification error:', err));
+                                                    }
+
                                                     navigate('/payment/complete', { state: { returnUrl } });
                                                 } catch (err: any) {
                                                     console.error(err);
                                                     setError(`결제 처리 실패: ${err.message}`);
+
+                                                    // Payment Failed Notification (Exception)
+                                                    if (user?.id) {
+                                                        createNotification({
+                                                            type: 'payment_failed',
+                                                            user_id: user.id,
+                                                            title: '결제 처리 오류',
+                                                            message: `결제 처리 중 오류가 발생했습니다. (${err.message})`,
+                                                            link: `/checkout/${type}/${id}`,
+                                                            metadata: {
+                                                                error_message: err.message
+                                                            }
+                                                        }).catch(console.error);
+                                                    }
                                                 } finally {
                                                     setLoading(false);
                                                 }

@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { withTimeout } from './api';
+import { createNotification, createBulkNotifications } from './api-notifications';
 export * from './api-admin-logs';
 import { AuditLog, SiteSettings, ActivityItem } from '../types';
 
@@ -26,12 +27,12 @@ export const getAdminStats = async (): Promise<AdminStats> => {
         ]);
 
         return {
-            totalUsers: users.count || 0,
-            totalDrills: drills.count || 0,
-            pendingCreators: pendingCreators.count || 0,
-            totalCreators: creators.count || 0,
-            totalCourses: courses.count || 0,
-            totalSparring: sparring.count || 0
+            totalUsers: (users as any).count || 0,
+            totalDrills: (drills as any).count || 0,
+            pendingCreators: (pendingCreators as any).count || 0,
+            totalCreators: (creators as any).count || 0,
+            totalCourses: (courses as any).count || 0,
+            totalSparring: (sparring as any).count || 0
         };
     } catch (error) {
         console.error('Error fetching admin stats:', error);
@@ -433,7 +434,7 @@ export async function getAdminRecentActivity() {
         // 1. Fetch recent User Signups
         const { data: newUsers } = await withTimeout(supabase
             .from('users')
-            .select('id, name, created_at')
+            .select('id, name, email, created_at')
             .order('created_at', { ascending: false })
             .limit(5));
 
@@ -446,7 +447,7 @@ export async function getAdminRecentActivity() {
                 amount,
                 created_at,
                 subscription:subscriptions(
-                    user:users(name)
+                    user:users(name, email)
                 )
             `)
             .order('created_at', { ascending: false })
@@ -455,7 +456,7 @@ export async function getAdminRecentActivity() {
         // 3. Fetch recent Instructor Applications
         const { data: newCreators } = await supabase
             .from('creators')
-            .select('id, name, created_at')
+            .select('id, name, email, created_at')
             .order('created_at', { ascending: false })
             .limit(5);
 
@@ -470,18 +471,19 @@ export async function getAdminRecentActivity() {
         const activities: ActivityItem[] = [];
 
         newUsers?.forEach(user => {
+            const displayName = user.name || user.email || '알 수 없는 사용자';
             activities.push({
                 id: `signup_${user.id}`,
                 type: 'user_signup',
                 title: '신규 회원 가입',
-                description: `${user.name || '알 수 없는 사용자'}님이 가입했습니다.`,
+                description: `${displayName}님이 가입했습니다.`,
                 timestamp: user.created_at,
-                user: { id: user.id, name: user.name || 'Unknown' }
+                user: { id: user.id, name: displayName }
             });
         });
 
         newSales?.forEach((sale: any) => {
-            const userName = sale.subscription?.user?.name || 'Unknown';
+            const userName = sale.subscription?.user?.name || sale.subscription?.user?.email || 'Unknown';
             activities.push({
                 id: `sale_${sale.id}`,
                 type: 'purchase',
@@ -494,13 +496,15 @@ export async function getAdminRecentActivity() {
         });
 
         newCreators?.forEach(creator => {
+            // Prefer email over name, especially if name is "NEW creator"
+            const displayName = creator.email || (creator.name && creator.name !== 'NEW creator' ? creator.name : '알 수 없는 인스트럭터');
             activities.push({
                 id: `creator_${creator.id}`,
                 type: 'creator_application',
                 title: '인스트럭터 신청',
-                description: `${creator.name}님이 인스트럭터로 등록되었습니다.`,
+                description: `${displayName}님이 인스트럭터로 등록되었습니다.`,
                 timestamp: creator.created_at,
-                user: { id: creator.id, name: creator.name }
+                user: { id: creator.id, name: displayName }
             });
         });
 
@@ -842,6 +846,24 @@ export async function rejectContent(id: string, type: 'course' | 'drill' | 'spar
         .select()
         .single();
 
+    // Notify Creator
+    const { data: content } = await supabase.from(tableMap[type]).select('title, creator_id').eq('id', id).single();
+    if (content?.creator_id) {
+        // Need to get user_id from creator_id if they are different, but assuming creator_id maps to user or creators table has user_id
+        // In this system, creator_id usually refers to creators table. 
+        // We need to fetch the creator record to get the linked user_id if needed, or if creators.id IS user_id.
+        // Based on api.ts, creators table ID seems to be the user_id (linked 1:1). 
+        // We will assume creator_id is the user_id or use it directly.
+        await createNotification(
+            content.creator_id,
+            'content_rejected',
+            '콘텐츠 승인 거절',
+            `'${content.title}' 콘텐츠가 승인 거절되었습니다. 사유: ${reason}`,
+            '/admin/dashboard', // Creator dashboard link
+            { content_id: id, content_type: type, reason }
+        );
+    }
+
     return { data, error };
 }
 
@@ -862,6 +884,54 @@ export async function approveContent(id: string, type: 'course' | 'drill' | 'spa
         .eq('id', id)
         .select()
         .single();
+
+    // Notify Creator
+    if (data) {
+        // Fetch content details for creator_id if not in response, 
+        // but select() usually returns all. 
+        // Assuming data has creator_id.
+        const content = data;
+
+        if (content?.creator_id) {
+            // 1. Notify Creator
+            await createNotification(
+                content.creator_id,
+                'content_approved',
+                '콘텐츠 승인 완료',
+                `'${content.title}' 콘텐츠가 승인되어 공개되었습니다.`,
+                `/library/${type}/${id}`,
+                { content_id: id, content_type: type }
+            );
+
+            // 2. Notify Subscribers
+            // Fetch creator name for the message
+            const { data: creator } = await supabase.from('creators').select('name').eq('id', content.creator_id).single();
+            const creatorName = creator?.name || 'Unknown Creator';
+
+            // Fetch followers
+            const { data: followers } = await supabase
+                .from('creator_follows')
+                .select('follower_id')
+                .eq('creator_id', content.creator_id);
+
+            if (followers && followers.length > 0) {
+                const notifications = followers.map(f => ({
+                    user_id: f.follower_id,
+                    type: 'creator_new_content' as const,
+                    title: '새로운 콘텐츠 알림',
+                    message: `'${creatorName}'님이 새 ${type === 'course' ? '강좌' : type === 'drill' ? '드릴' : '스파링'} '${content.title}'을(를) 업로드했습니다.`,
+                    link: `/library/${type}/${id}`,
+                    metadata: {
+                        content_id: id,
+                        content_type: type,
+                        creator_id: content.creator_id
+                    }
+                }));
+
+                await createBulkNotifications(notifications);
+            }
+        }
+    }
 
     return { data, error };
 }

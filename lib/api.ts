@@ -1,4 +1,6 @@
+import { createNotification as createNotify } from './api-notifications';
 import { supabase } from './supabase';
+
 import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, SparringReview, Testimonial, SparringVideo, CompletedRoutineRecord, SiteSettings } from '../types';
 import { getVimeoVideoInfo, formatDuration } from './vimeo';
 
@@ -14,7 +16,7 @@ export const SUBSCRIPTION_PLATFORM_SHARE = 0.2;
 
 // Helper to safely wrap promises with a timeout
 export async function withTimeout<T>(
-    promise: Promise<T>,
+    promise: Promise<T> | PromiseLike<T>,
     timeoutMs: number = 10000
 ): Promise<T | { data: null; error: { message: string, code: string } }> {
     const timeout = new Promise<never>((_, reject) =>
@@ -1938,6 +1940,30 @@ export async function createSupportTicket(ticketData: {
         .from('support_tickets')
         .insert(dbData);
 
+    if (!error) {
+        // Notify Admins
+        try {
+            const { data: admins } = await supabase
+                .from('users')
+                .select('id')
+                .eq('is_admin', true);
+
+            if (admins) {
+                await Promise.all(admins.map(admin =>
+                    createNotify(
+                        admin.id,
+                        'support_ticket',
+                        '새로운 1:1 문의 접수',
+                        `[${ticketData.category || '일반'}] ${ticketData.subject}`,
+                        '/admin/support'
+                    )
+                ));
+            }
+        } catch (notifyError) {
+            console.error('Failed to notify admins:', notifyError);
+        }
+    }
+
     return { error };
 }
 
@@ -2047,7 +2073,25 @@ export async function approveCreator(creatorId: string) {
     const { error } = await supabase
         .from('creators')
         .update({ approved: true })
-        .eq('id', creatorId);
+        .eq('id', creatorId)
+        .select()
+        .single();
+
+    if (!error) {
+        // Notify User
+        // Check if creators.id is user_id. If so, use creatorId.
+        // If not, we might need to fetch user_id. 
+        // Based on typical Supabase auth linking, often creator_id = user_id.
+        // We'll send to creatorId.
+        await createNotify(
+            creatorId,
+            'system_announcement', // or 'creator_approved' if added
+            '크리에이터 승인 완료',
+            '축하합니다! 크리에이터 신청이 승인되었습니다.',
+            '/creator/dashboard',
+            { action: 'creator_approved' }
+        );
+    }
 
     if (error) {
         console.error('Error approving creator:', error);
@@ -2061,6 +2105,21 @@ export async function approveCreator(creatorId: string) {
  * Reject a creator application (delete the record)
  */
 export async function rejectCreator(creatorId: string) {
+    // Notify before delete (since delete removes the ID reference if it was just a request, 
+    // but if it's the user's ID, we can still notify the USER even if creator record is deleted, 
+    // assuming users table row remains).
+    // Note: If 'creators' table has user_id FK and we delete it, we can still notify user_id.
+    // If creators.id IS user_id, we can notify user_id.
+
+    await createNotify(
+        creatorId,
+        'system_announcement',
+        '크리에이터 신청 거절',
+        '크리에이터 신청이 거절되었습니다. 자세한 내용은 문의 바랍니다.',
+        '/',
+        { action: 'creator_rejected' }
+    );
+
     const { error } = await supabase
         .from('creators')
         .delete()
@@ -6330,6 +6389,43 @@ export async function updateRoutine(id: string, updates: Partial<DrillRoutine>, 
 }
 
 export async function deleteRoutine(id: string) {
+    // 1. Delete drill associations first (Foreign Key Constraint)
+    const { error: drillsError } = await supabase
+        .from('routine_drills')
+        .delete()
+        .eq('routine_id', id);
+
+    if (drillsError) {
+        console.error('Error deleting routine drills:', drillsError);
+        return { error: drillsError };
+    }
+
+    // 2. Delete user saves (bookmarks)
+    const { error: savesError } = await supabase
+        .from('user_routines')
+        .delete()
+        .eq('routine_id', id);
+
+    if (savesError) {
+        console.error('Error deleting routine saves:', savesError);
+        return { error: savesError };
+    }
+
+    // 3. Delete purchases (Optional/Policy: usually should keep purchase history, 
+    // but if it's a private routine being deleted by owner, we might need to clear this or it blocks deletion.
+    // Assuming mostly self-created routines for now.)
+    // For safety, let's try to delete purchases if they exist to prevent blocking.
+    const { error: purchaseError } = await supabase
+        .from('user_routine_purchases')
+        .delete()
+        .eq('routine_id', id);
+
+    if (purchaseError) {
+        console.warn('Error deleting routine purchases (might be restricted):', purchaseError);
+        // Don't return error here, try to proceed to delete routine anyway
+    }
+
+    // 4. Finally delete the routine itself
     const { error } = await supabase
         .from('routines')
         .delete()
