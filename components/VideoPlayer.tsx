@@ -450,14 +450,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             <div
                 ref={containerRef}
                 className={cn(
-                    "absolute inset-0 w-full h-full",
-                    // Always force iframe to fill container
-                    "[&>iframe]:w-full [&>iframe]:h-full",
-                    fillContainer && "[&>iframe]:object-cover",
+                    "absolute inset-0",
                     // If controls are shown, ensure pointer events go to iframe
                     showControls && "z-[1]"
                 )}
                 style={{
+                    position: 'absolute',
+                    width: forceSquareRatio && aspectRatio > 1 ? `${aspectRatio * 100}%` : '100%',
+                    height: forceSquareRatio && aspectRatio < 1 ? `${(1 / aspectRatio) * 100}%` : '100%',
+                    left: forceSquareRatio && aspectRatio > 1 ? `${-(aspectRatio - 1) * 50}%` : '0',
+                    top: forceSquareRatio && aspectRatio < 1 ? `${-(1 / aspectRatio - 1) * 50}%` : '0',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center'
