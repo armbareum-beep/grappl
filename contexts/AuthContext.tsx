@@ -70,7 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             const queriesPromise = Promise.all([
                 supabase.from('users').select('email, is_admin, is_subscriber, subscription_tier, owned_video_ids, profile_image_url, avatar_url').eq('id', userId).maybeSingle(),
-                supabase.from('creators').select('approved').eq('id', userId).maybeSingle()
+                supabase.from('creators').select('approved, profile_image').eq('id', userId).maybeSingle()
             ]);
 
             const [userResult, creatorResult] = await Promise.race([queriesPromise, timeoutPromise]) as any;
@@ -84,7 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 subscriptionTier: userData?.subscription_tier,
                 ownedVideoIds: userData?.owned_video_ids || [],
                 isCreator: !!(creatorData?.approved === true),
-                profile_image_url: userData?.profile_image_url,
+                profile_image_url: creatorData?.profile_image || userData?.profile_image_url || userData?.avatar_url,
                 avatar_url: userData?.avatar_url
             };
 

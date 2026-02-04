@@ -910,20 +910,8 @@ export async function getPublicSparringVideos(limit = 3): Promise<SparringVideo[
         // 2. Extract creator IDs
         const creatorIds = Array.from(new Set(videos.map(v => v.creator_id).filter(Boolean)));
 
-        // 3. Fetch creators (users)
-        let userMap: Record<string, any> = {};
-        if (creatorIds.length > 0) {
-            const { data: users } = await supabase
-                .from('users')
-                .select('id, name, avatar_url, profile_image_url')
-                .in('id', creatorIds);
-
-            if (users) {
-                users.forEach(u => {
-                    userMap[u.id] = u;
-                });
-            }
-        }
+        // 3. Fetch creators (unified logic)
+        const userMap = await fetchCreatorsByIds(creatorIds as string[]);
 
         // 4. Map data
         const validVideos = videos
@@ -944,7 +932,7 @@ export async function getPublicSparringVideos(limit = 3): Promise<SparringVideo[
                     creator: creator ? {
                         id: creator.id,
                         name: creator.name || '알 수 없음',
-                        profileImage: creator.profile_image_url || creator.avatar_url,
+                        profileImage: creator.profileImage,
                         bio: '',
                         subscriberCount: 0
                     } : undefined,
@@ -1239,18 +1227,7 @@ export async function getSavedSparringVideos(userId: string): Promise<SparringVi
 
     // Extract creator IDs
     const creatorIds = Array.from(new Set(data.map((item: any) => item.sparring_videos?.creator_id).filter(Boolean)));
-    let userMap: Record<string, any> = {};
-
-    if (creatorIds.length > 0) {
-        const { data: users } = await supabase
-            .from('users')
-            .select('id, name, avatar_url, profile_image_url')
-            .in('id', creatorIds);
-
-        if (users) {
-            users.forEach(u => userMap[u.id] = u);
-        }
-    }
+    const userMap = await fetchCreatorsByIds(creatorIds as string[]);
 
     // Transform using transformSparringVideo
     return data.map((item: any) => {
@@ -1260,7 +1237,7 @@ export async function getSavedSparringVideos(userId: string): Promise<SparringVi
             ...video,
             creator: creator ? {
                 ...creator,
-                profileImage: creator.profile_image_url || creator.avatar_url
+                profileImage: creator.profileImage
             } : undefined
         });
     });
@@ -1296,18 +1273,7 @@ export async function getPurchasedSparringVideos(userId: string): Promise<Sparri
 
         // Extract creator IDs for manual fetch
         const creatorIds = Array.from(new Set(videos.map((v: any) => v.creator_id).filter(Boolean)));
-        let userMap: Record<string, any> = {};
-
-        if (creatorIds.length > 0) {
-            const { data: users } = await supabase
-                .from('users')
-                .select('id, name, avatar_url, profile_image_url')
-                .in('id', creatorIds);
-
-            if (users) {
-                users.forEach(u => userMap[u.id] = u);
-            }
-        }
+        const userMap = await fetchCreatorsByIds(creatorIds as string[]);
 
         return videos.map((v: any) => {
             const creator = userMap[v.creator_id];
@@ -1316,7 +1282,7 @@ export async function getPurchasedSparringVideos(userId: string): Promise<Sparri
                     ...v,
                     creator: creator ? {
                         ...creator,
-                        profileImage: creator.profile_image_url || creator.avatar_url
+                        profileImage: creator.profileImage
                     } : undefined
                 })
             };
@@ -1668,6 +1634,9 @@ export async function getRecentActivity(userId: string) {
         console.error("Error fetching recent activity:", lessonError);
     }
 
+    const creatorIds = Array.from(new Set((lessonData || []).map((item: any) => item.lesson?.course?.creator_id || item.lesson?.creator_id).filter(Boolean)));
+    const userMap = await fetchCreatorsByIds(creatorIds as string[]);
+
     const lessonItems = (lessonData || []).map((item: any) => {
         const l = item.lesson;
         // Skip if lesson data is missing
@@ -1684,28 +1653,26 @@ export async function getRecentActivity(userId: string) {
             progress = Math.min(Math.round((watchedSec / totalSec) * 100), 99);
         }
 
-        // Determine creator info (prioritize course creator, then lesson creator if needed)
-        // But lesson structure usually has course.creator.
-        // If course is null, we might need lesson.creator if we fetched it, but currently query fetches course->creator.
-        // Let's assume standalone lessons might be supported now.
+        const relevantCreatorId = l.course?.creator_id || l.creator_id;
+        const creatorProfile = userMap[relevantCreatorId];
 
         return {
             id: l.id,
             courseId: l.course?.id,
-            creatorId: l.course?.creator?.id || l.creator_id,
+            creatorId: relevantCreatorId,
             type: 'lesson',
             title: l.title,
-            courseTitle: l.course?.title || l.title, // Fallback to lesson title if no course
+            courseTitle: l.course?.title || l.title,
             progress,
             watchedSeconds: watchedSec,
             thumbnail: l.thumbnail_url || l.course?.thumbnail_url,
             lastWatched: new Date(item.last_watched_at || item.created_at).toISOString(),
             lessonNumber: l.lesson_number,
             durationMinutes: durationMin,
-            creatorName: l.course?.creator?.name,
-            creatorProfileImage: l.course?.creator?.profile_image
+            creatorName: creatorProfile?.name || l.course?.creator?.name || 'Unknown',
+            creatorProfileImage: creatorProfile?.profileImage || l.course?.creator?.profile_image
         };
-    }).filter((item: any) => item && item.id); // Removed item.courseId requirement
+    }).filter((item: any) => item && item.id);
 
     return lessonItems;
 }
@@ -7968,46 +7935,65 @@ export async function fetchCreatorsByIds(creatorIds: string[]) {
     try {
         const uniqueIds = [...new Set(creatorIds)];
 
-        // 1. Fetch from users table (primary source for avatar and display name)
-        const { data: users } = await supabase
+        // 1. Fetch from users table 
+        const userPromise = supabase
             .from('users')
-            .select('id, name, avatar_url')
+            .select('id, name, avatar_url, profile_image_url')
             .in('id', uniqueIds);
 
-        // 2. Fetch from creators table (source for professional name and profile image)
-        const { data: creators } = await supabase
+        // 2. Fetch from creators table
+        const creatorPromise = supabase
             .from('creators')
             .select('id, name, profile_image')
             .in('id', uniqueIds);
 
-        const creatorsMap: Record<string, { name: string; avatarUrl: string | null }> = {};
+        const [userRes, creatorRes] = await Promise.all([userPromise, creatorPromise]);
 
-        // Initialize with default/unknown
+        const creatorsMap: Record<string, {
+            name: string;
+            avatarUrl: string | null;
+            profileImage: string | null;
+            id: string
+        }> = {};
+
+        // Initialize
         uniqueIds.forEach(id => {
-            creatorsMap[id] = { name: 'Unknown Creator', avatarUrl: null };
+            creatorsMap[id] = { id, name: 'Unknown Creator', avatarUrl: null, profileImage: null };
         });
 
         // Fill with user data
-        users?.forEach(u => {
+        userRes.data?.forEach(u => {
+            const prioritizedImage = u.profile_image_url || u.avatar_url;
             creatorsMap[u.id] = {
+                id: u.id,
                 name: u.name || creatorsMap[u.id].name,
-                avatarUrl: u.avatar_url
+                avatarUrl: u.avatar_url,
+                profileImage: prioritizedImage
             };
         });
 
-        // Override/fill with creator data (Creators table usually has specialized branding)
-        creators?.forEach(c => {
-            if (c.name) creatorsMap[c.id].name = c.name;
-
-            // Prioritize settings (users table) first, fall back to creator profile
-            if (!creatorsMap[c.id].avatarUrl && c.profile_image) {
-                creatorsMap[c.id].avatarUrl = c.profile_image;
+        // Override/fill with creator data (Priority)
+        creatorRes.data?.forEach(c => {
+            if (creatorsMap[c.id]) {
+                if (c.name) creatorsMap[c.id].name = c.name;
+                if (c.profile_image) {
+                    creatorsMap[c.id].profileImage = c.profile_image;
+                    // For backward compatibility if any code uses avatarUrl
+                    creatorsMap[c.id].avatarUrl = c.profile_image;
+                }
+            } else {
+                creatorsMap[c.id] = {
+                    id: c.id,
+                    name: c.name || 'Unknown Creator',
+                    avatarUrl: c.profile_image,
+                    profileImage: c.profile_image
+                };
             }
         });
 
         return creatorsMap;
     } catch (error) {
-        console.warn('Error fetching creators:', error);
+        console.error('Error fetching creators:', error);
         return {};
     }
 }
@@ -8113,18 +8099,7 @@ export async function getCourseSparringVideos(courseId: string) {
 
     // Extract creator IDs
     const creatorIds = Array.from(new Set(videos.map((v: any) => v.creator_id).filter(Boolean)));
-    let userMap: Record<string, any> = {};
-
-    if (creatorIds.length > 0) {
-        const { data: users } = await supabase
-            .from('users')
-            .select('id, name, avatar_url, profile_image_url')
-            .in('id', creatorIds);
-
-        if (users) {
-            users.forEach(u => userMap[u.id] = u);
-        }
-    }
+    const userMap = await fetchCreatorsByIds(creatorIds as string[]);
 
     return {
         data: videos.map((v: any) => {
@@ -8133,7 +8108,7 @@ export async function getCourseSparringVideos(courseId: string) {
                 ...v,
                 creator: creator ? {
                     ...creator,
-                    profileImage: creator.profile_image_url || creator.avatar_url
+                    profileImage: creator.profileImage
                 } : undefined
             });
         }).filter(Boolean),
@@ -8770,24 +8745,31 @@ export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
     // 4. Ensure diversity (max 2 per creator)
     const diverseRoutines = ensureDiversity(rankedRoutines, limit);
 
-    // 5. Transform and return
-    return diverseRoutines.map((r: any) => ({
-        id: r.id,
-        title: r.title,
-        description: r.description,
-        creatorId: r.creator_id,
-        creatorName: r.creator?.name || 'Unknown',
-        creatorProfileImage: r.creator?.profile_image,
-        difficulty: r.difficulty || 'Beginner',
-        thumbnailUrl: r.thumbnail_url,
-        price: r.price || 0,
-        durationMinutes: r.duration_minutes || 10,
-        category: r.category || 'General',
-        views: r.views || 0,
-        likes: r.likes || 0,
-        createdAt: r.created_at || new Date().toISOString(),
-        drills: []
-    }));
+    // 5. Fetch creators (unified logic)
+    const creatorIds = Array.from(new Set(diverseRoutines.map((r: any) => r.creator_id).filter(Boolean)));
+    const userMap = await fetchCreatorsByIds(creatorIds as string[]);
+
+    // 6. Transform and return
+    return diverseRoutines.map((r: any) => {
+        const creatorProfile = userMap[r.creator_id];
+        return {
+            id: r.id,
+            title: r.title,
+            description: r.description,
+            creatorId: r.creator_id,
+            creatorName: creatorProfile?.name || r.creator?.name || '알 수 없음',
+            creatorProfileImage: creatorProfile?.profileImage || r.creator?.profile_image,
+            difficulty: r.difficulty || 'Beginner',
+            thumbnailUrl: r.thumbnail_url,
+            price: r.price || 0,
+            durationMinutes: r.duration_minutes || 10,
+            category: r.category || 'General',
+            views: r.views || 0,
+            likes: r.likes || 0,
+            createdAt: r.created_at || new Date().toISOString(),
+            drills: []
+        };
+    });
 }
 
 export async function getNewCourses(limit = 6): Promise<Course[]> {
@@ -8806,10 +8788,20 @@ export async function getNewCourses(limit = 6): Promise<Course[]> {
         return [];
     }
 
-    return (data || []).map((c: any) => ({
-        ...transformCourse(c),
-        lessonCount: c.lessons?.[0]?.count || 0
-    }));
+    // Fetch creators (unified logic)
+    const creatorIds = Array.from(new Set((data || []).map((c: any) => c.creator_id).filter(Boolean)));
+    const userMap = await fetchCreatorsByIds(creatorIds as string[]);
+
+    return (data || []).map((c: any) => {
+        const creatorProfile = userMap[c.creator_id];
+        const transformed = transformCourse(c);
+        return {
+            ...transformed,
+            creatorName: creatorProfile?.name || transformed.creatorName,
+            creatorProfileImage: creatorProfile?.profileImage || transformed.creatorProfileImage,
+            lessonCount: c.lessons?.[0]?.count || 0
+        };
+    });
 }
 
 export async function getTrendingCourses(limit = 6): Promise<Course[]> {
@@ -8842,11 +8834,21 @@ export async function getTrendingCourses(limit = 6): Promise<Course[]> {
     // 4. Ensure diversity (max 2 per creator)
     const diverseCourses = ensureDiversity(ranked, limit);
 
-    // 5. Transform and return
-    return diverseCourses.map((c: any) => ({
-        ...transformCourse(c),
-        lessonCount: c.lessons?.[0]?.count || 0
-    }));
+    // 5. Fetch creators (unified logic)
+    const creatorIds = Array.from(new Set(diverseCourses.map((c: any) => c.creator_id).filter(Boolean)));
+    const userMap = await fetchCreatorsByIds(creatorIds as string[]);
+
+    // 6. Transform and return
+    return diverseCourses.map((c: any) => {
+        const creatorProfile = userMap[c.creator_id];
+        const transformed = transformCourse(c);
+        return {
+            ...transformed,
+            creatorName: creatorProfile?.name || transformed.creatorName,
+            creatorProfileImage: creatorProfile?.profileImage || transformed.creatorProfileImage,
+            lessonCount: c.lessons?.[0]?.count || 0
+        };
+    });
 }
 
 export async function getTrendingSparring(limit = 6): Promise<SparringVideo[]> {
@@ -8890,20 +8892,7 @@ export async function getTrendingSparring(limit = 6): Promise<SparringVideo[]> {
 
     // 7. Fetch creators separately
     const creatorIds = Array.from(new Set(fullData.map((v: any) => v.creator_id).filter(Boolean)));
-    let userMap: Record<string, any> = {};
-
-    if (creatorIds.length > 0) {
-        const { data: users } = await supabase
-            .from('users')
-            .select('id, name, avatar_url, profile_image_url')
-            .in('id', creatorIds);
-
-        if (users) {
-            users.forEach(u => {
-                userMap[u.id] = u;
-            });
-        }
-    }
+    const userMap = await fetchCreatorsByIds(creatorIds as string[]);
 
     // 8. Create map for quick lookup
     const fullDataMap = new Map(fullData.map((v: any) => [v.id, v]));
@@ -8929,8 +8918,8 @@ export async function getTrendingSparring(limit = 6): Promise<SparringVideo[]> {
             isPublished: full.is_published ?? true,
             creator: creator ? {
                 id: creator.id,
-                name: creator.name || 'Unknown',
-                profileImage: creator.profile_image_url || creator.avatar_url,
+                name: creator.name || '알 수 없음',
+                profileImage: creator.profileImage,
                 bio: '',
                 subscriberCount: 0
             } : undefined,
