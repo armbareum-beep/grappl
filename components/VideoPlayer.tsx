@@ -111,7 +111,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 badge: false,
                 muted: muted,
                 playsinline: true, // Support mobile autoplay
-                background: !showControls && autoplay, // Only use background mode if autoplay is intentional
+                background: !showControls && autoplay && muted, // Only use background mode if autoplay is intentional AND muted
                 dnt: true, // Prevent tracking and hide some personal buttons
                 // Custom params to try and hide the share/embed button
                 // Note: These often require a Plus/Pro account setting to fully take effect,
@@ -322,11 +322,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         }
 
         // Cleanup function for the effect
+        const currentContainer = containerRef.current; // Capture ref value for cleanup
+
         return () => {
-            // ... cleanup logic ...
-            if (containerRef.current) {
+            if (currentContainer) {
                 // Stop iframe src to kill buffering
-                const iframes = containerRef.current.querySelectorAll('iframe');
+                const iframes = currentContainer.querySelectorAll('iframe');
                 iframes.forEach(iframe => {
                     try {
                         iframe.src = 'about:blank';
@@ -334,7 +335,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     } catch (e) { /* ignore */ }
                 });
 
-                containerRef.current.innerHTML = '';
+                currentContainer.innerHTML = '';
             }
 
             if (player) {
@@ -390,7 +391,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             className={fillContainer ? 'relative w-full h-full' : 'relative w-full'}
             style={!fillContainer ? { aspectRatio: aspectRatio || 16 / 9 } : undefined}
             onClick={async (_e) => {
-                // ... existing click handler ...
+                // Ignore clicks if native controls are shown - let the iframe handle it
+                if (showControls) return;
+
                 if (clickTimeoutRef.current) {
                     clearTimeout(clickTimeoutRef.current);
                     clickTimeoutRef.current = null;
@@ -421,7 +424,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 ref={containerRef}
                 className={cn(
                     "absolute inset-0 w-full h-full",
-                    fillContainer && "[&>iframe]:w-full [&>iframe]:h-full [&>iframe]:object-cover"
+                    // Always force iframe to fill container
+                    "[&>iframe]:w-full [&>iframe]:h-full",
+                    fillContainer && "[&>iframe]:object-cover",
+                    // If controls are shown, ensure pointer events go to iframe
+                    showControls && "z-[1]"
                 )}
                 style={{
                     display: 'flex',
