@@ -158,7 +158,7 @@ export const CreatorDashboard: React.FC = () => {
                 }
             } else if (contentModalType === 'routine') {
                 if (editingContent) {
-                    await updateRoutine(editingContent.id, {
+                    const { error } = await updateRoutine(editingContent.id, {
                         title: data.title,
                         description: data.description,
                         category: data.category,
@@ -170,9 +170,14 @@ export const CreatorDashboard: React.FC = () => {
                         relatedItems: data.relatedItems,
                         creatorId: data.creatorId,
                     }, data.selectedDrillIds);
+
+                    if (error) {
+                        toastError('루틴 수정 중 오류가 발생했습니다: ' + (error.message || error));
+                        return; // Stop execution on error
+                    }
                     success('루틴이 수정되었습니다.');
                 } else {
-                    await createRoutine({
+                    const { error } = await createRoutine({
                         title: data.title,
                         description: data.description,
                         category: data.category,
@@ -185,6 +190,11 @@ export const CreatorDashboard: React.FC = () => {
                         creatorId: user.id,
                         creatorName: user.user_metadata?.name || 'Creator',
                     }, data.selectedDrillIds);
+
+                    if (error) {
+                        toastError('루틴 생성 중 오류가 발생했습니다: ' + (error.message || error));
+                        return; // Stop execution on error
+                    }
                     success('루틴이 생성되었습니다.');
                 }
                 // Refresh routines with timeout
