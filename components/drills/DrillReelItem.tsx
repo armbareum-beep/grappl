@@ -142,27 +142,34 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
         const videoEl = videoRef.current;
 
         // Play only if: Active Item AND Visible Type (Action/Desc) AND Ready AND Not Paused
-        // Preloading: If !isActive or !isVisible, we pause.
-        // Wait: The requirement is to preload neighbors. Neighbors should be loaded but PAUSED.
-        // Active item: Currently visible type -> PLAY. Hidden type -> PAUSE (background).
-
         const shouldPlay = isActive && isVisible && !isPaused;
 
-        if (useVimeo && player && ready) {
-            if (shouldPlay) {
-                player.play().catch(() => { });
-            } else {
-                player.pause().catch(() => { });
+        const syncPlayback = async () => {
+            if (useVimeo && player && ready) {
+                try {
+                    if (!shouldPlay) {
+                        await player.pause();
+                    } else {
+                        const isPlayerPaused = await player.getPaused();
+                        if (isPlayerPaused) {
+                            await player.play();
+                        }
+                    }
+                    await player.setVolume(isMuted ? 0 : 1);
+                } catch (e) {
+                    // console.warn('[DrillPlayer] Playback sync error:', e);
+                }
+            } else if (!useVimeo && videoEl) {
+                if (shouldPlay) {
+                    videoEl.play().catch(() => { });
+                } else {
+                    videoEl.pause();
+                }
+                videoEl.muted = isMuted;
             }
-            player.setVolume(isMuted ? 0 : 1).catch(() => { });
-        } else if (!useVimeo && videoEl) {
-            if (shouldPlay) {
-                videoEl.play().catch(() => { });
-            } else {
-                videoEl.pause();
-            }
-            videoEl.muted = isMuted;
-        }
+        };
+
+        syncPlayback();
     }, [isActive, isVisible, ready, useVimeo, isMuted, shouldLoad, isPaused]);
 
     // --- Render ---

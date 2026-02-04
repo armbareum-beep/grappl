@@ -39,6 +39,7 @@ import { AdminContentApproval } from './pages/admin/AdminContentApproval';
 import { AdminSystemLogs } from './pages/admin/AdminSystemLogs';
 import { AdminNotifications } from './pages/admin/AdminNotifications';
 import { AdminVimeoManagement } from './pages/admin/AdminVimeoManagement';
+import { AdminDurationSync } from './pages/admin/AdminDurationSync';
 
 import { AdminRoute } from './components/AdminRoute';
 import { CourseDetail } from './pages/CourseDetail';
@@ -421,6 +422,11 @@ const App: React.FC = () => {
                 <Route path="/admin/vimeo" element={
                   <AdminRoute>
                     <AdminVimeoManagement />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/vimeo-sync" element={
+                  <AdminRoute>
+                    <AdminDurationSync />
                   </AdminRoute>
                 } />
 

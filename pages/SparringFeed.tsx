@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getSparringVideos, getDailyFreeSparring, extractVimeoId } from '../lib/api';
 import { SparringVideo } from '../types';
-import { Heart, Share2, ChevronLeft, ChevronRight, Volume2, VolumeX, Bookmark, Search, PlayCircle, PlaySquare, ChevronDown, Lock, Zap, MoreHorizontal } from 'lucide-react';
+import { Heart, Share2, ChevronLeft, Volume2, VolumeX, Bookmark, Search, PlayCircle, ChevronDown, Lock, Zap, MoreHorizontal } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { ContentBadge } from '../components/common/ContentBadge';
 
@@ -254,7 +254,7 @@ const VideoItem: React.FC<{
 
     return (
         <div
-            className="absolute inset-0 w-full h-full bg-black flex items-start justify-center overflow-hidden pt-16 transition-transform duration-300 ease-out will-change-transform"
+            className="absolute inset-0 w-full h-full bg-black flex items-center justify-center overflow-hidden transition-transform duration-300 ease-out will-change-transform"
             style={{ transform: `translateY(${offset * 100}%)`, zIndex: isActive ? 10 : 0 }}
         >
             <div
@@ -268,104 +268,79 @@ const VideoItem: React.FC<{
             <div className="absolute inset-0 pointer-events-none z-40">
                 <div className="relative w-full h-full mx-auto max-w-[min(100vw,calc(100vh-140px))]">
                     {/* Top-Left Group: Back Button - Sticks to top left INSIDE container */}
-                    <div className="absolute top-8 left-4 z-[100] pointer-events-auto">
+                    <div className="absolute top-10 left-4 z-[100] pointer-events-auto">
                         <button
                             onClick={() => navigate(-1)}
-                            className="p-3 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-black/60 transition-all shadow-xl active:scale-95"
+                            className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-black/60 transition-all shadow-xl active:scale-95"
                         >
                             <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
                         </button>
                     </div>
 
                     {/* Top-Right Group: Speaker & Grid View - Sticks to top right INSIDE container */}
-                    <div className="absolute top-8 right-4 flex flex-col gap-4 z-50 pointer-events-auto items-center">
-                        <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-2xl">
+                    <div className="absolute top-10 right-4 flex flex-col gap-4 z-50 pointer-events-auto items-center">
+                        <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-2xl">
                             {muted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
                         </button>
 
                     </div>
 
-                    {/* Video Overlay Layer (Bottom parts) */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <div
-                            className="relative w-full transition-all duration-300 ease-out"
-                            style={{ aspectRatio: aspectRatio }}
-                        >
-                            {/* Middle-Right Group: Heart, Save, Share */}
-                            <div className="absolute top-1/2 -translate-y-1/2 right-4 flex flex-col gap-5 z-50 pointer-events-auto items-center">
-                                <div className="flex flex-col items-center gap-1">
-                                    <button onClick={(e) => { e.stopPropagation(); handleLike(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
-                                        <Heart className={`w-5 h-5 md:w-7 md:h-7 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
-                                    </button>
-                                    <span className="text-[11px] md:text-sm font-bold text-white drop-shadow-md">{localLikes.toLocaleString()}</span>
-                                </div>
-                                <button onClick={(e) => { e.stopPropagation(); handleSave(); }} className={cn("p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl", isSaved ? "text-violet-500" : "text-white")}>
-                                    <Bookmark className={cn("w-5 h-5 md:w-6 md:h-6", isSaved && "fill-violet-500")} />
-                                </button>
-                                <button onClick={(e) => { e.stopPropagation(); handleShare(); }} className="p-3 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
-                                    <Share2 className="w-5 h-5 md:w-6 md:h-6" />
-                                </button>
-                            </div>
+                    {/* Bottom-Right Actions */}
+                    <div className="absolute bottom-10 right-4 flex flex-col gap-5 z-[70] pointer-events-auto items-center">
+                        <div className="flex flex-col items-center gap-1">
+                            <button onClick={(e) => { e.stopPropagation(); handleLike(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
+                                <Heart className={`w-5 h-5 md:w-7 md:h-7 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
+                            </button>
+                            <span className="text-[11px] md:text-sm font-bold text-white drop-shadow-md">{localLikes.toLocaleString()}</span>
+                        </div>
+                        <button onClick={(e) => { e.stopPropagation(); handleSave(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
+                            <Bookmark className={cn("w-5 h-5 md:w-6 md:h-6", isSaved && "fill-white")} />
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); handleShare(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
+                            <Share2 className="w-5 h-5 md:w-6 md:h-6" />
+                        </button>
+                    </div>
 
-                            {/* Bottom Info: Attached to Video Bottom */}
-                            <div className="absolute -bottom-24 md:-bottom-28 left-0 right-0 w-full px-4 z-[60] text-white flex flex-col items-start gap-1 pointer-events-none">
-                                <div className="w-full pointer-events-auto pr-16">
-                                    {/* Learn This */}
-                                    {video.relatedItems && video.relatedItems.length > 0 && (
-                                        <div className="w-full pointer-events-auto mb-4">
-                                            <div className="flex flex-row gap-3 overflow-x-auto flex-nowrap pb-2 no-scrollbar snap-x">
-                                                {video.relatedItems.map((item: any, idx) => {
-                                                    const isDrill = item.type === 'drill';
-                                                    const targetUrl = isDrill ? `/drills/${item.id}` : `/watch?tab=lesson&id=${item.id}`;
-
-                                                    return (
-                                                        <Link
-                                                            key={idx}
-                                                            to={targetUrl}
-                                                            className="snap-start group flex-shrink-0 w-64 md:w-72 flex gap-3 p-3 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 hover:bg-black/80 hover:border-white/20 transition-all cursor-pointer items-center active:scale-95"
-                                                        >
-                                                            <div className="w-20 aspect-video rounded-lg overflow-hidden bg-zinc-900 border border-white/10 group-hover:border-white/20 shrink-0 relative">
-                                                                {item.thumbnailUrl ? (
-                                                                    <img src={item.thumbnailUrl} className="w-full h-full object-cover" alt="" />
-                                                                ) : (
-                                                                    <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-zinc-700">
-                                                                        <PlaySquare className="w-6 h-6" />
-                                                                    </div>
-                                                                )}
-                                                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center transition-all">
-                                                                    <PlaySquare className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all" />
-                                                                </div>
-                                                            </div>
-                                                            <div className="flex-1 min-w-0">
-                                                                <h4 className="text-sm font-bold text-white line-clamp-2 drop-shadow-sm">{item.title}</h4>
-                                                                <div className="flex items-center gap-2 mt-1.5">
-                                                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${isDrill ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-violet-500/20 text-violet-400 border border-violet-500/30'}`}>
-                                                                        {isDrill ? 'DRILL' : 'LESSON'}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                            <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-white/70 transition-colors shrink-0" />
-                                                        </Link>
-                                                    );
-                                                })}
-                                            </div>
+                    {/* Bottom Info */}
+                    <div className="absolute bottom-10 left-0 right-0 w-full px-6 z-[60] text-white pointer-events-none">
+                        <div className="w-full max-w-[min(100vw,calc(100vh-140px))] mx-auto flex flex-col items-start gap-2 md:gap-4">
+                            {/* Creator Info & Title */}
+                            <div className="w-full pointer-events-auto pr-20 bg-gradient-to-t from-black/20 to-transparent p-3 md:p-0 rounded-2xl backdrop-blur-sm md:backdrop-blur-none">
+                                {/* Category Tag */}
+                                {(video as any).category && (
+                                    <div className="flex items-center gap-3">
+                                        <div className={`inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border mb-2 ${(video as any).category === 'Competition'
+                                            ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                                            : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                                            }`}>
+                                            {(video as any).category === 'Competition' ? 'COMPETITION' : 'SPARRING'}
                                         </div>
-                                    )}
-
-                                    {video.creator && (
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-white font-bold text-sm drop-shadow-sm">{video.creator.name}</span>
-                                            <span className="text-white/60 text-xs mt-0.5">•</span>
-                                            <button onClick={(e) => { e.stopPropagation(); handleFollow(); }} className={`px-4 py-1.5 rounded-full text-[11px] font-bold border transition-all active:scale-95 ${isFollowed ? 'bg-violet-600 text-white border-violet-600' : 'bg-transparent text-violet-400 border-violet-500 hover:bg-violet-600 hover:text-white'}`}>
-                                                {isFollowed ? 'Following' : 'Follow'}
-                                            </button>
-                                        </div>
-                                    )}
-                                    <div className="mb-4">
-                                        <h3 className="font-black text-2xl leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] line-clamp-2 md:text-3xl">{video.title}</h3>
                                     </div>
-                                    <p className="text-sm text-white/90 line-clamp-1 drop-shadow-sm md:text-base" onClick={(e) => e.stopPropagation()}>{video.description}</p>
+                                )}
+
+                                {video.creator && (
+                                    <div className="flex items-center gap-3 mb-2 md:mb-3">
+                                        <Link to={`/creator/${video.creator.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                                            <div className="relative">
+                                                <img src={(video.creator as any).avatar_url || (video.creator as any).image || (video.creator as any).profileImage || `https://ui-avatars.com/api/?name=${video.creator.name}`} className="w-7 md:w-8 h-7 md:h-8 rounded-full border border-white/20 object-cover" />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-white font-bold text-xs md:text-sm drop-shadow-sm">{video.creator.name}</span>
+                                            </div>
+                                        </Link>
+                                        <span className="text-white/60 text-xs">•</span>
+                                        <button onClick={(e) => { e.stopPropagation(); handleFollow(); }} className={`px-3 md:px-4 py-1 md:py-1.5 rounded-full text-[10px] md:text-[11px] font-bold border transition-all active:scale-95 ${isFollowed ? 'bg-violet-600 text-white border-violet-600' : 'bg-transparent text-violet-400 border-violet-500 hover:bg-violet-600 hover:text-white'}`}>
+                                            {isFollowed ? 'Following' : 'Follow'}
+                                        </button>
+                                    </div>
+                                )}
+
+                                <div className="mb-1 md:mb-2">
+                                    <h3 className="font-black text-lg md:text-xl lg:text-3xl leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] line-clamp-2">{video.title}</h3>
                                 </div>
+                                {video.description && (
+                                    <p className="text-xs md:text-base text-white/70 line-clamp-2 max-w-xl font-medium drop-shadow-md">{video.description}</p>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -799,7 +774,7 @@ export const SparringFeed: React.FC<{
     if (viewMode === 'reels') {
         return (
             <div
-                className="fixed inset-0 bg-black z-50 md:pl-28 overflow-hidden touch-none"
+                className="fixed inset-0 bg-black z-[100001] md:pl-28 overflow-hidden touch-none"
                 onTouchStart={(e) => setReelTouchStart({ y: e.targetTouches[0].clientY })}
                 onTouchEnd={(e) => {
                     if (!reelTouchStart) return;

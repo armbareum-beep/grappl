@@ -10,7 +10,9 @@
       "Bash(npx tsc:*)",
       "Bash(curl:*)",
       "Bash(npx supabase db execute:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(ls:*)",
+      "Bash(npx vite:*)"
     ]
   }
 }

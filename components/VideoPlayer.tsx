@@ -334,13 +334,42 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         };
     }, [vimeoId]);
 
-    // ... (polling effect) ...
+    // Control playback based on `playing` prop
+    useEffect(() => {
+        if (!playerRef.current) return;
 
-    // ... (playback sync effect) ...
+        const syncPlayback = async () => {
+            try {
+                if (!playing) {
+                    // Always force pause if playing is false.
+                    // We do NOT check getPaused() here because of race conditions:
+                    // if a 'play' operation is pending, getPaused() might still return true,
+                    // causing us to skip the pause command, resulting in "echoing".
+                    await playerRef.current!.pause();
+                } else {
+                    // When playing, we check status to avoid unnecessary play calls (which might throw)
+                    const isPaused = await playerRef.current!.getPaused();
+                    if (isPaused) {
+                        await playerRef.current!.play();
+                    }
+                }
+            } catch (err) {
+                // Ignore playback errors (e.g., when video is not ready)
+                console.warn('[VideoPlayer] Playback sync error:', err);
+            }
+        };
 
-    // ... (muted effect) ...
+        syncPlayback();
+    }, [playing]);
 
-    // ... (force square effect) ...
+    // Sync muted state
+    useEffect(() => {
+        if (!playerRef.current) return;
+
+        playerRef.current.setMuted(muted).catch(err => {
+            console.warn('[VideoPlayer] Failed to set muted state:', err);
+        });
+    }, [muted]);
 
 
     return (

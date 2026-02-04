@@ -220,10 +220,10 @@ export const Home: React.FC = () => {
                                         const drill = slide.data;
                                         return (
                                             <div key={`slide-drill-${idx}`} className="relative flex-[0_0_100%] min-w-0 h-full">
-                                                <div className="relative w-full h-full">
+                                                <div className="relative w-full h-full overflow-hidden">
                                                     {/* Full-bleed Background Thumbnail */}
                                                     {drill.thumbnailUrl ? (
-                                                        <img src={drill.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover" alt={drill.title} />
+                                                        <img src={drill.thumbnailUrl} className="absolute object-cover object-center" style={{ width: '145%', height: '145%', maxWidth: 'none', left: '-22.5%', top: '-22.5%' }} alt={drill.title} />
                                                     ) : (
                                                         <div className="absolute inset-0 bg-zinc-900" />
                                                     )}
@@ -250,7 +250,7 @@ export const Home: React.FC = () => {
                                                             </div>
                                                         </div>
 
-                                                        <button onClick={() => navigate(`/drills/${drill.id}`)} className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
+                                                        <button onClick={() => navigate(`/watch?tab=drill&id=${drill.id}`)} className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
                                                             <Play className="w-6 h-6 fill-current" /> 훈련 시작 <span className="opacity-0 group-hover/btn:opacity-100 -translate-x-2 group-hover/btn:translate-x-0 transition-all">🥋</span>
                                                         </button>
                                                     </div>
@@ -292,7 +292,7 @@ export const Home: React.FC = () => {
                                                             </div>
                                                         </div>
 
-                                                        <button onClick={() => navigate(`/lessons/${lesson.id}`)} className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
+                                                        <button onClick={() => navigate(`/watch?tab=lesson&id=${lesson.id}`)} className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
                                                             <Play className="w-6 h-6 fill-current" /> 레슨 보기 <span className="opacity-0 group-hover/btn:opacity-100 -translate-x-2 group-hover/btn:translate-x-0 transition-all">🥋</span>
                                                         </button>
                                                     </div>
@@ -338,7 +338,7 @@ export const Home: React.FC = () => {
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 if (sparring.id && sparring.id !== 'undefined') {
-                                                                    navigate(`/sparring/${sparring.id}`);
+                                                                    navigate(`/watch?tab=sparring&id=${sparring.id}`);
                                                                 }
                                                             }}
                                                             className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">

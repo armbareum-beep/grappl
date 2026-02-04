@@ -161,7 +161,7 @@ export const FreeDrillShowcase: React.FC = () => {
                                 <img
                                     src={drill.thumbnail_url}
                                     alt={drill.title}
-                                    className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 ${isHovered ? 'opacity-0' : 'grayscale opacity-90 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-105'
+                                    className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 ${isHovered ? 'opacity-0' : 'grayscale opacity-90 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-145'
                                         }`}
                                     loading="lazy"
                                 />

@@ -49,8 +49,8 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
     const [savedDrills, setSavedDrills] = useState<Set<string>>(new Set());
     const [followingCreators, setFollowingCreators] = useState<Set<string>>(new Set());
 
-    // Mute state shared
-    const [isMuted, setIsMuted] = useState(false);
+    // Mute state shared - default to muted to prevent audio overlap
+    const [isMuted, setIsMuted] = useState(true);
     const containerRef = useRef<HTMLDivElement>(null);
 
     // Track which items have their video ready (for blocking swipe to unloaded items)
@@ -245,7 +245,7 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                             key={`drill-${item.data.id}`}
                             drill={item.data}
                             isActive={isActive}
-                            isMuted={isMuted}
+                            isMuted={!isActive || isMuted}
                             onToggleMute={() => setIsMuted(!isMuted)}
                             isLiked={likedDrills.has(item.data.id)}
                             onLike={() => handleDrillLike(item.data)}
@@ -273,7 +273,7 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                             isDailyFreeSparring={dailyFreeSparringId === item.data.id}
                             isSubscriber={userPermissions.isSubscriber}
                             purchasedItemIds={userPermissions.purchasedItemIds}
-                            isMuted={isMuted}
+                            isMuted={!isActive || isMuted}
                             onToggleMute={() => setIsMuted(!isMuted)}
                             onVideoReady={() => markReady(index)}
                         />
@@ -289,7 +289,7 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                             purchasedItemIds={userPermissions.purchasedItemIds}
                             isLoggedIn={isLoggedIn}
                             isDailyFreeLesson={dailyFreeLessonId === item.data.id}
-                            isMuted={isMuted}
+                            isMuted={!isActive || isMuted}
                             onToggleMute={() => setIsMuted(!isMuted)}
                             onVideoReady={() => markReady(index)}
                         />

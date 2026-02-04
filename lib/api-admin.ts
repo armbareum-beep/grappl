@@ -914,3 +914,52 @@ export async function deleteVimeoVideo(videoId: string): Promise<{ success: bool
     return response.json();
 }
 
+
+// ==================== Vimeo Duration Sync ====================
+
+export interface DurationSyncItem {
+    id: string;
+    title: string;
+    vimeo_url?: string;
+    video_url?: string;
+    length: string | null;
+    duration_minutes: number | null;
+    thumbnail_url: string | null;
+}
+
+export interface DurationScanResult {
+    lessons: DurationSyncItem[];
+    drills: DurationSyncItem[];
+    sparring: DurationSyncItem[];
+}
+
+export async function scanMissingDurations(): Promise<DurationScanResult> {
+    const response = await fetch('/api/sync-vimeo-durations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'scan' })
+    });
+    if (!response.ok) throw new Error('Failed to scan durations');
+    return response.json();
+}
+
+export interface SyncResultItem {
+    id: string;
+    status: 'success' | 'failed' | 'skipped';
+    updates?: Record<string, any>;
+    error?: string;
+}
+
+export async function syncDurations(
+    table: 'lessons' | 'drills' | 'sparring_videos',
+    items: { id: string; vimeoUrl: string }[]
+): Promise<{ results: SyncResultItem[] }> {
+    const response = await fetch('/api/sync-vimeo-durations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sync', table, items })
+    });
+    if (!response.ok) throw new Error('Failed to sync durations');
+    return response.json();
+}
+

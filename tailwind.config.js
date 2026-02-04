@@ -59,6 +59,9 @@ export default {
       fontFamily: {
         sans: ["Inter", "sans-serif"],
       },
+      scale: {
+        '145': '1.45',
+      },
       keyframes: {
         "accordion-down": {
           from: { height: 0 },

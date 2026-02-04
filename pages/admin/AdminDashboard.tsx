@@ -4,7 +4,7 @@ import {
     Star, BookOpen, Users, Home, Package, DollarSign,
     Dumbbell, Activity, Shield, AlertTriangle, MessageSquare,
     Video, Swords, Bell, Download, TrendingUp,
-    ArrowRight, Map
+    ArrowRight, Map, RefreshCw
 } from 'lucide-react';
 import {
     getAdminStats, AdminStats, getAdminChartData,
@@ -174,6 +174,13 @@ export const AdminDashboard: React.FC = () => {
                     icon: Video,
                     bg: "bg-rose-400/10",
                     link: "/admin/vimeo"
+                },
+                {
+                    title: "영상 동기화",
+                    desc: "영상 길이 및 썸네일 일괄 동기화",
+                    icon: RefreshCw,
+                    bg: "bg-cyan-400/10",
+                    link: "/admin/vimeo-sync"
                 }
 
             ]

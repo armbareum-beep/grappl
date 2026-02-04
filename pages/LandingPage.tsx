@@ -366,7 +366,7 @@ export const LandingPage: React.FC = () => {
                                                                         <span className="text-zinc-400">{drill.category || 'Fundamentals'}</span>
                                                                     </div>
                                                                 </div>
-                                                                <button onClick={() => navigate(`/login?redirect=/drills/${drill.id}`)} className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
+                                                                <button onClick={() => navigate(`/watch?tab=drill&id=${drill.id}`)} className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
                                                                     <Play className="w-6 h-6 fill-current" /> 훈련 시작 <span className="opacity-0 group-hover/btn:opacity-100 -translate-x-2 group-hover/btn:translate-x-0 transition-all">🥋</span>
                                                                 </button>
                                                             </div>
@@ -408,7 +408,7 @@ export const LandingPage: React.FC = () => {
                                                                         <span className="text-zinc-400">{lesson.courseTitle || 'Exclusive Course'}</span>
                                                                     </div>
                                                                 </div>
-                                                                <button onClick={() => navigate(`/login?redirect=/lessons/${lesson.id}`)} className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
+                                                                <button onClick={() => navigate(`/watch?tab=lesson&id=${lesson.id}`)} className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
                                                                     <Play className="w-6 h-6 fill-current" /> 레슨 보기 <span className="opacity-0 group-hover/btn:opacity-100 -translate-x-2 group-hover/btn:translate-x-0 transition-all">🥋</span>
                                                                 </button>
                                                             </div>
@@ -450,7 +450,7 @@ export const LandingPage: React.FC = () => {
                                                                         <span className="text-zinc-400">{sparring.category || 'Sparring Session'}</span>
                                                                     </div>
                                                                 </div>
-                                                                <button onClick={() => navigate(`/login?redirect=/sparring/${sparring.id}`)} className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
+                                                                <button onClick={() => navigate(`/watch?tab=sparring&id=${sparring.id}`)} className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
                                                                     <Play className="w-6 h-6 fill-current" /> 스파링 보기 <span className="opacity-0 group-hover/btn:opacity-100 -translate-x-2 group-hover/btn:translate-x-0 transition-all">🥋</span>
                                                                 </button>
                                                             </div>

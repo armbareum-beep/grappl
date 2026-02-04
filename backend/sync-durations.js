@@ -57,9 +57,21 @@ async function getVimeoVideoInfo(videoIdOrUrl) {
 
             if (response.ok) {
                 const data = await response.json();
+
+                // Find highest resolution thumbnail
+                let thumbnail = data.pictures?.base_link;
+                if (data.pictures && data.pictures.sizes && Array.isArray(data.pictures.sizes)) {
+                    // Sort by width descending
+                    const sortedSizes = data.pictures.sizes.sort((a, b) => b.width - a.width);
+                    if (sortedSizes.length > 0) {
+                        thumbnail = sortedSizes[0].link;
+                        // Prefer one that is at least 1280 wide if possible, but taking max is fine.
+                    }
+                }
+
                 return {
                     duration: data.duration,
-                    thumbnail: data.pictures?.base_link,
+                    thumbnail: thumbnail,
                     title: data.name
                 };
             } else if (response.status !== 404 && response.status !== 401) {
@@ -79,10 +91,10 @@ async function syncTable(tableName, urlField, columns) {
     // Filter columns to only include those that are requested
     const selectCols = ['id', 'title', urlField, ...columns].join(',');
 
-    // Build query to find 0:00 durations
+    // Build query
     let query = supabase.from(tableName).select(selectCols);
 
-    // We'll fetch all and filter in JS to avoid complex OR logic with potentially missing columns
+    // We fetch all to be safe and filter in JS
     const { data: items, error } = await query;
 
     if (error) {
@@ -90,14 +102,25 @@ async function syncTable(tableName, urlField, columns) {
         return;
     }
 
+    // Filter for items that need update:
+    // 1. Missing duration (0:00)
+    // 2. OR Missing thumbnail (if we are syncing thumbnails)
+    // 3. OR Low res thumbnail -> optional, we'll just update if we find a better one?
+    // Let's update IF duration is missing OR thumbnail is missing/placeholder.
     const filtered = items.filter(item => {
         const val = item[urlField];
         if (!val || val === 'error' || val.toString().startsWith('ERROR')) return false;
 
         const hasNoDuration =
-            (columns.includes('length') && (!item.length || item.length === '0:00')) ||
+            (columns.includes('length') && (!item.length || item.length === '0:00' || item.length === '00:00')) ||
             (columns.includes('duration_minutes') && (!item.duration_minutes || item.duration_minutes === 0));
-        return hasNoDuration;
+
+        const hasNoThumbnail = columns.includes('thumbnail_url') && (!item.thumbnail_url || item.thumbnail_url.includes('placeholder'));
+
+        // If title contains "List Lock" (리스트 락), force update
+        if (item.title && (item.title.includes('리스트 락') || item.title.includes('List Lock'))) return true;
+
+        return hasNoDuration || hasNoThumbnail;
     });
 
     console.log(`Found ${filtered.length} items to update in ${tableName}.`);
@@ -107,23 +130,36 @@ async function syncTable(tableName, urlField, columns) {
         console.log(`Updating [${item.id}] ${item.title} (${vimeoIdOrUrl})...`);
 
         const info = await getVimeoVideoInfo(vimeoIdOrUrl);
-        if (info && info.duration > 0) {
+        if (info) {
             const updates = {};
-            if (columns.includes('length')) updates.length = formatDuration(info.duration);
-            if (columns.includes('duration_minutes')) updates.duration_minutes = Math.floor(info.duration / 60);
 
-            const { error: updateError } = await supabase
-                .from(tableName)
-                .update(updates)
-                .eq('id', item.id);
+            // Only update duration if valid
+            if (info.duration > 0) {
+                if (columns.includes('length')) updates.length = formatDuration(info.duration);
+                if (columns.includes('duration_minutes')) updates.duration_minutes = Math.floor(info.duration / 60);
+            }
 
-            if (updateError) {
-                console.error(`Failed to update ${item.id}:`, updateError);
+            // Always update thumbnail if we found a better one
+            if (columns.includes('thumbnail_url') && info.thumbnail) {
+                updates.thumbnail_url = info.thumbnail;
+            }
+
+            if (Object.keys(updates).length > 0) {
+                const { error: updateError } = await supabase
+                    .from(tableName)
+                    .update(updates)
+                    .eq('id', item.id);
+
+                if (updateError) {
+                    console.error(`  Failed to update ${item.id}:`, updateError);
+                } else {
+                    console.log(`  ✅ Updated: ${JSON.stringify(updates)}`);
+                }
             } else {
-                console.log(`Successfully updated: ${JSON.stringify(updates)}`);
+                console.log(`  No updates needed.`);
             }
         } else {
-            console.warn(`Could not fetch valid duration for ${vimeoIdOrUrl}`);
+            console.warn(`  Could not fetch valid info for ${vimeoIdOrUrl}`);
         }
 
         await new Promise(r => setTimeout(r, 200));
@@ -131,9 +167,10 @@ async function syncTable(tableName, urlField, columns) {
 }
 
 async function run() {
-    await syncTable('lessons', 'vimeo_url', ['length', 'duration_minutes']);
-    await syncTable('drills', 'vimeo_url', ['length', 'duration_minutes']);
-    await syncTable('sparring_videos', 'video_url', ['length', 'duration_minutes']);
+    // Added 'thumbnail_url' to all tables
+    await syncTable('lessons', 'vimeo_url', ['length', 'duration_minutes', 'thumbnail_url']);
+    await syncTable('drills', 'vimeo_url', ['length', 'duration_minutes', 'thumbnail_url']);
+    await syncTable('sparring_videos', 'video_url', ['length', 'duration_minutes', 'thumbnail_url']);
     console.log('\nAll sync tasks completed.');
 }
 
