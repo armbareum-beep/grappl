@@ -5865,33 +5865,20 @@ export async function getDailyFreeDrill() {
 
         if (!selectedDrill) return { data: null, error: null };
 
-        // 3. Fetch creator info (Prioritize creators table, fallback to users)
+        // 3. Fetch creator info (Users table only)
         let creatorName = 'Grapplay Team';
         let creatorProfileImage = undefined;
 
         if (selectedDrill.creator_id) {
-            // Try fetching from creators table first (Instructor Profile)
-            const { data: creatorData } = await supabase
-                .from('creators')
-                .select('name, profile_image')
+            const { data: userData } = await supabase
+                .from('users')
+                .select('name, avatar_url, profile_image_url')
                 .eq('id', selectedDrill.creator_id)
                 .maybeSingle();
 
-            if (creatorData) {
-                creatorName = creatorData.name || creatorName;
-                creatorProfileImage = creatorData.profile_image || undefined;
-            } else {
-                // Fallback to users table (Auth Profile)
-                const { data: userData } = await supabase
-                    .from('users')
-                    .select('name, avatar_url')
-                    .eq('id', selectedDrill.creator_id)
-                    .maybeSingle();
-
-                if (userData) {
-                    creatorName = userData.name || creatorName;
-                    creatorProfileImage = userData.avatar_url || undefined;
-                }
+            if (userData) {
+                creatorName = userData.name || creatorName;
+                creatorProfileImage = userData.profile_image_url || userData.avatar_url || undefined;
             }
         }
 
@@ -5977,26 +5964,15 @@ export async function getDailyFreeLesson() {
         const creatorId = selectedLesson.courses?.creator_id || selectedLesson.creator_id;
 
         if (creatorId) {
-            const { data: creatorData } = await supabase
-                .from('creators')
-                .select('name, profile_image')
+            const { data: userData } = await supabase
+                .from('users')
+                .select('name, avatar_url, profile_image_url')
                 .eq('id', creatorId)
                 .maybeSingle();
 
-            if (creatorData) {
-                creatorName = creatorData.name || creatorName;
-                creatorProfileImage = creatorData.profile_image || undefined;
-            } else {
-                const { data: userData } = await supabase
-                    .from('users')
-                    .select('name, avatar_url')
-                    .eq('id', creatorId)
-                    .maybeSingle();
-
-                if (userData) {
-                    creatorName = userData.name || creatorName;
-                    creatorProfileImage = userData.avatar_url || undefined;
-                }
+            if (userData) {
+                creatorName = userData.name || creatorName;
+                creatorProfileImage = userData.profile_image_url || userData.avatar_url || undefined;
             }
         }
 
@@ -8676,18 +8652,37 @@ export async function getUserSubscription(userId: string) {
     return data;
 }
 
+// Helper to batch fetch creators
+async function fetchCreatorsBatch(creatorIds: string[]) {
+    if (!creatorIds.length) return {};
+    const { data } = await supabase
+        .from('users')
+        .select('id, name, avatar_url, profile_image_url')
+        .in('id', creatorIds);
+
+    const map: Record<string, any> = {};
+    if (data) {
+        data.forEach(u => map[u.id] = u);
+    }
+    return map;
+}
+
 export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
     // 1. Fetch a larger pool of routines (e.g., last 50) to rank from
     const { data, error } = await withTimeout(
         supabase
             .from('routines')
-            .select('*, creator:creators(name, profile_image)')
+            .select('*')
             .limit(50) // Candidate pool size
             .order('created_at', { ascending: false }),
         5000
     );
 
     if (error) return [];
+
+    // Fetch creators manually
+    const creatorIds = Array.from(new Set((data || []).map((r: any) => r.creator_id).filter(Boolean)));
+    const userMap = await fetchCreatorsBatch(creatorIds as string[]);
 
     // 2. Calculate Score for each routine
     let rankedRoutines = (data || []).map((r: any) => {
@@ -8713,30 +8708,33 @@ export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
     rankedRoutines.sort((a: any, b: any) => b._score - a._score);
 
     // 4. Return top 'limit' items
-    return rankedRoutines.slice(0, limit).map((r: any) => ({
-        id: r.id,
-        title: r.title,
-        description: r.description,
-        creatorId: r.creator_id,
-        creatorName: r.creator?.name || 'Unknown',
-        creatorProfileImage: r.creator?.profile_image,
-        difficulty: r.difficulty || 'Beginner',
-        thumbnailUrl: r.thumbnail_url,
-        price: r.price || 0,
-        durationMinutes: r.duration_minutes || 10,
-        category: r.category || 'General',
-        views: r.views || 0,
-        likes: r.likes || 0,
-        createdAt: r.created_at || new Date().toISOString(),
-        drills: []
-    }));
+    return rankedRoutines.slice(0, limit).map((r: any) => {
+        const creator = userMap[r.creator_id];
+        return {
+            id: r.id,
+            title: r.title,
+            description: r.description,
+            creatorId: r.creator_id,
+            creatorName: creator?.name || 'Unknown',
+            creatorProfileImage: creator?.profile_image_url || creator?.avatar_url,
+            difficulty: r.difficulty || 'Beginner',
+            thumbnailUrl: r.thumbnail_url,
+            price: r.price || 0,
+            durationMinutes: r.duration_minutes || 10,
+            category: r.category || 'General',
+            views: r.views || 0,
+            likes: r.likes || 0,
+            createdAt: r.created_at || new Date().toISOString(),
+            drills: []
+        };
+    });
 }
 
 export async function getNewCourses(limit = 6): Promise<Course[]> {
     const { data, error } = await withTimeout(
         supabase
             .from('courses')
-            .select('*, creator:creators(name, profile_image), lessons(count)')
+            .select('*, lessons(count)')
             .eq('published', true)
             .order('created_at', { ascending: false })
             .limit(limit),
@@ -8748,10 +8746,23 @@ export async function getNewCourses(limit = 6): Promise<Course[]> {
         return [];
     }
 
-    return (data || []).map((c: any) => ({
-        ...transformCourse(c),
-        lessonCount: c.lessons?.[0]?.count || 0
-    }));
+    // Fetch creators manually
+    const creatorIds = Array.from(new Set((data || []).map((c: any) => c.creator_id).filter(Boolean)));
+    const userMap = await fetchCreatorsBatch(creatorIds as string[]);
+
+    return (data || []).map((c: any) => {
+        const creator = userMap[c.creator_id];
+        // Inject creator info into the transform if possible, or handle it after
+        // transformCourse expects creator object structure if we pass it, but usually standard transform uses 'creators' join structure
+        // Let's modify transformCourse or manual override
+        const transformed = transformCourse(c);
+        return {
+            ...transformed,
+            creatorName: creator?.name || transformed.creatorName,
+            creatorProfileImage: creator?.profile_image_url || creator?.avatar_url || transformed.creatorProfileImage,
+            lessonCount: c.lessons?.[0]?.count || 0
+        };
+    });
 }
 
 export async function getTrendingCourses(limit = 6): Promise<Course[]> {
@@ -8759,7 +8770,7 @@ export async function getTrendingCourses(limit = 6): Promise<Course[]> {
     const { data, error } = await withTimeout(
         supabase
             .from('courses')
-            .select('*, creator:creators(name, profile_image), lessons(count)')
+            .select('*, lessons(count)')
             .eq('published', true)
             .limit(50)
             .order('created_at', { ascending: false }),
@@ -8770,6 +8781,10 @@ export async function getTrendingCourses(limit = 6): Promise<Course[]> {
         console.error('Error fetching trending courses:', error);
         return [];
     }
+
+    // Fetch creators manually
+    const creatorIds = Array.from(new Set((data || []).map((c: any) => c.creator_id).filter(Boolean)));
+    const userMap = await fetchCreatorsBatch(creatorIds as string[]);
 
     // 2. Score Calculation: Quality First
     // "Content is King" - Focus heavily on quality signals (if available) and consistent consumption
@@ -8790,10 +8805,16 @@ export async function getTrendingCourses(limit = 6): Promise<Course[]> {
     // 3. Sort & Slice
     ranked.sort((a: any, b: any) => b._score - a._score);
 
-    return ranked.slice(0, limit).map((c: any) => ({
-        ...transformCourse(c),
-        lessonCount: c.lessons?.[0]?.count || 0
-    }));
+    return ranked.slice(0, limit).map((c: any) => {
+        const creator = userMap[c.creator_id];
+        const transformed = transformCourse(c);
+        return {
+            ...transformed,
+            creatorName: creator?.name || transformed.creatorName,
+            creatorProfileImage: creator?.profile_image_url || creator?.avatar_url || transformed.creatorProfileImage,
+            lessonCount: c.lessons?.[0]?.count || 0
+        };
+    });
 }
 
 export async function getTrendingSparring(limit = 6): Promise<SparringVideo[]> {
