@@ -451,6 +451,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 ref={containerRef}
                 className={cn(
                     "absolute inset-0",
+                    // Always force iframe to fill its own container
+                    "[&>iframe]:w-full [&>iframe]:h-full",
+                    // If fillContainer is true, make video cover the area
+                    fillContainer && "[&>iframe]:object-cover",
                     // If controls are shown, ensure pointer events go to iframe
                     showControls && "z-[1]"
                 )}
