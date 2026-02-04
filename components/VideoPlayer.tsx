@@ -370,7 +370,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         const syncPlayback = async () => {
             try {
                 if (!playing) {
-                    if (playerRef.current) await playerRef.current.pause();
+                    if (playerRef.current) {
+                        try {
+                            await playerRef.current.pause();
+                        } catch (e) { /* ignore */ }
+                    }
                 } else {
                     // Try to play
                     try {

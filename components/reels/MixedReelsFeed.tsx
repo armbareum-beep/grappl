@@ -49,8 +49,8 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
     const [savedDrills, setSavedDrills] = useState<Set<string>>(new Set());
     const [followingCreators, setFollowingCreators] = useState<Set<string>>(new Set());
 
-    // Mute state shared - default to muted to prevent audio overlap
-    const [isMuted, setIsMuted] = useState(true);
+    // Mute state shared - default to false to attempt autoplay with sound
+    const [isMuted, setIsMuted] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
     // Track which items have their video ready (for blocking swipe to unloaded items)

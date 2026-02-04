@@ -48,6 +48,14 @@ export const CourseDetail: React.FC = () => {
 
     const [initialStartTime, setInitialStartTime] = useState<number>(0);
     const [_currentTime, setCurrentTime] = useState<number>(0);
+    const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+
+    // Responsive listener to prevent double-mounting VideoPlayer
+    useEffect(() => {
+        const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
 
     const lastTickRef = React.useRef<number>(0);
@@ -1148,7 +1156,7 @@ export const CourseDetail: React.FC = () => {
             <div className="pt-24 pb-20 px-4 lg:px-8 max-w-[1800px] mx-auto">
                 {/* Mobile Layout: Video -> Curriculum -> Instructor -> Payment -> Info */}
                 <div className="flex flex-col gap-6 lg:hidden">
-                    {renderVideoPlayer()}
+                    {!isDesktop && renderVideoPlayer()}
                     {renderCurriculum()}
                     {renderHeaderInfo()}
                     {renderAppDescription()}
@@ -1161,7 +1169,7 @@ export const CourseDetail: React.FC = () => {
                 <div className="hidden lg:flex flex-row gap-8 xl:gap-12">
                     {/* Left Column: Video Player & Main Info */}
                     <div className="flex-1 min-w-0">
-                        {renderVideoPlayer()}
+                        {isDesktop && renderVideoPlayer()}
                         {renderHeaderInfo()}
                         {renderAppDescription()}
                         {renderBonusContent()}
