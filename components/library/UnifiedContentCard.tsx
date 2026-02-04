@@ -58,7 +58,7 @@ const getItemLink = (item: UnifiedContentItem): string => {
         case 'routine':
             return `/routines/${item.id}`;
         case 'sparring':
-            return `/sparring?id=${item.id}`;
+            return `/sparring/${item.id}`;
         default:
             return '#';
     }

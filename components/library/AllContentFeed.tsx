@@ -230,7 +230,7 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
     }, [allItems, searchTerm]);
 
     const handleSparringClick = (item: UnifiedContentItem) => {
-        navigate(`/sparring?id=${item.id}`);
+        navigate(`/sparring/${item.id}`);
     };
 
     if (loading) {
