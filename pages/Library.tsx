@@ -45,7 +45,6 @@ export const Library: React.FC = () => {
                         isEmbedded={true}
                         activeTab={activeTab}
                         onTabChange={handleTabChange}
-                        forceViewMode="grid"
                     />
                 )}
             </div>

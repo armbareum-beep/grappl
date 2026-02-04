@@ -583,8 +583,10 @@ export const SparringFeed: React.FC<{
         });
     }, [activeIndex]);
 
-    const initialView = searchParams.get('view') === 'grid' ? 'grid' : 'reels';
-    const [viewMode, setViewMode] = useState<'reels' | 'grid'>(forceViewMode || (isEmbedded ? 'grid' : initialView));
+    const initialViewParam = searchParams.get('view');
+    const [viewMode, setViewMode] = useState<'reels' | 'grid'>(
+        forceViewMode || (initialViewParam === 'reels' ? 'reels' : initialViewParam === 'grid' ? 'grid' : (isEmbedded ? 'grid' : 'reels'))
+    );
 
     const [internalSearchTerm, setInternalSearchTerm] = useState('');
     const [internalCategory, setInternalCategory] = useState<string>('All');

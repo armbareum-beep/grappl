@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Search } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -55,7 +55,7 @@ function smartSort(items: UnifiedContentItem[]): UnifiedContentItem[] {
 
 export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTabChange }) => {
     const { user } = useAuth();
-    const navigate = useNavigate();
+    const [, setSearchParams] = useSearchParams();
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [allItems, setAllItems] = useState<UnifiedContentItem[]>([]);
@@ -230,7 +230,8 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
     }, [allItems, searchTerm]);
 
     const handleSparringClick = (item: UnifiedContentItem) => {
-        navigate(`/sparring/${item.id}`);
+        onTabChange('sparring');
+        setSearchParams({ tab: 'sparring', id: item.id, view: 'reels' });
     };
 
     if (loading) {
