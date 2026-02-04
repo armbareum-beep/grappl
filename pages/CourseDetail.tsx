@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
-import { getCourseById, getLessonsByCourse, getCreatorById, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, getCourseDrillBundles, getCourseSparringVideos, getRelatedCourses, toggleCourseLike, checkCourseLiked, getCourseLikeCount, incrementCourseViews, toggleCreatorFollow, checkCreatorFollowStatus, toggleCourseSave, checkCourseSaved, getDailyFreeLesson } from '../lib/api';
+import { getCourseById, getLessonsByCourse, getCreatorById, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, getCourseDrillBundles, getCourseSparringVideos, getRelatedCourses, toggleCourseLike, checkCourseLiked, getCourseLikeCount, incrementCourseViews, toggleCreatorFollow, checkCreatorFollowStatus, toggleCourseSave, checkCourseSaved } from '../lib/api';
 import { Course, Lesson, Creator, Drill, SparringVideo } from '../types';
 import { Button } from '../components/Button';
 import { VideoPlayer } from '../components/VideoPlayer';
@@ -224,6 +224,7 @@ export const CourseDetail: React.FC = () => {
                                 // Also check course Vimeo IDs
                                 if (!owns && courseData) {
                                     const courseVimeoIds = [
+                                        // @ts-ignore
                                         courseData.vimeoUrl,
                                         // @ts-ignore
                                         courseData.vimeo_url,
@@ -399,6 +400,7 @@ export const CourseDetail: React.FC = () => {
             // Check course Vimeo IDs
             if (course) {
                 const courseVimeoIds = [
+                    // @ts-ignore
                     course.vimeoUrl,
                     // @ts-ignore
                     course.vimeo_url,
@@ -1187,33 +1189,35 @@ export const CourseDetail: React.FC = () => {
 
 
                 {/* Recommended for You Section */}
-                {relatedCourses.length > 0 && (
-                    <div className="w-full mt-24">
-                        <h3 className="text-xl font-bold text-white mb-6">추천 클래스</h3>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-                            {relatedCourses.map(course => (
-                                <div
-                                    key={course.id}
-                                    onClick={() => navigate(`/courses/${course.id}`)}
-                                    className="group cursor-pointer"
-                                >
-                                    <div className="aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 mb-3 relative shadow-lg group-hover:shadow-violet-900/10 transition-all">
-                                        {course.thumbnailUrl ? (
-                                            <img src={course.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center bg-zinc-800"><Play className="w-10 h-10 text-zinc-600" /></div>
-                                        )}
-                                        {course.price === 0 && (
-                                            <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[10px] text-white font-bold border border-white/10 uppercase tracking-wide">Free</div>
-                                        )}
+                {
+                    relatedCourses.length > 0 && (
+                        <div className="w-full mt-24">
+                            <h3 className="text-xl font-bold text-white mb-6">추천 클래스</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                                {relatedCourses.map(course => (
+                                    <div
+                                        key={course.id}
+                                        onClick={() => navigate(`/courses/${course.id}`)}
+                                        className="group cursor-pointer"
+                                    >
+                                        <div className="aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 mb-3 relative shadow-lg group-hover:shadow-violet-900/10 transition-all">
+                                            {course.thumbnailUrl ? (
+                                                <img src={course.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center bg-zinc-800"><Play className="w-10 h-10 text-zinc-600" /></div>
+                                            )}
+                                            {course.price === 0 && (
+                                                <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[10px] text-white font-bold border border-white/10 uppercase tracking-wide">Free</div>
+                                            )}
+                                        </div>
+                                        <h4 className="text-sm md:text-base font-bold text-zinc-100 line-clamp-1 group-hover:text-violet-400 transition-colors">{course.title}</h4>
+                                        <p className="text-xs text-zinc-500 mt-1">{course.creatorName}</p>
                                     </div>
-                                    <h4 className="text-sm md:text-base font-bold text-zinc-100 line-clamp-1 group-hover:text-violet-400 transition-colors">{course.title}</h4>
-                                    <p className="text-xs text-zinc-500 mt-1">{course.creatorName}</p>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )
+                }
 
 
 
@@ -1257,8 +1261,8 @@ export const CourseDetail: React.FC = () => {
                         />
                     )
                 }
-            </div>
-        </div>
+            </div >
+        </div >
 
     );
 };

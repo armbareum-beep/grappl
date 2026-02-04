@@ -247,7 +247,7 @@ export const LessonDetail: React.FC = () => {
                                 {(lesson.videoUrl || lesson.vimeoUrl) ? (
                                     (owns || lesson.lessonNumber === 1) ? (
                                         <VideoPlayer
-                                            key={lesson.id} // FORCE REMOUNT on lesson change
+                                            key={lesson.id}
                                             vimeoId={lesson.videoUrl || lesson.vimeoUrl || ''}
                                             title={lesson.title}
                                             playing={true}
@@ -262,14 +262,7 @@ export const LessonDetail: React.FC = () => {
                                             isPaused={isPaywallOpen}
                                             onEnded={() => {
                                                 if (user && lesson) {
-                                                    // Level 3/4/5: Finished
-                                                    // Reset refs for re-watch in same session?
-                                                    // User might want to watch multiple times to get Lv 5 quickly.
-                                                    // So we allow multiple 'finish' calls.
                                                     updateMasteryFromWatch(user.id, lesson.id, 1, true).catch(console.error);
-
-                                                    // Reset check refs for next loop if applicable?
-                                                    // Usually 'onEnded' means loop.
                                                     hasRecordedStartRef.current = false;
                                                     hasRecordedHalfRef.current = false;
                                                 }

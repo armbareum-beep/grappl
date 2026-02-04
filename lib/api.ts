@@ -2165,10 +2165,11 @@ export async function uploadHeroImage(file: File): Promise<{ url: string | null;
 /**
  * 썸네일 이미지를 Supabase Storage에 업로드
  */
-export async function uploadThumbnail(blob: Blob, bucketName: string = 'lesson-thumbnails'): Promise<{ url: string | null; error: any }> {
+export async function uploadThumbnail(blob: Blob, bucketName: string = 'course-thumbnails'): Promise<{ url: string | null; error: any }> {
     const fileName = `thumb-${crypto.randomUUID()}.jpg`;
     const filePath = `${fileName}`;
-    const bucketsToTry = [bucketName, 'course-thumbnails', 'images']; // Priority list
+    // Remove redundant 'course-thumbnails' from the list since it's now the default
+    const bucketsToTry = [bucketName, 'images']; // Priority list
 
     let lastError: any = null;
 
