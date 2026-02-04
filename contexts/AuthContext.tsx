@@ -7,6 +7,8 @@ interface User extends SupabaseUser {
     isSubscriber?: boolean;
     subscription_tier?: string;
     ownedVideoIds?: string[];
+    profile_image_url?: string;
+    avatar_url?: string; // DB value
 }
 
 interface AuthContextType {
@@ -33,7 +35,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isAdmin, setIsAdmin] = useState(false);
     const [isSubscribed, setIsSubscribed] = useState(false);
 
-    // Check user status from database
     // Check user status from database
     const checkUserStatus = async (userId: string) => {
         const cacheKey = `user_status_${userId}`;
@@ -67,7 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             );
 
             const queriesPromise = Promise.all([
-                supabase.from('users').select('email, is_admin, is_subscriber, subscription_tier, owned_video_ids').eq('id', userId).maybeSingle(),
+                supabase.from('users').select('email, is_admin, is_subscriber, subscription_tier, owned_video_ids, profile_image_url, avatar_url').eq('id', userId).maybeSingle(),
                 supabase.from('creators').select('approved').eq('id', userId).maybeSingle()
             ]);
 
@@ -81,7 +82,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 isSubscribed: !!(userData?.is_subscriber === true),
                 subscriptionTier: userData?.subscription_tier,
                 ownedVideoIds: userData?.owned_video_ids || [],
-                isCreator: !!(creatorData?.approved === true)
+                isCreator: !!(creatorData?.approved === true),
+                profile_image_url: userData?.profile_image_url,
+                avatar_url: userData?.avatar_url
             };
 
             // Update state
@@ -97,7 +100,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 isCreator: newStatus.isCreator,
                 isSubscribed: newStatus.isSubscribed,
                 subscriptionTier: newStatus.subscriptionTier,
-                ownedVideoIds: newStatus.ownedVideoIds
+                ownedVideoIds: newStatus.ownedVideoIds,
+                profile_image_url: newStatus.profile_image_url,
+                avatar_url: newStatus.avatar_url
             };
         } catch (error) {
             console.error('Error checking user status:', error);
@@ -109,7 +114,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     isCreator: parsed.isCreator,
                     isSubscribed: parsed.isSubscribed,
                     subscriptionTier: parsed.subscriptionTier,
-                    ownedVideoIds: parsed.ownedVideoIds
+                    ownedVideoIds: parsed.ownedVideoIds,
+                    profile_image_url: parsed.profile_image_url,
+                    avatar_url: parsed.avatar_url
                 };
             }
             return { isAdmin: false, isCreator: false, isSubscribed: false, subscriptionTier: undefined, ownedVideoIds: [] };
@@ -137,7 +144,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
                 // Get initial session
                 const { data: sessionData } = await supabase.auth.getSession();
-                const { session } = sessionData;
+                const session = sessionData?.session;
 
                 if (!mounted) return;
 
@@ -157,7 +164,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                                     ...baseUser,
                                     isSubscriber: parsed.isSubscribed,
                                     subscription_tier: parsed.subscriptionTier,
-                                    ownedVideoIds: parsed.ownedVideoIds
+                                    ownedVideoIds: parsed.ownedVideoIds,
+                                    profile_image_url: parsed.profile_image_url,
+                                    avatar_url: parsed.avatar_url
                                 });
                                 // Set admin/creator statuses from cache too
                                 setIsAdmin(parsed.isAdmin || false);
@@ -173,14 +182,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             console.error('Error parsing user cache', e);
                         }
                     }
+                }
 
-                    const { isAdmin: admin, isCreator: creator, isSubscribed: subscribed, subscriptionTier, ownedVideoIds: ownedIds } = await checkUserStatus(baseUser.id);
+                if (baseUser) {
+                    const { isAdmin: admin, isCreator: creator, isSubscribed: subscribed, subscriptionTier, ownedVideoIds: ownedIds, profile_image_url, avatar_url } = await checkUserStatus(baseUser.id);
                     if (mounted) {
                         setUser({
                             ...baseUser,
                             isSubscriber: subscribed,
                             subscription_tier: subscriptionTier,
-                            ownedVideoIds: ownedIds
+                            ownedVideoIds: ownedIds,
+                            profile_image_url,
+                            avatar_url
                         });
                         setIsAdmin(admin);
                         setIsCreator(creator);
@@ -225,7 +238,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                                 ...baseUser,
                                 isSubscriber: status.isSubscribed,
                                 subscription_tier: status.subscriptionTier,
-                                ownedVideoIds: status.ownedVideoIds
+                                ownedVideoIds: status.ownedVideoIds,
+                                profile_image_url: status.profile_image_url,
+                                avatar_url: status.avatar_url
                             };
 
                             // Deep check if anything meaningful changed
@@ -234,6 +249,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                                 prev.email !== baseUser.email ||
                                 prev.isSubscriber !== status.isSubscribed ||
                                 prev.subscription_tier !== status.subscriptionTier ||
+                                prev.profile_image_url !== status.profile_image_url || // Check profile image
                                 prev.updated_at !== baseUser.updated_at; // Check timestamp too
 
                             if (!hasChanged) return prev; // Return SAME reference
@@ -242,7 +258,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                                 ...baseUser,
                                 isSubscriber: status.isSubscribed,
                                 subscription_tier: status.subscriptionTier,
-                                ownedVideoIds: status.ownedVideoIds
+                                ownedVideoIds: status.ownedVideoIds,
+                                profile_image_url: status.profile_image_url,
+                                avatar_url: status.avatar_url
                             };
                         });
 
