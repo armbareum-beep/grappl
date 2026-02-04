@@ -36,6 +36,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isSubscribed, setIsSubscribed] = useState(false);
 
     // Check user status from database
+    // Check user status from database
     const checkUserStatus = async (userId: string) => {
         const cacheKey = `user_status_${userId}`;
         const cached = localStorage.getItem(cacheKey);
@@ -144,7 +145,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
                 // Get initial session
                 const { data: sessionData } = await supabase.auth.getSession();
-                const session = sessionData?.session;
+                const { session } = sessionData;
 
                 if (!mounted) return;
 
@@ -182,9 +183,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             console.error('Error parsing user cache', e);
                         }
                     }
-                }
 
-                if (baseUser) {
                     const { isAdmin: admin, isCreator: creator, isSubscribed: subscribed, subscriptionTier, ownedVideoIds: ownedIds, profile_image_url, avatar_url } = await checkUserStatus(baseUser.id);
                     if (mounted) {
                         setUser({
