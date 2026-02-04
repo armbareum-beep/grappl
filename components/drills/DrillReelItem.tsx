@@ -58,8 +58,29 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
         if (!shouldLoad || !useVimeo || !containerRef.current) {
             // Cleanup if unloading or not vimeo
             if (playerRef.current) {
-                // console.log('[SinglePlayer] Destroying Vimeo:', vimeoId);
-                playerRef.current.destroy().catch(() => { });
+                const player = playerRef.current;
+                const currentContainer = containerRef.current;
+
+                // Priority 1: Destroy the Vimeo Player instance FIRST
+                try {
+                    player.unload().then(() => player?.destroy()).catch(() => {
+                        // Fallback destruction
+                        try { player?.destroy(); } catch (e) { }
+                    });
+                } catch (_e) { }
+
+                // Priority 2: Nuke the DOM to ensure no iframe remains
+                if (currentContainer) {
+                    const iframes = currentContainer.querySelectorAll('iframe');
+                    iframes.forEach(iframe => {
+                        try {
+                            iframe.src = 'about:blank';
+                            iframe.removeAttribute('src');
+                        } catch (e) { /* ignore */ }
+                    });
+                    currentContainer.innerHTML = '';
+                }
+
                 playerRef.current = null;
                 setReady(false);
             }
