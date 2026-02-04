@@ -12,7 +12,10 @@
       "Bash(npx supabase db execute:*)",
       "Bash(git log:*)",
       "Bash(ls:*)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(git config:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)"
     ]
   }
 }

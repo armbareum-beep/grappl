@@ -67,8 +67,8 @@ export const LessonDetail: React.FC = () => {
 
         if (!user || !lesson) return;
 
-        // Save progress to DB periodically (every 10 seconds of video time change)
-        if (Math.abs(seconds - lastSavedProgressRef.current) >= 10) {
+        // Save progress to DB periodically (every 5 seconds of video time change)
+        if (Math.abs(seconds - lastSavedProgressRef.current) >= 5) {
             lastSavedProgressRef.current = seconds;
             updateLastWatched(user.id, lesson.id, Math.floor(seconds)).catch(console.error);
         }

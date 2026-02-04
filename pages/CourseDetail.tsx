@@ -465,9 +465,8 @@ export const CourseDetail: React.FC = () => {
         }
 
         // 2. Save playback position
-        // First save after 2 seconds (to create lesson_progress entry quickly),
-        // then every 5 seconds thereafter
-        const saveThreshold = lastSavedTimeRef.current === 0 ? 2 : 5;
+        // Save every 5 seconds
+        const saveThreshold = 5;
         if (Math.abs(seconds - lastSavedTimeRef.current) >= saveThreshold) {
             lastSavedTimeRef.current = seconds;
             updateLastWatched(user.id, selectedLesson.id, Math.floor(seconds));

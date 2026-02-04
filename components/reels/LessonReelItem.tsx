@@ -131,8 +131,8 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
                     accumulatedTimeRef.current += elapsed;
                 }
 
-                // Record every 10 seconds
-                if (accumulatedTimeRef.current >= 10) {
+                // Record every 5 seconds
+                if (accumulatedTimeRef.current >= 5) {
                     const timeToSend = Math.floor(accumulatedTimeRef.current);
                     accumulatedTimeRef.current -= timeToSend;
 
