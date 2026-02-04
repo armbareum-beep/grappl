@@ -1,16 +1,164 @@
-import { useNavigate, useLocation } from 'react-router-dom';
-// ... (imports)
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+
+import {
+    Play
+} from 'lucide-react';
+import useEmblaCarousel from 'embla-carousel-react';
+import {
+    getRecentActivity, getDailyFreeDrill, getDailyFreeLesson,
+    getPublicSparringVideos, getFeaturedRoutines, getNewCourses,
+    fetchRoutines, getTrendingCourses,
+    getDailyFreeSparring
+} from '../lib/api';
+import { Lesson, DrillRoutine, SparringVideo, Course } from '../types';
+import { LoadingScreen } from '../components/LoadingScreen';
+import { UserDashboard } from '../components/home/UserDashboard';
+import { ContentRow } from '../components/home/ContentRow';
 
 export const Home: React.FC = () => {
     const navigate = useNavigate();
-    const location = useLocation();
     const { user } = useAuth();
-    // ...
+    const [loading, setLoading] = useState(true);
+
+    // Data states
+    const [dailyDrill, setDailyDrill] = useState<any | null>(null);
+    const [dailyLesson, setDailyLesson] = useState<Lesson | null>(null);
+    const [dailySparring, setDailySparring] = useState<SparringVideo | null>(null);
+
+    // New Layout States
+    const [continueItems, setContinueItems] = useState<any[]>([]);
+    const [trendingSparring, setTrendingSparring] = useState<SparringVideo[]>([]);
+    const [featuredRoutines, setFeaturedRoutines] = useState<DrillRoutine[]>([]);
+    const [trendingCourses, setTrendingCourses] = useState<Course[]>([]);
+
+    // Tab Section Data
+    const [newCourses, setNewCourses] = useState<Course[]>([]);
+    const [newRoutines, setNewRoutines] = useState<DrillRoutine[]>([]);
+    const [newSparring, setNewSparring] = useState<SparringVideo[]>([]);
+
+    const [currentSlide, setCurrentSlide] = useState(0);
+
+    const [emblaRef, emblaApi] = useEmblaCarousel({
+        loop: true,
+        align: 'center',
+        containScroll: 'trimSnaps'
+    });
 
     useEffect(() => {
-        // ... (fetchData logic)
+        if (!emblaApi) return;
+        const onSelect = () => {
+            setCurrentSlide(emblaApi.selectedScrollSnap());
+        };
+        emblaApi.on('select', onSelect);
+        return () => { emblaApi.off('select', onSelect); };
+    }, [emblaApi]);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                // 1. Initial Data Fetching for Carousel
+                const [drillRes, lessonRes, sparringRes] = await Promise.all([
+                    getDailyFreeDrill(),
+                    getDailyFreeLesson(),
+                    getDailyFreeSparring()
+                ]);
+
+                setDailyDrill(drillRes.data);
+                setDailyLesson(lessonRes.data);
+                setDailySparring(sparringRes.data);
+
+                // 2. DashBoard Data (If logged in)
+                if (user) {
+                    // A. Continue Items
+                    try {
+                        const activity = await getRecentActivity(user.id);
+                        console.log('Fetched recent activity:', activity);
+                        if (activity && Array.isArray(activity) && activity.length > 0) {
+                            setContinueItems(activity);
+                        } else {
+                            console.log('No recent activity found or empty array');
+                        }
+                    } catch (e) {
+                        console.error("Error fetching activity", e);
+                    }
+                }
+
+                // --- Global Data (Accessible to everyone) ---
+
+                // B. Trending Sparring
+                try {
+                    const sparring = await getPublicSparringVideos(10);
+                    if (sparring && sparring.length > 0) {
+                        setTrendingSparring(sparring);
+                    }
+                } catch (e) {
+                    console.error("Error fetching trending sparring", e);
+                }
+
+                // C. Featured Routines
+                try {
+                    const routines = await getFeaturedRoutines(20);
+                    if (routines && routines.length > 0) {
+                        setFeaturedRoutines(routines);
+                    }
+                } catch (e) {
+                    console.error("Error fetching routines", e);
+                }
+
+                // D. Trending Courses
+                try {
+                    const courses = await getTrendingCourses(10);
+                    if (courses && courses.length > 0) {
+                        setTrendingCourses(courses);
+                    }
+                } catch (e) {
+                    console.error("Error fetching trending courses", e);
+                }
+
+                // --- Tab Content Data ---
+
+                // F. New Courses (For Tab)
+                try {
+                    const courses = await getNewCourses(10);
+                    if (courses && courses.length > 0) {
+                        setNewCourses(courses);
+                    }
+                } catch (e) {
+                    console.error("Error fetching new courses for tab", e);
+                }
+
+                // G. New Routines (For Tab)
+                try {
+                    const routinesRes = await fetchRoutines(20);
+                    if (routinesRes.data && routinesRes.data.length > 0) {
+                        setNewRoutines(routinesRes.data);
+                    }
+                } catch (e) {
+                    console.error("Error fetching new routines", e);
+                }
+
+                // H. New Sparring (For Tab)
+                try {
+                    const sparringRes = await getPublicSparringVideos(20);
+                    if (sparringRes && sparringRes.length > 0) {
+                        setNewSparring(sparringRes);
+                    }
+                } catch (e) {
+                    console.error("Error fetching new sparring", e);
+                }
+
+            } catch (error) {
+                console.error("Error loading home data:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
         fetchData();
-    }, [user?.id, location.key]);
+    }, [user?.id]);
 
     const getDisplayName = () => {
         if (!user) return '친구';
