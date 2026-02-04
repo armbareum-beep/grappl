@@ -119,9 +119,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             let vimeoUrlWithHash = vimeoId;
             let durationSeconds = 0;
 
-            // Retry logic: Vimeo processing might take a few seconds to report duration
-            // Transcoding can take time, so we retry up to 10 times (approx 30-40s)
-            for (let attempt = 1; attempt <= 10; attempt++) {
+            // Retry logic: Vimeo processing might take time to report duration
+            // Transcoding can take time, so we retry up to 20 times (approx 100s)
+            for (let attempt = 1; attempt <= 20; attempt++) {
                 try {
                     const videoInfoRes = await fetch(`https://api.vimeo.com/videos/${vimeoId}`, {
                         headers: {
@@ -153,12 +153,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     console.warn(`[Vercel] Attempt ${attempt} failed to fetch video metadata:`, err);
                 }
 
-                if (attempt < 10) {
+                if (attempt < 20) {
                     // Log progress if waiting
                     if (attempt % 2 === 0 || attempt === 1) {
-                        console.log(`[Vercel] Duration is 0, waiting for transcoding... (Attempt ${attempt}/10)`);
+                        console.log(`[Vercel] Duration is 0, waiting for transcoding... (Attempt ${attempt}/20)`);
                     }
-                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    await new Promise(resolve => setTimeout(resolve, 5000));
                 }
             }
 

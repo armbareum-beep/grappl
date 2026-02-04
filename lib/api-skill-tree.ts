@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { withTimeout } from './api';
 import { SkillTreeNode, SkillTreeEdge, UserSkillTree } from '../types';
 
 // ============================================================================
@@ -35,12 +36,12 @@ export function transformUserSkillTree(data: any): UserSkillTree {
  */
 export async function listPublicSkillTrees(limit = 20) {
     // 1. Fetch trees without joining users (to avoid FK error)
-    const { data: trees, error } = await supabase
+    const { data: trees, error } = await withTimeout(supabase
         .from('user_skill_trees')
         .select('*')
         .eq('is_public', true)
         .order('created_at', { ascending: false })
-        .limit(limit);
+        .limit(limit));
 
     if (error) {
         console.error('Error fetching public skill trees:', error);
@@ -73,11 +74,11 @@ export async function listPublicSkillTrees(limit = 20) {
  * List featured skill trees
  */
 export async function listFeaturedSkillTrees() {
-    const { data, error } = await supabase
+    const { data, error } = await withTimeout(supabase
         .from('user_skill_trees')
         .select('*, users(name, avatar_url)')
         .eq('is_featured', true)
-        .order('updated_at', { ascending: false });
+        .order('updated_at', { ascending: false }));
 
     if (error) {
         console.error('Error fetching featured skill trees:', error);
@@ -132,11 +133,11 @@ export async function incrementSkillTreeViews(treeId: string) {
  * List all skill trees for a user
  */
 export async function listUserSkillTrees(userId: string) {
-    const { data, error } = await supabase
+    const { data, error } = await withTimeout(supabase
         .from('user_skill_trees')
         .select('*')
         .eq('user_id', userId)
-        .order('updated_at', { ascending: false });
+        .order('updated_at', { ascending: false }));
 
     if (error) {
         console.error('Error fetching skill tree list:', error);

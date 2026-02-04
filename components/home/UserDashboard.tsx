@@ -69,7 +69,7 @@ const SectionRow: React.FC<SectionRowProps> = ({ title, isEmpty, emptyText, onVi
                 </h2>
             </div>
             <div className="relative w-full overflow-hidden" ref={emblaRef}>
-                <div className="flex gap-4 px-4 md:px-12 pt-0 pb-6">
+                <div className="flex gap-4 px-4 md:px-12 pt-4 pb-6">
                     {React.Children.map(children, (child) => (
                         <div className="flex-[0_0_auto]">
                             {child}

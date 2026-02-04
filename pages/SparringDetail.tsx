@@ -23,7 +23,7 @@ const ShareModal = React.lazy(() => import('../components/social/ShareModal'));
 export const SparringDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { user: contextUser, loading: authLoading } = useAuth();
+    const { user: contextUser, loading: authLoading, isSubscribed } = useAuth();
     const { success, error: toastError } = useToast();
 
     const [video, setVideo] = useState<SparringVideo | null>(null);
@@ -169,13 +169,18 @@ export const SparringDetail: React.FC = () => {
             return;
         }
 
+        // Check Subscription (NEW)
+        if (isSubscribed) {
+            setOwns(true);
+            return;
+        }
+
         // Check purchase
         const { data } = await supabase
-            .from('purchases')
-            .select('id')
+            .from('user_videos')
+            .select('video_id')
             .eq('user_id', contextUser.id)
-            .eq('product_id', videoData.id)
-            .eq('status', 'completed')
+            .eq('video_id', videoData.id)
             .maybeSingle();
 
         if (data) setOwns(true);

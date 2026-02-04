@@ -2,11 +2,13 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { getNotifications, getUnreadNotificationCount, markNotificationAsRead, markAllNotificationsAsRead } from '../lib/api';
 import { AppNotification } from '../types';
 
 export const NotificationDropdown: React.FC = () => {
     const { user } = useAuth();
+    const { info } = useToast();
     const [isOpen, setIsOpen] = useState(false);
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -20,7 +22,7 @@ export const NotificationDropdown: React.FC = () => {
 
             // Poll for new notifications every 30 seconds
             const interval = setInterval(() => {
-                loadUnreadCount();
+                loadUnreadCount(true);
             }, 30000);
 
             return () => clearInterval(interval);
@@ -54,9 +56,25 @@ export const NotificationDropdown: React.FC = () => {
         setLoading(false);
     };
 
-    const loadUnreadCount = async () => {
+    const loadUnreadCount = async (showToast = false) => {
         if (!user) return;
-        const { count } = await getUnreadNotificationCount(user.id);
+        const { count, error } = await getUnreadNotificationCount(user.id);
+
+        if (showToast && count > unreadCount) {
+            // New notifications arrived, fetch them to show in toast
+            const { data } = await getNotifications(user.id);
+            if (data && data.length > 0) {
+                // Find notifications that are unread and newer than what we had
+                // For simplicity, we show the newest ones that exceed the previous count
+                const newCount = count - unreadCount;
+                const newNotifications = data.filter(n => !n.isRead).slice(0, newCount);
+
+                newNotifications.reverse().forEach(n => {
+                    info(`${n.title}: ${n.message}`);
+                });
+            }
+        }
+
         setUnreadCount(count);
     };
 

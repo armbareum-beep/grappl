@@ -266,14 +266,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     }
                 });
 
-                currentPlayer.ready().then(() => {
+                currentPlayer.on('loaded', () => {
                     if (startTime && startTime > 0) {
                         currentPlayer.setCurrentTime(startTime).catch(err =>
                             console.warn('Failed to set initial time:', err)
                         );
                     }
                     onReadyRef.current?.();
-                }).catch(() => { });
+                });
             }
 
         } catch (err: any) {

@@ -162,7 +162,7 @@ export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine, ran
                     {/* Save — top-right */}
                     <button
                         className={cn(
-                            "absolute top-2.5 right-2.5 z-20 p-2 rounded-full bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all duration-200 hover:bg-white",
+                            "absolute top-2.5 right-2.5 z-20 p-2 rounded-full bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all duration-200 hover:bg-white hidden md:block",
                             isSaved ? "text-violet-500 hover:text-violet-600" : "hover:text-zinc-900"
                         )}
                         onClick={async (e) => {
@@ -183,7 +183,7 @@ export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine, ran
 
                     {/* Share — bottom-right */}
                     <button
-                        className="absolute bottom-2.5 right-2.5 z-20 p-2 rounded-full bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all duration-200 delay-75 hover:bg-white hover:text-zinc-900"
+                        className="absolute bottom-2.5 right-2.5 z-20 p-2 rounded-full bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all duration-200 delay-75 hover:bg-white hover:text-zinc-900 hidden md:block"
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();

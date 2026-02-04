@@ -71,6 +71,14 @@ export const Checkout: React.FC = () => {
                 const { data: bundle } = await supabase.from('bundles').select('title, price').eq('id', id).single();
                 initialAmount = bundle?.price || 0;
                 setProductTitle(bundle?.title || '번들 패키지');
+            } else if (type === 'drill') {
+                const { data: drill } = await supabase.from('drills').select('title, price').eq('id', id).single();
+                initialAmount = drill?.price || 0;
+                setProductTitle(drill?.title || '드릴');
+            } else if (type === 'sparring') {
+                const { data: sparring } = await supabase.from('sparring_videos').select('title, price').eq('id', id).single();
+                initialAmount = sparring?.price || 0;
+                setProductTitle(sparring?.title || '스파링 영상');
             } else if (type === 'subscription') {
                 const isPro = id?.includes('price_1SYHx') || id?.includes('price_1SYI2');
                 const isYearly = id?.includes('price_1SYHw') || id?.includes('price_1SYI2');
@@ -373,6 +381,8 @@ export const Checkout: React.FC = () => {
                                                     alert('이름과 연락처를 모두 입력해주세요.');
                                                     return;
                                                 }
+
+                                                setLoading(true);
                                                 try {
                                                     const isMonthlySubscription = type === 'subscription' && !productTitle.includes('(연간)');
 
@@ -419,7 +429,12 @@ export const Checkout: React.FC = () => {
                                                     }
 
                                                     if (response?.code != null) {
-                                                        alert(`결제 실패: ${response.message}`);
+                                                        // 사용자가 결제를 취소한 경우
+                                                        if (response.code === 'PAYMENT_CANCELLED') {
+                                                            alert('결제가 취소되었습니다.');
+                                                        } else {
+                                                            alert(`결제 실패: ${response.message}`);
+                                                        }
                                                         return;
                                                     }
 
@@ -454,11 +469,14 @@ export const Checkout: React.FC = () => {
                                                 } catch (err: any) {
                                                     console.error(err);
                                                     setError(`결제 처리 실패: ${err.message}`);
+                                                } finally {
+                                                    setLoading(false);
                                                 }
                                             }}
-                                            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 px-6 rounded-[20px] transition-all duration-300 shadow-lg shadow-emerald-900/20 active:scale-95 uppercase tracking-tighter italic text-lg"
+                                            disabled={loading}
+                                            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 px-6 rounded-[20px] transition-all duration-300 shadow-lg shadow-emerald-900/20 active:scale-95 uppercase tracking-tighter italic text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
-                                            {type === 'subscription' && !productTitle.includes('(연간)') ? '정기결제 시작하기' : '결제하기'}
+                                            {loading ? '처리 중...' : (type === 'subscription' && !productTitle.includes('(연간)') ? '정기결제 시작하기' : '결제하기')}
                                         </button>
                                     </div>
                                 )}

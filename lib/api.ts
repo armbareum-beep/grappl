@@ -13,12 +13,12 @@ export const SUBSCRIPTION_PLATFORM_SHARE = 0.2;
 
 
 // Helper to safely wrap promises with a timeout
-async function withTimeout<T>(
-    promise: PromiseLike<T>,
-    ms: number
+export async function withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number = 10000
 ): Promise<T | { data: null; error: { message: string, code: string } }> {
     const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(`Request timed out after ${ms}ms`)), ms)
+        setTimeout(() => reject(new Error(`Request timed out after ${timeoutMs}ms`)), timeoutMs)
     );
 
     try {
@@ -160,12 +160,15 @@ export async function checkLessonSaved(userId: string, lessonId: string): Promis
 }
 
 export async function getUserSavedLessons(userId: string): Promise<Lesson[]> {
-    const { data, error } = await supabase
-        .from('user_interactions')
-        .select('content_id')
-        .eq('user_id', userId)
-        .eq('content_type', 'lesson')
-        .eq('interaction_type', 'save');
+    const { data, error } = await withTimeout(
+        supabase
+            .from('user_interactions')
+            .select('content_id')
+            .eq('user_id', userId)
+            .eq('content_type', 'lesson')
+            .eq('interaction_type', 'save'),
+        10000
+    ) as any;
 
     if (error || !data || data.length === 0) return [];
 
@@ -1217,18 +1220,21 @@ export async function checkSparringSaved(userId: string, videoId: string): Promi
 }
 
 export async function getSavedSparringVideos(userId: string): Promise<SparringVideo[]> {
-    const { data } = await supabase
-        .from('user_saved_sparring')
-        .select(`
+    const { data } = await withTimeout(
+        supabase
+            .from('user_saved_sparring')
+            .select(`
             video_id,
             sparring_videos!inner (
                 *,
                 creator:creators(*)
             )
         `)
-        .eq('user_id', userId)
-        .eq('sparring_videos.is_published', true)
-        .order('created_at', { ascending: false });
+            .eq('user_id', userId)
+            .eq('sparring_videos.is_published', true)
+            .order('created_at', { ascending: false }),
+        10000
+    ) as any;
 
     if (!data) return [];
 
@@ -1242,25 +1248,31 @@ export async function getSavedSparringVideos(userId: string): Promise<SparringVi
 export async function getPurchasedSparringVideos(userId: string): Promise<SparringVideo[]> {
     try {
         // 1. Get purchase records
-        const { data: purchases } = await supabase
-            .from('purchases')
-            .select('product_id')
-            .eq('user_id', userId)
-            .eq('status', 'completed');
+        const { data: purchases } = await withTimeout(
+            supabase
+                .from('purchases')
+                .select('product_id')
+                .eq('user_id', userId)
+                .eq('status', 'completed'),
+            10000
+        ) as any;
 
         if (!purchases || purchases.length === 0) return [];
 
         const productIds = purchases.map(p => p.product_id);
 
         // 2. Fetch corresponding sparring videos (regardless of published status)
-        const { data: videos, error } = await supabase
-            .from('sparring_videos')
-            .select(`
+        const { data: videos, error } = await withTimeout(
+            supabase
+                .from('sparring_videos')
+                .select(`
                 *,
                 creator:creators(*)
             `)
-            .in('id', productIds)
-            .order('created_at', { ascending: false });
+                .in('id', productIds)
+                .order('created_at', { ascending: false }),
+            10000
+        ) as any;
 
         if (error || !videos) return [];
 
@@ -1342,9 +1354,10 @@ export async function checkCourseOwnership(userId: string, courseId: string): Pr
 }
 
 export async function getUserCourses(userId: string): Promise<Course[]> {
-    const { data, error } = await supabase
-        .from('user_courses')
-        .select(`
+    const { data, error } = await withTimeout(
+        supabase
+            .from('user_courses')
+            .select(`
       course_id,
       courses (
         *,
@@ -1352,7 +1365,9 @@ export async function getUserCourses(userId: string): Promise<Course[]> {
         lessons:lessons(vimeo_url, lesson_number)
       )
     `)
-        .eq('user_id', userId);
+            .eq('user_id', userId),
+        10000
+    ) as any;
 
     if (error) {
         console.error('Error fetching user courses:', error);
@@ -1526,10 +1541,13 @@ export async function getLessonProgress(userId: string, lessonId: string) {
 
 export async function getCourseProgress(userId: string, courseId: string): Promise<{ completed: number; total: number; percentage: number }> {
     // Get all lessons for this course
-    const { data: lessons, error: lessonsError } = await supabase
-        .from('lessons')
-        .select('id')
-        .eq('course_id', courseId);
+    const { data: lessons, error: lessonsError } = await withTimeout(
+        supabase
+            .from('lessons')
+            .select('id')
+            .eq('course_id', courseId),
+        10000
+    );
 
     if (lessonsError || !lessons) {
         return { completed: 0, total: 0, percentage: 0 };
@@ -1538,12 +1556,15 @@ export async function getCourseProgress(userId: string, courseId: string): Promi
     const total = lessons.length;
 
     // Get completed lessons
-    const { data: progress, error: progressError } = await supabase
-        .from('lesson_progress')
-        .select('*')
-        .eq('user_id', userId)
-        .in('lesson_id', lessons.map(l => l.id))
-        .eq('completed', true);
+    const { data: progress, error: progressError } = await withTimeout(
+        supabase
+            .from('lesson_progress')
+            .select('*')
+            .eq('user_id', userId)
+            .in('lesson_id', lessons.map(l => l.id))
+            .eq('completed', true),
+        10000
+    );
 
     if (progressError) {
         return { completed: 0, total, percentage: 0 };
@@ -1577,9 +1598,10 @@ export async function updateLastWatched(userId: string, lessonId: string, watche
 // Enhanced Recent Activity (Lessons Only)
 export async function getRecentActivity(userId: string) {
     // 1. Lessons Progress Only
-    const { data: lessonData, error: lessonError } = await supabase
-        .from('lesson_progress')
-        .select(`
+    const { data: lessonData, error: lessonError } = await withTimeout(
+        supabase
+            .from('lesson_progress')
+            .select(`
             *,
             lesson:lessons (
                 id, title, lesson_number, duration_minutes, thumbnail_url,
@@ -1589,9 +1611,11 @@ export async function getRecentActivity(userId: string) {
                 )
             )
         `)
-        .eq('user_id', userId)
-        .order('last_watched_at', { ascending: false })
-        .limit(10);
+            .eq('user_id', userId)
+            .order('last_watched_at', { ascending: false })
+            .limit(10),
+        10000
+    ) as any;
 
     if (lessonError) {
         console.error("Error fetching recent activity:", lessonError);
@@ -1631,54 +1655,7 @@ export async function getRecentActivity(userId: string) {
         };
     }).filter((item: any) => item && item.id && item.courseId);
 
-    // 2. Sparring (via video_watch_logs)
-    let sparringItems: any[] = [];
-    try {
-        const { data: videoLogs } = await supabase
-            .from('video_watch_logs')
-            .select('video_id, watch_seconds, last_watched_at')
-            .eq('user_id', userId)
-            .not('video_id', 'is', null)
-            .order('last_watched_at', { ascending: false })
-            .limit(10);
-
-        if (videoLogs && videoLogs.length > 0) {
-            const videoIds = videoLogs.map((l: any) => l.video_id);
-            // Try to find if these videos are spars
-            const { data: sparrings } = await supabase
-                .from('sparring_videos')
-                .select(`
-                    id, title, thumbnail_url,
-                    creator:creators ( name )
-                `)
-                .in('id', videoIds);
-
-            if (sparrings && sparrings.length > 0) {
-                sparringItems = sparrings.map(s => {
-                    const log = videoLogs.find((l: any) => l.video_id === s.id);
-                    return {
-                        id: s.id,
-                        type: 'sparring',
-                        title: s.title,
-                        thumbnail: s.thumbnail_url,
-                        progress: 0,
-                        watchedSeconds: log?.watch_seconds || 0,
-                        lastWatched: new Date(log?.last_watched_at || new Date()).toISOString(),
-                        creatorName: s.creator?.name
-                    };
-                });
-            }
-        }
-    } catch (err) {
-        console.error("Error fetching sparring activity:", err);
-    }
-
-    // Merge and Sort
-    const allItems = [...lessonItems, ...sparringItems].sort((a: any, b: any) =>
-        new Date(b.lastWatched).getTime() - new Date(a.lastWatched).getTime()
-    ).slice(0, 10);
-
-    return allItems;
+    return lessonItems;
 }
 
 // Creator Dashboard API
@@ -1825,11 +1802,14 @@ export async function createLesson(lessonData: Partial<Lesson>) {
         }
     }
 
-    const { data, error } = await supabase
-        .from('lessons')
-        .insert(dbData)
-        .select()
-        .single();
+    const { data, error } = await withTimeout(
+        supabase
+            .from('lessons')
+            .insert(dbData)
+            .select()
+            .single(),
+        30000
+    );
 
     if (error) {
         console.error('Error creating lesson:', error);
@@ -1867,12 +1847,15 @@ export async function updateLesson(lessonId: string, lessonData: Partial<Lesson>
         }
     }
 
-    const { data, error } = await supabase
-        .from('lessons')
-        .update(dbData)
-        .eq('id', lessonId)
-        .select()
-        .single();
+    const { data, error } = await withTimeout(
+        supabase
+            .from('lessons')
+            .update(dbData)
+            .eq('id', lessonId)
+            .select()
+            .single(),
+        30000
+    );
 
     if (error) return { error };
     return { data: transformLesson(data), error: null };
@@ -2192,12 +2175,15 @@ export async function uploadThumbnail(blob: Blob, bucketName: string = 'lesson-t
     for (const bucket of bucketsToTry) {
         try {
             console.log(`Trying to upload thumbnail to bucket: ${bucket}`);
-            const { error: uploadError } = await supabase.storage
-                .from(bucket)
-                .upload(filePath, blob, {
-                    contentType: 'image/jpeg',
-                    upsert: true,
-                });
+            const { error: uploadError } = await withTimeout(
+                supabase.storage
+                    .from(bucket)
+                    .upload(filePath, blob, {
+                        contentType: 'image/jpeg',
+                        upsert: true,
+                    }),
+                60000
+            ) as any;
 
             if (!uploadError) {
                 const { data } = supabase.storage
@@ -3281,16 +3267,19 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
         });
 
     // Parallel fetch: Get free sparring videos (Daily Sparring)
-    const sparringPromise = supabase
-        .from('sparring_videos')
-        .select(`
+    const sparringPromise = withTimeout(
+        supabase
+            .from('sparring_videos')
+            .select(`
             *,
             creator:creators(name, profile_image)
         `)
-        .eq('is_published', true)
-        .eq('price', 0) // Free items only
-        .order('created_at', { ascending: false })
-        .range(from, to);
+            .eq('is_published', true)
+            .eq('price', 0) // Free items only
+            .order('created_at', { ascending: false })
+            .range(from, to),
+        5000
+    );
 
     let data, count, error;
     let sparringData = [];
@@ -5240,12 +5229,15 @@ export async function updateDrill(drillId: string, drillData: Partial<Drill>) {
         }
     }
 
-    const { data, error } = await supabase
-        .from('drills')
-        .update(dbData)
-        .eq('id', drillId)
-        .select()
-        .single();
+    const { data, error } = await withTimeout(
+        supabase
+            .from('drills')
+            .update(dbData)
+            .eq('id', drillId)
+            .select()
+            .single(),
+        30000
+    );
 
     if (error) {
         console.error('Error updating drill:', error);
@@ -5341,11 +5333,14 @@ export async function createSparringVideo(videoData: Partial<SparringVideo>) {
         }
     }
 
-    const { data, error } = await supabase
-        .from('sparring_videos')
-        .insert(dbData)
-        .select()
-        .single();
+    const { data, error } = await withTimeout(
+        supabase
+            .from('sparring_videos')
+            .insert(dbData)
+            .select()
+            .single(),
+        30000
+    );
 
     if (error) {
         console.error('Error creating sparring video:', error);
@@ -5530,12 +5525,15 @@ export async function updateSparringVideo(id: string, updates: Partial<SparringV
         }
     }
 
-    const { data, error } = await supabase
-        .from('sparring_videos')
-        .update(dbData)
-        .eq('id', id)
-        .select()
-        .single();
+    const { data, error } = await withTimeout(
+        supabase
+            .from('sparring_videos')
+            .update(dbData)
+            .eq('id', id)
+            .select()
+            .single(),
+        30000
+    );
 
     if (error) {
         console.error('Error updating sparring video:', error);
@@ -5720,11 +5718,14 @@ export async function getDailyFreeDrill() {
         let selectedDrill = null;
 
         if (drillId) {
-            const { data: drill } = await supabase
-                .from('drills')
-                .select('*')
-                .eq('id', drillId)
-                .maybeSingle();
+            const { data: drill } = await withTimeout(
+                supabase
+                    .from('drills')
+                    .select('*')
+                    .eq('id', drillId)
+                    .maybeSingle(),
+                5000
+            );
             selectedDrill = drill;
         }
 
@@ -5834,11 +5835,14 @@ export async function getDailyFreeLesson() {
         let selectedLesson = null;
 
         if (lessonId) {
-            const { data: lesson } = await supabase
-                .from('lessons')
-                .select('*, courses!inner(*)')
-                .eq('id', lessonId)
-                .maybeSingle();
+            const { data: lesson } = await withTimeout(
+                supabase
+                    .from('lessons')
+                    .select('*, courses!inner(*)')
+                    .eq('id', lessonId)
+                    .maybeSingle(),
+                5000
+            );
             selectedLesson = lesson;
         }
 
@@ -5937,11 +5941,14 @@ export async function getDailyFreeSparring() {
         let selectedSparring = null;
 
         if (sparringId) {
-            const { data: sparring } = await supabase
-                .from('sparring_videos')
-                .select('*')
-                .eq('id', sparringId)
-                .maybeSingle();
+            const { data: sparring } = await withTimeout(
+                supabase
+                    .from('sparring_videos')
+                    .select('*')
+                    .eq('id', sparringId)
+                    .maybeSingle(),
+                5000
+            );
             selectedSparring = sparring;
         }
 
@@ -6208,11 +6215,14 @@ export async function createRoutine(routineData: Partial<DrillRoutine>, drillIds
         drill_count: drillIds.length
     };
 
-    const { data: routine, error: routineError } = await supabase
-        .from('routines')
-        .insert(dbData)
-        .select()
-        .maybeSingle();
+    const { data: routine, error: routineError } = await withTimeout(
+        supabase
+            .from('routines')
+            .insert(dbData)
+            .select()
+            .maybeSingle(),
+        30000
+    );
 
     if (routineError) {
         console.error('Error creating routine:', routineError);
@@ -6251,12 +6261,15 @@ export async function updateRoutine(id: string, updates: Partial<DrillRoutine>, 
     if (updates.creatorId) dbData.creator_id = updates.creatorId;
     if (drillIds) dbData.drill_count = drillIds.length;
 
-    const { data: routine, error: routineError } = await supabase
-        .from('routines')
-        .update(dbData)
-        .eq('id', id)
-        .select()
-        .maybeSingle();
+    const { data: routine, error: routineError } = await withTimeout(
+        supabase
+            .from('routines')
+            .update(dbData)
+            .eq('id', id)
+            .select()
+            .maybeSingle(),
+        30000
+    );
 
     if (routineError) {
         console.error('Error updating routine:', routineError);
@@ -6331,14 +6344,17 @@ const MOCK_ROUTINES: DrillRoutine[] = [];
 
 export async function getUserRoutines(userId: string) {
     // Fetch purchased routines
-    const { data: purchasedData, error: purchasedError } = await supabase
-        .from('user_routine_purchases')
-        .select(`
+    const { data: purchasedData, error: purchasedError } = await withTimeout(
+        supabase
+            .from('user_routine_purchases')
+            .select(`
             routine:routines(
                 *
             )
         `)
-        .eq('user_id', userId);
+            .eq('user_id', userId),
+        10000
+    ) as any;
 
     // Fetch user-created routines
     const { data: createdData, error: createdError } = await supabase
@@ -7753,10 +7769,13 @@ export async function checkRoutineSaved(userId: string, routineId: string): Prom
  * Get user's saved routines
  */
 export async function getUserSavedRoutines(userId: string): Promise<DrillRoutine[]> {
-    const { data } = await supabase
-        .from('user_saved_routines')
-        .select('routine_id')
-        .eq('user_id', userId);
+    const { data } = await withTimeout(
+        supabase
+            .from('user_saved_routines')
+            .select('routine_id')
+            .eq('user_id', userId),
+        10000
+    ) as any;
 
     if (!data || data.length === 0) return [];
 
@@ -8653,11 +8672,14 @@ export async function getTrendingCourses(limit = 6): Promise<Course[]> {
 
 export async function getTrendingSparring(limit = 6): Promise<SparringVideo[]> {
     // 1. Fetch larger pool
-    const { data, error } = await supabase
-        .from('sparring_videos')
-        .select('*')
-        .limit(50)
-        .order('created_at', { ascending: false });
+    const { data, error } = await withTimeout(
+        supabase
+            .from('sparring_videos')
+            .select('*')
+            .limit(50)
+            .order('created_at', { ascending: false }),
+        5000
+    );
 
     if (error) return [];
 

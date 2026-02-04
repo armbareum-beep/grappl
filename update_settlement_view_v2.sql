@@ -15,13 +15,26 @@ WITH combined_sales AS (
     -- 2. 루틴 판매 (user_routine_purchases 테이블 사용 권장)
     -- 만약 이전 쿼리에서 user_routines를 만들었다면 데이터가 없을 수 있습니다.
     -- 안전을 위해 user_routine_purchases를 우선 사용합니다.
-    SELECT ur.created_at, r.creator_id, ur.price_paid as amount, 'routine' as type, r.title as item_title
+    SELECT ur.purchased_at as created_at, r.creator_id, ur.price_paid as amount, 'routine' as type, r.title as item_title
     FROM user_routine_purchases ur JOIN routines r ON ur.routine_id = r.id
     UNION ALL
     -- 3. 피드백 판매
     SELECT fr.created_at, fr.instructor_id as creator_id, fr.price as amount, 'feedback' as type, '1:1 피드백' as item_title
     FROM feedback_requests fr
-    -- 드릴 판매 제거됨
+    UNION ALL
+    -- 4. 드릴 판매
+    SELECT ud.purchased_at as created_at, d.creator_id, COALESCE(ud.price_paid, d.price) as amount, 'drill' as type, d.title as item_title
+    FROM user_drills ud JOIN drills d ON ud.drill_id = d.id
+    UNION ALL
+    -- 5. 스파링 판매
+    SELECT uv.purchased_at as created_at, sv.creator_id, sv.price as amount, 'sparring' as type, sv.title as item_title
+    FROM user_videos uv JOIN sparring_videos sv ON uv.video_id = sv.id
+    UNION ALL
+    -- 6. 구독 수익 배분 (Ledger에서 직접 가져옴, 역산하여 Gross 추정)
+    -- Ledger에는 Creator Revenue(Net)가 기록됨. View는 0.8을 곱하므로, Net / 0.8 = Gross를 넣어야 함.
+    SELECT rl.created_at, rl.creator_id, floor(rl.creator_revenue / 0.8) as amount, 'subscription' as type, rl.description as item_title
+    FROM revenue_ledger rl
+    WHERE rl.product_type = 'subscription_distribution'
 )
 SELECT 
     cs.creator_id,

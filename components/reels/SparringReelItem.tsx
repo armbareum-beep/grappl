@@ -150,7 +150,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
     const onVideoReadyRef = useRef(onVideoReady);
     onVideoReadyRef.current = onVideoReady;
     useEffect(() => {
-        if (isVideoError || isVideoProcessing || videoPlayerReady) {
+        if (!isVideoProcessing && (isVideoError || videoPlayerReady)) {
             onVideoReadyRef.current?.();
         }
     }, [isVideoError, isVideoProcessing, videoPlayerReady]);

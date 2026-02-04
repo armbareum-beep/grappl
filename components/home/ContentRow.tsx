@@ -309,7 +309,7 @@ export const ContentRow: React.FC<ContentRowProps> = ({
             </div>
 
             <div className="relative w-full group/row overflow-hidden" ref={emblaRef}>
-                <div className="flex gap-4 px-4 md:px-12 pt-0 pb-6">
+                <div className="flex gap-4 px-4 md:px-12 pt-4 pb-6">
                     {displayItems.map((item, idx) => (
                         <div key={item.id} className="flex-[0_0_auto]">
                             <ContentRowItem

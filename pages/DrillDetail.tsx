@@ -276,6 +276,9 @@ export const DrillDetail: React.FC = () => {
                     hasAccess = true;
                 }
 
+                // Removed individual drill purchase check as user clarified drills are not sold individually.
+                // Access is handled by subscription or routine ownership.
+
                 // NEW: Check if owned individually or first in routine
                 if (!hasAccess && id) {
                     try {

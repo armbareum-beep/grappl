@@ -117,7 +117,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const isLandingPage = location.pathname === '/';
 
-  if (isLandingPage) {
+  if (isLandingPage && !isAdmin) {
     return <>{children}</>;
   }
 
@@ -193,7 +193,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           mobileMenuOpen ? "z-[99999]" : "z-[11000]",
           location.pathname === '/pricing'
             ? "bg-zinc-950"
-            : "border-b border-zinc-800/50 bg-zinc-950/80 backdrop-blur-xl supports-[backdrop-filter]:bg-zinc-950/60 shadow-lg shadow-black/20"
+            : (isLandingPage && isAdmin)
+              ? "bg-black/80 backdrop-blur-xl border-b border-zinc-800/50"
+              : "border-b border-zinc-800/50 bg-zinc-950/80 backdrop-blur-xl supports-[backdrop-filter]:bg-zinc-950/60 shadow-lg shadow-black/20"
         )}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-20 relative">

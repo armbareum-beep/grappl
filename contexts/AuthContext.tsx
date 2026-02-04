@@ -61,11 +61,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         try {
-            // Run queries in parallel for performance
-            const [userResult, creatorResult] = await Promise.all([
+            // Run queries in parallel for performance with a 5s timeout
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('User status check timed out')), 5000)
+            );
+
+            const queriesPromise = Promise.all([
                 supabase.from('users').select('email, is_admin, is_subscriber, subscription_tier, owned_video_ids').eq('id', userId).maybeSingle(),
                 supabase.from('creators').select('approved').eq('id', userId).maybeSingle()
             ]);
+
+            const [userResult, creatorResult] = await Promise.race([queriesPromise, timeoutPromise]) as any;
 
             const userData = userResult.data;
             const creatorData = creatorResult.data;

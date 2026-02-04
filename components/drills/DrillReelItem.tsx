@@ -114,13 +114,10 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
             }
             playerRef.current = player;
 
-            player.ready().then(() => {
+            player.on('loaded', () => {
                 setReady(true);
                 onReady(); // Notify parent that this SPECIFIC player is ready
                 player.setVolume(isMuted ? 0 : 1);
-            }).catch(err => {
-                console.error('Vimeo Error:', err);
-                onError('영상을 불러올 수 없습니다');
             });
 
             player.on('timeupdate', (data) => onProgress(data.percent * 100));
@@ -401,7 +398,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
     const onVideoReadyRef = useRef(onVideoReady);
     onVideoReadyRef.current = onVideoReady;
     useEffect(() => {
-        if (isProcessing || loadError || mainVideoReady) {
+        if (!isProcessing && (loadError || mainVideoReady)) {
             onVideoReadyRef.current?.();
         }
     }, [isProcessing, loadError, mainVideoReady]);

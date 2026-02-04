@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { withTimeout } from './api';
 export * from './api-admin-logs';
 import { AuditLog, SiteSettings, ActivityItem } from '../types';
 
@@ -16,12 +17,12 @@ export interface AdminStats {
 export const getAdminStats = async (): Promise<AdminStats> => {
     try {
         const [users, drills, pendingCreators, creators, courses, sparring] = await Promise.all([
-            supabase.from('users').select('*', { count: 'exact', head: true }),
-            supabase.from('drills').select('*', { count: 'exact', head: true }),
-            supabase.from('creators').select('*', { count: 'exact', head: true }).eq('approved', false),
-            supabase.from('creators').select('*', { count: 'exact', head: true }).eq('approved', true),
-            supabase.from('courses').select('*', { count: 'exact', head: true }),
-            supabase.from('sparring_videos').select('*', { count: 'exact', head: true }).is('deleted_at', null)
+            withTimeout(supabase.from('users').select('*', { count: 'exact', head: true })),
+            withTimeout(supabase.from('drills').select('*', { count: 'exact', head: true })),
+            withTimeout(supabase.from('creators').select('*', { count: 'exact', head: true }).eq('approved', false)),
+            withTimeout(supabase.from('creators').select('*', { count: 'exact', head: true }).eq('approved', true)),
+            withTimeout(supabase.from('courses').select('*', { count: 'exact', head: true })),
+            withTimeout(supabase.from('sparring_videos').select('*', { count: 'exact', head: true }).is('deleted_at', null))
         ]);
 
         return {
@@ -51,9 +52,9 @@ export interface PendingContent {
 
 export async function getPendingContent(): Promise<PendingContent[]> {
     const [courses, drills, sparring] = await Promise.all([
-        supabase.from('courses').select('id, title, creator:creators(name), created_at, thumbnail_url').eq('status', 'pending'),
-        supabase.from('drills').select('id, title, creator:creators(name), created_at, thumbnail_url').eq('status', 'pending'),
-        supabase.from('sparring_videos').select('id, title, creator:creators(name), created_at, thumbnail_url').eq('status', 'pending')
+        withTimeout(supabase.from('courses').select('id, title, creator:creators(name), created_at, thumbnail_url').eq('status', 'pending')),
+        withTimeout(supabase.from('drills').select('id, title, creator:creators(name), created_at, thumbnail_url').eq('status', 'pending')),
+        withTimeout(supabase.from('sparring_videos').select('id, title, creator:creators(name), created_at, thumbnail_url').eq('status', 'pending'))
     ]);
 
     const results: PendingContent[] = [];
@@ -89,10 +90,10 @@ export interface SettlementStats {
 export const getAdminSettlements = async (): Promise<SettlementStats[]> => {
     // Attempt to fetch from the view 'creator_monthly_settlements'
     // Note: This relies on the SQL migration being applied.
-    const { data, error } = await supabase
+    const { data, error } = await withTimeout(supabase
         .from('creator_monthly_settlements')
         .select('*')
-        .order('total_revenue', { ascending: false });
+        .order('total_revenue', { ascending: false }));
 
     if (error) {
         console.error('Error fetching settlements:', error);
@@ -430,15 +431,15 @@ export async function getSiteSettings() {
 export async function getAdminRecentActivity() {
     try {
         // 1. Fetch recent User Signups
-        const { data: newUsers } = await supabase
+        const { data: newUsers } = await withTimeout(supabase
             .from('users')
             .select('id, name, created_at')
             .order('created_at', { ascending: false })
-            .limit(5);
+            .limit(5));
 
         // 2. Fetch recent Sales (Revenue Ledger or User Courses)
         // Using revenue_ledger for monetary events
-        const { data: newSales } = await supabase
+        const { data: newSales } = await withTimeout(supabase
             .from('revenue_ledger')
             .select(`
                 id,
@@ -449,7 +450,7 @@ export async function getAdminRecentActivity() {
                 )
             `)
             .order('created_at', { ascending: false })
-            .limit(5);
+            .limit(5));
 
         // 3. Fetch recent Instructor Applications
         const { data: newCreators } = await supabase

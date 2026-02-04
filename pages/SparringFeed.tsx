@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getSparringVideos, getDailyFreeSparring, extractVimeoId } from '../lib/api';
 import { SparringVideo } from '../types';
-import { Heart, Share2, ChevronLeft, ChevronRight, Volume2, VolumeX, Bookmark, Search, PlaySquare, ChevronDown, Lock, Zap, MoreHorizontal } from 'lucide-react';
+import { Heart, Share2, ChevronLeft, ChevronRight, Volume2, VolumeX, Bookmark, Search, PlayCircle, PlaySquare, ChevronDown, Lock, Zap, MoreHorizontal } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { ContentBadge } from '../components/common/ContentBadge';
 
@@ -17,7 +17,8 @@ const VideoItem: React.FC<{
     isActive: boolean;
     dailyFreeId?: string | null;
     offset: number;
-}> = ({ video, isActive, dailyFreeId, offset }) => {
+    onVideoReady?: () => void;
+}> = ({ video, isActive, dailyFreeId, offset, onVideoReady }) => {
     const [muted, setMuted] = useState(true);
 
     // Interaction State
@@ -227,6 +228,7 @@ const VideoItem: React.FC<{
                     onProgress={(s) => {
                         // Sparse logging to avoid too many renders if not needed
                     }}
+                    onReady={onVideoReady}
                     onDoubleTap={handleLike}
                     onEnded={() => {
                         if (!hasAccess && video.previewVimeoId) {
@@ -247,6 +249,7 @@ const VideoItem: React.FC<{
                 showControls={false}
                 fillContainer={true}
                 forceSquareRatio={true}
+                onReady={onVideoReady}
                 onDoubleTap={handleLike}
             />
         );
@@ -527,7 +530,7 @@ const SparringGridItem: React.FC<{
                         </Link>
 
                         <div className="flex items-center gap-1 text-[10px] md:text-xs text-zinc-500 shrink-0 font-bold">
-                            <PlaySquare className="w-3 h-3" />
+                            <PlayCircle className="w-3 h-3" />
                             <span>{video.views || 0} Views</span>
                         </div>
                     </div>
@@ -577,6 +580,28 @@ export const SparringFeed: React.FC<{
     const [activeIndex, setActiveIndex] = useState(0);
     const [dailyFreeIdState, setDailyFreeIdState] = useState<string | null>(null);
     const [searchParams, setSearchParams] = useSearchParams();
+
+    // Track which items have their video ready (for blocking swipe to unloaded items)
+    const [readyItems, setReadyItems] = useState<Set<number>>(() => new Set());
+    const markReady = React.useCallback((index: number) => {
+        setReadyItems(prev => {
+            if (prev.has(index)) return prev;
+            const next = new Set(prev);
+            next.add(index);
+            return next;
+        });
+    }, []);
+
+    // Clear stale ready states when scrolling far (items beyond ±2 get unmounted)
+    useEffect(() => {
+        setReadyItems(prev => {
+            const next = new Set<number>();
+            for (const idx of prev) {
+                if (Math.abs(idx - activeIndex) <= 2) next.add(idx);
+            }
+            return next.size === prev.size ? prev : next;
+        });
+    }, [activeIndex]);
 
     const initialView = searchParams.get('view') === 'grid' ? 'grid' : 'reels';
     const [viewMode, setViewMode] = useState<'reels' | 'grid'>(forceViewMode || (isEmbedded ? 'grid' : initialView));
@@ -723,10 +748,16 @@ export const SparringFeed: React.FC<{
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'ArrowUp') {
                 e.preventDefault();
-                setActiveIndex(prev => Math.max(0, prev - 1));
+                const prev = activeIndex - 1;
+                if (prev >= 0 && readyItems.has(prev)) {
+                    setActiveIndex(prev);
+                }
             } else if (e.key === 'ArrowDown') {
                 e.preventDefault();
-                setActiveIndex(prev => Math.min(filteredVideos.length - 1, prev + 1));
+                const next = activeIndex + 1;
+                if (next < filteredVideos.length && readyItems.has(next)) {
+                    setActiveIndex(next);
+                }
             }
         };
         window.addEventListener('keydown', handleKeyDown);
@@ -745,9 +776,15 @@ export const SparringFeed: React.FC<{
 
             if (Math.abs(e.deltaY) > 20) {
                 if (e.deltaY > 0) {
-                    setActiveIndex(prev => Math.min(filteredVideos.length - 1, prev + 1));
+                    const next = activeIndex + 1;
+                    if (next < filteredVideos.length && readyItems.has(next)) {
+                        setActiveIndex(next);
+                    }
                 } else {
-                    setActiveIndex(prev => Math.max(0, prev - 1));
+                    const prev = activeIndex - 1;
+                    if (prev >= 0 && readyItems.has(prev)) {
+                        setActiveIndex(prev);
+                    }
                 }
                 lastScrollTime.current = now;
             }
@@ -765,8 +802,17 @@ export const SparringFeed: React.FC<{
                     if (!reelTouchStart) return;
                     const yDist = reelTouchStart.y - e.changedTouches[0].clientY;
                     if (Math.abs(yDist) > 50) {
-                        if (yDist > 0) setActiveIndex(prev => Math.min(filteredVideos.length - 1, prev + 1));
-                        else setActiveIndex(prev => Math.max(0, prev - 1));
+                        if (yDist > 0) {
+                            const next = activeIndex + 1;
+                            if (next < filteredVideos.length && readyItems.has(next)) {
+                                setActiveIndex(next);
+                            }
+                        } else {
+                            const prev = activeIndex - 1;
+                            if (prev >= 0 && readyItems.has(prev)) {
+                                setActiveIndex(prev);
+                            }
+                        }
                     }
                     setReelTouchStart(null);
                 }}
@@ -783,6 +829,7 @@ export const SparringFeed: React.FC<{
                                 isActive={offset === 0}
                                 dailyFreeId={dailyFreeIdState}
                                 offset={offset}
+                                onVideoReady={() => markReady(index)}
                             />
                         );
                     })

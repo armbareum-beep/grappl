@@ -88,13 +88,23 @@ Deno.serve(async (req) => {
                     purchased_at: new Date().toISOString(),
                 }, { onConflict: 'user_id,routine_id' })
         } else if (mode === 'drill') {
+            const numericAmount = parseFloat(amountValue);
             await supabaseClient
                 .from('user_drills')
                 .upsert({
                     user_id: userId,
                     drill_id: id,
                     purchased_at: new Date().toISOString(),
+                    price_paid: Math.round(numericAmount * 1450)
                 }, { onConflict: 'user_id,drill_id' })
+        } else if (mode === 'sparring') {
+            await supabaseClient
+                .from('user_videos')
+                .upsert({
+                    user_id: userId,
+                    video_id: id,
+                    purchased_at: new Date().toISOString(),
+                }, { onConflict: 'user_id,video_id' })
         } else if (mode === 'bundle') {
             const { data: bundle } = await supabaseClient
                 .from('bundles')
@@ -186,9 +196,14 @@ Deno.serve(async (req) => {
             }
         }
 
-        // 2.1 Course/Routine Revenue Splitting (8:2)
-        if (mode === 'course' || mode === 'routine') {
-            const tableName = mode === 'course' ? 'courses' : 'routines';
+        // 2.1 Course/Routine/Drill/Sparring Revenue Splitting (8:2)
+        if (mode === 'course' || mode === 'routine' || mode === 'drill' || mode === 'sparring') {
+            let tableName = '';
+            if (mode === 'course') tableName = 'courses';
+            else if (mode === 'routine') tableName = 'routines';
+            else if (mode === 'drill') tableName = 'drills';
+            else if (mode === 'sparring') tableName = 'sparring_videos';
+
             const { data: product } = await supabaseClient
                 .from(tableName)
                 .select('creator_id')

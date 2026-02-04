@@ -38,6 +38,7 @@ backend/uploads/
 .vercel
 
 # Versioning
+public/version.json
 *.log
 backend/*.log
 nul

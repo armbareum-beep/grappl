@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlayCircle, PlaySquare, Bookmark, Share2, MoreHorizontal } from 'lucide-react';
+import { PlayCircle, Bookmark, Share2, MoreHorizontal } from 'lucide-react';
 import { ActionMenuModal } from './ActionMenuModal';
 import { cn } from '../../lib/utils';
 import { ContentBadge } from '../common/ContentBadge';
@@ -74,7 +74,7 @@ export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, on
     const { user } = useAuth();
     const navigate = useNavigate();
     const link = getItemLink(item);
-    const PlayIcon = item.type === 'sparring' ? PlaySquare : PlayCircle;
+    const PlayIcon = PlayCircle;
 
     const cardRef = React.useRef<HTMLDivElement>(null);
     const [span, setSpan] = useState(0);
@@ -233,7 +233,7 @@ export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, on
                     {/* Save — top-right, visible on hover */}
                     <button
                         className={cn(
-                            "absolute top-2.5 right-2.5 z-20 p-2 rounded-full bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all duration-200 hover:bg-white",
+                            "absolute top-2.5 right-2.5 z-20 p-2 rounded-full bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all duration-200 hover:bg-white hidden md:block",
                             isSaved ? "text-violet-500 hover:text-violet-600" : "hover:text-zinc-900"
                         )}
                         onClick={handleSave}
@@ -244,7 +244,7 @@ export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, on
 
                     {/* Share — bottom-right, visible on hover */}
                     <button
-                        className="absolute bottom-2.5 right-2.5 z-20 p-2 rounded-full bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all duration-200 delay-75 hover:bg-white hover:text-zinc-900"
+                        className="absolute bottom-2.5 right-2.5 z-20 p-2 rounded-full bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all duration-200 delay-75 hover:bg-white hover:text-zinc-900 hidden md:block"
                         onClick={handleShare}
                         aria-label="공유"
                     >

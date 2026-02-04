@@ -72,6 +72,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
     const [creators, setCreators] = useState<Creator[]>([]);
     const [selectedCreatorId, setSelectedCreatorId] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isUpdatingDuration, setIsUpdatingDuration] = useState(false);
 
     const [formData, setFormData] = useState({
         title: '',
@@ -368,6 +369,56 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         }
     };
 
+    const handleRefreshDuration = async () => {
+        if (!mainVideo.vimeoUrl) return;
+        const vId = extractVimeoId(mainVideo.vimeoUrl);
+        if (!vId) return;
+
+        setIsUpdatingDuration(true);
+        try {
+            const contentId = id || createdContentId;
+            if (!contentId) {
+                toastError('기록된 콘텐츠 ID가 없습니다.');
+                return;
+            }
+
+            const response = await fetch('/api/upload-to-vimeo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'complete_upload',
+                    vimeoId: vId,
+                    contentId,
+                    contentType,
+                    videoType: 'action'
+                })
+            });
+
+            if (response.ok) {
+                success('길이 정보가 성공적으로 갱신되었습니다.');
+                // Refresh data if in edit mode
+                if (id) {
+                    let result: any;
+                    if (contentType === 'drill') result = await getDrillById(id);
+                    else if (contentType === 'lesson') result = await getLessonById(id);
+                    else if (contentType === 'sparring') { const res = await getSparringVideoById(id); result = res.data; }
+
+                    if (result && !result.error) {
+                        setFormData(prev => ({ ...prev, length: result.length || '0:00' }));
+                    }
+                }
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || '갱신 실패');
+            }
+        } catch (err: any) {
+            console.error(err);
+            toastError('갱신 중 오류가 발생했습니다: ' + err.message);
+        } finally {
+            setIsUpdatingDuration(false);
+        }
+    };
+
     const renderVideoBox = (type: 'main' | 'desc', state: ProcessingState, label: string) => {
         const isMain = type === 'main';
         const setter = isMain ? setMainVideo : setDescVideo;
@@ -391,6 +442,23 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                         placeholder="Vimeo URL 또는 ID를 입력하세요"
                         className="w-full px-4 py-2 bg-zinc-950 border border-zinc-700/50 rounded-lg text-sm text-zinc-300 focus:outline-none focus:border-violet-500/50"
                     />
+                    {isMain && state.vimeoUrl && (
+                        <button
+                            type="button"
+                            onClick={handleRefreshDuration}
+                            disabled={isUpdatingDuration}
+                            className="text-[10px] text-violet-400 hover:text-violet-300 font-medium flex items-center gap-1 mt-1 transition-colors"
+                        >
+                            {isUpdatingDuration ? (
+                                <Loader className="w-3 h-3 animate-spin" />
+                            ) : (
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                            )}
+                            길이 정보 갱신 (0:00으로 나올 때 클릭)
+                        </button>
+                    )}
                 </div>
 
                 {(state.status === 'idle' || state.status === 'error') && !state.vimeoUrl ? (

@@ -337,7 +337,7 @@ export const LandingPage: React.FC = () => {
                                                     <div key={`slide-drill-${idx}`} className="relative flex-[0_0_100%] min-w-0 h-full">
                                                         <div className="relative w-full h-full overflow-hidden">
                                                             {drill.thumbnailUrl ? (
-                                                                <img src={drill.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover" alt={drill.title} />
+                                                                <img src={drill.thumbnailUrl} className="absolute object-cover object-center" style={{ width: '145%', height: '145%', maxWidth: 'none', left: '-22.5%', top: '-22.5%' }} alt={drill.title} />
                                                             ) : (
                                                                 <div className="absolute inset-0 bg-zinc-900" />
                                                             )}
@@ -379,7 +379,7 @@ export const LandingPage: React.FC = () => {
                                                     <div key={`slide-lesson-${idx}`} className="relative flex-[0_0_100%] min-w-0 h-full">
                                                         <div className="relative w-full h-full overflow-hidden">
                                                             {lesson.thumbnailUrl ? (
-                                                                <img src={lesson.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover" alt={lesson.title} />
+                                                                <img src={lesson.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover object-center" alt={lesson.title} />
                                                             ) : (
                                                                 <div className="absolute inset-0 bg-zinc-900" />
                                                             )}
@@ -421,7 +421,7 @@ export const LandingPage: React.FC = () => {
                                                     <div key={`slide-sparring-${idx}`} className="relative flex-[0_0_100%] min-w-0 h-full">
                                                         <div className="relative w-full h-full overflow-hidden">
                                                             {sparring.thumbnailUrl ? (
-                                                                <img src={sparring.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover" alt={sparring.title} />
+                                                                <img src={sparring.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover object-center" alt={sparring.title} />
                                                             ) : (
                                                                 <div className="absolute inset-0 bg-zinc-900" />
                                                             )}
@@ -482,7 +482,7 @@ export const LandingPage: React.FC = () => {
                         );
                     })()}
                 </div>
-            </section>
+            </section >
 
             {(!siteSettings || siteSettings.sections?.instructors !== false) && (
                 <section id="instructors" className="py-24 md:py-40 relative overflow-hidden">
@@ -527,97 +527,111 @@ export const LandingPage: React.FC = () => {
                 </section>
             )}
 
-            {(!siteSettings || siteSettings.sections?.classShowcase !== false) && <ClassShowcase
-                title={siteSettings?.sectionContent?.classShowcase?.title}
-                subtitle={siteSettings?.sectionContent?.classShowcase?.subtitle}
-            />}
-            {(!siteSettings || siteSettings.sections?.drillReels !== false) && <DrillReelsSection
-                title={siteSettings?.sectionContent?.drillReels?.title}
-                subtitle={siteSettings?.sectionContent?.drillReels?.subtitle}
-            />}
-            {(!siteSettings || siteSettings.sections?.sparringShowcase !== false) && <RandomSparringShowcase
-                title={siteSettings?.sectionContent?.sparringShowcase?.title}
-                subtitle={siteSettings?.sectionContent?.sparringShowcase?.subtitle}
-            />}
-            {(!siteSettings || siteSettings.sections?.roadmap !== false) && <CapsuleRoadmapSection
-                title={siteSettings?.sectionContent?.roadmap?.title}
-                subtitle={siteSettings?.sectionContent?.roadmap?.subtitle}
-            />}
-            {(!siteSettings || siteSettings.sections?.routinePromotion !== false) && <RoutinePromotionSection
-                title={siteSettings?.sectionContent?.routinePromotion?.title}
-                subtitle={siteSettings?.sectionContent?.routinePromotion?.subtitle}
-            />}
+            {
+                (!siteSettings || siteSettings.sections?.classShowcase !== false) && <ClassShowcase
+                    title={siteSettings?.sectionContent?.classShowcase?.title}
+                    subtitle={siteSettings?.sectionContent?.classShowcase?.subtitle}
+                />
+            }
+            {
+                (!siteSettings || siteSettings.sections?.drillReels !== false) && <DrillReelsSection
+                    title={siteSettings?.sectionContent?.drillReels?.title}
+                    subtitle={siteSettings?.sectionContent?.drillReels?.subtitle}
+                />
+            }
+            {
+                (!siteSettings || siteSettings.sections?.sparringShowcase !== false) && <RandomSparringShowcase
+                    title={siteSettings?.sectionContent?.sparringShowcase?.title}
+                    subtitle={siteSettings?.sectionContent?.sparringShowcase?.subtitle}
+                />
+            }
+            {
+                (!siteSettings || siteSettings.sections?.roadmap !== false) && <CapsuleRoadmapSection
+                    title={siteSettings?.sectionContent?.roadmap?.title}
+                    subtitle={siteSettings?.sectionContent?.roadmap?.subtitle}
+                />
+            }
+            {
+                (!siteSettings || siteSettings.sections?.routinePromotion !== false) && <RoutinePromotionSection
+                    title={siteSettings?.sectionContent?.routinePromotion?.title}
+                    subtitle={siteSettings?.sectionContent?.routinePromotion?.subtitle}
+                />
+            }
 
-            {(!siteSettings || siteSettings.sections?.testimonials !== false) && (
-                <div className="relative overflow-hidden">
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] h-[1200px] bg-violet-900/10 rounded-full blur-[160px] pointer-events-none"></div>
-                    <section className="py-24 md:py-40 relative z-10">
-                        <div className="max-w-7xl mx-auto px-4">
-                            <div className="text-center mb-16 md:mb-24">
-                                <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm mb-6">
-                                    <Quote className="w-3.5 h-3.5 text-violet-500 mr-2" />
-                                    <span className="text-[10px] font-bold text-violet-400 uppercase tracking-[0.2em]">COMMUNITY REVIEWS</span>
+            {
+                (!siteSettings || siteSettings.sections?.testimonials !== false) && (
+                    <div className="relative overflow-hidden">
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] h-[1200px] bg-violet-900/10 rounded-full blur-[160px] pointer-events-none"></div>
+                        <section className="py-24 md:py-40 relative z-10">
+                            <div className="max-w-7xl mx-auto px-4">
+                                <div className="text-center mb-16 md:mb-24">
+                                    <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm mb-6">
+                                        <Quote className="w-3.5 h-3.5 text-violet-500 mr-2" />
+                                        <span className="text-[10px] font-bold text-violet-400 uppercase tracking-[0.2em]">COMMUNITY REVIEWS</span>
+                                    </div>
+                                    <h2 className="text-3xl md:text-6xl font-black mb-6 text-zinc-50 leading-tight">
+                                        {siteSettings?.sectionContent?.testimonials?.title || <>매트 위에서 시작된 <br className="md:hidden" /> <span className="text-violet-400">놀라운 변화</span></>}
+                                    </h2>
+                                    <p className="text-zinc-400 text-xl max-w-2xl mx-auto leading-relaxed break-keep">
+                                        {siteSettings?.sectionContent?.testimonials?.subtitle || <>블랙벨트의 디테일을 경험한 수련생들의 생생한 목소리를 확인하세요.</>}
+                                    </p>
                                 </div>
-                                <h2 className="text-3xl md:text-6xl font-black mb-6 text-zinc-50 leading-tight">
-                                    {siteSettings?.sectionContent?.testimonials?.title || <>매트 위에서 시작된 <br className="md:hidden" /> <span className="text-violet-400">놀라운 변화</span></>}
+                                <div className="grid md:grid-cols-3 gap-6 md:gap-8">
+                                    {testimonials.map((review, i) => (
+                                        <div key={i} className="bg-zinc-900/40 backdrop-blur-xl rounded-2xl border border-zinc-800 p-8 hover:border-violet-500/30 transition-all duration-500 hover:shadow-violet-500/5 hover:-translate-y-2 group">
+                                            <div className="flex gap-1 mb-6">
+                                                {[...Array(review.rating)].map((_, j) => (
+                                                    <Star key={j} className="w-4 h-4 fill-violet-500 text-violet-500" />
+                                                ))}
+                                            </div>
+                                            <p className="text-zinc-300 mb-8 leading-relaxed text-base md:text-lg italic group-hover:text-zinc-100 transition-colors">"{review.comment}"</p>
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-full bg-violet-600 flex items-center justify-center shrink-0 shadow-lg shadow-violet-500/20 group-hover:scale-110 transition-transform">
+                                                    <span className="text-white font-bold text-lg">{review.name[0]}</span>
+                                                </div>
+                                                <div className="text-left">
+                                                    <p className="font-bold text-zinc-100 text-base">{review.name}</p>
+                                                    <p className="text-xs text-zinc-500 font-bold uppercase tracking-wider">{review.belt}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                )
+            }
+
+            {
+                (!siteSettings || siteSettings.sections?.finalCTA !== false) && (
+                    <section className="relative py-32 md:py-48 bg-black flex flex-col items-center justify-center overflow-hidden">
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle,rgba(124,58,237,0.3)_0%,rgba(244,63,94,0.15)_50%,transparent_70%)] blur-[100px] pointer-events-none"></div>
+                        <div className="max-w-7xl mx-auto px-4 relative z-10 flex flex-col items-center gap-y-12 text-center">
+                            <div className="space-y-6">
+                                <h2 className="text-zinc-50 text-4xl md:text-6xl font-black tracking-tighter leading-tight">
+                                    {siteSettings?.sectionContent?.finalCTA?.title ? <HighlightedText text={siteSettings.sectionContent.finalCTA.title} /> : <>성실함이 성장을 보장하던<br className="md:hidden" /> 시대는 끝났습니다. 차이를 만드세요.</>}
                                 </h2>
-                                <p className="text-zinc-400 text-xl max-w-2xl mx-auto leading-relaxed break-keep">
-                                    {siteSettings?.sectionContent?.testimonials?.subtitle || <>블랙벨트의 디테일을 경험한 수련생들의 생생한 목소리를 확인하세요.</>}
+                                <p className="text-zinc-400 text-lg md:text-xl mt-8 max-w-3xl mx-auto leading-relaxed break-keep">
+                                    {siteSettings?.sectionContent?.finalCTA?.subtitle ? <HighlightedText text={siteSettings.sectionContent.finalCTA.subtitle} /> : <>똑같은 시간 수련하고도 나만 뒤처지는 기분, 단순히 재능 탓일까요?<br className="hidden md:block" /> 전략 없는 땀방울은 가장 느린 성장의 지름길입니다.</>}
                                 </p>
                             </div>
-                            <div className="grid md:grid-cols-3 gap-6 md:gap-8">
-                                {testimonials.map((review, i) => (
-                                    <div key={i} className="bg-zinc-900/40 backdrop-blur-xl rounded-2xl border border-zinc-800 p-8 hover:border-violet-500/30 transition-all duration-500 hover:shadow-violet-500/5 hover:-translate-y-2 group">
-                                        <div className="flex gap-1 mb-6">
-                                            {[...Array(review.rating)].map((_, j) => (
-                                                <Star key={j} className="w-4 h-4 fill-violet-500 text-violet-500" />
-                                            ))}
-                                        </div>
-                                        <p className="text-zinc-300 mb-8 leading-relaxed text-base md:text-lg italic group-hover:text-zinc-100 transition-colors">"{review.comment}"</p>
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-full bg-violet-600 flex items-center justify-center shrink-0 shadow-lg shadow-violet-500/20 group-hover:scale-110 transition-transform">
-                                                <span className="text-white font-bold text-lg">{review.name[0]}</span>
-                                            </div>
-                                            <div className="text-left">
-                                                <p className="font-bold text-zinc-100 text-base">{review.name}</p>
-                                                <p className="text-xs text-zinc-500 font-bold uppercase tracking-wider">{review.belt}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
+                            <div className="flex flex-col items-center gap-6">
+                                <button
+                                    className="relative group bg-zinc-100 text-black rounded-full px-14 py-6 text-xl font-bold shadow-[0_0_50px_rgba(124,58,237,0.4)] hover:bg-violet-600 hover:text-white hover:scale-105 transition-all duration-300 overflow-hidden"
+                                    onClick={() => navigate('/pricing')}
+                                >
+                                    <span className="relative z-10">{siteSettings?.sectionContent?.finalCTA?.buttonText || '지금 바로 훈련 시작'}</span>
+                                    <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/40 to-transparent z-0 w-full h-full skew-x-12"></div>
+                                </button>
+                                <p className="text-zinc-600 text-sm font-medium">
+                                    회원가입만으로 모든 무료 콘텐츠를 즉시 체험할 수 있습니다.
+                                </p>
                             </div>
                         </div>
                     </section>
-                </div>
-            )}
-
-            {(!siteSettings || siteSettings.sections?.finalCTA !== false) && (
-                <section className="relative py-32 md:py-48 bg-black flex flex-col items-center justify-center overflow-hidden">
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle,rgba(124,58,237,0.3)_0%,rgba(244,63,94,0.15)_50%,transparent_70%)] blur-[100px] pointer-events-none"></div>
-                    <div className="max-w-7xl mx-auto px-4 relative z-10 flex flex-col items-center gap-y-12 text-center">
-                        <div className="space-y-6">
-                            <h2 className="text-zinc-50 text-4xl md:text-6xl font-black tracking-tighter leading-tight">
-                                {siteSettings?.sectionContent?.finalCTA?.title ? <HighlightedText text={siteSettings.sectionContent.finalCTA.title} /> : <>성실함이 성장을 보장하던<br className="md:hidden" /> 시대는 끝났습니다. 차이를 만드세요.</>}
-                            </h2>
-                            <p className="text-zinc-400 text-lg md:text-xl mt-8 max-w-3xl mx-auto leading-relaxed break-keep">
-                                {siteSettings?.sectionContent?.finalCTA?.subtitle ? <HighlightedText text={siteSettings.sectionContent.finalCTA.subtitle} /> : <>똑같은 시간 수련하고도 나만 뒤처지는 기분, 단순히 재능 탓일까요?<br className="hidden md:block" /> 전략 없는 땀방울은 가장 느린 성장의 지름길입니다.</>}
-                            </p>
-                        </div>
-                        <div className="flex flex-col items-center gap-6">
-                            <button
-                                className="relative group bg-zinc-100 text-black rounded-full px-14 py-6 text-xl font-bold shadow-[0_0_50px_rgba(124,58,237,0.4)] hover:bg-violet-600 hover:text-white hover:scale-105 transition-all duration-300 overflow-hidden"
-                                onClick={() => navigate('/pricing')}
-                            >
-                                <span className="relative z-10">{siteSettings?.sectionContent?.finalCTA?.buttonText || '지금 바로 훈련 시작'}</span>
-                                <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/40 to-transparent z-0 w-full h-full skew-x-12"></div>
-                            </button>
-                            <p className="text-zinc-600 text-sm font-medium">
-                                회원가입만으로 모든 무료 콘텐츠를 즉시 체험할 수 있습니다.
-                            </p>
-                        </div>
-                    </div>
-                </section>
-            )}
+                )
+            }
 
             <style>{`
                 @keyframes gradient {

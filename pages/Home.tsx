@@ -84,36 +84,38 @@ export const Home: React.FC = () => {
                     } catch (e) {
                         console.error("Error fetching activity", e);
                     }
+                }
 
-                    // B. Trending Sparring
-                    try {
-                        const sparring = await getPublicSparringVideos(10, user.id);
-                        if (sparring && sparring.length > 0) {
-                            setTrendingSparring(sparring);
-                        }
-                    } catch (e) {
-                        console.error("Error fetching trending sparring", e);
-                    }
+                // --- Global Data (Accessible to everyone) ---
 
-                    // C. Featured Routines
-                    try {
-                        const routines = await getFeaturedRoutines(20, user.id);
-                        if (routines && routines.length > 0) {
-                            setFeaturedRoutines(routines);
-                        }
-                    } catch (e) {
-                        console.error("Error fetching routines", e);
+                // B. Trending Sparring
+                try {
+                    const sparring = await getPublicSparringVideos(10);
+                    if (sparring && sparring.length > 0) {
+                        setTrendingSparring(sparring);
                     }
+                } catch (e) {
+                    console.error("Error fetching trending sparring", e);
+                }
 
-                    // D. Trending Courses
-                    try {
-                        const courses = await getTrendingCourses(10, user.id);
-                        if (courses && courses.length > 0) {
-                            setTrendingCourses(courses);
-                        }
-                    } catch (e) {
-                        console.error("Error fetching trending courses", e);
+                // C. Featured Routines
+                try {
+                    const routines = await getFeaturedRoutines(20);
+                    if (routines && routines.length > 0) {
+                        setFeaturedRoutines(routines);
                     }
+                } catch (e) {
+                    console.error("Error fetching routines", e);
+                }
+
+                // D. Trending Courses
+                try {
+                    const courses = await getTrendingCourses(10);
+                    if (courses && courses.length > 0) {
+                        setTrendingCourses(courses);
+                    }
+                } catch (e) {
+                    console.error("Error fetching trending courses", e);
                 }
 
                 // --- Tab Content Data ---

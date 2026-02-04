@@ -1148,9 +1148,9 @@ export const CourseDetail: React.FC = () => {
                 {/* Mobile Layout: Video -> Curriculum -> Instructor -> Payment -> Info */}
                 <div className="flex flex-col gap-6 lg:hidden">
                     {renderVideoPlayer()}
+                    {renderCurriculum()}
                     {renderHeaderInfo()}
                     {renderAppDescription()}
-                    {renderCurriculum()}
                     {renderBonusContent()}
                     {renderInstructor()}
                     {renderPurchaseBox()}
