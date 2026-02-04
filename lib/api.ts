@@ -1230,39 +1230,44 @@ export async function checkSparringSaved(userId: string, videoId: string): Promi
 }
 
 export async function getSavedSparringVideos(userId: string): Promise<SparringVideo[]> {
-    const { data } = await withTimeout(
+    // 1. Fetch saved video IDs
+    const { data: savedItems, error: savedError } = await withTimeout(
         supabase
             .from('user_saved_sparring')
-            .select(`
-            video_id,
-            sparring_videos!inner (
-                *
-            )
-        `)
+            .select('video_id')
             .eq('user_id', userId)
-            .eq('sparring_videos.is_published', true)
             .order('created_at', { ascending: false }),
         10000
     ) as any;
 
-    if (!data) return [];
+    if (savedError || !savedItems || savedItems.length === 0) return [];
 
-    // Extract creator IDs
-    const creatorIds = Array.from(new Set(data.map((item: any) => item.sparring_videos?.creator_id).filter(Boolean)));
+    const videoIds = savedItems.map((item: any) => item.video_id).filter(Boolean);
+
+    // 2. Fetch full video details
+    const { data: videos, error: videosError } = await supabase
+        .from('sparring_videos')
+        .select('*')
+        .in('id', videoIds)
+        .eq('is_published', true);
+
+    if (videosError || !videos) return [];
+
+    // 3. Extract creator IDs and fetch creator info
+    const creatorIds = Array.from(new Set(videos.map((v: any) => v.creator_id).filter(Boolean)));
     const userMap = await fetchCreatorsByIds(creatorIds as string[]);
 
-    // Transform using transformSparringVideo
-    return data.map((item: any) => {
-        const video = item.sparring_videos;
+    // 4. Transform and maintain order
+    return videoIds.map((id: string) => {
+        const video = videos.find((v: any) => v.id === id);
+        if (!video) return null;
+
         const creator = userMap[video.creator_id];
         return transformSparringVideo({
             ...video,
-            creator: creator ? {
-                ...creator,
-                profileImage: creator.profileImage
-            } : undefined
+            creator: creator
         });
-    });
+    }).filter(Boolean) as SparringVideo[];
 }
 
 export async function getPurchasedSparringVideos(userId: string): Promise<SparringVideo[]> {
@@ -7897,7 +7902,7 @@ export async function checkRoutineSaved(userId: string, routineId: string): Prom
 export async function getUserSavedRoutines(userId: string): Promise<DrillRoutine[]> {
     const { data } = await withTimeout(
         supabase
-            .from('user_routines')
+            .from('user_saved_routines')
             .select('routine_id')
             .eq('user_id', userId),
         10000
