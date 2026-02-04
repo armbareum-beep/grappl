@@ -1,7 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getLessonById, getCourseById, checkCourseOwnership, recordWatchTime, updateLastWatched, incrementLessonViews } from '../lib/api';
+import {
+    getLessonById as getLesson,
+    getCourseById as getCourse,
+    checkCourseOwnership,
+    recordWatchTime,
+    updateLastWatched,
+    incrementLessonViews,
+    getLessonProgress
+} from '../lib/api';
 import { toggleLessonLike, checkLessonLiked } from '../lib/api-lessons';
 import { updateMasteryFromWatch } from '../lib/api-technique-mastery';
 import { Heart, ArrowLeft, Calendar, Eye, Clock, BookOpen, Share2, ExternalLink, Lock } from 'lucide-react';
@@ -38,10 +46,33 @@ export const LessonDetail: React.FC = () => {
     const hasRecordedStartRef = React.useRef(false);
     const hasRecordedHalfRef = React.useRef(false);
 
+    const [initialStartTime, setInitialStartTime] = useState<number>(0);
+    const lastSavedProgressRef = React.useRef<number>(0);
+
+    // Fetch initial progress for resume playback
+    useEffect(() => {
+        async function fetchProgress() {
+            if (user && id) {
+                const progress = await getLessonProgress(user.id, id);
+                if (progress && progress.watched_seconds) {
+                    setInitialStartTime(progress.watched_seconds);
+                    lastSavedProgressRef.current = progress.watched_seconds;
+                }
+            }
+        }
+        fetchProgress();
+    }, [user, id]);
+
     const handleProgress = React.useCallback(async (seconds: number, duration?: number, percent?: number) => {
         setCurrentTime(seconds);
 
         if (!user || !lesson) return;
+
+        // Save progress to DB periodically (every 10 seconds of video time change)
+        if (Math.abs(seconds - lastSavedProgressRef.current) >= 10) {
+            lastSavedProgressRef.current = seconds;
+            updateLastWatched(user.id, lesson.id, Math.floor(seconds)).catch(console.error);
+        }
 
         // Mastery Level Logic (Start & 50%)
         if (percent) {
@@ -76,21 +107,13 @@ export const LessonDetail: React.FC = () => {
             const timeToSend = Math.floor(accumulatedTimeRef.current);
             accumulatedTimeRef.current -= timeToSend;
 
-            // Only record for subscribers who don't own the course (since owners already paid)
-            // Or should we record for everyone for analytics? Let's record for everyone, 
-            // but the settlement logic will filter by subscription.
-            // Actually, existing logic in CourseDetail checks: if (user.isSubscriber && !ownsCourse)
-            // Let's stick to that pattern for consistency, or maybe just record for all subscribers?
-            // The recordWatchTime function is generic. 
-            // Let's match CourseDetail logic: record if subscribed and not owned.
-            // Wait, daily free lesson users should probably not count for subscription revenue
-            // unless they ARE subscribers. 
-
             if (user.isSubscriber && !owns) {
                 recordWatchTime(user.id, timeToSend, undefined, lesson.id);
             }
         }
     }, [user, lesson, owns]);
+
+    // Update VideoPlayer component to use initialStartTime
 
     useEffect(() => {
         async function fetchData() {
@@ -99,7 +122,7 @@ export const LessonDetail: React.FC = () => {
             setOwns(false);
 
             try {
-                const lessonData = await getLessonById(id);
+                const lessonData = await getLesson(id);
                 setLesson(lessonData);
 
                 if (lessonData) {
@@ -110,7 +133,7 @@ export const LessonDetail: React.FC = () => {
 
                     let courseData = null;
                     if (lessonData.courseId) {
-                        courseData = await getCourseById(lessonData.courseId);
+                        courseData = await getCourse(lessonData.courseId);
                         setCourse(courseData);
                     }
 
@@ -268,6 +291,7 @@ export const LessonDetail: React.FC = () => {
                                                 }
                                             }}
                                             onProgress={handleProgress}
+                                            startTime={initialStartTime}
                                         />
                                     ) : (
                                         <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900/90 text-zinc-400 p-4 md:p-6 text-center backdrop-blur-sm">

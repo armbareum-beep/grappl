@@ -1595,6 +1595,22 @@ export async function updateLastWatched(userId: string, lessonId: string, watche
     return { error };
 }
 
+export async function getLessonProgress(userId: string, lessonId: string) {
+    const { data, error } = await supabase
+        .from('lesson_progress')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('lesson_id', lessonId)
+        .maybeSingle();
+
+    if (error) {
+        console.error('Error fetching lesson progress:', error);
+        return null;
+    }
+
+    return data;
+}
+
 // Enhanced Recent Activity (Lessons Only)
 export async function getRecentActivity(userId: string) {
     // 1. Lessons Progress Only
@@ -8552,59 +8568,90 @@ export async function getUserSubscription(userId: string) {
 }
 
 export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
-    // 1. Fetch a larger pool of routines (e.g., last 50) to rank from
-    const { data, error } = await withTimeout(
-        supabase
-            .from('routines')
-            .select('*, creator:creators(name, profile_image)')
-            .limit(50) // Candidate pool size
-            .order('created_at', { ascending: false }),
-        5000
-    );
+    try {
+        // 1. Fetch a larger pool of routines (e.g., last 50) to rank from
+        const { data, error } = await withTimeout(
+            supabase
+                .from('routines')
+                .select('*, creator:creators(name, profile_image)')
+                .limit(50) // Candidate pool size
+                .order('created_at', { ascending: false }),
+            5000
+        );
 
-    if (error) return [];
+        if (error) {
+            console.error("Error fetching featured routines:", error);
+            // Fallback: try without JOIN
+            const { data: fallbackData } = await withTimeout(
+                supabase.from('routines').select('*').limit(limit).order('created_at', { ascending: false }),
+                3000
+            );
+            if (!fallbackData) return [];
+            return fallbackData.map((r: any) => ({
+                id: r.id,
+                title: r.title,
+                description: r.description,
+                creatorId: r.creator_id,
+                creatorName: 'Grapplay',
+                difficulty: r.difficulty || 'Beginner',
+                thumbnailUrl: r.thumbnail_url,
+                price: r.price || 0,
+            }));
+        }
 
-    // 2. Calculate Score for each routine
-    let rankedRoutines = (data || []).map((r: any) => {
-        const daysOld = (new Date().getTime() - new Date(r.created_at).getTime()) / (1000 * 60 * 60 * 24);
-        const views = r.views || 0;
-        const likes = r.likes || 0; // Assuming 'likes' column exists or is joined
+        if (!data || data.length === 0) return [];
 
-        // Algorithm Weights
-        // - Recency: Boosts new content significantly in the first few days
-        // - Popularity: High views and likes can sustain a routine's position
-        const recencyScore = 500 / (daysOld + 1);
-        const popularityScore = (views * 0.1) + (likes * 10);
+        // 2. If data is sparse (e.g. < 5), just return them without complex scoring to ensure visibility
+        if (data.length < 5) {
+            return data.slice(0, limit).map((r: any) => ({
+                id: r.id,
+                title: r.title,
+                description: r.description,
+                creatorId: r.creator_id,
+                creatorName: r.creator?.name || 'Grapplay',
+                creatorProfileImage: r.creator?.profile_image,
+                difficulty: r.difficulty || 'Beginner',
+                thumbnailUrl: r.thumbnail_url,
+                price: r.price || 0,
+            }));
+        }
 
-        const totalScore = recencyScore + popularityScore;
+        // 3. Calculate Score for each routine
+        let rankedRoutines = data.map((r: any) => {
+            const daysOld = (new Date().getTime() - new Date(r.created_at).getTime()) / (1000 * 60 * 60 * 24);
+            const views = r.views || 0;
+            const likes = r.likes || 0;
 
-        return {
-            ...r,
-            _score: totalScore
-        };
-    });
+            // Algorithm Weights
+            const recencyScore = 500 / (daysOld + 1);
+            const popularityScore = (views * 0.1) + (likes * 10);
+            const totalScore = recencyScore + popularityScore;
 
-    // 3. Sort by Score (Descending)
-    rankedRoutines.sort((a: any, b: any) => b._score - a._score);
+            return {
+                ...r,
+                _score: totalScore
+            };
+        });
 
-    // 4. Return top 'limit' items
-    return rankedRoutines.slice(0, limit).map((r: any) => ({
-        id: r.id,
-        title: r.title,
-        description: r.description,
-        creatorId: r.creator_id,
-        creatorName: r.creator?.name || 'Unknown',
-        creatorProfileImage: r.creator?.profile_image,
-        difficulty: r.difficulty || 'Beginner',
-        thumbnailUrl: r.thumbnail_url,
-        price: r.price || 0,
-        durationMinutes: r.duration_minutes || 10,
-        category: r.category || 'General',
-        views: r.views || 0,
-        likes: r.likes || 0,
-        createdAt: r.created_at || new Date().toISOString(),
-        drills: []
-    }));
+        // 4. Sort by Score (Descending)
+        rankedRoutines.sort((a: any, b: any) => (b._score || 0) - (a._score || 0));
+
+        // 5. Return top 'limit' items
+        return rankedRoutines.slice(0, limit).map((r: any) => ({
+            id: r.id,
+            title: r.title,
+            description: r.description,
+            creatorId: r.creator_id,
+            creatorName: r.creator?.name || 'Grapplay',
+            creatorProfileImage: r.creator?.profile_image,
+            difficulty: r.difficulty || 'Beginner',
+            thumbnailUrl: r.thumbnail_url,
+            price: r.price || 0,
+        }));
+    } catch (e) {
+        console.error("Critical error in getFeaturedRoutines:", e);
+        return [];
+    }
 }
 
 export async function getNewCourses(limit = 6): Promise<Course[]> {
