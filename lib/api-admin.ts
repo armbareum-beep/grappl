@@ -18,23 +18,15 @@ export interface AdminStats {
 
 export const getAdminStats = async (): Promise<AdminStats> => {
     try {
-        const [users, drills, pendingCreators, creators, courses, sparring] = await Promise.all([
-            withTimeout(supabase.from('users').select('*', { count: 'exact', head: true })),
-            withTimeout(supabase.from('drills').select('*', { count: 'exact', head: true })),
-            withTimeout(supabase.from('creators').select('*', { count: 'exact', head: true }).eq('approved', false)),
-            withTimeout(supabase.from('creators').select('*', { count: 'exact', head: true }).eq('approved', true)),
-            withTimeout(supabase.from('courses').select('*', { count: 'exact', head: true })),
-            withTimeout(supabase.from('sparring_videos').select('*', { count: 'exact', head: true }).is('deleted_at', null))
-        ]);
+        const { data, error } = await supabase.rpc('get_admin_dashboard_stats');
 
-        return {
-            totalUsers: (users as any).count || 0,
-            totalDrills: (drills as any).count || 0,
-            pendingCreators: (pendingCreators as any).count || 0,
-            totalCreators: (creators as any).count || 0,
-            totalCourses: (courses as any).count || 0,
-            totalSparring: (sparring as any).count || 0
-        };
+        if (error) {
+            console.error('Error fetching admin stats:', error);
+            throw error;
+        }
+
+        // RPC returns the exact object shape we need, no transformation needed
+        return data as AdminStats;
     } catch (error) {
         console.error('Error fetching admin stats:', error);
         return { totalUsers: 0, totalDrills: 0, pendingCreators: 0, totalCreators: 0, totalCourses: 0, totalSparring: 0 };
@@ -552,15 +544,15 @@ export async function getAdminTopPerformers() {
             courses: topCourses.data?.map(c => ({
                 id: c.id,
                 title: c.title,
-                salesCount: c.views, // Using views as a proxy
-                revenue: (c.views || 0) * 10000, // Proxy revenue
+                salesCount: c.views, // Using views as a proxy for popularity, not sales
+                revenue: 0, // Real revenue requires ledger data which is currently empty
                 instructor: (c.creator as any)?.name
             })) || [],
             creators: topCreators.data?.map(cr => ({
                 id: cr.id,
                 name: cr.name,
                 subscribers: cr.subscriber_count,
-                revenue: (cr.subscriber_count || 0) * 50000 // Proxy revenue
+                revenue: 0 // Real revenue requires ledger data which is currently empty
             })) || []
         };
     } catch (error) {

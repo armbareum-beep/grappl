@@ -197,8 +197,11 @@ function transformCreator(data: any): Creator {
         // Prioritize profile_image (creators table) over avatar_url (Google/Social)
         profileImage: data.profile_image || data.user?.avatar_url || data.avatar_url || '',
         subscriberCount: data.subscriber_count || 0,
+        email: data.email,
     };
 }
+
+
 
 function transformVideo(data: any): Video {
     return {
@@ -314,6 +317,22 @@ export async function getCreators(): Promise<Creator[]> {
     } catch (e) {
         console.error('getCreators timeout/fail:', e);
         return []; // Return empty array on failure to prevent infinite loading
+    }
+}
+
+export async function getAdminCreators(): Promise<Creator[]> {
+    try {
+        const { data, error } = await supabase.rpc('get_admin_creators_with_email');
+
+        if (error) {
+            console.error('Error fetching admin creators:', error);
+            throw error;
+        }
+
+        return (data || []).map(transformCreator);
+    } catch (e) {
+        console.error('getAdminCreators timeout/fail:', e);
+        return [];
     }
 }
 
@@ -7879,7 +7898,7 @@ export async function checkRoutineSaved(userId: string, routineId: string): Prom
 export async function getUserSavedRoutines(userId: string): Promise<DrillRoutine[]> {
     const { data } = await withTimeout(
         supabase
-            .from('user_saved_routines')
+            .from('user_routines')
             .select('routine_id')
             .eq('user_id', userId),
         10000

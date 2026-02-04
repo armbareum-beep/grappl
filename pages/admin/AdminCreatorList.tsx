@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getCreators, getPendingCreators, approveCreator, rejectCreator } from '../../lib/api';
+import { getAdminCreators, getPendingCreators, approveCreator, rejectCreator } from '../../lib/api';
 import { deleteCreator, updateCreatorProfileAdmin, CreatorProfileUpdate } from '../../lib/api-admin';
 import { Creator } from '../../types';
 import { User, ArrowLeft, Trash2, Shield, Users, Edit, X, Save, CheckCircle, XCircle } from 'lucide-react';
@@ -29,7 +29,7 @@ export const AdminCreatorList: React.FC = () => {
         try {
             setLoading(true);
             const [activeData, pendingRes] = await Promise.all([
-                getCreators(),
+                getAdminCreators(),
                 getPendingCreators()
             ]);
             setCreators(activeData);
@@ -203,6 +203,11 @@ export const AdminCreatorList: React.FC = () => {
                                         <h3 className="text-xl font-bold text-white group-hover:text-violet-300 transition-colors">
                                             {creator.name}
                                         </h3>
+                                        {creator.email && (
+                                            <p className="text-xs text-zinc-500 font-mono">
+                                                {creator.email}
+                                            </p>
+                                        )}
                                         <p className="text-zinc-400 text-sm line-clamp-2 max-w-2xl">
                                             {creator.bio || '소개글이 없습니다.'}
                                         </p>

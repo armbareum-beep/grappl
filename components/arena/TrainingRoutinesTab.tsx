@@ -3,7 +3,7 @@ import { PlaySquare, Clock, Dumbbell, Check, MousePointerClick, Trash2, X, Chevr
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-import { getUserSavedDrills, toggleDrillSave, getUserSavedRoutines, deleteRoutine } from '../../lib/api';
+import { getUserSavedDrills, toggleDrillSave, getUserSavedRoutines } from '../../lib/api';
 import { DrillRoutine, Drill, Difficulty, VideoCategory } from '../../types';
 import { Button } from '../Button';
 import { WeeklyRoutinePlanner } from './WeeklyRoutinePlanner';
@@ -388,22 +388,13 @@ export const TrainingRoutinesTab: React.FC = () => {
                 } else {
                     if (user) {
                         try {
-                            const routineToDelete = routines.find(r => r.id === routineId);
-                            // Check ownership
-                            if (routineToDelete && routineToDelete.creatorId === user.id) {
-                                // 1. Owned Routine -> Delete from 'routines' table
-                                const { error } = await deleteRoutine(routineId);
-                                if (error) throw error;
-                            } else {
-                                // 2. Saved Routine -> Delete from 'user_routines' table
-                                const { error } = await supabase
-                                    .from('user_routines')
-                                    .delete()
-                                    .eq('user_id', user.id)
-                                    .eq('routine_id', routineId);
+                            // Always just remove from saved routines, NEVER delete from DB here
+                            const { error } = await supabase
+                                .from('user_routines')
+                                .delete()
+                                .match({ user_id: user.id, routine_id: routineId });
 
-                                if (error) throw error;
-                            }
+                            if (error) throw error;
 
                             // Optimistic update
                             setRoutines(prev => prev.filter(r => r.id !== routineId));
