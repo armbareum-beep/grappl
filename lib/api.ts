@@ -1670,7 +1670,7 @@ export async function getRecentActivity(userId: string) {
                 creator_id,
                 course:courses (
                     id, title, thumbnail_url, category,
-                    creator:creators ( id, name, profile_image )
+                    creator_id
                 )
             )
         `)
@@ -1682,6 +1682,27 @@ export async function getRecentActivity(userId: string) {
 
     if (lessonError) {
         console.error("Error fetching recent activity:", lessonError);
+        return [];
+    }
+
+    // Extract creator IDs to fetch profiles manually
+    const creatorIds = new Set<string>();
+
+    (lessonData || []).forEach((item: any) => {
+        if (item.lesson?.creator_id) creatorIds.add(item.lesson.creator_id);
+        if (item.lesson?.course?.creator_id) creatorIds.add(item.lesson.course.creator_id);
+    });
+
+    let userMap: Record<string, any> = {};
+    if (creatorIds.size > 0) {
+        const { data: users } = await supabase
+            .from('users')
+            .select('id, name, avatar_url, profile_image_url')
+            .in('id', Array.from(creatorIds));
+
+        if (users) {
+            users.forEach(u => userMap[u.id] = u);
+        }
     }
 
     const lessonItems = (lessonData || []).map((item: any) => {
@@ -1700,15 +1721,15 @@ export async function getRecentActivity(userId: string) {
             progress = Math.min(Math.round((watchedSec / totalSec) * 100), 99);
         }
 
-        // Determine creator info (prioritize course creator, then lesson creator if needed)
-        // But lesson structure usually has course.creator.
-        // If course is null, we might need lesson.creator if we fetched it, but currently query fetches course->creator.
-        // Let's assume standalone lessons might be supported now.
+        // Determine creator info
+        // Prioritize course creator, then lesson creator
+        const relevantCreatorId = l.course?.creator_id || l.creator_id;
+        const creatorProfile = userMap[relevantCreatorId];
 
         return {
             id: l.id,
             courseId: l.course?.id,
-            creatorId: l.course?.creator?.id || l.creator_id,
+            creatorId: relevantCreatorId,
             type: 'lesson',
             title: l.title,
             courseTitle: l.course?.title || l.title, // Fallback to lesson title if no course
@@ -1718,10 +1739,10 @@ export async function getRecentActivity(userId: string) {
             lastWatched: new Date(item.last_watched_at || item.created_at).toISOString(),
             lessonNumber: l.lesson_number,
             durationMinutes: durationMin,
-            creatorName: l.course?.creator?.name,
-            creatorProfileImage: l.course?.creator?.profile_image
+            creatorName: creatorProfile?.name,
+            creatorProfileImage: creatorProfile?.profile_image_url || creatorProfile?.avatar_url
         };
-    }).filter((item: any) => item && item.id); // Removed item.courseId requirement
+    }).filter((item: any) => item && item.id);
 
     return lessonItems;
 }
