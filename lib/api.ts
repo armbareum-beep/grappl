@@ -215,7 +215,7 @@ function transformVideo(data: any): Video {
         thumbnailUrl: data.thumbnail_url,
         vimeoUrl: data.vimeo_url,
         length: data.length,
-        price: data.price,
+        price: Number(data.price) || 0,
         views: data.views || 0,
         createdAt: data.created_at,
     };
@@ -264,6 +264,7 @@ export function transformLesson(data: any): Lesson {
         isSubscriptionExcluded: data.is_subscription_excluded || false,
         isPreview: data.is_preview,
         uniformType: data.uniform_type,
+        price: Number(data.price || data.course?.price) || 0,
     };
 }
 
@@ -6619,7 +6620,7 @@ export async function getRandomSampleRoutines(limit: number = 1) {
 }
 
 // Helper for transforming drill data
-function transformDrill(data: any): Drill {
+export function transformDrill(data: any): Drill {
     console.log('transformDrill input:', data);
     const result = {
         id: data.id,
@@ -6641,7 +6642,7 @@ function transformDrill(data: any): Drill {
         length: data.length || data.duration,
         tags: data.tags || [],
         likes: data.likes || 0,
-        price: data.price || 0,
+        price: Number(data.price) || 0,
         createdAt: data.created_at,
         uniformType: data.uniform_type,
     };

@@ -143,7 +143,7 @@ export function Watch() {
         try {
             setLoading(true);
 
-            const { fetchCreatorsByIds, transformLesson, transformSparringVideo, getDailyFreeDrill, getDailyFreeLesson, getDailyFreeSparring } = await import('../lib/api');
+            const { fetchCreatorsByIds, transformLesson, transformSparringVideo, transformDrill, getDailyFreeDrill, getDailyFreeLesson, getDailyFreeSparring } = await import('../lib/api');
 
             // Filter Drills: Must belong to at least one routine (joined via routine_drills)
             let drillQuery = supabase.from('drills')
@@ -230,28 +230,18 @@ export function Watch() {
 
             // Transform
             if (drillsRes.data) {
-                allItems = [...allItems, ...drillsRes.data.map((d: any) => ({
-                    type: 'drill' as const,
-                    data: {
-                        ...d,
-                        id: d.id,
-                        title: d.title,
-                        description: d.description,
-                        category: d.category,
-                        difficulty: d.difficulty,
-                        thumbnailUrl: d.thumbnail_url,
-                        videoUrl: d.video_url,
-                        vimeoUrl: d.vimeo_url,
-                        descriptionVideoUrl: d.description_video_url,
-                        durationMinutes: d.duration_minutes,
-                        price: d.price,
-                        views: d.views,
-                        creatorId: d.creator_id,
-                        creatorName: creatorsMap[d.creator_id]?.name || 'Instructor',
-                        creatorProfileImage: creatorsMap[d.creator_id]?.avatarUrl || undefined,
-                        aspectRatio: '9:16' as const,
-                    }
-                }))];
+                allItems = [...allItems, ...drillsRes.data.map((d: any) => {
+                    const transformed = transformDrill(d);
+                    const creator = creatorsMap[d.creator_id];
+                    return {
+                        type: 'drill' as const,
+                        data: {
+                            ...transformed,
+                            creatorName: creator?.name || 'Instructor',
+                            creatorProfileImage: creator?.avatarUrl || undefined,
+                        }
+                    };
+                })];
             }
 
             if (sparringRes.data) {
@@ -329,13 +319,14 @@ export function Watch() {
                 const targetData = td?.data || ts?.data || tl?.data;
                 if (targetData && !allItems.some(item => item.data.id === targetId)) {
                     if (td?.data) {
+                        const transformed = transformDrill(td.data);
+                        const creator = creatorsMap[td.data.creator_id];
                         allItems.push({
                             type: 'drill',
                             data: {
-                                ...td.data,
-                                creatorName: creatorsMap[td.data.creator_id]?.name || 'Instructor',
-                                creatorProfileImage: creatorsMap[td.data.creator_id]?.avatarUrl || undefined,
-                                aspectRatio: '9:16'
+                                ...transformed,
+                                creatorName: creator?.name || 'Instructor',
+                                creatorProfileImage: creator?.avatarUrl || undefined,
                             } as any
                         });
                     } else if (ts?.data) {
@@ -377,7 +368,8 @@ export function Watch() {
 
             const filteredItems = allItems.filter(item => {
                 // Determine if item is "free" (0 won or Daily Free)
-                const isPriceFree = (item.data as any).price === 0;
+                const price = Number((item.data as any).price);
+                const isPriceFree = isNaN(price) || price === 0;
                 const isDailyFree = dailyFreeIds.has(item.data.id);
                 const isFree = isPriceFree || isDailyFree;
 

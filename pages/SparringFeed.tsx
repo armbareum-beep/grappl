@@ -770,9 +770,10 @@ export const SparringFeed: React.FC<{
 
         if (viewMode === 'reels') {
             const isDailyFree = dailyFreeIdState === video.id;
-            const isPriceFree = video.price === 0;
+            const price = Number(video.price);
+            const isPriceFree = isNaN(price) || price === 0;
             const owns = user?.ownedVideoIds?.some(oid => String(oid).trim().toLowerCase() === String(video.id).trim().toLowerCase());
-            const hasAccess = isDailyFree || isPriceFree || owns || (user && (isSubscribed || isAdmin || video.creatorId === user.id));
+            const hasAccess = isDailyFree || isPriceFree || owns || (user && (!!isSubscribed || !!isAdmin || video.creatorId === user.id));
             return matchesSearchAndFilters && hasAccess;
         }
 
