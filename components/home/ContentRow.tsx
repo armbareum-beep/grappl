@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Bookmark, Share2, MoreHorizontal } from 'lucide-react';
 import { ActionMenuModal } from '../library/ActionMenuModal';
 import { cn } from '../../lib/utils';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth as useAuthContext } from '../../contexts/AuthContext';
 import {
     toggleCourseSave, checkCourseSaved,
     toggleRoutineSave, checkRoutineSaved,
@@ -29,7 +29,7 @@ interface ContentRowItemProps {
 const ContentRowItem: React.FC<ContentRowItemProps> = ({
     item, type, variant, idx, cardClass, getThumbnail, getTitle, getSubtitle, handleClick
 }) => {
-    const { user } = useAuth();
+    const { user } = useAuthContext();
     const navigate = useNavigate();
     const [isSaved, setIsSaved] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -156,20 +156,36 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
                             aspectRatio: type === 'routine' ? '2/3' : type === 'sparring' ? '1/1' : '16/9'
                         }}
                     >
-                        <div
-                            className="absolute inset-0 bg-cover bg-center"
-                            style={{ backgroundImage: `url(${getThumbnail(item)})` }}
-                        />
+                        {type === 'routine' ? (
+                            <img
+                                src={getThumbnail(item)}
+                                className="absolute inset-0 !w-full !h-full !max-w-none !max-h-none object-cover !scale-[1.21] transition-transform duration-500 opacity-90 group-hover:opacity-100"
+                                alt={getTitle(item)}
+                            />
+                        ) : (
+                            <div
+                                className="absolute inset-0 bg-cover bg-center"
+                                style={{ backgroundImage: `url(${getThumbnail(item)})` }}
+                            />
+                        )}
                         <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors duration-300" />
                         {renderButtons()}
                     </div>
                 </div>
             ) : (
                 <div className="w-full h-full rounded-lg overflow-hidden relative bg-zinc-900 group-hover:scale-[1.03] transition-transform duration-300 transform-gpu">
-                    <div
-                        className="absolute inset-0 bg-cover bg-center"
-                        style={{ backgroundImage: `url(${getThumbnail(item)})` }}
-                    />
+                    {type === 'routine' ? (
+                        <img
+                            src={getThumbnail(item)}
+                            className="absolute inset-0 !w-full !h-full !max-w-none !max-h-none object-cover !scale-[1.21] transition-transform duration-500 opacity-90 group-hover:opacity-100"
+                            alt={getTitle(item)}
+                        />
+                    ) : (
+                        <div
+                            className="absolute inset-0 bg-cover bg-center"
+                            style={{ backgroundImage: `url(${getThumbnail(item)})` }}
+                        />
+                    )}
                     <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors duration-300" />
                     {renderButtons()}
                 </div>

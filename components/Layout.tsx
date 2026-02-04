@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, BookOpen, DollarSign, Upload, LogOut, Settings, Clapperboard, HelpCircle, Network, Dumbbell, Home, Bookmark } from 'lucide-react';
 import { Button } from './Button';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth as useAuthContext } from '../contexts/AuthContext';
 import { NotificationDropdown } from './NotificationDropdown';
 
 import { LevelUpModal } from './LevelUpModal';
@@ -21,7 +21,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
   const [searchModalOpen, setSearchModalOpen] = React.useState(false);
   const location = useLocation();
-  const { user, signOut, isCreator, isAdmin } = useAuth();
+  const { user, signOut, isCreator, isAdmin } = useAuthContext();
 
   // Global Modals State
   const [levelUpData, setLevelUpData] = React.useState<{ oldLevel: number; newLevel: number; beltLevel: number } | null>(null);

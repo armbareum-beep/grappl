@@ -3,7 +3,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, MoreHorizontal } from 'lucide-react';
 import { ActionMenuModal } from '../library/ActionMenuModal';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth as useAuthContext } from '../../contexts/AuthContext';
 import {
     toggleCourseSave, checkCourseSaved,
     toggleRoutineSave, checkRoutineSaved,
@@ -84,7 +84,7 @@ const SectionRow: React.FC<SectionRowProps> = ({ title, isEmpty, emptyText, onVi
 
 export const UserDashboard: React.FC<UserDashboardProps> = ({ continueItems }) => {
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user } = useAuthContext();
 
     const handleContinue = (item: ActivityItem) => {
         if (!item.id || item.id === 'undefined') return;

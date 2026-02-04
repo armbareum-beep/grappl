@@ -8639,6 +8639,112 @@ export async function getUserSubscription(userId: string) {
     return data;
 }
 
+// ============================================
+// PHASE 1: TRENDING ALGORITHM HELPERS
+// ============================================
+
+/**
+ * Ensures diversity by limiting items per creator
+ * @param rankedItems - Already scored and sorted items
+ * @param limit - Maximum number of items to return
+ * @param maxPerCreator - Maximum items per creator (default: 2)
+ */
+function ensureDiversity<T extends { creator_id?: string; creatorId?: string }>(
+    rankedItems: T[],
+    limit: number,
+    maxPerCreator: number = 2
+): T[] {
+    const selected: T[] = [];
+    const creatorCount: Record<string, number> = {};
+
+    // First pass: Apply diversity constraint
+    for (const item of rankedItems) {
+        const creatorId = item.creator_id || item.creatorId;
+        if (!creatorId) {
+            selected.push(item);
+            if (selected.length >= limit) break;
+            continue;
+        }
+
+        const count = creatorCount[creatorId] || 0;
+        if (count < maxPerCreator) {
+            selected.push(item);
+            creatorCount[creatorId] = count + 1;
+        }
+
+        if (selected.length >= limit) break;
+    }
+
+    // Second pass: If we didn't reach minimum (50% of limit), relax constraint
+    const minRequired = Math.ceil(limit / 2);
+    if (selected.length < minRequired && rankedItems.length > selected.length) {
+        // Add remaining items regardless of creator diversity
+        const selectedIds = new Set(selected.map(item =>
+            (item as any).id || JSON.stringify(item)
+        ));
+
+        for (const item of rankedItems) {
+            const itemId = (item as any).id || JSON.stringify(item);
+            if (!selectedIds.has(itemId)) {
+                selected.push(item);
+                if (selected.length >= limit) break;
+            }
+        }
+    }
+
+    return selected;
+}
+
+/**
+ * Calculate trending score with improved algorithm
+ * - Uses exponential decay for recency (more natural)
+ * - Uses logarithmic scale for views (prevents outlier dominance)
+ */
+function calculateTrendingScore(
+    item: any,
+    contentType: 'course' | 'routine' | 'sparring'
+): number {
+    const daysOld = Math.max(1, (Date.now() - new Date(item.created_at).getTime()) / (1000 * 60 * 60 * 24));
+    const views = item.views || 0;
+    const likes = item.likes || 0;
+
+    // Content-type specific weights
+    const weights = {
+        course: {
+            recencyDecay: 0.3,      // Slow decay (long-term content)
+            recencyBoost: 100,
+            viewWeight: 0.1,
+            likeWeight: 20,         // Quality-focused
+        },
+        routine: {
+            recencyDecay: 0.8,      // Fast decay (trend-focused)
+            recencyBoost: 500,
+            viewWeight: 0.1,
+            likeWeight: 10,
+        },
+        sparring: {
+            recencyDecay: 0.5,      // Medium decay
+            recencyBoost: 200,
+            viewWeight: 0.5,        // View-focused (live content)
+            likeWeight: 15,
+        }
+    };
+
+    const w = weights[contentType];
+
+    // Exponential decay for recency (more natural than linear)
+    const recencyScore = w.recencyBoost * Math.exp(-w.recencyDecay * daysOld / 7);
+
+    // Logarithmic scale for views (prevents huge numbers from dominating)
+    const qualityScore = (Math.log(views + 1) * w.viewWeight * 10) + (likes * w.likeWeight);
+
+    return recencyScore + qualityScore;
+}
+
+// ============================================
+// TRENDING FUNCTIONS
+// ============================================
+
 export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
     // 1. Fetch a larger pool of routines (e.g., last 50) to rank from
     const { data, error } = await withTimeout(
@@ -8652,31 +8758,20 @@ export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
 
     if (error) return [];
 
-    // 2. Calculate Score for each routine
-    let rankedRoutines = (data || []).map((r: any) => {
-        const daysOld = (new Date().getTime() - new Date(r.created_at).getTime()) / (1000 * 60 * 60 * 24);
-        const views = r.views || 0;
-        const likes = r.likes || 0; // Assuming 'likes' column exists or is joined
-
-        // Algorithm Weights
-        // - Recency: Boosts new content significantly in the first few days
-        // - Popularity: High views and likes can sustain a routine's position
-        const recencyScore = 500 / (daysOld + 1);
-        const popularityScore = (views * 0.1) + (likes * 10);
-
-        const totalScore = recencyScore + popularityScore;
-
-        return {
-            ...r,
-            _score: totalScore
-        };
-    });
+    // 2. Calculate Score for each routine (IMPROVED)
+    let rankedRoutines = (data || []).map((r: any) => ({
+        ...r,
+        _score: calculateTrendingScore(r, 'routine')
+    }));
 
     // 3. Sort by Score (Descending)
     rankedRoutines.sort((a: any, b: any) => b._score - a._score);
 
-    // 4. Return top 'limit' items
-    return rankedRoutines.slice(0, limit).map((r: any) => ({
+    // 4. Ensure diversity (max 2 per creator)
+    const diverseRoutines = ensureDiversity(rankedRoutines, limit);
+
+    // 5. Transform and return
+    return diverseRoutines.map((r: any) => ({
         id: r.id,
         title: r.title,
         description: r.description,
@@ -8734,26 +8829,21 @@ export async function getTrendingCourses(limit = 6): Promise<Course[]> {
         return [];
     }
 
-    // 2. Score Calculation: Quality First
-    // "Content is King" - Focus heavily on quality signals (if available) and consistent consumption
-    let ranked = (data || []).map((c: any) => {
-        const daysOld = Math.max(1, (new Date().getTime() - new Date(c.created_at).getTime()) / (1000 * 60 * 60 * 24));
-        const views = c.views || 0;
-        // Note: If 'likes' column doesn't exist on courses, we rely more on views. 
-        // Assuming we might have it or use views as proxy for quality signal.
-        const likes = c.likes || 0;
+    // 2. Score Calculation: Quality First (IMPROVED)
+    // "Content is King" - Focus heavily on quality signals with logarithmic scaling
+    let ranked = (data || []).map((c: any) => ({
+        ...c,
+        _score: calculateTrendingScore(c, 'course')
+    }));
 
-        // Weight: Low recency decay, High interaction value
-        const recencyScore = 100 / Math.sqrt(daysOld); // Slower decay than routines
-        const qualityScore = (likes * 20) + (views * 0.1);
-
-        return { ...c, _score: recencyScore + qualityScore };
-    });
-
-    // 3. Sort & Slice
+    // 3. Sort by Score
     ranked.sort((a: any, b: any) => b._score - a._score);
 
-    return ranked.slice(0, limit).map((c: any) => ({
+    // 4. Ensure diversity (max 2 per creator)
+    const diverseCourses = ensureDiversity(ranked, limit);
+
+    // 5. Transform and return
+    return diverseCourses.map((c: any) => ({
         ...transformCourse(c),
         lessonCount: c.lessons?.[0]?.count || 0
     }));
@@ -8765,6 +8855,8 @@ export async function getTrendingSparring(limit = 6): Promise<SparringVideo[]> {
         supabase
             .from('sparring_videos')
             .select('*')
+            .eq('is_published', true)
+            .is('deleted_at', null)
             .limit(50)
             .order('created_at', { ascending: false }),
         5000
@@ -8772,47 +8864,55 @@ export async function getTrendingSparring(limit = 6): Promise<SparringVideo[]> {
 
     if (error) return [];
 
-    // 2. Score Calculation: Viral Focus
-    // "Hot Now" - Recency is critical, coupled with rapid view accumulation
-    let ranked = (data || []).map((v: any) => {
-        const daysOld = Math.max(0.1, (new Date().getTime() - new Date(v.created_at).getTime()) / (1000 * 60 * 60 * 24));
-        const views = v.views || 0;
-        const likes = v.likes || 0;
+    // 2. Score Calculation: Balanced approach (IMPROVED)
+    let ranked = (data || []).map((v: any) => ({
+        ...v,
+        _score: calculateTrendingScore(v, 'sparring')
+    }));
 
-        // Weight: Very high recency, Moderate view weight, High like weight
-        // decay uses 1/daysOld so 0.1 days old gives huge multiplier (10x)
-        const recencyScore = 1000 / (daysOld + 1);
-        const viralScore = (views * 0.5) + (likes * 5);
-
-        return { ...v, _score: recencyScore + viralScore };
-    });
-
+    // 3. Sort by Score
     ranked.sort((a: any, b: any) => b._score - a._score);
 
-    // Need to fetch creators for these IDs if not joined. 
-    // Ideally we join in the select, but for now we'll do a quick pass if needed 
-    // or rely on getPublicSparringVideos logic which does post-fetch.
-    // For simplicity/speed here, let's just reuse the transform or minimal return
-    // depending on what UI needs. UI needs creator info.
+    // 4. Ensure diversity (max 2 per creator)
+    const diverseSparring = ensureDiversity(ranked, limit);
 
-    const topIds = ranked.slice(0, limit).map((v: any) => v.id);
-
-    // Re-fetch standardized with creators for the top N to ensure valid creator data
-    // Or just manually fetch creators here.
+    // 5. Get top IDs for creator fetch
+    const topIds = diverseSparring.map((v: any) => v.id);
     if (topIds.length === 0) return [];
 
+    // 6. Fetch full data with creator info
     const { data: fullData } = await supabase
         .from('sparring_videos')
-        .select('*, creator:users!creator_id(id, name, avatar_url)') // Attempt inner join style or just normal select
-        // Note: In other parts of api.ts, sparring uses 'creator_id' and fetches users separately.
-        // Let's stick to consistent pattern if possible, but for 'Trending', manual Creator fetch is safer.
+        .select('*')
         .in('id', topIds);
 
-    const fullDataMap = new Map((fullData || []).map((v: any) => [v.id, v]));
+    if (!fullData || fullData.length === 0) return [];
 
-    return ranked.slice(0, limit).map((v: any) => {
-        // Merge score data with full creator data if available
+    // 7. Fetch creators separately
+    const creatorIds = Array.from(new Set(fullData.map((v: any) => v.creator_id).filter(Boolean)));
+    let userMap: Record<string, any> = {};
+
+    if (creatorIds.length > 0) {
+        const { data: users } = await supabase
+            .from('users')
+            .select('id, name, avatar_url, profile_image_url')
+            .in('id', creatorIds);
+
+        if (users) {
+            users.forEach(u => {
+                userMap[u.id] = u;
+            });
+        }
+    }
+
+    // 8. Create map for quick lookup
+    const fullDataMap = new Map(fullData.map((v: any) => [v.id, v]));
+
+    // 9. Transform and return in ranked order
+    return diverseSparring.map((v: any) => {
         const full = fullDataMap.get(v.id) || v;
+        const creator = userMap[full.creator_id];
+
         return {
             id: full.id,
             creatorId: full.creator_id,
@@ -8823,14 +8923,20 @@ export async function getTrendingSparring(limit = 6): Promise<SparringVideo[]> {
             views: full.views || 0,
             likes: full.likes || 0,
             price: full.price || 0,
-            creator: full.creator ? {
-                id: full.creator.id,
-                name: full.creator.name || 'Unknown',
-                profileImage: full.creator.avatar_url, // Map avatar_url to profileImage
+            category: full.category,
+            uniformType: full.uniform_type,
+            difficulty: full.difficulty,
+            isPublished: full.is_published ?? true,
+            creator: creator ? {
+                id: creator.id,
+                name: creator.name || 'Unknown',
+                profileImage: creator.profile_image_url || creator.avatar_url,
                 bio: '',
                 subscriberCount: 0
             } : undefined,
-            createdAt: full.created_at
+            createdAt: full.created_at,
+            relatedItems: full.related_items || [],
+            previewVimeoId: full.preview_vimeo_id
         } as SparringVideo;
     });
 }
