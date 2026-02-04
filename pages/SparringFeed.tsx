@@ -141,6 +141,10 @@ const VideoItem: React.FC<{
         setMuted(prev => !prev);
     };
 
+    const [aspectRatio, setAspectRatio] = useState(1); // Default to square
+
+    // ...
+
     const renderVideoContent = () => {
         // Show Lock Screen ONLY if:
         // 1. User has NO access
@@ -168,6 +172,7 @@ const VideoItem: React.FC<{
                         {isDailyFree && <span className="text-violet-400 font-black block mt-2">(오늘의 무료 영상!)</span>}
                     </p>
 
+                    {/* ... purchase buttons ... */}
                     <div className="w-full max-w-xs space-y-3">
                         {canPurchase && (
                             <Link
@@ -198,18 +203,10 @@ const VideoItem: React.FC<{
         }
 
         if (video.videoUrl && (video.videoUrl.startsWith('ERROR:') || video.videoUrl === 'error')) {
+            // ... error state
             return (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 text-white p-4">
-                    <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-4">
-                        <span className="text-2xl">⚠️</span>
-                    </div>
-                    <h3 className="text-xl font-bold mb-2">영상 처리 실패</h3>
-                    <p className="text-sm text-center text-zinc-400 mb-4 max-w-xs break-all">
-                        {video.videoUrl.replace('ERROR:', '').trim()}
-                    </p>
-                    <div className="text-xs text-zinc-500 text-center">
-                        영상을 처리할 수 없습니다. 대시보드에서 삭제 후 다시 시도해주세요.
-                    </div>
+                    {/* ... */}
                 </div>
             );
         }
@@ -224,7 +221,7 @@ const VideoItem: React.FC<{
                     muted={muted}
                     showControls={false}
                     fillContainer={true}
-                    forceSquareRatio={true}
+                    onAspectRatioChange={setAspectRatio}
                     onProgress={(s) => {
                         // Sparse logging to avoid too many renders if not needed
                     }}
@@ -248,7 +245,7 @@ const VideoItem: React.FC<{
                 muted={muted}
                 showControls={false}
                 fillContainer={true}
-                forceSquareRatio={true}
+                onAspectRatioChange={setAspectRatio}
                 onReady={onVideoReady}
                 onDoubleTap={handleLike}
             />
@@ -260,7 +257,10 @@ const VideoItem: React.FC<{
             className="absolute inset-0 w-full h-full bg-black flex items-start justify-center overflow-hidden pt-16 transition-transform duration-300 ease-out will-change-transform"
             style={{ transform: `translateY(${offset * 100}%)`, zIndex: isActive ? 10 : 0 }}
         >
-            <div className="relative w-full max-w-[min(100vw,calc(100vh-140px))] aspect-square z-10 flex items-center justify-center overflow-hidden rounded-lg">
+            <div
+                className="relative w-full max-w-[min(100vw,calc(100vh-140px))] z-10 flex items-center justify-center overflow-hidden rounded-lg transition-all duration-300 ease-out"
+                style={{ aspectRatio: aspectRatio }}
+            >
                 {renderVideoContent()}
                 <div className="absolute inset-0 z-20 cursor-pointer" onClick={toggleMute} />
             </div>
@@ -287,7 +287,10 @@ const VideoItem: React.FC<{
 
                     {/* Video Overlay Layer (Bottom parts) */}
                     <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="relative w-full aspect-square">
+                        <div
+                            className="relative w-full transition-all duration-300 ease-out"
+                            style={{ aspectRatio: aspectRatio }}
+                        >
                             {/* Middle-Right Group: Heart, Save, Share */}
                             <div className="absolute top-1/2 -translate-y-1/2 right-4 flex flex-col gap-5 z-50 pointer-events-auto items-center">
                                 <div className="flex flex-col items-center gap-1">

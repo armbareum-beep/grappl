@@ -239,7 +239,7 @@ export const LessonDetail: React.FC = () => {
                     {/* Left Column: Video Player & Main Info */}
                     <div className="flex-1 min-w-0">
                         {/* Video Player Container */}
-                        <div className="relative rounded-3xl overflow-hidden bg-black aspect-video shadow-2xl ring-1 ring-zinc-800 group mb-8">
+                        <div className="relative rounded-3xl overflow-hidden bg-black shadow-2xl ring-1 ring-zinc-800 group mb-8">
                             {/* Ambient Glow */}
                             <div className="absolute -inset-1 bg-violet-500/20 blur-3xl opacity-20 pointer-events-none group-hover:opacity-30 transition-opacity duration-1000"></div>
 

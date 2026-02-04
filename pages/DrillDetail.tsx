@@ -401,11 +401,29 @@ export const DrillDetail: React.FC = () => {
         // Let's NOT reset refs on video type change to avoid double counting.
     }, [currentVideoType]);
 
+    // Video Aspect Ratio State
+    const [aspectRatio, setAspectRatio] = useState(9 / 16); // Default to mobile portrait
+
+    // Calculate dynamic container style to match video size
+    const containerStyle = {
+        width: `calc(100vh * ${aspectRatio})`,
+        maxWidth: '100%' // Ensure it doesn't overflow screen width
+    };
+
     // Initialize Vimeo Player for Tracking
     useEffect(() => {
         if (useVimeo && iframeRef.current) {
             try {
                 const player = new Player(iframeRef.current);
+
+                // Get Aspect Ratio
+                Promise.all([player.getVideoWidth(), player.getVideoHeight()])
+                    .then(([w, h]) => {
+                        if (w && h) {
+                            setAspectRatio(w / h);
+                        }
+                    })
+                    .catch(console.warn);
 
                 const onTimeUpdate = (data: { seconds: number; duration: number; percent: number }) => {
                     handleMasteryUpdate(data.percent, false);
@@ -417,6 +435,14 @@ export const DrillDetail: React.FC = () => {
 
                 player.on('timeupdate', onTimeUpdate);
                 player.on('ended', onEnded);
+                player.on('loaded', () => {
+                    // Re-check dimensions on load just in case
+                    Promise.all([player.getVideoWidth(), player.getVideoHeight()])
+                        .then(([w, h]) => {
+                            if (w && h) setAspectRatio(w / h);
+                        })
+                        .catch(console.warn);
+                });
 
                 return () => {
                     player.off('timeupdate', onTimeUpdate);
@@ -455,6 +481,12 @@ export const DrillDetail: React.FC = () => {
         const video = videoRef.current;
         if (!video) return;
 
+        const handleLoadedMetadata = () => {
+            if (video.videoWidth && video.videoHeight) {
+                setAspectRatio(video.videoWidth / video.videoHeight);
+            }
+        };
+
         const updateProgress = () => {
             const progress = (video.currentTime / video.duration) * 100;
             setProgress(progress);
@@ -465,8 +497,18 @@ export const DrillDetail: React.FC = () => {
             }
         };
 
+        video.addEventListener('loadedmetadata', handleLoadedMetadata);
         video.addEventListener('timeupdate', updateProgress);
-        return () => video.removeEventListener('timeupdate', updateProgress);
+
+        // Check if already loaded
+        if (video.readyState >= 1) {
+            handleLoadedMetadata();
+        }
+
+        return () => {
+            video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+            video.removeEventListener('timeupdate', updateProgress);
+        };
     }, [currentVideoType]);
 
     // Handle video end - loop
@@ -651,9 +693,12 @@ export const DrillDetail: React.FC = () => {
                 onClick={togglePlayPause}
             />
 
-            {/* Video Container - 9:16 aspect ratio */}
+            {/* Video Container - Dynamic aspect ratio */}
             <div className="absolute inset-0 flex items-center justify-center bg-black">
-                <div className="relative w-full h-full max-w-[56.25vh]">
+                <div
+                    className="relative w-full h-full transition-all duration-500 ease-out"
+                    style={containerStyle}
+                >
                     {canViewCurrentVideo ? (
                         useVimeo ? (
                             <iframe
@@ -752,7 +797,7 @@ export const DrillDetail: React.FC = () => {
 
             {/* Right Side Actions - Unified Container (Top: Mute, Bottom: Like/Save/Routine/Share) */}
             <div className="absolute inset-0 pointer-events-none flex justify-center z-40">
-                <div className="relative h-full w-full max-w-[56.25vh] flex">
+                <div className="relative h-full w-full flex transition-all duration-500 ease-out" style={containerStyle}>
                     {/* Spacer for video width */}
                     <div className="flex-1"></div>
 
@@ -825,7 +870,7 @@ export const DrillDetail: React.FC = () => {
 
             {/* Bottom Info Overlay */}
             <div className="fixed left-0 right-0 w-full bottom-28 px-6 z-20 pointer-events-none">
-                <div className="flex items-end justify-between max-w-[56.25vh] mx-auto pointer-events-auto">
+                <div className="flex items-end justify-between mx-auto pointer-events-auto transition-all duration-500 ease-out" style={containerStyle}>
                     {/* Left: Info - Metadata Container (Matches Drill Feed STYLE) */}
                     <div className="flex-1 pr-16">
                         <div className="flex flex-row items-center gap-2 mb-2">

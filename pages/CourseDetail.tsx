@@ -672,7 +672,7 @@ export const CourseDetail: React.FC = () => {
         }
 
         return (
-            <div className="relative rounded-3xl overflow-hidden bg-black aspect-video shadow-2xl ring-1 ring-zinc-800 group mb-6 lg:mb-0">
+            <div className="relative rounded-3xl overflow-hidden bg-black shadow-2xl ring-1 ring-zinc-800 group mb-6 lg:mb-0">
                 {/* Ambient Glow */}
                 <div className="absolute -inset-1 bg-violet-500/20 blur-3xl opacity-20 pointer-events-none group-hover:opacity-30 transition-opacity duration-1000"></div>
                 <div className="relative h-full z-10">
