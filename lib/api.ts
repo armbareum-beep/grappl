@@ -174,7 +174,7 @@ export async function getUserSavedLessons(userId: string): Promise<Lesson[]> {
 
     if (error || !data || data.length === 0) return [];
 
-    const lessonIds = data.map(item => item.content_id);
+    const lessonIds = data.map((item: any) => item.content_id);
     const lessons: Lesson[] = [];
 
     for (const lessonId of lessonIds) {
@@ -934,7 +934,7 @@ export async function getPublicSparringVideos(limit = 3): Promise<SparringVideo[
                     creator: creator ? {
                         id: creator.id,
                         name: creator.name || '알 수 없음',
-                        profileImage: creator.profileImage,
+                        profileImage: creator.profileImage || '',
                         bio: '',
                         subscriberCount: 0
                     } : undefined,
@@ -1259,7 +1259,7 @@ export async function getPurchasedSparringVideos(userId: string): Promise<Sparri
 
         if (!purchases || purchases.length === 0) return [];
 
-        const productIds = purchases.map(p => p.product_id);
+        const productIds = purchases.map((p: any) => p.product_id);
 
         // 2. Fetch corresponding sparring videos (regardless of published status)
         const { data: videos, error } = await withTimeout(
@@ -2767,20 +2767,6 @@ export async function getCreatorRevenueStats(creatorId: string) {
             throw error;
         }
 
-        const today = new Date();
-        const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-
-        // Aggregate by month for the chart/table
-        const monthlyAggregates: Record<string, number> = {};
-
-        // Prepare detailed items list
-        const details = (data || []).map((row: any) => ({
-            date: row.created_at, // The view has created_at
-            type: row.type,       // course | routine | feedback
-            title: row.item_title,
-            amount: row.amount,
-            settlementAmount: Math.floor(row.amount * 0.8)
-        }));
 
         (data || []).forEach((_row: any) => {
             // Wait, the View combines raw sales. It does NOT aggregate sum per month in the `combined_sales` part, 
@@ -3451,10 +3437,10 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
     const userIds = Array.from(new Set(data.map((log: any) => log.user_id)));
 
     // 3. Fetch user names from users table (only for those missing user info)
-    const missingUserIds = userIds.filter((id: any) => {
-        const item = data.find((d: any) => d.user_id === id);
-        return !item?.user; // Only fetch if we don't have user object attached already
-    });
+    // const missingUserIds = userIds.filter((id: any) => {
+    //     const item = data.find((d: any) => d.user_id === id);
+    //     return !item?.user; // Only fetch if we don't have user object attached already
+    // });
 
     // Always fetch users to be safe or if mapping didn't have full data
     // But let's check map logic.
@@ -7901,7 +7887,7 @@ export async function getUserSavedRoutines(userId: string): Promise<DrillRoutine
 
     if (!data || data.length === 0) return [];
 
-    const routineIds = data.map(item => item.routine_id);
+    const routineIds = data.map((item: any) => item.routine_id);
     const routines: DrillRoutine[] = [];
 
     for (const routineId of routineIds) {
@@ -8445,7 +8431,7 @@ export async function getTrainingLogLikes(logId: string) {
 }
 
 export async function checkTrainingLogLiked(userId: string, logId: string) {
-    const { data, error } = await supabase
+    const { data } = await supabase
         .from('training_log_likes')
         .select('id')
         .eq('user_id', userId)
