@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Browse } from './Browse';
 import { Routines } from './Routines';
@@ -11,9 +11,18 @@ export const Library: React.FC = () => {
     const initialTab = (searchParams.get('tab') as LibraryTabType) || 'all';
     const [activeTab, setActiveTab] = useState<LibraryTabType>(initialTab);
 
+    // Sync activeTab with URL params
+    useEffect(() => {
+        const tab = (searchParams.get('tab') as LibraryTabType) || 'all';
+        if (tab !== activeTab) {
+            setActiveTab(tab);
+        }
+    }, [searchParams, activeTab]);
+
     const handleTabChange = (tab: LibraryTabType) => {
-        setActiveTab(tab);
-        setSearchParams({ tab });
+        // Keep existing non-tab params if possible, or reset them when switching tabs
+        const newParams: Record<string, string> = { tab };
+        setSearchParams(newParams);
     };
 
     return (

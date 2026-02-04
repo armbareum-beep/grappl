@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getSparringVideos, getDailyFreeSparring, extractVimeoId } from '../lib/api';
 import { SparringVideo } from '../types';
@@ -372,6 +372,10 @@ const SparringGridItem: React.FC<{
 }> = ({ video, idx, setActiveIndex, setViewMode }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const itemRef = useRef<HTMLDivElement>(null);
+    const [searchParams] = useSearchParams();
+    const isTarget = searchParams.get('id') === video.id;
+
     const [isSaved, setIsSaved] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
@@ -383,6 +387,14 @@ const SparringGridItem: React.FC<{
             });
         }
     }, [user, video.id]);
+
+    useEffect(() => {
+        if (isTarget && itemRef.current) {
+            setTimeout(() => {
+                itemRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 600);
+        }
+    }, [isTarget]);
 
     const handleSave = async () => {
         if (!user) { navigate('/login'); return; }
@@ -402,7 +414,11 @@ const SparringGridItem: React.FC<{
 
     return (
         <div
-            className="group cursor-pointer"
+            ref={itemRef}
+            className={cn(
+                "group cursor-pointer rounded-2xl transition-all duration-500",
+                isTarget ? "ring-2 ring-violet-500 ring-offset-4 ring-offset-zinc-950 p-1 bg-violet-500/10 shadow-[0_0_30px_rgba(124,58,237,0.4)] scale-[1.02]" : ""
+            )}
             onClick={(e) => {
                 e.preventDefault(); e.stopPropagation();
                 setActiveIndex(idx);
@@ -587,6 +603,15 @@ export const SparringFeed: React.FC<{
     const [viewMode, setViewMode] = useState<'reels' | 'grid'>(
         forceViewMode || (initialViewParam === 'reels' ? 'reels' : initialViewParam === 'grid' ? 'grid' : (isEmbedded ? 'grid' : 'reels'))
     );
+
+    // Sync viewMode with URL param
+    useEffect(() => {
+        if (forceViewMode) return;
+        const view = searchParams.get('view');
+        if (view === 'reels' || view === 'grid') {
+            if (view !== viewMode) setViewMode(view);
+        }
+    }, [searchParams, viewMode, forceViewMode]);
 
     const [internalSearchTerm, setInternalSearchTerm] = useState('');
     const [internalCategory, setInternalCategory] = useState<string>('All');

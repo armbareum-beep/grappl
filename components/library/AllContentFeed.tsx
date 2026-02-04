@@ -230,8 +230,7 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
     }, [allItems, searchTerm]);
 
     const handleSparringClick = (item: UnifiedContentItem) => {
-        onTabChange('sparring');
-        setSearchParams({ tab: 'sparring', id: item.id, view: 'reels' });
+        setSearchParams({ tab: 'sparring', id: item.id });
     };
 
     if (loading) {
