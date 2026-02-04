@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { withTimeout } from './api';
 import { createNotification, createBulkNotifications } from './api-notifications';
+export { createNotification, createBulkNotifications };
 export * from './api-admin-logs';
 import { AuditLog, SiteSettings, ActivityItem } from '../types';
 
@@ -916,7 +917,7 @@ export async function approveContent(id: string, type: 'course' | 'drill' | 'spa
 
             if (followers && followers.length > 0) {
                 const notifications = followers.map(f => ({
-                    user_id: f.follower_id,
+                    userId: f.follower_id,
                     type: 'creator_new_content' as const,
                     title: '새로운 콘텐츠 알림',
                     message: `'${creatorName}'님이 새 ${type === 'course' ? '강좌' : type === 'drill' ? '드릴' : '스파링'} '${content.title}'을(를) 업로드했습니다.`,

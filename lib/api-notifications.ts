@@ -65,6 +65,43 @@ export async function createNotification(
 }
 
 /**
+ * 대량 알림 생성 (여러 사용자에게 동일한 알림 전송)
+ */
+export async function createBulkNotifications(
+    notifications: Array<{
+        userId: string;
+        type: NotificationType;
+        title: string;
+        message: string;
+        link?: string;
+        metadata?: any;
+    }>
+) {
+    try {
+        const notificationData = notifications.map(n => ({
+            user_id: n.userId,
+            type: n.type,
+            title: n.title,
+            message: n.message,
+            link: n.link,
+            metadata: n.metadata,
+            is_read: false
+        }));
+
+        const { data, error } = await supabase
+            .from('notifications')
+            .insert(notificationData)
+            .select();
+
+        if (error) throw error;
+        return data as Notification[];
+    } catch (error) {
+        console.error('Error creating bulk notifications:', error);
+        return null;
+    }
+}
+
+/**
  * 내 알림 가져오기
  */
 export async function getMyNotifications(limit = 20) {
