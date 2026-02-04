@@ -1226,8 +1226,7 @@ export async function getSavedSparringVideos(userId: string): Promise<SparringVi
             .select(`
             video_id,
             sparring_videos!inner (
-                *,
-                creator:creators(*)
+                *
             )
         `)
             .eq('user_id', userId)
@@ -1238,11 +1237,33 @@ export async function getSavedSparringVideos(userId: string): Promise<SparringVi
 
     if (!data) return [];
 
-    // Transform using transformSparringVideo to ensure proper thumbnail fallback
-    return data.map((item: any) => transformSparringVideo({
-        ...item.sparring_videos,
-        creator: item.sparring_videos.creator
-    }));
+    // Extract creator IDs
+    const creatorIds = Array.from(new Set(data.map((item: any) => item.sparring_videos?.creator_id).filter(Boolean)));
+    let userMap: Record<string, any> = {};
+
+    if (creatorIds.length > 0) {
+        const { data: users } = await supabase
+            .from('users')
+            .select('id, name, avatar_url, profile_image_url')
+            .in('id', creatorIds);
+
+        if (users) {
+            users.forEach(u => userMap[u.id] = u);
+        }
+    }
+
+    // Transform using transformSparringVideo
+    return data.map((item: any) => {
+        const video = item.sparring_videos;
+        const creator = userMap[video.creator_id];
+        return transformSparringVideo({
+            ...video,
+            creator: creator ? {
+                ...creator,
+                profileImage: creator.profile_image_url || creator.avatar_url
+            } : undefined
+        });
+    });
 }
 
 export async function getPurchasedSparringVideos(userId: string): Promise<SparringVideo[]> {
@@ -1265,10 +1286,7 @@ export async function getPurchasedSparringVideos(userId: string): Promise<Sparri
         const { data: videos, error } = await withTimeout(
             supabase
                 .from('sparring_videos')
-                .select(`
-                *,
-                creator:creators(*)
-            `)
+                .select('*')
                 .in('id', productIds)
                 .order('created_at', { ascending: false }),
             10000
@@ -1276,10 +1294,33 @@ export async function getPurchasedSparringVideos(userId: string): Promise<Sparri
 
         if (error || !videos) return [];
 
-        return videos.map((v: any) => ({
-            ...transformSparringVideo(v),
-            // Explicitly mark as owned/purchased if needed in UI, or just rely on list context
-        }));
+        // Extract creator IDs for manual fetch
+        const creatorIds = Array.from(new Set(videos.map((v: any) => v.creator_id).filter(Boolean)));
+        let userMap: Record<string, any> = {};
+
+        if (creatorIds.length > 0) {
+            const { data: users } = await supabase
+                .from('users')
+                .select('id, name, avatar_url, profile_image_url')
+                .in('id', creatorIds);
+
+            if (users) {
+                users.forEach(u => userMap[u.id] = u);
+            }
+        }
+
+        return videos.map((v: any) => {
+            const creator = userMap[v.creator_id];
+            return {
+                ...transformSparringVideo({
+                    ...v,
+                    creator: creator ? {
+                        ...creator,
+                        profileImage: creator.profile_image_url || creator.avatar_url
+                    } : undefined
+                })
+            };
+        });
     } catch (e) {
         console.error('Error fetching purchased sparring:', e);
         return [];
@@ -1577,6 +1618,14 @@ export async function getCourseProgress(userId: string, courseId: string): Promi
 }
 
 export async function updateLastWatched(userId: string, lessonId: string, watchedSeconds?: number) {
+    // 1. Check if record exists to preserve existing watched_seconds if not provided
+    const { data: existing } = await supabase
+        .from('lesson_progress')
+        .select('watched_seconds')
+        .eq('user_id', userId)
+        .eq('lesson_id', lessonId)
+        .maybeSingle();
+
     const updates: any = {
         user_id: userId,
         lesson_id: lessonId,
@@ -1585,6 +1634,14 @@ export async function updateLastWatched(userId: string, lessonId: string, watche
 
     if (typeof watchedSeconds === 'number') {
         updates.watched_seconds = watchedSeconds;
+    } else if (existing) {
+        // If getting older value, keep it.
+        // Actually, if we don't provide it in the UPDATE payload, Supabase SHOULD keep it.
+        // But to be absolutely safe and explicit:
+        updates.watched_seconds = existing.watched_seconds;
+    } else {
+        // New record, no seconds provided -> default to 0
+        updates.watched_seconds = 0;
     }
 
     const { error } = await supabase
@@ -5398,7 +5455,7 @@ export async function getSparringVideos(limit = 10, creatorId?: string, publicOn
         if (creatorIds.length > 0) {
             const { data: users } = await supabase
                 .from('users')
-                .select('id, name, avatar_url')
+                .select('id, name, avatar_url, profile_image_url')
                 .in('id', creatorIds);
 
             if (users) {
@@ -5411,7 +5468,10 @@ export async function getSparringVideos(limit = 10, creatorId?: string, publicOn
         return {
             data: videos.map(v => transformSparringVideo({
                 ...v,
-                creator: userMap[v.creator_id]
+                creator: userMap[v.creator_id] ? {
+                    ...userMap[v.creator_id],
+                    profileImage: userMap[v.creator_id].profile_image_url || userMap[v.creator_id].avatar_url
+                } : undefined
             })),
             error: null
         };
@@ -5482,14 +5542,17 @@ export async function getSparringVideoById(id: string) {
         // Fetch creator info from users table for robustness
         const { data: userData } = await supabase
             .from('users')
-            .select('id, name, avatar_url')
+            .select('id, name, avatar_url, profile_image_url')
             .eq('id', data.creator_id)
             .maybeSingle();
 
         return {
             data: transformSparringVideo({
                 ...data,
-                creator: userData
+                creator: userData ? {
+                    ...userData,
+                    profileImage: userData.profile_image_url || userData.avatar_url
+                } : undefined
             }),
             error: null
         };
@@ -8061,7 +8124,37 @@ export async function getCourseSparringVideos(courseId: string) {
         return { data: null, error };
     }
 
-    return { data: (data || []).map(transformSparringVideo).filter(Boolean), error: null };
+    const videos = data || [];
+    if (videos.length === 0) return { data: [], error: null };
+
+    // Extract creator IDs
+    const creatorIds = Array.from(new Set(videos.map((v: any) => v.creator_id).filter(Boolean)));
+    let userMap: Record<string, any> = {};
+
+    if (creatorIds.length > 0) {
+        const { data: users } = await supabase
+            .from('users')
+            .select('id, name, avatar_url, profile_image_url')
+            .in('id', creatorIds);
+
+        if (users) {
+            users.forEach(u => userMap[u.id] = u);
+        }
+    }
+
+    return {
+        data: videos.map((v: any) => {
+            const creator = userMap[v.creator_id];
+            return transformSparringVideo({
+                ...v,
+                creator: creator ? {
+                    ...creator,
+                    profileImage: creator.profile_image_url || creator.avatar_url
+                } : undefined
+            });
+        }).filter(Boolean),
+        error: null
+    };
 }
 
 /**
