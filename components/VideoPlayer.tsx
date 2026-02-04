@@ -327,18 +327,23 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             }
         }
 
-        // ... (inside useEffect)
-
         // Cleanup function for the effect
         const currentContainer = containerRef.current;
 
         return () => {
+            // CRITICAL: Nullify playerRef IMMEDIATELY to prevent race conditions
+            // where React creates a new player before async cleanup completes
+            const playerToDestroy = player;
+            if (player === playerRef.current) {
+                playerRef.current = null;
+            }
+
             // Priority 1: Destroy the Vimeo Player instance FIRST to stop audio/playback logic
-            if (player) {
+            if (playerToDestroy) {
                 try {
-                    player.unload().then(() => player?.destroy()).catch(() => {
+                    playerToDestroy.unload().then(() => playerToDestroy?.destroy()).catch(() => {
                         // Fallback destruction
-                        try { player?.destroy(); } catch (e) { }
+                        try { playerToDestroy?.destroy(); } catch (e) { }
                     });
                 } catch (_e) { }
             }
@@ -365,18 +370,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         const syncPlayback = async () => {
             try {
                 if (!playing) {
-                    await playerRef.current!.pause();
+                    if (playerRef.current) await playerRef.current.pause();
                 } else {
                     // Try to play
                     try {
-                        await playerRef.current!.play();
+                        if (playerRef.current) await playerRef.current.play();
                     } catch (error: any) {
                         // Handle browser autoplay policy (NotAllowedError)
                         if (error.name === 'NotAllowedError' && !muted) {
                             console.warn('[VideoPlayer] Autoplay with sound blocked. Muting and retrying.');
-                            await playerRef.current!.setMuted(true);
+                            if (playerRef.current) await playerRef.current.setMuted(true);
                             if (onAutoplayBlocked) onAutoplayBlocked();
-                            await playerRef.current!.play();
+                            if (playerRef.current) await playerRef.current.play();
                         } else {
                             throw error;
                         }
@@ -395,8 +400,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         if (!playerRef.current) return;
 
         playerRef.current.getMuted().then(currentMuted => {
-            if (currentMuted !== muted) {
-                playerRef.current?.setMuted(muted).catch(err => {
+            if (currentMuted !== muted && playerRef.current) {
+                playerRef.current.setMuted(muted).catch(err => {
                     console.warn('[VideoPlayer] Failed to set muted state:', err);
                 });
             }
