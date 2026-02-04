@@ -82,6 +82,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         onReadyRef.current = onReady;
     }, [onProgress, maxPreviewDuration, isPreviewMode, onReady]);
 
+    const playingRef = useRef(playing);
+    useEffect(() => {
+        playingRef.current = playing;
+    }, [playing]);
+
     useEffect(() => {
         if (!containerRef.current) return;
 
@@ -97,7 +102,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             const options: any = {
                 autoplay: autoplay,
                 loop: false,
-                autopause: false,
+                autopause: false, // Revert to false to fix aspect ratio regression
                 title: false,
                 byline: false,
                 portrait: false,
@@ -158,7 +163,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 params.append('byline', '0');
                 params.append('portrait', '0');
                 params.append('badge', '0');
-                params.append('autopause', '1');
+                params.append('autopause', '0');
                 params.append('autoplay', autoplay ? '1' : '0');
                 params.append('muted', muted ? '1' : '0');
                 if (!showControls && autoplay) params.append('background', '1'); // Extra safety for silent background play
@@ -221,7 +226,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     setPlayerError(data);
                 });
 
-                currentPlayer.on('play', () => setIsPlaying(true));
+                currentPlayer.on('play', () => {
+                    // Strict enforcement: if we shouldn't be playing, pause immediately
+                    if (!playingRef.current) {
+                        console.log('[VideoPlayer] Play event detected but playing prop is false -> Forcing pause');
+                        currentPlayer.pause().catch(() => { });
+                        return;
+                    }
+                    setIsPlaying(true);
+                });
                 currentPlayer.on('pause', () => setIsPlaying(false));
                 currentPlayer.on('bufferstart', () => setIsPlaying(false));
                 currentPlayer.on('bufferend', () => setIsPlaying(true));
