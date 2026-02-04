@@ -682,6 +682,7 @@ export const CourseDetail: React.FC = () => {
                                 key={vimeoIdToSend}
                                 vimeoId={vimeoIdToSend}
                                 title={selectedLesson!.title}
+                                playing={true}
                                 startTime={initialStartTime}
                                 onEnded={handleVideoEnded}
                                 onProgress={handleProgress}

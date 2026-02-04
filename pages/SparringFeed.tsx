@@ -19,7 +19,7 @@ const VideoItem: React.FC<{
     offset: number;
     onVideoReady?: () => void;
 }> = ({ video, isActive, dailyFreeId, offset, onVideoReady }) => {
-    const [muted, setMuted] = useState(true);
+    const [muted, setMuted] = useState(false);
 
     // Interaction State
     const { user, isSubscribed, isAdmin } = useAuth();

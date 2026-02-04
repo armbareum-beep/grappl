@@ -250,6 +250,7 @@ export const LessonDetail: React.FC = () => {
                                             key={lesson.id} // FORCE REMOUNT on lesson change
                                             vimeoId={lesson.videoUrl || lesson.vimeoUrl || ''}
                                             title={lesson.title}
+                                            playing={true}
                                             isPreviewMode={!owns}
                                             muted={false} // Default sound on
                                             maxPreviewDuration={

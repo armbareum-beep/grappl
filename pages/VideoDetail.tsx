@@ -134,6 +134,7 @@ export const VideoDetail: React.FC = () => {
           <VideoPlayer
             vimeoId={video.vimeoUrl}
             title={video.title}
+            playing={true}
             onProgress={handleProgress}
             onEnded={handleVideoComplete}
           />
