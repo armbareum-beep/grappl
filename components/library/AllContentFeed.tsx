@@ -83,9 +83,9 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                 dailyFreeSparringRes,
                 dailyFreeDrillRes,
             ] = await Promise.all([
-                getCourses(100, 0, user?.id),
-                fetchRoutines(100, user?.id),
-                getSparringVideos(100, undefined, true, user?.id),
+                getCourses(100, 0),
+                fetchRoutines(100),
+                getSparringVideos(100, undefined, true),
                 getDailyFreeLesson(),
                 getDailyFreeSparring(),
                 getDailyFreeDrill(),
@@ -230,7 +230,7 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
     }, [allItems, searchTerm]);
 
     const handleSparringClick = (item: UnifiedContentItem) => {
-        setSearchParams({ tab: 'sparring', id: item.id });
+        setSearchParams({ tab: 'sparring', id: item.id, view: 'reels' });
     };
 
     if (loading) {

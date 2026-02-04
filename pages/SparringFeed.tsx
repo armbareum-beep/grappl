@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getSparringVideos, getDailyFreeSparring, extractVimeoId } from '../lib/api';
 import { SparringVideo } from '../types';
