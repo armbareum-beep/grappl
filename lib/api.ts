@@ -8747,19 +8747,20 @@ function calculateTrendingScore(
 
 export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
     // 1. Fetch a larger pool of routines (e.g., last 50) to rank from
+    // CHANGED: Removed creator join to be more robust against missing Foreign Keys
     const { data, error } = await withTimeout(
         supabase
             .from('routines')
-            .select('*, creator:creators(name, profile_image)')
+            .select('*')
             .limit(50) // Candidate pool size
             .order('created_at', { ascending: false }),
         5000
     );
 
-    if (error) return [];
+    if (error || !data || data.length === 0) return [];
 
     // 2. Calculate Score for each routine (IMPROVED)
-    let rankedRoutines = (data || []).map((r: any) => ({
+    let rankedRoutines = data.map((r: any) => ({
         ...r,
         _score: calculateTrendingScore(r, 'routine')
     }));
@@ -8770,24 +8771,44 @@ export async function getFeaturedRoutines(limit = 3): Promise<DrillRoutine[]> {
     // 4. Ensure diversity (max 2 per creator)
     const diverseRoutines = ensureDiversity(rankedRoutines, limit);
 
-    // 5. Transform and return
-    return diverseRoutines.map((r: any) => ({
-        id: r.id,
-        title: r.title,
-        description: r.description,
-        creatorId: r.creator_id,
-        creatorName: r.creator?.name || 'Unknown',
-        creatorProfileImage: r.creator?.profile_image,
-        difficulty: r.difficulty || 'Beginner',
-        thumbnailUrl: r.thumbnail_url,
-        price: r.price || 0,
-        durationMinutes: r.duration_minutes || 10,
-        category: r.category || 'General',
-        views: r.views || 0,
-        likes: r.likes || 0,
-        createdAt: r.created_at || new Date().toISOString(),
-        drills: []
-    }));
+    // 5. Fetch creator details manually for the selected ones
+    const creatorIds = Array.from(new Set(diverseRoutines.map((r: any) => r.creator_id).filter(Boolean)));
+    let userMap: Record<string, any> = {};
+
+    if (creatorIds.length > 0) {
+        const { data: users } = await supabase
+            .from('users')
+            .select('id, name, avatar_url, profile_image_url')
+            .in('id', creatorIds);
+
+        if (users) {
+            users.forEach(u => {
+                userMap[u.id] = u;
+            });
+        }
+    }
+
+    // 6. Transform and return
+    return diverseRoutines.map((r: any) => {
+        const creator = userMap[r.creator_id];
+        return {
+            id: r.id,
+            title: r.title,
+            description: r.description,
+            creatorId: r.creator_id,
+            creatorName: creator?.name || 'Grapplay Team',
+            creatorProfileImage: creator?.profile_image_url || creator?.avatar_url,
+            difficulty: r.difficulty || 'Beginner',
+            thumbnailUrl: r.thumbnail_url,
+            price: r.price || 0,
+            durationMinutes: r.total_duration_minutes || r.duration_minutes || 10,
+            category: r.category || 'General',
+            views: r.views || 0,
+            likes: r.likes || 0,
+            createdAt: r.created_at || new Date().toISOString(),
+            drills: []
+        };
+    });
 }
 
 export async function getNewCourses(limit = 6): Promise<Course[]> {
