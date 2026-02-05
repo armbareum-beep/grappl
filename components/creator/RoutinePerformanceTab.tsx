@@ -23,7 +23,7 @@ export const RoutinePerformanceTab: React.FC = () => {
         if (user) {
             loadRoutines();
         }
-    }, [user]);
+    }, [user?.id]);
 
     const loadRoutines = async () => {
         if (!user) return;

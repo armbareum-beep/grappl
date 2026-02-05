@@ -43,6 +43,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
     const [isFollowed, setIsFollowed] = useState(false);
     const [likeCount, setLikeCount] = useState((lesson as any).likes || 0);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    const [watchTime, setWatchTime] = useState(0);
     const [progress, setProgress] = useState(0);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
@@ -83,7 +84,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
                     setIsFollowed(status.followed);
                 });
         }
-    }, [user, lesson.id, isActive, lesson.creatorId]);
+    }, [user?.id, lesson.id, isActive, lesson.creatorId]);
 
     // Watch time tracking for non-logged-in users AND logged-in users (history)
     const lastTickRef = useRef<number>(0);
@@ -95,7 +96,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
             // Record initial view to mark as recent without resetting progress
             updateLastWatched(user.id, lesson.id).catch(console.error);
         }
-    }, [isActive, user, lesson.id]);
+    }, [isActive, user?.id, lesson.id]);
 
     useEffect(() => {
         // Enforce immediate lock for unauthorized users
@@ -214,10 +215,13 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
                         playing={isActive && !isPaused}
                         showControls={false}
                         fillContainer={true}
-                        onProgress={(s) => setProgress(s)}
+                        onProgress={(s, d, p) => setProgress(p ? p * 100 : 0)}
                         onReady={() => setVideoPlayerReady(true)}
                         onDoubleTap={handleLike}
                         muted={isMuted}
+                        isPreviewMode={!isLoggedIn && ((lesson as any).price === 0 || isDailyFreeLesson)}
+                        maxPreviewDuration={60}
+                        onPreviewLimitReached={() => setIsLoginModalOpen(true)}
                     />
                     <div className="absolute inset-0 z-20 cursor-pointer" onClick={handleVideoClick} />
 
@@ -318,9 +322,9 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
             </div>
 
             {/* Progress Bar / Teaser Bar */}
-            <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!hasAccess ? 'h-1.5 bg-violet-900/30' : 'h-[2px] bg-zinc-800/50'}`}>
+            <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!hasAccess ? 'h-1.5 bg-violet-900/30' : 'h-1 bg-zinc-800/40'}`}>
                 <div
-                    className={`h-full transition-all ease-linear ${!hasAccess ? 'bg-zinc-800' : 'bg-violet-400 duration-100'}`}
+                    className={`h-full transition-all ease-linear ${!hasAccess ? 'bg-white/40' : 'bg-violet-500 duration-100'}`}
                     style={{ width: `${progress}%` }}
                 />
             </div>

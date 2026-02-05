@@ -23,7 +23,7 @@ export const SparringCard: React.FC<SparringCardProps> = ({ video, rank, hasAcce
         if (user && video.id) {
             checkSparringSaved(user.id, video.id).then(setIsSaved).catch(console.error);
         }
-    }, [user, video.id]);
+    }, [user?.id, video.id]);
 
     const [isHovering, setIsHovering] = useState(false);
     const [showVideo, setShowVideo] = useState(false);

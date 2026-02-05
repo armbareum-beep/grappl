@@ -63,7 +63,7 @@ export const UploadSparring: React.FC = () => {
             loadSparringVideo();
             loadAllContent();
         }
-    }, [id, user]);
+    }, [id, user?.id]);
 
     const loadSparringVideo = async () => {
         if (!id) return;

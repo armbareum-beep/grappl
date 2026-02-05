@@ -132,7 +132,7 @@ export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, on
             }
         };
         checkStatus();
-    }, [user, item.id, item.type]);
+    }, [user?.id, item.id, item.type]);
 
     const handleClick = (e: React.MouseEvent) => {
         if (item.type === 'sparring' && onSparringClick) {

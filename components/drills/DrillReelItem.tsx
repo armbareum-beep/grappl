@@ -26,8 +26,11 @@ interface SingleVideoPlayerProps {
     isMuted: boolean;
     isPaused: boolean; // User-triggered pause state
     onReady: () => void;
-    onProgress: (percent: number) => void;
+    onProgress: (percent: number, seconds?: number) => void;
     onError: (msg: string) => void;
+    isPreviewMode?: boolean;
+    maxPreviewDuration?: number;
+    onPreviewLimitReached?: () => void;
 }
 
 const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
@@ -40,7 +43,10 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
     isPaused,
     onReady,
     onProgress,
-    onError
+    onError,
+    isPreviewMode = false,
+    maxPreviewDuration,
+    onPreviewLimitReached
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -141,7 +147,15 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
                 player.setVolume(isMuted ? 0 : 1);
             });
 
-            player.on('timeupdate', (data) => onProgress(data.percent * 100));
+            player.on('timeupdate', (data) => {
+                onProgress(data.percent * 100, data.seconds);
+
+                // Preview limit check
+                if (isPreviewMode && maxPreviewDuration && data.seconds >= maxPreviewDuration) {
+                    player?.pause().catch(() => { });
+                    onPreviewLimitReached?.();
+                }
+            });
             player.on('play', () => setIsPlaying(true));
             player.on('pause', () => setIsPlaying(false));
             player.on('error', (err) => {
@@ -452,6 +466,9 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                         onReady={() => setMainVideoReady(true)}
                         onProgress={(p) => { if (currentVideoType === 'main') setProgress(p); }}
                         onError={(e) => setLoadError(e)}
+                        isPreviewMode={!isLoggedIn && isDailyFreeDrill}
+                        maxPreviewDuration={60}
+                        onPreviewLimitReached={() => setIsLoginModalOpen(true)}
                     />
 
                     {/* Description Player */}
@@ -466,6 +483,9 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
                         onReady={() => setDescVideoReady(true)}
                         onProgress={(p) => { if (currentVideoType === 'description') setProgress(p); }}
                         onError={(e) => setLoadError(e)}
+                        isPreviewMode={!isLoggedIn && isDailyFreeDrill}
+                        maxPreviewDuration={60}
+                        onPreviewLimitReached={() => setIsLoginModalOpen(true)}
                     />
 
                     {/* Click Handler Overlay */}
@@ -594,9 +614,9 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
             </div>
 
             {/* Progress Bar */}
-            <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!hasAccess ? 'h-1.5 bg-violet-900/30' : 'h-[2px] bg-zinc-800/50'}`}>
+            <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!hasAccess ? 'h-1.5 bg-violet-900/30' : 'h-1 bg-zinc-800/40'}`}>
                 <div
-                    className={`h-full transition-all ease-linear ${!hasAccess ? 'bg-zinc-800' : 'bg-violet-400 duration-100'}`}
+                    className={`h-full transition-all ease-linear ${!hasAccess ? 'bg-white/40' : 'bg-violet-500 duration-100'}`}
                     style={{ width: `${progress}%` }}
                 />
             </div>

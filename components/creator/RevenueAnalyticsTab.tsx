@@ -44,7 +44,7 @@ export const RevenueAnalyticsTab: React.FC = () => {
         if (user) {
             loadData();
         }
-    }, [user, period]);
+    }, [user?.id, period]);
 
     const loadData = async () => {
         if (!user) return;

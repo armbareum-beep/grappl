@@ -70,6 +70,13 @@ export const CourseDetail: React.FC = () => {
         selectedLessonRef.current = selectedLesson;
     }, [user, selectedLesson]);
 
+    // Record initial view for history (Recent Activity)
+    React.useEffect(() => {
+        if (user && selectedLesson && selectedLesson.id) {
+            updateLastWatched(user.id, selectedLesson.id).catch(console.error);
+        }
+    }, [user?.id, selectedLesson?.id]);
+
     // Save progress on page leave (unmount / beforeunload)
     React.useEffect(() => {
         const saveOnLeave = () => {
@@ -88,180 +95,88 @@ export const CourseDetail: React.FC = () => {
         };
     }, []);
 
+    // Load Course & Initial Data - Only when ID or User changes
     useEffect(() => {
         async function fetchData() {
             if (!id) {
                 setLoading(false);
                 return;
             }
-
-            console.log('[CourseDetail] Starting fetch for id:', id);
+            setLoading(true);
+            setError(null);
 
             try {
-                const searchParams = new URLSearchParams(location.search);
-                const queryLessonId = searchParams.get('lessonId');
-                const queryTime = searchParams.get('t');
-
-                console.log('[CourseDetail] Fetching course and lessons...');
                 const [courseData, lessonsData] = await Promise.all([
                     getCourseById(id),
                     getLessonsByCourse(id),
                 ]);
-                console.log('[CourseDetail] Got course:', !!courseData, 'lessons:', lessonsData.length);
 
                 setCourse(courseData);
                 setLessons(lessonsData);
 
                 // Fetch bundled drills
                 try {
-                    console.log('[CourseDetail Debug] Fetching bundles for id:', id);
                     const { data: drillsData } = await getCourseDrillBundles(id);
-                    console.log('[CourseDetail Debug] Drills data:', drillsData); // DEBUG
-                    if (drillsData) {
-                        setBundledDrills(drillsData);
-                    }
-                } catch (e) {
-                    console.warn('Failed to fetch bundled drills:', e);
-                }
+                    if (drillsData) setBundledDrills(drillsData);
+                } catch (e) { /* ignore */ }
 
                 // Fetch bundled sparring videos
                 try {
                     const { data: sparringData } = await getCourseSparringVideos(id);
-                    console.log('[CourseDetail Debug] Sparring data:', sparringData); // DEBUG
-                    if (sparringData) {
-                        setBundledSparringVideos(sparringData);
-                    }
-                } catch (e) {
-                    console.warn('Failed to fetch bundled sparring videos:', e);
-                }
+                    if (sparringData) setBundledSparringVideos(sparringData);
+                } catch (e) { /* ignore */ }
 
                 // Fetch related courses
-                if (courseData && courseData.category) {
+                if (courseData?.category) {
                     getRelatedCourses(id, courseData.category).then(({ data }) => {
-                        console.log('[CourseDetail Debug] Related courses:', data); // DEBUG
                         if (data) setRelatedCourses(data);
                     });
                 }
-                console.log('[CourseDetail] Bundles fetched.');
-
-                if (lessonsData.length > 0) {
-                    // Decide which lesson to select
-                    let lessonToSelect = lessonsData[0];
-                    if (queryLessonId) {
-                        const found = lessonsData.find(l => l.id === queryLessonId);
-                        if (found) {
-                            lessonToSelect = found;
-                            if (queryTime) {
-                                setInitialStartTime(parseFloat(queryTime));
-                            }
-                        }
-                    }
-                    setSelectedLesson(lessonToSelect);
-                }
 
                 if (courseData) {
-                    console.log('[CourseDetail] Fetching creator and user data...');
                     const creatorData = await getCreatorById(courseData.creatorId);
                     setCreator(creatorData);
 
-                    if (lessonsData && lessonsData.length > 0) {
-                        console.log('[CourseDetail] First lesson raw:', JSON.stringify(lessonsData[0]));
-                    }
-
                     if (user) {
-                        console.log('[CourseDetail] Checking ownership...');
-                        console.log('[CourseDetail DEBUG] User ID:', user.id);
-                        console.log('[CourseDetail DEBUG] User email:', user.email);
-                        console.log('[CourseDetail DEBUG] Course ID:', id);
-                        console.log('[CourseDetail DEBUG] User ownedVideoIds from context:', user.ownedVideoIds);
-                        console.log('[CourseDetail DEBUG] isSubscribed from context:', isSubscribed);
-                        console.log('[CourseDetail DEBUG] isAdmin:', isAdmin);
-                        console.log('[CourseDetail DEBUG] Course isSubscriptionExcluded:', courseData?.isSubscriptionExcluded);
-
-                        // DIRECT DB CHECK - Bypass AuthContext 400 error
+                        // DIRECT DB CHECK - Bypass AuthContext potential inconsistencies
                         const { data: directUserData } = await supabase
                             .from('users')
-                            .select('is_subscriber')
+                            .select('is_subscriber, owned_video_ids')
                             .eq('id', user.id)
                             .maybeSingle();
 
-                        console.log('[CourseDetail DEBUG] Direct DB check:', directUserData);
-                        console.log('[CourseDetail DEBUG] Direct DB is_subscriber:', directUserData?.is_subscriber);
-
-                        // Use direct DB value if available, otherwise fall back to context
                         const dbIsSubscribed = directUserData?.is_subscriber ?? isSubscribed;
-                        setActualIsSubscribed(dbIsSubscribed); // Store in state for canWatchLesson
-                        console.log('[CourseDetail DEBUG] Final isSubscribed value:', dbIsSubscribed);
-                        console.log('[CourseDetail DEBUG] Should have access (subscriber)?', dbIsSubscribed && !courseData?.isSubscriptionExcluded);
-
-                        // Update alert to show actual value
-
+                        setActualIsSubscribed(dbIsSubscribed);
 
                         let owns = await checkCourseOwnership(user.id, id);
-                        console.log('[CourseDetail DEBUG] checkCourseOwnership result:', owns);
 
-                        // Double check manual ownership client-side to be absolutely sure
-                        if (!owns) {
-                            const { data: directUserData } = await supabase
-                                .from('users')
-                                .select('owned_video_ids')
-                                .eq('id', user.id)
-                                .maybeSingle();
+                        // Double check manual ownership client-side
+                        if (!owns && directUserData?.owned_video_ids) {
+                            const directIds = directUserData.owned_video_ids.map((oid: any) => String(oid).trim().toLowerCase());
+                            const courseIdLower = String(id).trim().toLowerCase();
 
-                            console.log('[CourseDetail DEBUG] Direct DB owned_video_ids:', directUserData?.owned_video_ids);
+                            if (directIds.includes(courseIdLower)) {
+                                owns = true;
+                            }
 
-                            if (directUserData?.owned_video_ids && Array.isArray(directUserData.owned_video_ids)) {
-                                const directIds = directUserData.owned_video_ids.map((oid: any) => String(oid).trim().toLowerCase());
-                                console.log('[CourseDetail DEBUG] Normalized directIds:', directIds);
-                                console.log('[CourseDetail DEBUG] Looking for course ID:', String(id).trim().toLowerCase());
+                            if (!owns) {
+                                const courseVimeoIds = [
+                                    (courseData as any).vimeoUrl,
+                                    (courseData as any).vimeo_url,
+                                    courseData.previewVimeoId,
+                                    (courseData as any).preview_vimeo_id
+                                ].filter(Boolean).map(v => String(v).trim().toLowerCase());
 
-                                // Check course UUID
-                                if (directIds.includes(String(id).trim().toLowerCase())) {
-                                    console.log('Manual ownership verified via direct check (Course UUID)');
-                                    owns = true;
-                                }
+                                owns = courseVimeoIds.some(vid => directIds.includes(vid));
+                            }
 
-                                // Also check course Vimeo IDs
-                                if (!owns && courseData) {
-                                    const courseVimeoIds = [
-                                        // @ts-ignore
-                                        courseData.vimeoUrl,
-                                        // @ts-ignore
-                                        courseData.vimeo_url,
-                                        courseData.previewVimeoId,
-                                        // @ts-ignore
-                                        courseData.preview_vimeo_id
-                                    ].filter(Boolean).map(v => String(v).trim().toLowerCase());
-
-                                    console.log('[CourseDetail DEBUG] Course Vimeo IDs:', courseVimeoIds);
-
-                                    for (const vimeoId of courseVimeoIds) {
-                                        if (directIds.includes(vimeoId)) {
-                                            console.log('Manual ownership verified via Vimeo ID:', vimeoId);
-                                            owns = true;
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                // Also check lesson Vimeo IDs
-                                if (!owns && lessonsData && lessonsData.length > 0) {
-                                    for (const lesson of lessonsData) {
-                                        const lessonVimeoIds = [
-                                            lesson.vimeoUrl,
-                                            // @ts-ignore
-                                            lesson.vimeo_url,
-                                            lesson.videoUrl
-                                        ].filter(Boolean).map(v => String(v).trim().toLowerCase());
-
-                                        for (const vimeoId of lessonVimeoIds) {
-                                            if (directIds.includes(vimeoId)) {
-                                                console.log('Manual ownership verified via lesson Vimeo ID:', vimeoId);
-                                                owns = true;
-                                                break;
-                                            }
-                                        }
-                                        if (owns) break;
+                            if (!owns && lessonsData?.length > 0) {
+                                for (const lesson of lessonsData) {
+                                    const lessonVimeoIds = [lesson.vimeoUrl, (lesson as any).vimeo_url, lesson.videoUrl]
+                                        .filter(Boolean).map(v => String(v).trim().toLowerCase());
+                                    if (lessonVimeoIds.some(vid => directIds.includes(vid))) {
+                                        owns = true;
+                                        break;
                                     }
                                 }
                             }
@@ -269,58 +184,33 @@ export const CourseDetail: React.FC = () => {
 
                         setOwnsCourse(owns || (user.ownedVideoIds?.some(oid => String(oid).trim().toLowerCase() === String(id).trim().toLowerCase())) || false);
 
-                        // Fetch lesson progress
-                        console.log('[CourseDetail] Checking progress...');
+                        // Progress and Interactions
                         const completed = new Set<string>();
                         for (const lesson of lessonsData) {
                             const prog = await getLessonProgress(user.id, lesson.id);
-                            if (prog?.completed) {
-                                completed.add(lesson.id);
-                            }
-                            // If we didn't have a query time but have saved progress, use it
-                            if (!queryTime && lesson.id === (queryLessonId || lessonsData[0].id) && prog?.watched_seconds) {
-                                setInitialStartTime(prog.watched_seconds);
-                            }
+                            if (prog?.completed) completed.add(lesson.id);
                         }
                         setCompletedLessons(completed);
+                        checkCourseLiked(user.id, id).then(setIsLiked);
+                        checkCourseSaved(user.id, id).then(setIsSaved);
 
-                        // Check if course is liked
-                        const liked = await checkCourseLiked(user.id, id);
-                        setIsLiked(liked);
-
-                        // Check follow status
                         if (courseData.creatorId) {
-                            const followed = await checkCreatorFollowStatus(user.id, courseData.creatorId);
-                            setIsFollowed(followed);
+                            checkCreatorFollowStatus(user.id, courseData.creatorId).then(setIsFollowed);
                         }
-
-                        // Check if course is saved
-                        const saved = await checkCourseSaved(user.id, id);
-                        setIsSaved(saved);
                     }
 
                     // Check for daily free lesson
                     try {
-                        console.log('[CourseDetail] Checking daily free lesson...');
                         const { getDailyFreeLesson } = await import('../lib/api');
                         const { data: dailyLesson } = await getDailyFreeLesson();
-                        if (dailyLesson) {
-                            setDailyFreeLessonId(dailyLesson.id);
-                        }
-                    } catch (e) {
-                        console.warn('Failed to check daily free lesson:', e);
-                    }
+                        if (dailyLesson) setDailyFreeLessonId(dailyLesson.id);
+                    } catch (e) { /* ignore */ }
 
-                    // Get like count
-                    const count = await getCourseLikeCount(id);
-                    setLikeCount(count);
-
-                    // Increment views
+                    // Increment views & like count
+                    getCourseLikeCount(id).then(setLikeCount);
                     incrementCourseViews(id);
                 }
-                console.log('[CourseDetail] Fetch complete.');
             } catch (error: any) {
-                console.error('Error fetching course details:', error);
                 setError(error.message || '클래스 정보를 불러오는 중 오류가 발생했습니다.');
             } finally {
                 setLoading(false);
@@ -328,7 +218,33 @@ export const CourseDetail: React.FC = () => {
         }
 
         fetchData();
-    }, [id, user, location.search, isSubscribed, isAdmin]);
+    }, [id, user?.id, isSubscribed, isAdmin]);
+
+    // Handle Lesson Selection & Progress Sync based on URL
+    useEffect(() => {
+        if (!lessons.length) return;
+
+        const searchParams = new URLSearchParams(location.search);
+        const queryLessonId = searchParams.get('lessonId');
+        const queryTime = searchParams.get('t');
+
+        let lessonToSelect = lessons[0];
+        if (queryLessonId) {
+            const found = lessons.find(l => l.id === queryLessonId);
+            if (found) lessonToSelect = found;
+        }
+
+        setSelectedLesson(lessonToSelect);
+
+        if (queryTime) {
+            setInitialStartTime(parseFloat(queryTime));
+        } else if (user && lessonToSelect) {
+            getLessonProgress(user.id, lessonToSelect.id).then(prog => {
+                if (prog?.watched_seconds) setInitialStartTime(prog.watched_seconds);
+            });
+        }
+    }, [location.search, lessons, user?.id]);
+
 
     const handlePurchase = async () => {
         if (!user) {
@@ -471,7 +387,7 @@ export const CourseDetail: React.FC = () => {
             lastSavedTimeRef.current = seconds;
             updateLastWatched(user.id, selectedLesson.id, Math.floor(seconds));
         }
-    }, [user, selectedLesson, ownsCourse, isPreviewMode]);
+    }, [user?.id, selectedLesson, ownsCourse, isPreviewMode]);
 
     const handleLessonSelect = async (lesson: Lesson) => {
         if (selectedLesson?.id === lesson.id) return;
@@ -696,7 +612,7 @@ export const CourseDetail: React.FC = () => {
                                 onEnded={handleVideoEnded}
                                 onProgress={handleProgress}
                                 maxPreviewDuration={
-                                    !user && selectedLesson?.id === dailyFreeLessonId ? 30 :
+                                    !user && selectedLesson?.id === dailyFreeLessonId ? 60 :
                                         isPreviewMode(selectedLesson!) ? 60 : undefined
                                 }
                                 onPreviewLimitReached={() => setIsPaywallOpen(true)}

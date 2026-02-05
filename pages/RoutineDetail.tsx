@@ -90,7 +90,7 @@ export const RoutineDetail: React.FC = () => {
             }
         };
         checkSaveStatus();
-    }, [user, routine]);
+    }, [user?.id, routine]);
 
     // Swipe State
     const [touchStart, setTouchStart] = useState<{ x: number, y: number } | null>(null);
@@ -389,7 +389,7 @@ export const RoutineDetail: React.FC = () => {
             }
         };
         checkFollow();
-    }, [user, routine?.creatorId]);
+    }, [user?.id, routine?.creatorId]);
 
     useEffect(() => {
         const loadRelatedCourse = async () => {

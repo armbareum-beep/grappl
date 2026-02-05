@@ -44,7 +44,7 @@ export const AllCompletedRoutines: React.FC = () => {
         };
 
         fetchAllRoutines();
-    }, [user, navigate]);
+    }, [user?.id, navigate]);
 
     return (
         <div className="min-h-screen bg-[#09090b] text-zinc-100 pb-20">

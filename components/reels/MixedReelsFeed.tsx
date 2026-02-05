@@ -21,9 +21,9 @@ interface MixedReelsFeedProps {
         purchasedItemIds: string[];
     };
     isLoggedIn?: boolean;
-    dailyFreeDrillId?: string;
     dailyFreeLessonId?: string;
     dailyFreeSparringId?: string;
+    dailyFreeDrillId?: string;
 }
 
 export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
@@ -31,9 +31,9 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
     initialIndex = 0,
     userPermissions: externalPermissions,
     isLoggedIn: externalIsLoggedIn,
-    dailyFreeDrillId,
     dailyFreeLessonId,
-    dailyFreeSparringId
+    dailyFreeSparringId,
+    dailyFreeDrillId
 }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -114,7 +114,7 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
             }
         };
         fetchUserData();
-    }, [user, externalPermissions]);
+    }, [user?.id, externalPermissions]);
 
     // Navigation logic — block swipe if the target item hasn't loaded yet
     const goToNext = () => {
@@ -255,11 +255,11 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                             isFollowed={followingCreators.has(item.data.creatorId)}
                             onFollow={() => handleDrillFollow(item.data)}
                             onViewRoutine={() => handleViewRoutine(item.data)}
+                            isDailyFreeDrill={dailyFreeDrillId === item.data.id}
                             offset={offset}
                             isSubscriber={userPermissions.isSubscriber}
                             purchasedItemIds={userPermissions.purchasedItemIds}
                             isLoggedIn={isLoggedIn}
-                            isDailyFreeDrill={dailyFreeDrillId === item.data.id}
                             onVideoReady={() => markReady(index)}
                         />
                     );

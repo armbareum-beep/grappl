@@ -60,7 +60,7 @@ export const LessonDetail: React.FC = () => {
             }
         }
         fetchProgress();
-    }, [user, id]);
+    }, [user?.id, id]);
 
     const handleProgress = React.useCallback(async (seconds: number, _duration?: number, percent?: number) => {
         setCurrentTime(seconds);
@@ -110,7 +110,7 @@ export const LessonDetail: React.FC = () => {
                 recordWatchTime(user.id, timeToSend, undefined, lesson.id);
             }
         }
-    }, [user, lesson, owns]);
+    }, [user?.id, user?.isSubscriber, lesson, owns]);
 
     // Update VideoPlayer component to use initialStartTime
 
@@ -202,7 +202,7 @@ export const LessonDetail: React.FC = () => {
             }
         }
         fetchData();
-    }, [id, user, isSubscribed, isAdmin]);
+    }, [id, user?.id, user?.ownedVideoIds?.length, isSubscribed, isAdmin]);
 
     // Increment view count after 5 seconds of watching (only for authorized users)
     useEffect(() => {
@@ -255,7 +255,7 @@ export const LessonDetail: React.FC = () => {
             // Updated to NOT reset time to 0. Calling without 3rd arg updates "last_watched_at" only.
             updateLastWatched(user.id, lesson.id).catch(console.error);
         }
-    }, [user, lesson?.id]);
+    }, [user?.id, lesson?.id]);
 
     if (loading) {
         return (

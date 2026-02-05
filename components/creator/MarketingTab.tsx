@@ -39,7 +39,7 @@ export const MarketingTab: React.FC = () => {
         if (user) {
             loadData();
         }
-    }, [user]);
+    }, [user?.id]);
 
     const loadData = async () => {
         if (!user) return;

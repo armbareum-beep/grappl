@@ -23,7 +23,7 @@ export const CoursePerformanceTab: React.FC = () => {
         if (user) {
             loadCourses();
         }
-    }, [user]);
+    }, [user?.id]);
 
     const loadCourses = async () => {
         if (!user) return;

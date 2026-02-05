@@ -81,7 +81,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
             }
         };
         fetchUserData();
-    }, [user]);
+    }, [user?.id]);
 
     // Auto-poll for processing status changes (Vimeo encoding completion)
     useEffect(() => {

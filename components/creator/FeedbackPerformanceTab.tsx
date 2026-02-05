@@ -22,7 +22,7 @@ export const FeedbackPerformanceTab: React.FC = () => {
         if (user) {
             loadFeedbacks();
         }
-    }, [user]);
+    }, [user?.id]);
 
     const loadFeedbacks = async () => {
         if (!user) return;

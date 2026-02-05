@@ -74,7 +74,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
                 });
             }
         }
-    }, [user, video.id, video.creatorId, isActive]);
+    }, [user?.id, video.id, video.creatorId, isActive]);
 
     // Handlers
     const handleFollow = async () => {
@@ -162,7 +162,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
                 recordSparringView(user.id, video.id).catch(console.error);
             });
         }
-    }, [isActive, user, video.id]);
+    }, [isActive, user?.id, video.id]);
 
     // Watch time tracking for settlement (구독자가 소유하지 않은 경우에만 기록)
     const lastTickRef = useRef<number>(0);
@@ -210,7 +210,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
 
         const interval = setInterval(handleProgress, 1000);
         return () => clearInterval(interval);
-    }, [isActive, user, isSubscriber, video.id, purchasedItemIds]);
+    }, [isActive, user?.id, isSubscriber, video.id, purchasedItemIds]);
 
 
     // Access Control
@@ -301,12 +301,15 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
                     showControls={false}
                     fillContainer={true}
                     forceSquareRatio={true}
-                    onProgress={(s) => {
-                        setProgress(s);
+                    onProgress={(s, d, p) => {
+                        setProgress(p ? p * 100 : 0);
                     }}
                     onReady={() => setVideoPlayerReady(true)}
                     onDoubleTap={handleLike}
                     muted={isMuted}
+                    isPreviewMode={!isLoggedIn && (isDailyFreeSparring || video.price === 0)}
+                    maxPreviewDuration={60}
+                    onPreviewLimitReached={() => setIsLoginModalOpen(true)}
                 />
             </div>
         );
@@ -429,9 +432,9 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
                 </div>
 
 
-                <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!hasAccess ? 'h-1.5 bg-violet-900/30' : 'h-[2px] bg-zinc-800/50'}`}>
+                <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!hasAccess ? 'h-1.5 bg-violet-900/30' : 'h-1 bg-zinc-800/40'}`}>
                     <div
-                        className={`h-full transition-all ease-linear ${!hasAccess ? 'bg-zinc-800' : 'bg-violet-400 duration-100'}`}
+                        className={`h-full transition-all ease-linear ${!hasAccess ? 'bg-white/40' : 'bg-violet-500 duration-100'}`}
                         style={{ width: `${progress}%` }}
                     />
                 </div>

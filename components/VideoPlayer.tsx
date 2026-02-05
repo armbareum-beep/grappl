@@ -32,9 +32,7 @@ interface VideoPlayerProps {
 
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     vimeoId,
-    title,
     startTime,
-    isPaused = false,
     playing = false,
     maxPreviewDuration,
     isPreviewMode = false,
@@ -50,7 +48,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     onPlayingChange,
     onReady,
     muted = false, // Default to false
-    onDuration,
     onAspectRatioChange,
     onAutoplayBlocked
 }) => {
@@ -65,7 +62,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const playerRef = useRef<Player | null>(null);
     const [playerError, setPlayerError] = useState<any>(null);
     const [showUpgradeOverlay, setShowUpgradeOverlay] = useState(false);
-    const [hasReachedPreviewLimit, setHasReachedPreviewLimit] = useState(false);
     const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
     const [showLikeAnimation, setShowLikeAnimation] = useState(false);
     const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -259,7 +255,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                             if (!hasReachedRef.current) {
                                 hasReachedRef.current = true;
                                 if (containerRef.current) {
-                                    setHasReachedPreviewLimit(true);
+                                    if (onPreviewLimitReached) onPreviewLimitReached();
                                     setShowUpgradeOverlay(true);
                                 }
                                 if (onPreviewLimitReached) onPreviewLimitReached();
@@ -491,6 +487,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}
                     onEnded={() => onEnded?.()}
+                    onLoadedData={() => onReady?.()}
                 />
             )}
 

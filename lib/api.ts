@@ -26,7 +26,6 @@ export async function withTimeout<T>(
     try {
         return await Promise.race([promise, timeout]) as T;
     } catch (err: any) {
-        console.warn(`[withTimeout] Operation timed out or failed:`, err);
         // Return a Supabase-like error object so destructuring { data, error } doesn't crash
         return {
             data: null,
@@ -66,7 +65,7 @@ export function extractVimeoId(url?: string | null) {
 
 // Lesson Interactions
 export async function toggleLessonLike(userId: string, lessonId: string): Promise<{ liked: boolean }> {
-    const { data: existing } = await supabase
+    const { data: existing, error: fetchError } = await supabase
         .from('user_interactions')
         .select('id')
         .eq('user_id', userId)
@@ -75,14 +74,17 @@ export async function toggleLessonLike(userId: string, lessonId: string): Promis
         .eq('interaction_type', 'like')
         .maybeSingle();
 
+    if (fetchError) throw fetchError;
+
     if (existing) {
-        await supabase
+        const { error } = await supabase
             .from('user_interactions')
             .delete()
             .eq('id', existing.id);
+        if (error) throw error;
         return { liked: false };
     } else {
-        await supabase
+        const { error } = await supabase
             .from('user_interactions')
             .insert({
                 user_id: userId,
@@ -90,6 +92,7 @@ export async function toggleLessonLike(userId: string, lessonId: string): Promis
                 content_id: lessonId,
                 interaction_type: 'like'
             });
+        if (error) throw error;
         return { liked: true };
     }
 }
@@ -108,7 +111,7 @@ export async function checkLessonLiked(userId: string, lessonId: string): Promis
 
 export async function toggleLessonSave(userId: string, lessonId: string): Promise<{ saved: boolean }> {
     try {
-        const { data: existing } = await supabase
+        const { data: existing, error: fetchError } = await supabase
             .from('user_interactions')
             .select('id')
             .eq('user_id', userId)
@@ -117,14 +120,17 @@ export async function toggleLessonSave(userId: string, lessonId: string): Promis
             .eq('interaction_type', 'save')
             .maybeSingle();
 
+        if (fetchError) throw fetchError;
+
         if (existing) {
-            await supabase
+            const { error } = await supabase
                 .from('user_interactions')
                 .delete()
                 .eq('id', existing.id);
+            if (error) throw error;
             return { saved: false };
         } else {
-            await supabase
+            const { error } = await supabase
                 .from('user_interactions')
                 .insert({
                     user_id: userId,
@@ -132,10 +138,10 @@ export async function toggleLessonSave(userId: string, lessonId: string): Promis
                     content_id: lessonId,
                     interaction_type: 'save'
                 });
+            if (error) throw error;
             return { saved: true };
         }
     } catch (error) {
-        console.error('Error toggling lesson save:', error);
         throw error;
     }
 }
@@ -266,9 +272,10 @@ export function transformLesson(data: any): Lesson {
         views: data.views || 0,
         difficulty: data.difficulty,
         createdAt: data.created_at,
-        isSubscriptionExcluded: data.is_subscription_excluded || false,
+        isSubscriptionExcluded: data.is_subscription_excluded ?? data.course?.is_subscription_excluded ?? false,
         isPreview: data.is_preview,
         uniformType: data.uniform_type,
+        price: data.price ?? data.course?.price ?? 0,
     };
 }
 
@@ -1097,26 +1104,29 @@ export async function recordDrillView(userId: string, drillId: string) {
 // Sparring Interactions
 export async function toggleCreatorFollow(userId: string, creatorId: string): Promise<{ followed: boolean }> {
     // Check if already followed
-    const { data } = await supabase
+    const { data, error: fetchError } = await supabase
         .from('creator_follows')
-        .select('*')
+        .select('id')
         .eq('follower_id', userId)
         .eq('creator_id', creatorId)
         .maybeSingle();
 
+    if (fetchError) throw fetchError;
+
     if (data) {
         // Unfollow
-        await supabase
+        const { error } = await supabase
             .from('creator_follows')
             .delete()
-            .eq('follower_id', userId)
-            .eq('creator_id', creatorId);
+            .eq('id', data.id);
+        if (error) throw error;
         return { followed: false };
     } else {
         // Follow
-        await supabase
+        const { error } = await supabase
             .from('creator_follows')
             .insert({ follower_id: userId, creator_id: creatorId });
+        if (error) throw error;
         return { followed: true };
     }
 }
@@ -1150,26 +1160,29 @@ export async function getUserFollowedCreators(userId: string): Promise<string[]>
 
 export async function toggleSparringLike(userId: string, videoId: string): Promise<{ liked: boolean }> {
     // Check if already liked
-    const { data } = await supabase
+    const { data, error: fetchError } = await supabase
         .from('user_sparring_likes')
-        .select('*')
+        .select('id')
         .eq('user_id', userId)
         .eq('video_id', videoId)
         .maybeSingle();
 
+    if (fetchError) throw fetchError;
+
     if (data) {
         // Unlike
-        await supabase
+        const { error } = await supabase
             .from('user_sparring_likes')
             .delete()
-            .eq('user_id', userId)
-            .eq('video_id', videoId);
+            .eq('id', data.id);
+        if (error) throw error;
         return { liked: false };
     } else {
         // Like
-        await supabase
+        const { error } = await supabase
             .from('user_sparring_likes')
             .insert({ user_id: userId, video_id: videoId });
+        if (error) throw error;
         return { liked: true };
     }
 }
@@ -1200,25 +1213,29 @@ export async function getSparringInteractionStatus(userId: string, videoId: stri
 
 export async function toggleSparringSave(userId: string, videoId: string) {
     // Check if already saved
-    const { data } = await supabase
+    const { data, error: fetchError } = await supabase
         .from('user_saved_sparring')
         .select('id')
         .eq('user_id', userId)
         .eq('video_id', videoId)
         .maybeSingle();
 
+    if (fetchError) throw fetchError;
+
     if (data) {
         // Unsave
-        await supabase
+        const { error } = await supabase
             .from('user_saved_sparring')
             .delete()
             .eq('id', data.id);
+        if (error) throw error;
         return { saved: false };
     } else {
         // Save
-        await supabase
+        const { error } = await supabase
             .from('user_saved_sparring')
             .insert({ user_id: userId, video_id: videoId });
+        if (error) throw error;
         return { saved: true };
     }
 }
@@ -5897,10 +5914,10 @@ export async function getDailyFreeDrill() {
             }
         }
 
+        const transformed = transformDrill(selectedDrill);
         return {
             data: {
-                ...selectedDrill,
-                thumbnailUrl: selectedDrill.thumbnail_url,
+                ...transformed,
                 creatorName,
                 creatorProfileImage
             },
@@ -6132,20 +6149,8 @@ export async function fetchRoutines(limit: number = 20) {
         // Extract creator IDs for manual fetch (mirroring getSparringVideos logic)
         const creatorIds = Array.from(new Set((data || []).map(r => r.creator_id).filter(Boolean)));
 
-        // Fetch creator details from 'users' table
-        let userMap: Record<string, any> = {};
-        if (creatorIds.length > 0) {
-            const { data: users } = await supabase
-                .from('users')
-                .select('id, name, avatar_url')
-                .in('id', creatorIds);
-
-            if (users) {
-                users.forEach(u => {
-                    userMap[u.id] = u;
-                });
-            }
-        }
+        // Fetch creator details using unified logic (Users + Creators table)
+        const userMap = await fetchCreatorsByIds(creatorIds);
 
         const result = (data || []).map(routine => transformDrillRoutine({
             ...routine,
@@ -6672,7 +6677,8 @@ function transformDrillRoutine(data: any): DrillRoutine {
         description: data.description || '',
         creatorId: data.creator_id,
         creatorName: data.creator?.name || data.creator_name || 'Grapplay Team',
-        creatorProfileImage: data.creator?.avatar_url || data.creator?.profile_image || data.creatorProfileImage || undefined,
+        // Prioritize profileImage (from creator table) over avatar_url (from auth/user table)
+        creatorProfileImage: data.creator?.profileImage || data.creator?.profile_image || data.creator?.avatar_url || data.creatorProfileImage || undefined,
         thumbnailUrl: data.thumbnail_url || data.thumbnailUrl || '', // Support both snake and camel case
         price: data.price || 0,
         views: data.views || 0,

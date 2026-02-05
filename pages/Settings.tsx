@@ -98,7 +98,7 @@ export const Settings: React.FC = () => {
         }
         loadSub();
 
-    }, [user, isCreator]);
+    }, [user?.id, isCreator]);
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];

@@ -112,7 +112,7 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
         if (post.id) {
             loadInitialStats();
         }
-    }, [user, post.id]);
+    }, [user?.id, post.id]);
 
     React.useEffect(() => {
         if (showComments && comments.length === 0) {

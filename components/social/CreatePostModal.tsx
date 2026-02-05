@@ -33,7 +33,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
 
     useEffect(() => {
         loadUserAvatar();
-    }, [user]);
+    }, [user?.id]);
 
     const loadUserAvatar = async () => {
         if (!user) return;

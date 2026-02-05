@@ -49,7 +49,7 @@ export const SkillTreeTab: React.FC = () => {
 
     useEffect(() => {
         loadData();
-    }, [user]);
+    }, [user?.id]);
 
     const loadData = async () => {
         try {

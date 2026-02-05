@@ -129,7 +129,7 @@ const DashboardItem = ({ item, onContinue, user }: { item: ActivityItem, onConti
             } catch (err) { console.error(err); }
         };
         checkSaved();
-    }, [user, item.id]);
+    }, [user?.id, item.id]);
 
     const handleSave = async (e: React.MouseEvent) => {
         e.preventDefault(); e.stopPropagation();

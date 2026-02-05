@@ -40,7 +40,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
         if (user) {
             checkCourseSaved(user.id, course.id).then(setIsSaved).catch(console.error);
         }
-    }, [user, course.id]);
+    }, [user?.id, course.id]);
 
     const handleSave = async (e: React.MouseEvent) => {
         e.preventDefault(); e.stopPropagation();

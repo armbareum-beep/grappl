@@ -533,7 +533,7 @@ export const SparringDetail: React.FC = () => {
                                         onClick={(e) => { e.stopPropagation(); handleFollow(); }}
                                         className={`px-3 md:px-4 py-1 md:py-1.5 rounded-full text-[10px] md:text-[11px] font-bold border transition-all active:scale-95 ${isFollowing ? 'bg-violet-600 text-white border-violet-600' : 'bg-transparent text-violet-400 border-violet-500 hover:bg-violet-600 hover:text-white'}`}
                                     >
-                                        {isFollowing ? 'Following' : 'Follow'}
+                                        {isFollowing ? '팔로잉' : '팔로우'}
                                     </button>
                                 </div>
 

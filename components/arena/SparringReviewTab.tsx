@@ -146,7 +146,7 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
             checkSubscription();
             loadReviews();
         }
-    }, [user]);
+    }, [user?.id]);
 
     const checkSubscription = async () => {
         if (!user) return;

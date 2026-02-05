@@ -77,7 +77,7 @@ export const LeaderboardCard: React.FC<LeaderboardCardProps> = () => {
 
     useEffect(() => {
         fetchRankings();
-    }, [user]);
+    }, [user?.id]);
 
     const fetchRankings = async () => {
         try {

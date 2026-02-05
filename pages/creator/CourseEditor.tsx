@@ -224,7 +224,7 @@ export const CourseEditor: React.FC = () => {
                 setLoading(false);
             }
         }
-    }, [id, isNew, user, isAdmin]);
+    }, [id, isNew, user?.id, isAdmin]);
 
     async function fetchCourseData(courseId: string) {
         try {

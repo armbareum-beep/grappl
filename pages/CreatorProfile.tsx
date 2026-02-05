@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { BookOpen, MessageSquare, Clock, DollarSign, Shield, Zap, PlayCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { getCreatorById, getCoursesByCreator, getRoutines, getSparringVideos, getFeedbackSettings, createFeedbackRequest, subscribeToCreator, unsubscribeFromCreator, checkSubscriptionStatus } from '../lib/api';
+import { getCreatorById, getCoursesByCreator, getRoutines, getSparringVideos, getFeedbackSettings, createFeedbackRequest, toggleCreatorFollow, checkCreatorFollowStatus } from '../lib/api';
 import { Creator, Course, FeedbackSettings, DrillRoutine, SparringVideo } from '../types';
 import { CourseCard } from '../components/CourseCard';
 import { DrillRoutineCard } from '../components/DrillRoutineCard';
@@ -48,7 +48,7 @@ export const CreatorProfile: React.FC = () => {
                 }
 
                 if (user && id) {
-                    const subscribed = await checkSubscriptionStatus(user.id, id);
+                    const subscribed = await checkCreatorFollowStatus(user.id, id);
                     setIsSubscribed(subscribed);
                 }
             } catch (error) {
@@ -102,6 +102,7 @@ export const CreatorProfile: React.FC = () => {
 
         setSubscribeLoading(true);
 
+        const previousStatus = isSubscribed;
         // Optimistic update
         const newStatus = !isSubscribed;
         setIsSubscribed(newStatus);
@@ -111,19 +112,24 @@ export const CreatorProfile: React.FC = () => {
         } : null);
 
         try {
-            if (newStatus) {
-                await subscribeToCreator(user.id, creator.id);
-            } else {
-                await unsubscribeFromCreator(user.id, creator.id);
+            const { followed } = await toggleCreatorFollow(user.id, creator.id);
+
+            // Sync with server if response differs from optimistic update
+            if (followed !== newStatus) {
+                setIsSubscribed(followed);
+                setCreator(prev => prev ? {
+                    ...prev,
+                    subscriberCount: prev.subscriberCount + (followed ? 1 : -1) - (newStatus ? 1 : -1)
+                } : null);
             }
         } catch (error) {
             // Revert on error
-            setIsSubscribed(!newStatus);
+            setIsSubscribed(previousStatus);
             setCreator(prev => prev ? {
                 ...prev,
-                subscriberCount: prev.subscriberCount + (newStatus ? -1 : 1)
+                subscriberCount: prev.subscriberCount + (previousStatus ? 1 : -1) - (newStatus ? 1 : -1)
             } : null);
-            console.error('Subscription error:', error);
+            console.error('Follow error:', error);
             alert('오류가 발생했습니다. 다시 시도해주세요.');
         } finally {
             setSubscribeLoading(false);
