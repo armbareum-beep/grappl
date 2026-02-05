@@ -230,9 +230,17 @@ export const RoutineDetail: React.FC = () => {
                     return;
                 }
 
-                const { data: routineData } = await getRoutineById(id);
+                const { data: routineData, error: fetchError } = await getRoutineById(id);
+                console.log('[RoutineDetail] getRoutineById result:', { id, hasData: !!routineData, error: fetchError });
+
+                if (fetchError) {
+                    console.error('[RoutineDetail] Fetch error:', fetchError);
+                }
+
                 if (routineData) {
+                    console.log('[RoutineDetail] Routine data drills count:', routineData.drills?.length);
                     if (!routineData.drills && (routineData as any).items) {
+                        console.log('[RoutineDetail] Using legacy items field');
                         routineData.drills = (routineData as any).items;
                     }
                     setRoutine(routineData);
@@ -243,6 +251,8 @@ export const RoutineDetail: React.FC = () => {
                             if (routines) setRelatedRoutines(routines);
                         });
                     }
+                } else {
+                    console.warn('[RoutineDetail] No routine data found for ID:', id);
                 }
 
                 // 2. Check Ownership & Progress
