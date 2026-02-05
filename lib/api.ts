@@ -264,7 +264,6 @@ export function transformLesson(data: any): Lesson {
         isSubscriptionExcluded: data.is_subscription_excluded || false,
         isPreview: data.is_preview,
         uniformType: data.uniform_type,
-        price: Number(data.price || data.course?.price) || 0,
     };
 }
 
@@ -6237,18 +6236,20 @@ export async function getRoutineById(id: string) {
     }
 
     // 3. Transform to match DrillRoutine interface
+    const rawDrills = data.items || [];
     const routine = {
         ...transformDrillRoutine(data),
         creatorName: creatorName,
         creatorImage: creatorProfileImage, // Align with RoutineDetail.tsx
         creatorProfileImage: creatorProfileImage,
-        drills: data.items?.sort((a: any, b: any) => a.order_index - b.order_index).map((item: any) => ({
-            ...transformDrill(item.drill),
-            orderIndex: item.order_index
-        })) || []
+        drills: rawDrills
+            .filter((item: any) => item && item.drill) // Ensure item and drill exist
+            .sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0))
+            .map((item: any) => ({
+                ...transformDrill(item.drill),
+                orderIndex: item.order_index || 0
+            })) || []
     };
-
-
 
     return { data: routine as DrillRoutine, error: null };
 }
@@ -6658,6 +6659,7 @@ export function transformDrill(data: any): Drill {
 
 // Helper for transforming routine data
 function transformDrillRoutine(data: any): DrillRoutine {
+    if (!data) return {} as DrillRoutine;
     // Safety check for duration and drill count which are often missing or misnamed in DB
     return {
         id: data.id,
