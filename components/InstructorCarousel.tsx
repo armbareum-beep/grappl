@@ -145,7 +145,7 @@ export const InstructorCarousel: React.FC<InstructorCarouselProps> = ({ searchQu
                                             </h3>
                                             <CheckCircle className="w-3.5 h-3.5 text-blue-500 fill-blue-500/10" />
                                         </div>
-                                        <p className="text-xs text-slate-400 line-clamp-2 h-[32px] leading-relaxed">
+                                        <p className="text-xs text-slate-400 line-clamp-2 h-[40px] leading-relaxed">
                                             {creator.bio || 'Grappl 인증 블랙벨트 인스트럭터입니다.'}
                                         </p>
                                     </div>
