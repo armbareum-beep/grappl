@@ -107,31 +107,36 @@ export async function checkLessonLiked(userId: string, lessonId: string): Promis
 }
 
 export async function toggleLessonSave(userId: string, lessonId: string): Promise<{ saved: boolean }> {
-    const { data: existing } = await supabase
-        .from('user_interactions')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('content_type', 'lesson')
-        .eq('content_id', lessonId)
-        .eq('interaction_type', 'save')
-        .maybeSingle();
+    try {
+        const { data: existing } = await supabase
+            .from('user_interactions')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('content_type', 'lesson')
+            .eq('content_id', lessonId)
+            .eq('interaction_type', 'save')
+            .maybeSingle();
 
-    if (existing) {
-        await supabase
-            .from('user_interactions')
-            .delete()
-            .eq('id', existing.id);
-        return { saved: false };
-    } else {
-        await supabase
-            .from('user_interactions')
-            .insert({
-                user_id: userId,
-                content_type: 'lesson',
-                content_id: lessonId,
-                interaction_type: 'save'
-            });
-        return { saved: true };
+        if (existing) {
+            await supabase
+                .from('user_interactions')
+                .delete()
+                .eq('id', existing.id);
+            return { saved: false };
+        } else {
+            await supabase
+                .from('user_interactions')
+                .insert({
+                    user_id: userId,
+                    content_type: 'lesson',
+                    content_id: lessonId,
+                    interaction_type: 'save'
+                });
+            return { saved: true };
+        }
+    } catch (error) {
+        console.error('Error toggling lesson save:', error);
+        throw error;
     }
 }
 

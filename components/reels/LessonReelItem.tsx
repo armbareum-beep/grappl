@@ -3,7 +3,7 @@ import { Lesson } from '../../types';
 import { Share2, Volume2, VolumeX, Bookmark, Heart, ChevronLeft, BookOpen } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { toggleLessonLike, toggleLessonSave, getLessonInteractionStatus, toggleCreatorFollow, updateLastWatched, extractVimeoId } from '../../lib/api';
+import { toggleLessonLike, getLessonInteractionStatus, toggleCreatorFollow, updateLastWatched, extractVimeoId } from '../../lib/api';
 import { ReelLoginModal } from '../auth/ReelLoginModal';
 import { VideoPlayer } from '../VideoPlayer';
 import { useOrientationFullscreen } from '../../hooks/useOrientationFullscreen';
@@ -159,6 +159,24 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
         await toggleCreatorFollow(user.id, lesson.creatorId);
     };
 
+    const handleSave = async (e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        if (!user) { navigate('/login'); return; }
+
+        // Optimistic UI
+        const newStatus = !isSaved;
+        setIsSaved(newStatus);
+
+        try {
+            const { toggleLessonSave: toggle } = await import('../../lib/api');
+            const result = await toggle(user.id, lesson.id);
+            setIsSaved(result.saved);
+        } catch (error) {
+            console.error('Save failed', error);
+            setIsSaved(!newStatus); // Revert
+        }
+    };
+
     // Click Handling for Play/Pause and Like
     const handleVideoClick = () => {
         if (!hasAccess) return;
@@ -262,12 +280,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
                                             </button>
                                         )}
                                         <button
-                                            onClick={async (e) => {
-                                                e.stopPropagation();
-                                                if (!user) { navigate('/login'); return; }
-                                                const { saved } = await toggleLessonSave(user.id, lesson.id);
-                                                setIsSaved(saved);
-                                            }}
+                                            onClick={handleSave}
                                             className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl"
                                         >
                                             <Bookmark className={`w-5 h-5 md:w-6 md:h-6 ${isSaved ? 'fill-white' : ''}`} />

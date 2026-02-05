@@ -75,8 +75,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             const [userResult, creatorResult] = await Promise.race([queriesPromise, timeoutPromise]) as any;
 
-            const userData = userResult.data;
-            const creatorData = creatorResult.data;
+            // If we have an error and we have cache, throw to use cache in catch block
+            if (userResult?.error && cached) {
+                console.warn('User status query failed, using cache:', userResult.error);
+                throw userResult.error;
+            }
+
+            const userData = userResult?.data;
+            const creatorData = creatorResult?.data;
+
+            // If we got no data but also no error (e.g. timeout but caught), handle it
+            if (!userData && !userResult?.error && cached) {
+                throw new Error('No user data returned, using cache');
+            }
 
             const newStatus = {
                 isAdmin: !!(userData?.is_admin === true || userData?.email === 'armbareum@gmail.com' || userData?.is_admin === 1),
@@ -88,13 +99,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 avatar_url: userData?.avatar_url
             };
 
-            // Update state
-            setIsAdmin(newStatus.isAdmin);
-            setIsSubscribed(newStatus.isSubscribed);
-            setIsCreator(newStatus.isCreator);
+            // Update state ONLY if we definitely got data
+            if (userData || creatorData) {
+                setIsAdmin(newStatus.isAdmin);
+                setIsSubscribed(newStatus.isSubscribed);
+                setIsCreator(newStatus.isCreator);
 
-            // Update cache with timestamp
-            localStorage.setItem(cacheKey, JSON.stringify({ ...newStatus, _cachedAt: Date.now() }));
+                // Update cache with timestamp
+                localStorage.setItem(cacheKey, JSON.stringify({ ...newStatus, _cachedAt: Date.now() }));
+            }
 
             return {
                 isAdmin: newStatus.isAdmin,
@@ -248,10 +261,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                                 prev.email !== baseUser.email ||
                                 prev.isSubscriber !== status.isSubscribed ||
                                 prev.subscription_tier !== status.subscriptionTier ||
-                                prev.profile_image_url !== status.profile_image_url || // Check profile image
-                                prev.updated_at !== baseUser.updated_at; // Check timestamp too
+                                prev.profile_image_url !== status.profile_image_url;
 
-                            if (!hasChanged) return prev; // Return SAME reference
+                            if (!hasChanged) return prev;
 
                             return {
                                 ...baseUser,
@@ -263,9 +275,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             };
                         });
 
-                        setIsAdmin(finalIsAdmin);
-                        setIsCreator(status.isCreator);
-                        setIsSubscribed(status.isSubscribed);
+                        // IMPORTANT: Only unset isAdmin/isCreator if we are SURE it should be false.
+                        // If it's a background refresh and it fails (status.isAdmin is false due to error),
+                        // but we previously were an admin, we might want to keep it.
+                        // However, checkUserStatus now handles cache, so status.isAdmin should be reliable.
+
+                        setIsAdmin(prev => (finalIsAdmin !== prev) ? finalIsAdmin : prev);
+                        setIsCreator(prev => (status.isCreator !== prev) ? status.isCreator : prev);
+                        setIsSubscribed(prev => (status.isSubscribed !== prev) ? status.isSubscribed : prev);
                         setLoading(false);
                     }
                 }
