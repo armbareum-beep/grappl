@@ -6626,6 +6626,7 @@ export async function getRandomSampleRoutines(limit: number = 1) {
 
 // Helper for transforming drill data
 export function transformDrill(data: any): Drill {
+    if (!data) return {} as Drill;
     console.log('transformDrill input:', data);
     const result = {
         id: data.id,
@@ -6637,9 +6638,9 @@ export function transformDrill(data: any): Drill {
         category: data.category,
         difficulty: data.difficulty,
         thumbnailUrl: data.thumbnail_url,
-        videoUrl: data.video_url,
-        vimeoUrl: data.vimeo_url,
-        descriptionVideoUrl: data.description_video_url,
+        videoUrl: data.video_url || data.action_video,
+        vimeoUrl: data.vimeo_url || data.action_video,
+        descriptionVideoUrl: data.description_video_url || data.description_video,
         aspectRatio: '9:16' as const,
         views: data.views || 0,
         durationMinutes: data.duration_minutes || 0,

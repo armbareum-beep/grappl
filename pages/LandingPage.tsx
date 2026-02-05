@@ -29,7 +29,7 @@ export const LandingPage: React.FC = () => {
     // 로그인한 사용자는 /browse로 리다이렉트
     useEffect(() => {
         if (!loading && user) {
-            navigate('/browse');
+            navigate('/home');
         }
     }, [user, loading, navigate]);
 
