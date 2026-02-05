@@ -66,6 +66,21 @@ export const RoutineDetail: React.FC = () => {
     const [debugInfo, setDebugInfo] = useState<any>(null);
     const isDebug = searchParams.get('debug') === 'true';
 
+    // Debug log for troubleshooting video playback
+    useEffect(() => {
+        if (viewMode === 'player') {
+            console.log('[RoutineDetail] Player View Active:', {
+                drillId: currentDrill?.id,
+                drillTitle: currentDrill?.title,
+                videoType,
+                effectiveUrl: videoType === 'main' ? (currentDrill?.videoUrl || currentDrill?.vimeoUrl) : (currentDrill?.descriptionVideoUrl || currentDrill?.videoUrl || currentDrill?.vimeoUrl),
+                hasAccess: videoType === 'main' || (isSubscribed || owns || (routine?.price === 0) || (currentDrill?.id === dailyFreeDrillId)),
+                isSubscribed,
+                owns
+            });
+        }
+    }, [viewMode, currentDrill?.id, videoType, isSubscribed, owns, routine?.price, routine?.id, dailyFreeDrillId]);
+
     // Check Routine Save Status
     useEffect(() => {
         const checkSaveStatus = async () => {
@@ -521,21 +536,6 @@ export const RoutineDetail: React.FC = () => {
 
     // Full access means the user owns the routine, is subscribed, or the routine is free
     const hasFullAccess = isSubscribed || owns || routine?.price === 0;
-
-    // Debug log for troubleshooting video playback
-    useEffect(() => {
-        if (viewMode === 'player') {
-            console.log('[RoutineDetail] Player View Active:', {
-                drillId: currentDrill?.id,
-                drillTitle: currentDrill?.title,
-                videoType,
-                effectiveUrl,
-                hasAccess,
-                isSubscribed,
-                owns
-            });
-        }
-    }, [viewMode, currentDrill?.id, videoType, effectiveUrl, hasAccess, isSubscribed, owns]);
 
 
     const formatTime = (seconds: number) => {
