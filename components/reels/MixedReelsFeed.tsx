@@ -268,6 +268,7 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                             isActive={isActive}
                             offset={offset}
                             isDailyFreeSparring={dailyFreeSparringId === item.data.id}
+                            dailyFreeId={dailyFreeSparringId}
                             isSubscriber={userPermissions.isSubscriber}
                             purchasedItemIds={userPermissions.purchasedItemIds}
                             isMuted={!isActive || isMuted}

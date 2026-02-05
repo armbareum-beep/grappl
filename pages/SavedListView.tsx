@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import {
     getUserSavedLessons,
+    getUserSavedCourses,
     getUserSavedRoutines,
     getUserRoutines,
     getSavedSparringVideos,
@@ -42,8 +43,16 @@ export const SavedListView: React.FC = () => {
             try {
                 let data: any[] = [];
                 if (type === 'classes') {
-                    const res = await getUserSavedLessons(user.id);
-                    data = Array.isArray(res) ? res : ((res as any).data || []);
+                    const [lessonsRes, coursesRes] = await Promise.all([
+                        getUserSavedLessons(user.id),
+                        getUserSavedCourses(user.id)
+                    ]);
+                    const lessons = Array.isArray(lessonsRes) ? lessonsRes : ((lessonsRes as any).data || []);
+                    const courses = Array.isArray(coursesRes) ? coursesRes : ((coursesRes as any).data || []);
+
+                    // Deduplicate in case a lesson's parent course is also saved (or vice versa)
+                    // But actually they are different types, so we just combine them.
+                    data = [...courses, ...lessons];
                 } else if (type === 'routines') {
                     const savedRes = await getUserSavedRoutines(user.id);
                     const personalRes = await getUserRoutines(user.id);
@@ -55,8 +64,17 @@ export const SavedListView: React.FC = () => {
                     const purchasedRes = await getPurchasedSparringVideos(user.id);
                     const saved = Array.isArray(savedRes) ? savedRes : ((savedRes as any).data || []);
                     const purchased = Array.isArray(purchasedRes) ? purchasedRes : ((purchasedRes as any).data || []);
-                    data = Array.from(new Set([...saved, ...purchased].map(v => v.id)))
-                        .map(id => [...saved, ...purchased].find(v => v.id === id));
+
+                    const purchasedIds = new Set(purchased.map((v: any) => v.id));
+                    const savedIds = new Set(saved.map((v: any) => v.id));
+
+                    data = Array.from(new Set([...savedIds, ...purchasedIds])).map(id => {
+                        const item = saved.find((v: any) => v.id === id) || purchased.find((v: any) => v.id === id);
+                        return {
+                            ...item,
+                            isPurchased: purchasedIds.has(id)
+                        };
+                    });
                 } else if (type === 'roadmaps') {
                     const res = await listUserSkillTrees(user.id);
                     data = Array.isArray(res) ? res : ((res as any).data || []);
@@ -99,9 +117,14 @@ export const SavedListView: React.FC = () => {
                 ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
                         {items.map((item) => {
-                            if (type === 'classes') return <CourseCard key={item.id} course={item} />;
-                            if (type === 'routines') return <DrillRoutineCard key={item.id} routine={item} />;
-                            if (type === 'sparring') return <SparringCard key={item.id} video={item} />;
+                            const handleUnsave = () => {
+                                if (item.isPurchased) return;
+                                setItems(prev => prev.filter(i => i.id !== item.id));
+                            };
+
+                            if (type === 'classes') return <CourseCard key={item.id} course={item} onUnsave={handleUnsave} />;
+                            if (type === 'routines') return <DrillRoutineCard key={item.id} routine={item} onUnsave={handleUnsave} />;
+                            if (type === 'sparring') return <SparringCard key={item.id} video={item} onUnsave={handleUnsave} hasAccess={item.isPurchased} />;
                             if (type === 'roadmaps') return <ChainCard key={item.id} chain={item} />;
                             return null;
                         })}

@@ -79,11 +79,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const creatorData = creatorResult.data;
 
             const newStatus = {
-                isAdmin: !!(userData?.is_admin === true || userData?.email === 'armbareum@gmail.com'),
-                isSubscribed: !!(userData?.is_subscriber === true),
+                isAdmin: !!(userData?.is_admin === true || userData?.email === 'armbareum@gmail.com' || userData?.is_admin === 1),
+                isSubscribed: !!(userData?.is_subscriber === true || userData?.is_subscriber === 1),
                 subscriptionTier: userData?.subscription_tier,
                 ownedVideoIds: userData?.owned_video_ids || [],
-                isCreator: !!(creatorData?.approved === true),
+                isCreator: !!(creatorData?.approved === true || creatorData?.approved === 1),
                 profile_image_url: creatorData?.profile_image || userData?.profile_image_url || userData?.avatar_url,
                 avatar_url: userData?.avatar_url
             };

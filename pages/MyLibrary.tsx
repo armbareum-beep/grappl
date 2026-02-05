@@ -7,6 +7,7 @@ import {
   getSavedSparringVideos,
   getUserSavedRoutines,
   getUserSavedLessons,
+  getUserSavedCourses,
   getPurchasedSparringVideos
 } from '../lib/api';
 import { ErrorScreen } from '../components/ErrorScreen';
@@ -50,8 +51,9 @@ export const MyLibrary: React.FC = () => {
         setError(null);
         setLoading(true);
 
-        const [ownedCoursesData, savedLessonsData, savedRoutinesData, personalRoutinesData, savedSparringData, purchasedSparringData, chainsData] = await Promise.all([
+        const [ownedCoursesData, savedCoursesData, savedLessonsData, savedRoutinesData, personalRoutinesData, savedSparringData, purchasedSparringData, chainsData] = await Promise.all([
           getUserCourses(user.id),
+          getUserSavedCourses(user.id),
           getUserSavedLessons(user.id),
           getUserSavedRoutines(user.id),
           getUserRoutines(user.id),
@@ -73,7 +75,17 @@ export const MyLibrary: React.FC = () => {
             };
           })
         );
-        setMyCourses(coursesWithProg);
+
+        // Deduplicate courses (in case some are both owned and saved)
+        const savedCourses = savedCoursesData || [];
+        const uniqueCoursesMap = new Map();
+        [...coursesWithProg, ...savedCourses].forEach(c => {
+          if (!uniqueCoursesMap.has(c.id)) {
+            uniqueCoursesMap.set(c.id, c);
+          }
+        });
+
+        setMyCourses(Array.from(uniqueCoursesMap.values()));
         setSavedLessons(savedLessonsData || []);
 
         // Process Routines

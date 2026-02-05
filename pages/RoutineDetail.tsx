@@ -63,6 +63,23 @@ export const RoutineDetail: React.FC = () => {
     const [viewMode, setViewMode] = useState<'landing' | 'player'>('landing');
     const [currentTime, setCurrentTime] = useState(0);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    const [debugInfo, setDebugInfo] = useState<any>(null);
+    const isDebug = searchParams.get('debug') === 'true';
+
+    // Debug log for troubleshooting video playback
+    useEffect(() => {
+        if (viewMode === 'player') {
+            console.log('[RoutineDetail] Player View Active:', {
+                drillId: currentDrill?.id,
+                drillTitle: currentDrill?.title,
+                videoType,
+                effectiveUrl: videoType === 'main' ? (currentDrill?.videoUrl || currentDrill?.vimeoUrl) : (currentDrill?.descriptionVideoUrl || currentDrill?.videoUrl || currentDrill?.vimeoUrl),
+                hasAccess: videoType === 'main' || (isSubscribed || owns || (routine?.price === 0) || (currentDrill?.id === dailyFreeDrillId)),
+                isSubscribed,
+                owns
+            });
+        }
+    }, [viewMode, currentDrill?.id, videoType, isSubscribed, owns, routine?.price, routine?.id, dailyFreeDrillId]);
 
     // Check Routine Save Status
     useEffect(() => {
@@ -230,9 +247,26 @@ export const RoutineDetail: React.FC = () => {
                     return;
                 }
 
-                const { data: routineData } = await getRoutineById(id);
+                const { data: routineData, error: fetchError } = await getRoutineById(id);
+                if (isDebug) {
+                    setDebugInfo({
+                        id,
+                        hasData: !!routineData,
+                        error: fetchError,
+                        drillsCount: routineData?.drills?.length,
+                        rawItemsCount: (routineData as any)?.items?.length,
+                        timestamp: new Date().toLocaleTimeString()
+                    });
+                }
+
+                if (fetchError) {
+                    console.error('[RoutineDetail] Fetch error:', fetchError);
+                }
+
                 if (routineData) {
+                    console.log('[RoutineDetail] Routine data drills count:', routineData.drills?.length);
                     if (!routineData.drills && (routineData as any).items) {
+                        console.log('[RoutineDetail] Using legacy items field');
                         routineData.drills = (routineData as any).items;
                     }
                     setRoutine(routineData);
@@ -243,6 +277,8 @@ export const RoutineDetail: React.FC = () => {
                             if (routines) setRelatedRoutines(routines);
                         });
                     }
+                } else {
+                    console.warn('[RoutineDetail] No routine data found for ID:', id);
                 }
 
                 // 2. Check Ownership & Progress
@@ -481,6 +517,8 @@ export const RoutineDetail: React.FC = () => {
 
 
     const effectiveUrl = videoType === 'main' ? (currentDrill.videoUrl || currentDrill.vimeoUrl) : (currentDrill.descriptionVideoUrl || currentDrill.videoUrl || currentDrill.vimeoUrl);
+
+
     const isCustomRoutine = String(routine?.id || '').startsWith('custom-');
     const isActionVideo = videoType === 'main';
 
@@ -539,10 +577,24 @@ export const RoutineDetail: React.FC = () => {
 
                         {/* Mobile Curriculum */}
                         <div className="flex-1 px-4 space-y-4">
+                            {/* Visual Debug Overlay (Only if ?debug=true) */}
+                            {isDebug && debugInfo && (
+                                <div className="p-4 bg-zinc-900 border border-violet-500/50 rounded-2xl font-mono text-[10px] text-zinc-300">
+                                    <h4 className="text-violet-400 font-bold mb-2 uppercase tracking-widest">Debug Info</h4>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>ID: {debugInfo.id}</div>
+                                        <div>Status: {debugInfo.hasData ? 'SUCCESS' : 'FAILED'}</div>
+                                        <div>Drills: {debugInfo.drillsCount ?? 'N/A'}</div>
+                                        <div>Items: {debugInfo.rawItemsCount ?? 'N/A'}</div>
+                                        <div className="col-span-2 text-red-400">Error: {JSON.stringify(debugInfo.error)}</div>
+                                        <div className="col-span-2 text-[8px] text-zinc-500">Updated: {debugInfo.timestamp}</div>
+                                    </div>
+                                </div>
+                            )}
                             <h3 className="text-lg font-bold text-zinc-100 flex items-center gap-2"><ListVideo className="w-4 h-4 text-violet-500" />Curriculum</h3>
                             <div className="space-y-3">
-                                {routine.drills?.map((drill, idx) => {
-                                    const d = typeof drill === 'string' ? null : drill;
+                                {routine.drills?.filter(d => typeof d !== 'string' && d !== null).map((drill, idx) => {
+                                    const d = drill as Drill;
                                     return (
                                         <div key={idx} onClick={() => { if (hasFullAccess || d?.id === dailyFreeDrillId) { setCurrentDrillIndex(idx); setViewMode('player'); setVideoType('main'); } else { handlePurchase(); } }} className="flex gap-4 bg-zinc-900/30 border border-zinc-800/50 p-3 rounded-2xl items-center active:bg-zinc-800/50 transition-colors cursor-pointer">
                                             <div className="relative w-28 aspect-video rounded-xl overflow-hidden bg-black shrink-0 border border-zinc-800/50">
@@ -636,7 +688,7 @@ export const RoutineDetail: React.FC = () => {
                                             <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">More Routines Like This</span>
                                         </div>
                                         <div className="space-y-2">
-                                            {relatedRoutines.slice(0, 3).map(r => (
+                                            {(relatedRoutines || []).filter(r => r !== null).slice(0, 3).map(r => (
                                                 <div
                                                     key={r.id}
                                                     onClick={() => navigate(`/routines/${r.id}`)}
@@ -709,11 +761,12 @@ export const RoutineDetail: React.FC = () => {
                                             title={currentDrill.title}
                                             autoplay={true}
                                             playing={isPlaying}
+                                            muted={muted}
                                             showControls={false}
                                             fillContainer={true}
                                             onProgress={handleProgress}
                                             onEnded={() => handleDrillComplete()}
-                                            maxPreviewDuration={user ? undefined : 10}
+                                            maxPreviewDuration={user ? undefined : 15}
                                             onPreviewLimitReached={() => setIsLoginModalOpen(true)}
                                             isPaused={isLoginModalOpen}
                                         />
@@ -819,7 +872,7 @@ export const RoutineDetail: React.FC = () => {
                                 <div className="absolute inset-0 z-[300] bg-black/95 backdrop-blur-xl animate-in slide-in-from-bottom flex flex-col">
                                     <div className="p-4 border-b border-zinc-800 flex justify-between items-center"><h3 className="text-white font-bold">루틴 목록</h3><button onClick={() => setShowMobileList(false)}><X className="w-6 h-6 text-white" /></button></div>
                                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                                        {routine?.drills?.map((d: any, idx) => (
+                                        {routine?.drills?.filter((d: any) => d !== null).map((d: any, idx) => (
                                             <div key={idx} onClick={() => { handleDrillSelect(idx); setShowMobileList(false); }} className={`p-3 rounded-xl flex items-center gap-4 transition-all cursor-pointer ${idx === currentDrillIndex ? 'bg-violet-600/10 border border-violet-500/30' : 'bg-zinc-900/50 border border-transparent'}`}>
                                                 <div className="w-20 aspect-video rounded-lg overflow-hidden bg-black shrink-0">
                                                     <img src={d.thumbnailUrl} className="w-full h-full object-cover" />
@@ -874,8 +927,8 @@ export const RoutineDetail: React.FC = () => {
                                 <div className="bg-zinc-900/40 backdrop-blur-md border border-zinc-800 rounded-2xl p-6">
                                     <h3 className="text-xl font-semibold text-zinc-100 mb-6 flex items-center gap-2"><ListVideo className="w-5 h-5 text-violet-500" />Routine Curriculum</h3>
                                     <div className="flex flex-col gap-4">
-                                        {routine.drills?.map((drill, idx) => {
-                                            const d = typeof drill === 'string' ? null : drill;
+                                        {routine.drills?.filter(drill => typeof drill !== 'string' && drill !== null).map((drill, idx) => {
+                                            const d = drill as Drill;
                                             return (
                                                 <div key={idx} onClick={() => { if (hasFullAccess || d?.id === dailyFreeDrillId) { setCurrentDrillIndex(idx); setViewMode('player'); setVideoType('main'); } else { handlePurchase(); } }} className="group flex gap-5 bg-zinc-950/50 border border-zinc-800/60 p-4 rounded-xl hover:border-violet-500/30 transition-all cursor-pointer items-center">
                                                     <div className="relative w-40 aspect-video rounded-lg overflow-hidden bg-black shrink-0 border border-zinc-800">
@@ -966,7 +1019,7 @@ export const RoutineDetail: React.FC = () => {
                             <div className="max-w-7xl mx-auto w-full px-8 mt-24">
                                 <h3 className="text-xl font-bold text-white mb-6">More Routines Like This</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                    {relatedRoutines.map(r => (
+                                    {(relatedRoutines || []).filter(r => r !== null).map(r => (
                                         <div
                                             key={r.id}
                                             onClick={() => navigate(`/routines/${r.id}`)}
@@ -980,13 +1033,13 @@ export const RoutineDetail: React.FC = () => {
                                                 )}
                                                 <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[10px] text-white font-bold border border-white/10 flex items-center gap-1">
                                                     <Clock className="w-3 h-3" />
-                                                    {r.totalDurationMinutes}m
+                                                    {(r.totalDurationMinutes || 0)}m
                                                 </div>
                                             </div>
                                             <h4 className="text-lg font-bold text-zinc-100 line-clamp-1 group-hover:text-violet-400 transition-colors">{r.title}</h4>
                                             <div className="flex items-center gap-2 mt-1">
                                                 <span className="text-xs font-medium px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">{r.difficulty}</span>
-                                                <span className="text-xs text-zinc-500">{r.drillCount} Drills</span>
+                                                <span className="text-xs text-zinc-500">{r.drillCount || 0} Drills</span>
                                             </div>
                                         </div>
                                     ))}
@@ -1007,11 +1060,16 @@ export const RoutineDetail: React.FC = () => {
                                                 vimeoId={effectiveUrl || ''}
                                                 title={currentDrill?.title || ''}
                                                 autoplay={true}
+                                                playing={isPlaying}
+                                                muted={muted}
+                                                isPaused={isLoginModalOpen}
                                                 showControls={false}
                                                 fillContainer={true}
                                                 onProgress={handleProgress}
                                                 onDoubleTap={() => handleLikeDrill()}
                                                 onEnded={() => handleDrillComplete()}
+                                                maxPreviewDuration={user ? undefined : 15}
+                                                onPreviewLimitReached={() => setIsLoginModalOpen(true)}
                                             />
                                         </>
                                     ) : (

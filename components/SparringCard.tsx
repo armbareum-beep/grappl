@@ -12,9 +12,10 @@ interface SparringCardProps {
     video: SparringVideo;
     rank?: number;
     hasAccess?: boolean;
+    onUnsave?: () => void;
 }
 
-export const SparringCard: React.FC<SparringCardProps> = ({ video, rank, hasAccess = false }) => {
+export const SparringCard: React.FC<SparringCardProps> = ({ video, rank, hasAccess = false, onUnsave }) => {
     const { user } = useAuth();
     const [isSaved, setIsSaved] = useState(false);
 
@@ -179,6 +180,9 @@ export const SparringCard: React.FC<SparringCardProps> = ({ video, rank, hasAcce
                             try {
                                 await toggleSparringSave(user.id, video.id);
                                 setIsSaved(!isSaved);
+                                if (isSaved && onUnsave) {
+                                    onUnsave();
+                                }
                             } catch (err) {
                                 console.error(err);
                             }

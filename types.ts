@@ -48,6 +48,7 @@ export interface Creator {
   profileImage: string;
   subscriberCount: number;
   stripeAccountId?: string;
+  email?: string;
   payoutSettings?: {
     type: 'individual' | 'business';
     wiseAccountNumber?: string;

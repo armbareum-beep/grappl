@@ -383,23 +383,29 @@ export const TrainingRoutinesTab: React.FC = () => {
                     const customRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
                     const updatedRoutines = customRoutines.filter((r: DrillRoutine) => r.id !== routineId);
                     localStorage.setItem('my_custom_routines', JSON.stringify(updatedRoutines));
+                    setRoutines(prev => prev.filter(r => r.id !== routineId));
+                    success('루틴이 삭제되었습니다.');
                 } else {
                     if (user) {
-                        const { error } = await supabase
-                            .from('user_routines')
-                            .delete()
-                            .eq('user_id', user.id)
-                            .eq('routine_id', routineId);
+                        try {
+                            // Always just remove from saved routines, NEVER delete from DB here
+                            const { error } = await supabase
+                                .from('user_routines')
+                                .delete()
+                                .match({ user_id: user.id, routine_id: routineId });
 
-                        if (error) {
+                            if (error) throw error;
+
+                            // Optimistic update
+                            setRoutines(prev => prev.filter(r => r.id !== routineId));
+                            success('루틴이 삭제되었습니다.');
+
+                        } catch (error) {
                             console.error('Error deleting routine:', error);
                             toastError('루틴 삭제에 실패했습니다.');
-                            return;
                         }
                     }
                 }
-                setRoutines(prev => prev.filter(r => r.id !== routineId));
-                success('루틴이 삭제되었습니다.');
             }
         });
     };

@@ -25,12 +25,40 @@ export const AdminDashboard: React.FC = () => {
     const [chartData, setChartData] = useState<{ salesData: any[]; userGrowthData: any[] }>({ salesData: [], userGrowthData: [] });
     const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
     const [topPerformers, setTopPerformers] = useState<AdminTopPerformers | null>(null);
+    const [hasNewActivity, setHasNewActivity] = useState(false);
+    const [showNotifications, setShowNotifications] = useState(false);
 
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         loadData();
     }, []);
+
+    useEffect(() => {
+        // Auto-refresh activity feed every 5 seconds
+        const interval = setInterval(async () => {
+            try {
+                const activity = await getAdminRecentActivity();
+
+                // Check if there are new activities
+                if (activity.length > 0 && recentActivity.length > 0) {
+                    const latestActivityId = activity[0]?.id;
+                    const currentLatestId = recentActivity[0]?.id;
+
+                    if (latestActivityId !== currentLatestId) {
+                        setHasNewActivity(true);
+                        setTimeout(() => setHasNewActivity(false), 3000);
+                    }
+                }
+
+                setRecentActivity(activity);
+            } catch (error) {
+                console.error('Error refreshing activity:', error);
+            }
+        }, 5000);
+
+        return () => clearInterval(interval);
+    }, [recentActivity]);
 
     const loadData = async () => {
         try {
@@ -201,11 +229,74 @@ export const AdminDashboard: React.FC = () => {
                             <h1 className="text-4xl font-extrabold tracking-tight text-white bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-500">
                                 관리자 대시보드
                             </h1>
-                            <div className="px-2 py-0.5 bg-violet-500/10 border border-violet-500/20 rounded text-[10px] font-black text-violet-400 uppercase tracking-widest">v2.5 Premium</div>
+                            <div className="px-2 py-0.5 bg-violet-500/10 border border-violet-500/20 rounded text-[10px] font-black text-violet-400 uppercase tracking-widest">v2.5 프리미엄</div>
                         </div>
                         <p className="text-zinc-400 text-lg">Grappl 플랫폼의 모든 핵심 데이터와 인프라를 관리합니다.</p>
                     </div>
                     <div className="flex items-center gap-3">
+                        {/* Notification Bell */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowNotifications(!showNotifications)}
+                                className="relative group flex items-center justify-center w-10 h-10 bg-zinc-900/50 border border-zinc-800 rounded-xl text-zinc-400 hover:text-white hover:border-zinc-700 transition-all backdrop-blur-sm"
+                            >
+                                <Bell className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                {hasNewActivity && (
+                                    <span className="absolute top-1 right-1 w-2 h-2 bg-violet-500 rounded-full animate-pulse" />
+                                )}
+                            </button>
+
+                            {/* Notification Dropdown */}
+                            {showNotifications && (
+                                <div className="absolute right-0 mt-2 w-96 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl z-50 overflow-hidden">
+                                    <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
+                                        <h3 className="font-bold text-white">실시간 활동 알림</h3>
+                                        <button
+                                            onClick={() => setShowNotifications(false)}
+                                            className="text-zinc-500 hover:text-white text-xs"
+                                        >
+                                            닫기
+                                        </button>
+                                    </div>
+                                    <div className="max-h-96 overflow-y-auto">
+                                        {recentActivity.length === 0 ? (
+                                            <div className="p-8 text-center text-zinc-500">
+                                                <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                                <p className="text-sm">새로운 활동이 없습니다</p>
+                                            </div>
+                                        ) : (
+                                            <div className="divide-y divide-zinc-800">
+                                                {recentActivity.slice(0, 10).map((activity, i) => (
+                                                    <div key={i} className="p-4 hover:bg-zinc-800/50 transition-colors">
+                                                        <div className="flex gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0">
+                                                                {activity.type === 'user_signup' && <Users className="w-4 h-4 text-blue-400" />}
+                                                                {activity.type === 'purchase' && <DollarSign className="w-4 h-4 text-emerald-400" />}
+                                                                {activity.type === 'creator_application' && <Shield className="w-4 h-4 text-purple-400" />}
+                                                                {activity.type === 'report' && <AlertTriangle className="w-4 h-4 text-rose-400" />}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <h4 className="text-xs font-bold text-zinc-200 mb-1">{activity.title}</h4>
+                                                                <p className="text-xs text-zinc-500 line-clamp-2">{activity.description}</p>
+                                                                <span className="text-[10px] text-zinc-600 mt-1 block">
+                                                                    {new Date(activity.timestamp).toLocaleString('ko-KR', {
+                                                                        month: 'short',
+                                                                        day: 'numeric',
+                                                                        hour: '2-digit',
+                                                                        minute: '2-digit'
+                                                                    })}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         <Link to="/" className="group flex items-center gap-2 px-4 py-2.5 bg-zinc-900/50 border border-zinc-800 rounded-xl text-zinc-400 hover:text-white hover:border-zinc-700 transition-all backdrop-blur-sm">
                             <Home className="w-4 h-4 group-hover:scale-110 transition-transform" />
                             <span className="text-sm font-medium">홈으로 가기</span>
@@ -313,7 +404,17 @@ export const AdminDashboard: React.FC = () => {
                     {/* Sidebar Column */}
                     <div className="space-y-8">
                         {/* Live Activity Feed */}
-                        <div className="bg-zinc-900/40 border border-zinc-800/50 rounded-3xl p-6 backdrop-blur-xl flex flex-col h-full max-h-[500px]">
+                        <div className="bg-zinc-900/40 border border-zinc-800/50 rounded-3xl p-6 backdrop-blur-xl flex flex-col h-full max-h-[500px] relative">
+                            {hasNewActivity && (
+                                <div className="absolute -top-2 -right-2 z-10">
+                                    <div className="relative flex h-6 w-6">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-6 w-6 bg-violet-500 items-center justify-center">
+                                            <Bell className="w-3 h-3 text-white" />
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
                             <div className="flex items-center justify-between mb-6">
                                 <div className="flex items-center gap-2">
                                     <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
@@ -358,7 +459,7 @@ export const AdminDashboard: React.FC = () => {
                 {/* Section Divider */}
                 <div className="flex items-center gap-4 mb-12">
                     <div className="h-px flex-1 bg-gradient-to-r from-transparent to-zinc-800" />
-                    <h2 className="text-sm font-black uppercase tracking-[0.3em] text-zinc-600">Infrastructure Management</h2>
+                    <h2 className="text-sm font-black uppercase tracking-[0.3em] text-zinc-600">인프라 및 시스템 관리</h2>
                     <div className="h-px flex-1 bg-gradient-to-l from-transparent to-zinc-800" />
                 </div>
 

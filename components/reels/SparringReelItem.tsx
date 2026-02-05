@@ -20,6 +20,7 @@ interface SparringReelItemProps {
     purchasedItemIds?: string[];
     isLoggedIn?: boolean;
     isDailyFreeSparring?: boolean;
+    dailyFreeId?: string;
     isMuted?: boolean;
     onToggleMute?: () => void;
     onVideoReady?: () => void;
@@ -32,7 +33,8 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
     isSubscriber,
     purchasedItemIds = [],
     isLoggedIn,
-    isDailyFreeSparring = false,
+    isDailyFreeSparring: isDailyFreeSparringProp = false,
+    dailyFreeId,
     isMuted = false,
     onToggleMute,
     onVideoReady
@@ -48,11 +50,9 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
 
     // Login modal state for non-logged-in users
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-    const [watchTime, setWatchTime] = useState(0);
     const [progress, setProgress] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
     const [showLikeAnimation, setShowLikeAnimation] = useState(false);
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
     const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Fullscreen on landscape
@@ -213,38 +213,18 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
     }, [isActive, user?.id, isSubscriber, video.id, purchasedItemIds]);
 
 
-    // Watch time tracking for preview limit (1 min)
-    useEffect(() => {
-        if (!user && isActive) {
-            // Start timer
-            setWatchTime(0);
-            timerRef.current = setInterval(() => {
-                setWatchTime((prev: number) => {
-                    const newTime = prev + 1;
-                    if (newTime >= 60) {
-                        // 60 seconds reached (1 minute)
-                        setIsLoginModalOpen(true);
-                        if (timerRef.current) {
-                            clearInterval(timerRef.current);
-                        }
-                    }
-                    return newTime;
-                });
-            }, 1000);
-        } else {
-            // Clear timer when not active or user is logged in
-            if (timerRef.current) {
-                clearInterval(timerRef.current);
-            }
-            setWatchTime(0);
-        }
+    // Access Control
+    // Move hasAccess definition UP to before its first usage in useEffect
+    const isDailyFreeSparring = isDailyFreeSparringProp || (dailyFreeId && dailyFreeId === video.id);
+    // Allow access if: Daily Free OR 0 Won Video OR (Logged In AND (Subscribed OR Purchased))
+    const hasAccess = isDailyFreeSparring || video.price === 0 || (isLoggedIn && (isSubscriber || purchasedItemIds.includes(video.id)));
 
-        return () => {
-            if (timerRef.current) {
-                clearInterval(timerRef.current);
-            }
-        };
-    }, [isActive, user]);
+    // Access Control: Show login modal immediately if no access
+    useEffect(() => {
+        if (!hasAccess && isActive && !isVideoProcessing) {
+            setIsLoginModalOpen(true);
+        }
+    }, [isActive, hasAccess, isVideoProcessing]);
 
     const toggleMute = async () => {
         onToggleMute?.();
@@ -252,7 +232,6 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
 
     // Click Handling for Play/Pause and Like
     const handleVideoClick = () => {
-        if (!hasAccess) return;
         if (clickTimeoutRef.current) {
             // Double click detected
             clearTimeout(clickTimeoutRef.current);
@@ -333,9 +312,6 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
         );
     };
 
-    // Access Control
-    const hasAccess = isDailyFreeSparring || (isLoggedIn && (isSubscriber || purchasedItemIds.includes(video.id)));
-
     return (
         <div
             ref={containerRef}
@@ -356,8 +332,6 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
                             />
                         </div>
                     )}
-
-                    {/* Removed from here to move inside the video container */}
                 </div>
 
                 {/* Background Blur Effect - Lightened overlay */}
@@ -455,15 +429,14 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
                 </div>
 
 
-                {/* Progress Bar / Teaser Bar */}
-                <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!user ? 'h-1.5 bg-violet-900/30' : 'h-[2px] bg-zinc-800/50'}`}>
+                <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!hasAccess ? 'h-1.5 bg-violet-900/30' : 'h-[2px] bg-zinc-800/50'}`}>
                     <div
-                        className={`h-full transition-all ease-linear ${!user ? 'bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,1)] duration-1000' : 'bg-violet-400 duration-100'}`}
-                        style={{ width: `${!user ? (watchTime / 60) * 100 : progress}%` }}
+                        className={`h-full transition-all ease-linear ${!hasAccess ? 'bg-zinc-800' : 'bg-violet-400 duration-100'}`}
+                        style={{ width: `${progress}%` }}
                     />
                 </div>
 
-                {/* Login Modal for non-logged-in users */}
+                {/* Login Modal for non-logged-in/unauthorized users */}
                 <ReelLoginModal
                     isOpen={isLoginModalOpen}
                     onClose={() => setIsLoginModalOpen(false)}

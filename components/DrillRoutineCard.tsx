@@ -15,9 +15,10 @@ interface DrillRoutineCardProps {
     rank?: number;
     hasAccess?: boolean;
     className?: string;
+    onUnsave?: () => void;
 }
 
-export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine, rank, hasAccess = false, className }) => {
+export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine, rank, hasAccess = false, className, onUnsave }) => {
     const { user } = useAuth();
     const [isSaved, setIsSaved] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -172,6 +173,9 @@ export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine, ran
                             try {
                                 await toggleRoutineSave(user.id, routine.id);
                                 setIsSaved(!isSaved);
+                                if (isSaved && onUnsave) {
+                                    onUnsave();
+                                }
                             } catch (err) {
                                 console.error(err);
                             }

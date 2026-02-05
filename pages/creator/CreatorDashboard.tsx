@@ -95,7 +95,7 @@ export const CreatorDashboard: React.FC = () => {
                 let courseId = editingContent?.id;
 
                 if (editingContent) {
-                    await updateCourse(editingContent.id, {
+                    const { error } = await updateCourse(editingContent.id, {
                         title: data.title,
                         description: data.description,
                         category: data.category,
@@ -107,6 +107,11 @@ export const CreatorDashboard: React.FC = () => {
                         isSubscriptionExcluded: data.isSubscriptionExcluded,
                         creatorId: data.creatorId,
                     });
+
+                    if (error) {
+                        toastError('클래스 수정 중 오류가 발생했습니다: ' + (error.message || error));
+                        return;
+                    }
                     success('클래스가 수정되었습니다.');
                 } else {
                     const result = await createCourse({
@@ -121,6 +126,11 @@ export const CreatorDashboard: React.FC = () => {
                         isSubscriptionExcluded: data.isSubscriptionExcluded,
                         creatorId: user.id,
                     });
+
+                    if (result.error) {
+                        toastError('클래스 생성 중 오류가 발생했습니다: ' + (result.error.message || result.error));
+                        return;
+                    }
                     if (result.data) courseId = result.data.id;
                     success('클래스가 생성되었습니다.');
                 }
@@ -158,7 +168,7 @@ export const CreatorDashboard: React.FC = () => {
                 }
             } else if (contentModalType === 'routine') {
                 if (editingContent) {
-                    await updateRoutine(editingContent.id, {
+                    const { error } = await updateRoutine(editingContent.id, {
                         title: data.title,
                         description: data.description,
                         category: data.category,
@@ -170,9 +180,14 @@ export const CreatorDashboard: React.FC = () => {
                         relatedItems: data.relatedItems,
                         creatorId: data.creatorId,
                     }, data.selectedDrillIds);
+
+                    if (error) {
+                        toastError('루틴 수정 중 오류가 발생했습니다: ' + (error.message || error));
+                        return; // Stop execution on error
+                    }
                     success('루틴이 수정되었습니다.');
                 } else {
-                    await createRoutine({
+                    const { error } = await createRoutine({
                         title: data.title,
                         description: data.description,
                         category: data.category,
@@ -185,6 +200,11 @@ export const CreatorDashboard: React.FC = () => {
                         creatorId: user.id,
                         creatorName: user.user_metadata?.name || 'Creator',
                     }, data.selectedDrillIds);
+
+                    if (error) {
+                        toastError('루틴 생성 중 오류가 발생했습니다: ' + (error.message || error));
+                        return; // Stop execution on error
+                    }
                     success('루틴이 생성되었습니다.');
                 }
                 // Refresh routines with timeout
@@ -200,7 +220,7 @@ export const CreatorDashboard: React.FC = () => {
                 }
             } else if (contentModalType === 'sparring') {
                 if (editingContent) {
-                    await updateSparringVideo(editingContent.id, {
+                    const { error } = await updateSparringVideo(editingContent.id, {
                         title: data.title,
                         description: data.description,
                         category: data.category,
@@ -212,7 +232,10 @@ export const CreatorDashboard: React.FC = () => {
                         creatorId: data.creatorId,
                     });
 
-
+                    if (error) {
+                        toastError('스파링 수정 중 오류가 발생했습니다: ' + (error.message || error));
+                        return;
+                    }
 
                     success('스파링 정보가 수정되었습니다.');
                 } else {
@@ -228,6 +251,11 @@ export const CreatorDashboard: React.FC = () => {
                         isPublished: data.published,
                         creatorId: user.id
                     });
+
+                    if (result.error) {
+                        toastError('스파링 생성 중 오류가 발생했습니다: ' + (result.error.message || result.error));
+                        return;
+                    }
 
                     if (result.data) {
                         const sparringId = result.data.id;

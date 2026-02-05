@@ -1,4 +1,6 @@
+import { createNotification as createNotify } from './api-notifications';
 import { supabase } from './supabase';
+
 import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, SparringReview, Testimonial, SparringVideo, CompletedRoutineRecord, SiteSettings } from '../types';
 import { getVimeoVideoInfo, formatDuration } from './vimeo';
 
@@ -14,7 +16,7 @@ export const SUBSCRIPTION_PLATFORM_SHARE = 0.2;
 
 // Helper to safely wrap promises with a timeout
 export async function withTimeout<T>(
-    promise: Promise<T>,
+    promise: Promise<T> | PromiseLike<T>,
     timeoutMs: number = 10000
 ): Promise<T | { data: null; error: { message: string, code: string } }> {
     const timeout = new Promise<never>((_, reject) =>
@@ -185,7 +187,7 @@ export async function getUserSavedLessons(userId: string): Promise<Lesson[]> {
 
     if (error || !data || data.length === 0) return [];
 
-    const lessonIds = data.map(item => item.content_id);
+    const lessonIds = data.map((item: any) => item.content_id);
     const lessons: Lesson[] = [];
 
     for (const lessonId of lessonIds) {
@@ -208,8 +210,11 @@ function transformCreator(data: any): Creator {
         // Prioritize profile_image (creators table) over avatar_url (Google/Social)
         profileImage: data.profile_image || data.user?.avatar_url || data.avatar_url || '',
         subscriberCount: data.subscriber_count || 0,
+        email: data.email,
     };
 }
+
+
 
 function transformVideo(data: any): Video {
     return {
@@ -223,7 +228,7 @@ function transformVideo(data: any): Video {
         thumbnailUrl: data.thumbnail_url,
         vimeoUrl: data.vimeo_url,
         length: data.length,
-        price: data.price,
+        price: Number(data.price) || 0,
         views: data.views || 0,
         createdAt: data.created_at,
     };
@@ -325,6 +330,22 @@ export async function getCreators(): Promise<Creator[]> {
     } catch (e) {
         console.error('getCreators timeout/fail:', e);
         return []; // Return empty array on failure to prevent infinite loading
+    }
+}
+
+export async function getAdminCreators(): Promise<Creator[]> {
+    try {
+        const { data, error } = await supabase.rpc('get_admin_creators_with_email');
+
+        if (error) {
+            console.error('Error fetching admin creators:', error);
+            throw error;
+        }
+
+        return (data || []).map(transformCreator);
+    } catch (e) {
+        console.error('getAdminCreators timeout/fail:', e);
+        return [];
     }
 }
 
@@ -945,7 +966,7 @@ export async function getPublicSparringVideos(limit = 3): Promise<SparringVideo[
                     creator: creator ? {
                         id: creator.id,
                         name: creator.name || '알 수 없음',
-                        profileImage: creator.profileImage,
+                        profileImage: creator.profileImage || '',
                         bio: '',
                         subscriberCount: 0
                     } : undefined,
@@ -1231,39 +1252,44 @@ export async function checkSparringSaved(userId: string, videoId: string): Promi
 }
 
 export async function getSavedSparringVideos(userId: string): Promise<SparringVideo[]> {
-    const { data } = await withTimeout(
+    // 1. Fetch saved video IDs
+    const { data: savedItems, error: savedError } = await withTimeout(
         supabase
             .from('user_saved_sparring')
-            .select(`
-            video_id,
-            sparring_videos!inner (
-                *
-            )
-        `)
+            .select('video_id')
             .eq('user_id', userId)
-            .eq('sparring_videos.is_published', true)
             .order('created_at', { ascending: false }),
         10000
     ) as any;
 
-    if (!data) return [];
+    if (savedError || !savedItems || savedItems.length === 0) return [];
 
-    // Extract creator IDs
-    const creatorIds = Array.from(new Set(data.map((item: any) => item.sparring_videos?.creator_id).filter(Boolean)));
+    const videoIds = savedItems.map((item: any) => item.video_id).filter(Boolean);
+
+    // 2. Fetch full video details
+    const { data: videos, error: videosError } = await supabase
+        .from('sparring_videos')
+        .select('*')
+        .in('id', videoIds)
+        .eq('is_published', true);
+
+    if (videosError || !videos) return [];
+
+    // 3. Extract creator IDs and fetch creator info
+    const creatorIds = Array.from(new Set(videos.map((v: any) => v.creator_id).filter(Boolean)));
     const userMap = await fetchCreatorsByIds(creatorIds as string[]);
 
-    // Transform using transformSparringVideo
-    return data.map((item: any) => {
-        const video = item.sparring_videos;
+    // 4. Transform and maintain order
+    return videoIds.map((id: string) => {
+        const video = videos.find((v: any) => v.id === id);
+        if (!video) return null;
+
         const creator = userMap[video.creator_id];
         return transformSparringVideo({
             ...video,
-            creator: creator ? {
-                ...creator,
-                profileImage: creator.profileImage
-            } : undefined
+            creator: creator
         });
-    });
+    }).filter(Boolean) as SparringVideo[];
 }
 
 export async function getPurchasedSparringVideos(userId: string): Promise<SparringVideo[]> {
@@ -1280,7 +1306,7 @@ export async function getPurchasedSparringVideos(userId: string): Promise<Sparri
 
         if (!purchases || purchases.length === 0) return [];
 
-        const productIds = purchases.map(p => p.product_id);
+        const productIds = purchases.map((p: any) => p.product_id);
 
         // 2. Fetch corresponding sparring videos (regardless of published status)
         const { data: videos, error } = await withTimeout(
@@ -1961,6 +1987,30 @@ export async function createSupportTicket(ticketData: {
         .from('support_tickets')
         .insert(dbData);
 
+    if (!error) {
+        // Notify Admins
+        try {
+            const { data: admins } = await supabase
+                .from('users')
+                .select('id')
+                .eq('is_admin', true);
+
+            if (admins) {
+                await Promise.all(admins.map(admin =>
+                    createNotify(
+                        admin.id,
+                        'support_ticket',
+                        '새로운 1:1 문의 접수',
+                        `[${ticketData.category || '일반'}] ${ticketData.subject}`,
+                        '/admin/support'
+                    )
+                ));
+            }
+        } catch (notifyError) {
+            console.error('Failed to notify admins:', notifyError);
+        }
+    }
+
     return { error };
 }
 
@@ -2070,7 +2120,25 @@ export async function approveCreator(creatorId: string) {
     const { error } = await supabase
         .from('creators')
         .update({ approved: true })
-        .eq('id', creatorId);
+        .eq('id', creatorId)
+        .select()
+        .single();
+
+    if (!error) {
+        // Notify User
+        // Check if creators.id is user_id. If so, use creatorId.
+        // If not, we might need to fetch user_id. 
+        // Based on typical Supabase auth linking, often creator_id = user_id.
+        // We'll send to creatorId.
+        await createNotify(
+            creatorId,
+            'system_announcement', // or 'creator_approved' if added
+            '크리에이터 승인 완료',
+            '축하합니다! 크리에이터 신청이 승인되었습니다.',
+            '/creator/dashboard',
+            { action: 'creator_approved' }
+        );
+    }
 
     if (error) {
         console.error('Error approving creator:', error);
@@ -2084,6 +2152,21 @@ export async function approveCreator(creatorId: string) {
  * Reject a creator application (delete the record)
  */
 export async function rejectCreator(creatorId: string) {
+    // Notify before delete (since delete removes the ID reference if it was just a request, 
+    // but if it's the user's ID, we can still notify the USER even if creator record is deleted, 
+    // assuming users table row remains).
+    // Note: If 'creators' table has user_id FK and we delete it, we can still notify user_id.
+    // If creators.id IS user_id, we can notify user_id.
+
+    await createNotify(
+        creatorId,
+        'system_announcement',
+        '크리에이터 신청 거절',
+        '크리에이터 신청이 거절되었습니다. 자세한 내용은 문의 바랍니다.',
+        '/',
+        { action: 'creator_rejected' }
+    );
+
     const { error } = await supabase
         .from('creators')
         .delete()
@@ -2731,20 +2814,6 @@ export async function getCreatorRevenueStats(creatorId: string) {
             throw error;
         }
 
-        const today = new Date();
-        const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-
-        // Aggregate by month for the chart/table
-        const monthlyAggregates: Record<string, number> = {};
-
-        // Prepare detailed items list
-        const details = (data || []).map((row: any) => ({
-            date: row.created_at, // The view has created_at
-            type: row.type,       // course | routine | feedback
-            title: row.item_title,
-            amount: row.amount,
-            settlementAmount: Math.floor(row.amount * 0.8)
-        }));
 
         (data || []).forEach((_row: any) => {
             // Wait, the View combines raw sales. It does NOT aggregate sum per month in the `combined_sales` part, 
@@ -3415,10 +3484,10 @@ export async function getPublicTrainingLogs(page: number = 1, limit: number = 10
     const userIds = Array.from(new Set(data.map((log: any) => log.user_id)));
 
     // 3. Fetch user names from users table (only for those missing user info)
-    const missingUserIds = userIds.filter((id: any) => {
-        const item = data.find((d: any) => d.user_id === id);
-        return !item?.user; // Only fetch if we don't have user object attached already
-    });
+    // const missingUserIds = userIds.filter((id: any) => {
+    //     const item = data.find((d: any) => d.user_id === id);
+    //     return !item?.user; // Only fetch if we don't have user object attached already
+    // });
 
     // Always fetch users to be safe or if mapping didn't have full data
     // But let's check map logic.
@@ -5336,10 +5405,8 @@ export function transformSparringVideo(data: any): SparringVideo {
         creator: creator,
         creatorProfileImage: creatorData?.profile_image || creatorData?.avatar_url,
         createdAt: data.created_at,
-        category: data.category,
-        uniformType: data.uniform_type,
         difficulty: data.difficulty,
-        price: data.price || 0,
+        price: Number(data.price) || 0,
         isPublished: data.is_published ?? false,
         previewVimeoId: data.preview_vimeo_id || data.preview_vimeo_url
     };
@@ -6180,18 +6247,20 @@ export async function getRoutineById(id: string) {
     }
 
     // 3. Transform to match DrillRoutine interface
+    const rawDrills = data.items || [];
     const routine = {
         ...transformDrillRoutine(data),
         creatorName: creatorName,
         creatorImage: creatorProfileImage, // Align with RoutineDetail.tsx
         creatorProfileImage: creatorProfileImage,
-        drills: data.items?.sort((a: any, b: any) => a.order_index - b.order_index).map((item: any) => ({
-            ...transformDrill(item.drill),
-            orderIndex: item.order_index
-        })) || []
+        drills: rawDrills
+            .filter((item: any) => item && item.drill) // Ensure item and drill exist
+            .sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0))
+            .map((item: any) => ({
+                ...transformDrill(item.drill),
+                orderIndex: item.order_index || 0
+            })) || []
     };
-
-
 
     return { data: routine as DrillRoutine, error: null };
 }
@@ -6341,6 +6410,43 @@ export async function updateRoutine(id: string, updates: Partial<DrillRoutine>, 
 }
 
 export async function deleteRoutine(id: string) {
+    // 1. Delete drill associations first (Foreign Key Constraint)
+    const { error: drillsError } = await supabase
+        .from('routine_drills')
+        .delete()
+        .eq('routine_id', id);
+
+    if (drillsError) {
+        console.error('Error deleting routine drills:', drillsError);
+        return { error: drillsError };
+    }
+
+    // 2. Delete user saves (bookmarks)
+    const { error: savesError } = await supabase
+        .from('user_routines')
+        .delete()
+        .eq('routine_id', id);
+
+    if (savesError) {
+        console.error('Error deleting routine saves:', savesError);
+        return { error: savesError };
+    }
+
+    // 3. Delete purchases (Optional/Policy: usually should keep purchase history, 
+    // but if it's a private routine being deleted by owner, we might need to clear this or it blocks deletion.
+    // Assuming mostly self-created routines for now.)
+    // For safety, let's try to delete purchases if they exist to prevent blocking.
+    const { error: purchaseError } = await supabase
+        .from('user_routine_purchases')
+        .delete()
+        .eq('routine_id', id);
+
+    if (purchaseError) {
+        console.warn('Error deleting routine purchases (might be restricted):', purchaseError);
+        // Don't return error here, try to proceed to delete routine anyway
+    }
+
+    // 4. Finally delete the routine itself
     const { error } = await supabase
         .from('routines')
         .delete()
@@ -6531,7 +6637,8 @@ export async function getRandomSampleRoutines(limit: number = 1) {
 }
 
 // Helper for transforming drill data
-function transformDrill(data: any): Drill {
+export function transformDrill(data: any): Drill {
+    if (!data) return {} as Drill;
     console.log('transformDrill input:', data);
     const result = {
         id: data.id,
@@ -6543,9 +6650,9 @@ function transformDrill(data: any): Drill {
         category: data.category,
         difficulty: data.difficulty,
         thumbnailUrl: data.thumbnail_url,
-        videoUrl: data.video_url,
-        vimeoUrl: data.vimeo_url,
-        descriptionVideoUrl: data.description_video_url,
+        videoUrl: data.video_url || data.action_video,
+        vimeoUrl: data.vimeo_url || data.action_video,
+        descriptionVideoUrl: data.description_video_url || data.description_video,
         aspectRatio: '9:16' as const,
         views: data.views || 0,
         durationMinutes: data.duration_minutes || 0,
@@ -6553,7 +6660,7 @@ function transformDrill(data: any): Drill {
         length: data.length || data.duration,
         tags: data.tags || [],
         likes: data.likes || 0,
-        price: data.price || 0,
+        price: Number(data.price) || 0,
         createdAt: data.created_at,
         uniformType: data.uniform_type,
     };
@@ -6563,6 +6670,7 @@ function transformDrill(data: any): Drill {
 
 // Helper for transforming routine data
 function transformDrillRoutine(data: any): DrillRoutine {
+    if (!data) return {} as DrillRoutine;
     // Safety check for duration and drill count which are often missing or misnamed in DB
     return {
         id: data.id,
@@ -7818,7 +7926,7 @@ export async function getUserSavedRoutines(userId: string): Promise<DrillRoutine
 
     if (!data || data.length === 0) return [];
 
-    const routineIds = data.map(item => item.routine_id);
+    const routineIds = data.map((item: any) => item.routine_id);
     const routines: DrillRoutine[] = [];
 
     for (const routineId of routineIds) {
@@ -8362,7 +8470,7 @@ export async function getTrainingLogLikes(logId: string) {
 }
 
 export async function checkTrainingLogLiked(userId: string, logId: string) {
-    const { data, error } = await supabase
+    const { data } = await supabase
         .from('training_log_likes')
         .select('id')
         .eq('user_id', userId)
