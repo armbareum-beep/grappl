@@ -301,12 +301,15 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
                     showControls={false}
                     fillContainer={true}
                     forceSquareRatio={true}
-                    onProgress={(s) => {
-                        setProgress(s);
+                    onProgress={(s, d, p) => {
+                        setProgress(p ? p * 100 : 0);
                     }}
                     onReady={() => setVideoPlayerReady(true)}
                     onDoubleTap={handleLike}
                     muted={isMuted}
+                    isPreviewMode={!isLoggedIn && (isDailyFreeSparring || video.price === 0)}
+                    maxPreviewDuration={60}
+                    onPreviewLimitReached={() => setIsLoginModalOpen(true)}
                 />
             </div>
         );
@@ -429,9 +432,9 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
                 </div>
 
 
-                <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!hasAccess ? 'h-1.5 bg-violet-900/30' : 'h-[2px] bg-zinc-800/50'}`}>
+                <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!hasAccess ? 'h-1.5 bg-violet-900/30' : 'h-1 bg-zinc-800/40'}`}>
                     <div
-                        className={`h-full transition-all ease-linear ${!hasAccess ? 'bg-zinc-800' : 'bg-violet-400 duration-100'}`}
+                        className={`h-full transition-all ease-linear ${!hasAccess ? 'bg-white/40' : 'bg-violet-500 duration-100'}`}
                         style={{ width: `${progress}%` }}
                     />
                 </div>

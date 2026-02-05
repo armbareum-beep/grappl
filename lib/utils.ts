@@ -80,3 +80,15 @@ export async function hardReload(preserveKeys: string[] = []) {
     // 5. Force Reload
     window.location.reload();
 }
+/**
+ * Calculates a 'Hot Score' for ranking content based on views and age.
+ * Higher views and newer content result in a higher score.
+ */
+export function calculateHotScore(views: number = 0, createdAt: string | null | undefined): number {
+    const now = Date.now();
+    const createdDate = createdAt ? new Date(createdAt).getTime() : now;
+    // Base smoothing: 2 hours to prevent infinity for brand new items
+    const hoursSinceCreation = Math.max(0, (now - createdDate) / (1000 * 60 * 60));
+    // Score = views / (hours + 2)^1.5
+    return views / Math.pow(hoursSinceCreation + 2, 1.5);
+}
