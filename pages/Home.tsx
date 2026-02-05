@@ -59,99 +59,58 @@ export const Home: React.FC = () => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                // 1. Initial Data Fetching for Carousel
-                const [drillRes, lessonRes, sparringRes] = await Promise.all([
+                // Fetch all global and user-specific data in parallel
+                const promises: Promise<any>[] = [
                     getDailyFreeDrill(),
                     getDailyFreeLesson(),
-                    getDailyFreeSparring()
-                ]);
+                    getDailyFreeSparring(),
+                    getTrendingSparring(10),
+                    getFeaturedRoutines(20),
+                    getTrendingCourses(10),
+                    getNewCourses(10),
+                    fetchRoutines(20),
+                    getPublicSparringVideos(20)
+                ];
 
-                setDailyDrill(drillRes.data);
-                setDailyLesson(lessonRes.data);
-                setDailySparring(sparringRes.data);
-
-                // 2. DashBoard Data (If logged in)
+                // If user is logged in, also fetch user-specific activity
+                let activityPromiseIndex = -1;
                 if (user) {
-                    // A. Continue Items
-                    try {
-                        const activity = await getRecentActivity(user.id);
-                        console.log('Fetched recent activity:', activity);
-                        if (activity && Array.isArray(activity) && activity.length > 0) {
-                            setContinueItems(activity);
-                        } else {
-                            console.log('No recent activity found or empty array');
-                        }
-                    } catch (e) {
-                        console.error("Error fetching activity", e);
+                    activityPromiseIndex = promises.length;
+                    promises.push(getRecentActivity(user.id));
+                }
+
+                const results = await Promise.all(promises.map(p => p.catch(e => {
+                    console.error("Data fetch error:", e);
+                    return null;
+                })));
+
+                // Map results back to states
+                const [
+                    drillRes, lessonRes, sparringRes,
+                    trendingSparringRes, featuredRoutinesRes, trendingCoursesRes,
+                    newCoursesRes, newRoutinesRes, newSparringRes
+                ] = results;
+
+                if (drillRes) setDailyDrill(drillRes.data);
+                if (lessonRes) setDailyLesson(lessonRes.data);
+                if (sparringRes) setDailySparring(sparringRes.data);
+
+                if (user && activityPromiseIndex !== -1) {
+                    const activity = results[activityPromiseIndex];
+                    if (activity && Array.isArray(activity)) {
+                        setContinueItems(activity);
                     }
                 }
 
-                // --- Global Data (Accessible to everyone) ---
-
-                // B. Trending Sparring (IMPROVED - Now uses actual trending algorithm)
-                try {
-                    const sparring = await getTrendingSparring(10);
-                    if (sparring && sparring.length > 0) {
-                        setTrendingSparring(sparring);
-                    }
-                } catch (e) {
-                    console.error("Error fetching trending sparring", e);
-                }
-
-                // C. Featured Routines
-                try {
-                    const routines = await getFeaturedRoutines(20);
-                    if (routines && routines.length > 0) {
-                        setFeaturedRoutines(routines);
-                    }
-                } catch (e) {
-                    console.error("Error fetching routines", e);
-                }
-
-                // D. Trending Courses
-                try {
-                    const courses = await getTrendingCourses(10);
-                    if (courses && courses.length > 0) {
-                        setTrendingCourses(courses);
-                    }
-                } catch (e) {
-                    console.error("Error fetching trending courses", e);
-                }
-
-                // --- Tab Content Data ---
-
-                // F. New Courses (For Tab)
-                try {
-                    const courses = await getNewCourses(10);
-                    if (courses && courses.length > 0) {
-                        setNewCourses(courses);
-                    }
-                } catch (e) {
-                    console.error("Error fetching new courses for tab", e);
-                }
-
-                // G. New Routines (For Tab)
-                try {
-                    const routinesRes = await fetchRoutines(20);
-                    if (routinesRes.data && routinesRes.data.length > 0) {
-                        setNewRoutines(routinesRes.data);
-                    }
-                } catch (e) {
-                    console.error("Error fetching new routines", e);
-                }
-
-                // H. New Sparring (For Tab)
-                try {
-                    const sparringRes = await getPublicSparringVideos(20);
-                    if (sparringRes && sparringRes.length > 0) {
-                        setNewSparring(sparringRes);
-                    }
-                } catch (e) {
-                    console.error("Error fetching new sparring", e);
-                }
+                if (trendingSparringRes) setTrendingSparring(trendingSparringRes);
+                if (featuredRoutinesRes) setFeaturedRoutines(featuredRoutinesRes);
+                if (trendingCoursesRes) setTrendingCourses(trendingCoursesRes);
+                if (newCoursesRes) setNewCourses(newCoursesRes);
+                if (newRoutinesRes && newRoutinesRes.data) setNewRoutines(newRoutinesRes.data);
+                if (newSparringRes) setNewSparring(newSparringRes);
 
             } catch (error) {
-                console.error("Error loading home data:", error);
+                console.error("Critical error loading home data:", error);
             } finally {
                 setLoading(false);
             }

@@ -94,7 +94,7 @@ export default defineConfig({
         drop: ['console', 'debugger'],
     },
     server: {
-        port: 8080,
+        // port: 8080, // Removed to allow default (5173) or flexible port
         open: true,
         proxy: {
             '/process': {

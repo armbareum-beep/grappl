@@ -118,9 +118,9 @@ export const AdminSiteSettings: React.FC = () => {
             const { error } = await updateSiteSettings(rest);
             if (error) throw error;
             success('사이트 설정이 저장되었습니다.');
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error saving settings:', error);
-            toastError('저장에 실패했습니다.');
+            toastError(`저장에 실패했습니다: ${error.message || '알 수 없는 오류'}`);
         } finally {
             setSaving(false);
         }
@@ -129,13 +129,13 @@ export const AdminSiteSettings: React.FC = () => {
     if (loading) return <div className="min-h-screen bg-zinc-950 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-500"></div></div>;
 
     const sectionsList = [
-        { id: 'dailyFreePass', label: '오늘의 무료 릴스', desc: 'Daily Free Pass 섹션' },
-        { id: 'instructors', label: '인스트럭터 캐러셀', desc: '강사진 소개 섹션' },
-        { id: 'classShowcase', label: '강좌 쇼케이스', desc: '주요 클래스 카드 리스트' },
-        { id: 'drillReels', label: '드릴 릴스', desc: '모바일형 숏폼 영상 섹션' },
-        { id: 'sparringShowcase', label: '스파링 쇼케이스', desc: '실전 영상 섹션' },
-        { id: 'roadmap', label: '학습 로드맵', desc: '성장 경로 비쥬얼 섹션' },
-        { id: 'routinePromotion', label: '루틴 프로모션', desc: '훈련 루틴 기능 소개' },
+        { id: 'dailyFreePass', label: '무료 릴스 (Free Pass)', desc: 'Daily Free Pass 섹션' },
+        { id: 'instructors', label: '인스트럭터', desc: '강사진 소개 섹션' },
+        { id: 'classShowcase', label: '클래스 (Class)', desc: '주요 클래스 카드 리스트' },
+        { id: 'drillReels', label: '드릴 릴스 (Drill)', desc: '모바일형 숏폼 영상 섹션' },
+        { id: 'sparringShowcase', label: '스파링 (Sparring)', desc: '실전 영상 섹션' },
+        { id: 'roadmap', label: '로드맵 (Roadmap)', desc: '성장 경로 비쥬얼 섹션' },
+        { id: 'routinePromotion', label: '루틴 (Routine)', desc: '훈련 루틴 기능 소개' },
         { id: 'testimonials', label: '수강 후기', desc: '사용자 리뷰 섹션' },
         { id: 'finalCTA', label: '하단 가입 유도', desc: '페이지 최하단 CTA' }
     ];

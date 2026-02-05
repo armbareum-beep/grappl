@@ -504,22 +504,12 @@ export async function getAdminRecentActivity() {
         newCourses?.forEach((course: any) => {
             activities.push({
                 id: `course_${course.id}`,
-                type: 'report', // Using 'report' icon/color for generic updates or mapped to something else? ActivityItem type might need check.
-                // Re-mapping type to match frontend icons. 
-                // AdminDashboard uses: user_signup, purchase, creator_application, report.
-                // Let's use 'report' or add a new type if possible. For now reusing 'report' or 'info' effectively.
-                // Actually, let's look at AdminDashboard.tsx icons: 
-                // user_signup -> Users (Blue)
-                // purchase -> DollarSign (Emerald)
-                // creator_application -> Shield (Purple)
-                // report -> AlertTriangle (Rose) -- Maybe not the best for course upload.
-                // Let's use 'creator_application' generic or just keep 'report' but change title.
-                // Ideally we should update the frontend types too.
+                type: 'report',
                 title: '새 강좌 업로드',
                 description: `${course.creator?.name}님이 "${course.title}" 강좌를 업로드했습니다.`,
                 timestamp: course.created_at,
-                status: 'pending' // Just to fit the shape
-            } as any);
+                status: 'pending'
+            });
         });
 
         // Sort by timestamp descending
@@ -581,7 +571,17 @@ export async function exportSettlementsToCSV(settlements: any[]) {
         s.settlement_month
     ]);
 
-    const csvContent = [headers, ...rows].map(e => e.join(',')).join('\n');
+    const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(val => {
+            const str = String(val ?? '');
+            // Escape double quotes and wrap in quotes if it contains comma, newline or quote
+            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return str;
+        }).join(','))
+    ].join('\n');
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');

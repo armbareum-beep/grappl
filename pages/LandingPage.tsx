@@ -302,7 +302,7 @@ export const LandingPage: React.FC = () => {
                         </div>
 
                         <h2 className="text-5xl md:text-7xl font-black text-zinc-50 mb-6 leading-[1.2] tracking-tight uppercase italic overflow-visible">
-                            {siteSettings?.sectionContent?.dailyFreePass?.title ? <HighlightedText text={siteSettings.sectionContent.dailyFreePass.title} highlightClass="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600 inline-block pr-4" /> : <><span className="inline-block pr-1">TODAY'S</span> <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600 inline-block pr-4 -ml-1">FREE</span> <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600 inline-block pr-4 -ml-2">PASS</span></>}
+                            {siteSettings?.sectionContent?.dailyFreePass?.title ? <HighlightedText text={siteSettings.sectionContent.dailyFreePass.title} highlightClass="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600" /> : <><span>TODAY'S</span> <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600">FREE PASS</span></>}
                         </h2>
 
                         <p className="text-violet-300/80 text-xl font-medium max-w-2xl mx-auto break-keep">
@@ -349,7 +349,7 @@ export const LandingPage: React.FC = () => {
                                                                         <span className="px-3 py-1 bg-violet-600 text-white text-[10px] md:text-xs font-black rounded-sm uppercase tracking-widest italic shadow-lg shadow-violet-900/40">데일리 드릴</span>
                                                                         <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
                                                                     </div>
-                                                                    <h2 className="text-white text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] drop-shadow-2xl uppercase italic pr-8 overflow-visible">
+                                                                    <h2 className="text-white text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] drop-shadow-2xl uppercase italic overflow-visible">
                                                                         {drill.title}
                                                                     </h2>
                                                                     <div className="flex flex-wrap items-center gap-4 text-xs md:text-sm text-zinc-300 font-bold uppercase tracking-wider backdrop-blur-md bg-white/5 p-2 rounded-lg border border-white/5">
@@ -391,7 +391,7 @@ export const LandingPage: React.FC = () => {
                                                                         <span className="px-3 py-1 bg-violet-600 text-white text-[10px] md:text-xs font-black rounded-sm uppercase tracking-widest italic shadow-lg shadow-violet-900/40">데일리 레슨</span>
                                                                         <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
                                                                     </div>
-                                                                    <h2 className="text-white text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] drop-shadow-2xl uppercase italic pr-8 overflow-visible">
+                                                                    <h2 className="text-white text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] drop-shadow-2xl uppercase italic overflow-visible">
                                                                         {lesson.title}
                                                                     </h2>
                                                                     <div className="flex flex-wrap items-center gap-4 text-xs md:text-sm text-zinc-300 font-bold uppercase tracking-wider backdrop-blur-md bg-white/5 p-2 rounded-lg border border-white/5">
@@ -433,7 +433,7 @@ export const LandingPage: React.FC = () => {
                                                                         <span className="px-3 py-1 bg-violet-600 text-white text-[10px] md:text-xs font-black rounded-sm uppercase tracking-widest italic shadow-lg shadow-violet-900/40">데일리 스파링</span>
                                                                         <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
                                                                     </div>
-                                                                    <h2 className="text-white text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] drop-shadow-2xl uppercase italic pr-8 overflow-visible">
+                                                                    <h2 className="text-white text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] drop-shadow-2xl uppercase italic overflow-visible">
                                                                         {sparring.title}
                                                                     </h2>
                                                                     <div className="flex flex-wrap items-center gap-4 text-xs md:text-sm text-zinc-300 font-bold uppercase tracking-wider backdrop-blur-md bg-white/5 p-2 rounded-lg border border-white/5">

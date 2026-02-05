@@ -16,40 +16,52 @@ export const SUBSCRIPTION_PLATFORM_SHARE = 0.2;
 
 // Helper to safely wrap promises with a timeout
 export async function withTimeout<T>(
-    promise: Promise<T> | PromiseLike<T>,
+    promise: PromiseLike<T> | ((abortController: AbortController) => PromiseLike<T>),
     timeoutMs: number = 10000
 ): Promise<T | { data: null; error: { message: string, code: string } }> {
+    const controller = new AbortController();
     const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(`Request timed out after ${timeoutMs}ms`)), timeoutMs)
+        setTimeout(() => {
+            controller.abort();
+            reject(new Error(`Request timed out after ${timeoutMs}ms`));
+        }, timeoutMs)
     );
 
     try {
-        return await Promise.race([promise, timeout]) as T;
+        const actualPromise = typeof promise === 'function' ? promise(controller) : promise;
+        return await Promise.race([actualPromise, timeout]) as T;
     } catch (err: any) {
         // Return a Supabase-like error object so destructuring { data, error } doesn't crash
         return {
             data: null,
             error: {
-                message: err.message || 'Operation timed out',
+                message: err.name === 'AbortError' ? `Request aborted (possible timeout)` : (err.message || 'Operation timed out'),
                 code: 'TIMEOUT'
             }
         } as any;
     }
 }
 
-// Helper to extract Vimeo ID
-// Helper to extract Vimeo ID
-// Helper to extract Vimeo ID
-export function extractVimeoId(url?: string | null) {
+// Helper to extract Vimeo ID and optional Hash
+export interface VimeoInfo {
+    id: string;
+    hash?: string;
+    fullId: string; // ID:HASH format
+}
+
+export function extractVimeoId(url?: string | null): string | undefined {
     if (!url || typeof url !== 'string') return undefined;
+
+    // 1. Direct numeric ID (e.g. "123456")
     if (/^\d+$/.test(url)) return url;
 
-    // Check for ID:HASH or ID/HASH format (already extracted)
-    if (/^\d+[:/][a-zA-Z0-9]+$/.test(url)) {
-        return url.replace('/', ':');
-    }
+    // 2. ID:HASH format (e.g. "123456:abcdef")
+    if (/^\d+:[a-zA-Z0-9]+$/.test(url)) return url;
 
-    // Match ID and optional hash (e.g. vimeo.com/123456/abcdef or vimeo.com/123456?h=abcdef)
+    // 3. ID/HASH format -> transform to ID:HASH
+    if (/^\d+\/[a-zA-Z0-9]+$/.test(url)) return url.replace('/', ':');
+
+    // 4. Full Vimeo URL (e.g. https://vimeo.com/123456/abcdef or https://vimeo.com/123456?h=abcdef)
     const idMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
     const hashMatch = url.match(/vimeo\.com\/(?:video\/)?\d+\/([a-zA-Z0-9]+)/i) || url.match(/[?&]h=([a-zA-Z0-9]+)/i);
 
@@ -58,7 +70,17 @@ export function extractVimeoId(url?: string | null) {
         const hash = hashMatch ? hashMatch[1] : null;
         return hash ? `${id}:${hash}` : id;
     }
+
     return undefined;
+}
+
+// Helper for VideoPlayer to get decomposed info
+export function parseVimeoId(vimeoIdStr?: string | null): VimeoInfo | null {
+    const fullId = extractVimeoId(vimeoIdStr);
+    if (!fullId) return null;
+
+    const [id, hash] = fullId.includes(':') ? fullId.split(':') : [fullId, undefined];
+    return { id, hash, fullId };
 }
 
 // Lesson Interactions

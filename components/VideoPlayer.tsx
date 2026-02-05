@@ -4,6 +4,7 @@ import { Lock, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { useWakeLock } from '../hooks/useWakeLock';
+import { parseVimeoId } from '../lib/api';
 
 interface VideoPlayerProps {
     vimeoId: string;
@@ -118,45 +119,29 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             };
 
             const vimeoIdStr = String(vimeoId || '').trim();
-            console.log('[VideoPlayer] Received vimeoId:', vimeoIdStr);
+            const vimeoInfo = parseVimeoId(vimeoIdStr);
 
-            if (!vimeoIdStr) {
-                console.warn('[VideoPlayer] Empty vimeoId provided');
-                setPlayerError({ message: 'No video ID provided' });
-                return;
-            }
-
-            // Internal extraction helper
-            let numericId = 0;
-            let hash = '';
-
-            if (vimeoIdStr.startsWith('http')) {
-                const match = vimeoIdStr.match(/vimeo\.com\/(?:video\/)?(\d+)(?:\/([a-zA-Z0-9]+))?/i);
-                if (match) {
-                    numericId = Number(match[1]);
-                    if (match[2]) hash = match[2];
+            if (!vimeoInfo) {
+                if (vimeoIdStr.startsWith('http')) {
+                    options.url = vimeoIdStr;
+                } else if (vimeoIdStr) {
+                    options.url = `https://vimeo.com/${vimeoIdStr}`;
                 } else {
-                    options.url = vimeoIdStr; // Fallback for unknown URL formats
+                    setPlayerError({ message: 'No video ID provided' });
+                    return;
                 }
-            } else if (/^\d+$/.test(vimeoIdStr)) {
-                numericId = Number(vimeoIdStr);
-            } else if (vimeoIdStr.includes(':') || vimeoIdStr.includes('/')) {
-                // Handle ID:HASH or ID/HASH format
-                const separator = vimeoIdStr.includes(':') ? ':' : '/';
-                const [idPart, hPart] = vimeoIdStr.split(separator);
-                numericId = Number(idPart);
-                if (hPart) hash = hPart;
-            } else {
-                // If it's something weird, try URL
-                options.url = `https://vimeo.com/${vimeoIdStr}`;
             }
+
+            const numericId = vimeoInfo ? Number(vimeoInfo.id) : 0;
+            const hash = vimeoInfo?.hash || '';
 
             // If we extracted a valid numeric ID, prefer using id (+h) over url
             // For private videos (with hash), we MUST use manual iframe to avoid OEmbed authentication issues
-            if (numericId > 0 && hash) {
+            // Actually, for consistency and reliability on localhost, let's use manual iframe for BOTH hash and non-hash numeric IDs.
+            if (numericId > 0) {
                 const iframe = document.createElement('iframe');
                 const params = new URLSearchParams();
-                params.append('h', hash);
+                if (hash) params.append('h', hash);
                 params.append('title', '0');
                 params.append('byline', '0');
                 params.append('portrait', '0');
@@ -164,12 +149,21 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 params.append('autopause', '0');
                 params.append('autoplay', autoplay ? '1' : '0');
                 params.append('muted', muted ? '1' : '0');
-                if (!showControls && autoplay) params.append('background', '1'); // Extra safety for silent background play
+
+                // If controls are hidden (Reel mode), background=1 is often required for smooth autoplay/loop
+                if (!showControls) {
+                    params.append('background', '1');
+                    params.append('controls', '0');
+                    if (autoplay) {
+                        params.append('loop', '1');
+                    }
+                }
+
                 params.append('player_id', containerRef.current.id || `vimeo-${numericId}`);
                 params.append('app_id', '122963');
                 params.append('dnt', '1');
                 params.append('share', '0');
-                if (!showControls) params.append('controls', '0');
+                if (showControls) params.append('controls', '1');
 
                 iframe.src = `https://player.vimeo.com/video/${numericId}?${params.toString()}`;
                 iframe.width = '100%';
@@ -183,12 +177,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
                 // Initialize player with the iframe
                 player = new Player(iframe);
-            }
-            else if (numericId > 0) {
-                // Public video - SDK handles it fine
-                options.id = numericId;
-                delete options.url;
-                player = new Player(containerRef.current, options);
+                console.log('[VideoPlayer] Strategy: Manual Iframe (Numeric ID)');
             }
             else {
                 // Check if it's a direct video URL (mp4, m3u8, etc)
