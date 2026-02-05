@@ -761,11 +761,12 @@ export const RoutineDetail: React.FC = () => {
                                             title={currentDrill.title}
                                             autoplay={true}
                                             playing={isPlaying}
+                                            muted={muted}
                                             showControls={false}
                                             fillContainer={true}
                                             onProgress={handleProgress}
                                             onEnded={() => handleDrillComplete()}
-                                            maxPreviewDuration={user ? undefined : 10}
+                                            maxPreviewDuration={user ? undefined : 15}
                                             onPreviewLimitReached={() => setIsLoginModalOpen(true)}
                                             isPaused={isLoginModalOpen}
                                         />
@@ -1059,11 +1060,16 @@ export const RoutineDetail: React.FC = () => {
                                                 vimeoId={effectiveUrl || ''}
                                                 title={currentDrill?.title || ''}
                                                 autoplay={true}
+                                                playing={isPlaying}
+                                                muted={muted}
+                                                isPaused={isLoginModalOpen}
                                                 showControls={false}
                                                 fillContainer={true}
                                                 onProgress={handleProgress}
                                                 onDoubleTap={() => handleLikeDrill()}
                                                 onEnded={() => handleDrillComplete()}
+                                                maxPreviewDuration={user ? undefined : 15}
+                                                onPreviewLimitReached={() => setIsLoginModalOpen(true)}
                                             />
                                         </>
                                     ) : (
