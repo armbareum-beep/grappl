@@ -63,6 +63,8 @@ export const RoutineDetail: React.FC = () => {
     const [viewMode, setViewMode] = useState<'landing' | 'player'>('landing');
     const [currentTime, setCurrentTime] = useState(0);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    const [debugInfo, setDebugInfo] = useState<any>(null);
+    const isDebug = searchParams.get('debug') === 'true';
 
     // Check Routine Save Status
     useEffect(() => {
@@ -231,7 +233,16 @@ export const RoutineDetail: React.FC = () => {
                 }
 
                 const { data: routineData, error: fetchError } = await getRoutineById(id);
-                console.log('[RoutineDetail] getRoutineById result:', { id, hasData: !!routineData, error: fetchError });
+                if (isDebug) {
+                    setDebugInfo({
+                        id,
+                        hasData: !!routineData,
+                        error: fetchError,
+                        drillsCount: routineData?.drills?.length,
+                        rawItemsCount: (routineData as any)?.items?.length,
+                        timestamp: new Date().toLocaleTimeString()
+                    });
+                }
 
                 if (fetchError) {
                     console.error('[RoutineDetail] Fetch error:', fetchError);
@@ -566,6 +577,20 @@ export const RoutineDetail: React.FC = () => {
 
                         {/* Mobile Curriculum */}
                         <div className="flex-1 px-4 space-y-4">
+                            {/* Visual Debug Overlay (Only if ?debug=true) */}
+                            {isDebug && debugInfo && (
+                                <div className="p-4 bg-zinc-900 border border-violet-500/50 rounded-2xl font-mono text-[10px] text-zinc-300">
+                                    <h4 className="text-violet-400 font-bold mb-2 uppercase tracking-widest">Debug Info</h4>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>ID: {debugInfo.id}</div>
+                                        <div>Status: {debugInfo.hasData ? 'SUCCESS' : 'FAILED'}</div>
+                                        <div>Drills: {debugInfo.drillsCount ?? 'N/A'}</div>
+                                        <div>Items: {debugInfo.rawItemsCount ?? 'N/A'}</div>
+                                        <div className="col-span-2 text-red-400">Error: {JSON.stringify(debugInfo.error)}</div>
+                                        <div className="col-span-2 text-[8px] text-zinc-500">Updated: {debugInfo.timestamp}</div>
+                                    </div>
+                                </div>
+                            )}
                             <h3 className="text-lg font-bold text-zinc-100 flex items-center gap-2"><ListVideo className="w-4 h-4 text-violet-500" />Curriculum</h3>
                             <div className="space-y-3">
                                 {routine.drills?.filter(d => typeof d !== 'string' && d !== null).map((drill, idx) => {
