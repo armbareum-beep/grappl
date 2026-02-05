@@ -703,7 +703,7 @@ export const CourseDetail: React.FC = () => {
                                 onEnded={handleVideoEnded}
                                 onProgress={handleProgress}
                                 maxPreviewDuration={
-                                    !user && selectedLesson?.id === dailyFreeLessonId ? 30 :
+                                    !user && selectedLesson?.id === dailyFreeLessonId ? 60 :
                                         isPreviewMode(selectedLesson!) ? 60 : undefined
                                 }
                                 onPreviewLimitReached={() => setIsPaywallOpen(true)}

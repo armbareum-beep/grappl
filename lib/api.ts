@@ -274,9 +274,10 @@ export function transformLesson(data: any): Lesson {
         views: data.views || 0,
         difficulty: data.difficulty,
         createdAt: data.created_at,
-        isSubscriptionExcluded: data.is_subscription_excluded || false,
+        isSubscriptionExcluded: data.is_subscription_excluded ?? data.course?.is_subscription_excluded ?? false,
         isPreview: data.is_preview,
         uniformType: data.uniform_type,
+        price: data.price ?? data.course?.price ?? 0,
     };
 }
 
@@ -5915,10 +5916,10 @@ export async function getDailyFreeDrill() {
             }
         }
 
+        const transformed = transformDrill(selectedDrill);
         return {
             data: {
-                ...selectedDrill,
-                thumbnailUrl: selectedDrill.thumbnail_url,
+                ...transformed,
                 creatorName,
                 creatorProfileImage
             },
@@ -6677,7 +6678,6 @@ function transformDrillRoutine(data: any): DrillRoutine {
         title: data.title,
         description: data.description || '',
         creatorId: data.creator_id,
-        creatorName: data.creator?.name || data.creator_name || 'Grapplay Team',
         creatorName: data.creator?.name || data.creator_name || 'Grapplay Team',
         // Prioritize profileImage (from creator table) over avatar_url (from auth/user table)
         creatorProfileImage: data.creator?.profileImage || data.creator?.profile_image || data.creator?.avatar_url || data.creatorProfileImage || undefined,

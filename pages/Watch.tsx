@@ -75,6 +75,7 @@ export function Watch() {
 
     const [dailyFreeLessonId, setDailyFreeLessonId] = useState<string | undefined>(undefined);
     const [dailyFreeSparringId, setDailyFreeSparringId] = useState<string | undefined>(undefined);
+    const [dailyFreeDrillId, setDailyFreeDrillId] = useState<string | undefined>(undefined);
 
     const tabs = [
         { id: 'mix' as const, label: '전체' },
@@ -202,6 +203,7 @@ export function Watch() {
 
             setDailyFreeLessonId(dailyLessonRes.data?.id);
             setDailyFreeSparringId(dailySparringRes.data?.id);
+            setDailyFreeDrillId(dailyDrillRes.data?.id);
 
             let allItems: MixedItem[] = [];
             const allCreatorIds: string[] = [];
@@ -277,6 +279,8 @@ export function Watch() {
                             creatorId,
                             creatorName: creator?.name || 'Instructor',
                             creatorProfileImage: creator?.avatarUrl || undefined,
+                            price: l.course?.price || 0,
+                            isSubscriptionExcluded: l.course?.is_subscription_excluded || l.is_subscription_excluded || false
                         }
                     };
                 })];
@@ -285,15 +289,14 @@ export function Watch() {
 
 
 
-            // Ensure Daily Free Sparring is included (even if not in the latest 20 fetch)
-            // This is critical for Guest users who can ONLY see this video
+            // Ensure Daily Free items are included
+            // This is critical for Guest users who can ONLY see these videos
             if ((activeTab === 'mix' || activeTab === 'sparring') && dailySparringRes.data) {
                 const dailyItem = dailySparringRes.data;
                 const exists = allItems.some(item => item.data.id === dailyItem.id);
                 if (!exists) {
                     const creatorInfo = creatorsMap[dailyItem.creatorId];
                     const enrichedDailyItem = { ...dailyItem };
-
                     if (creatorInfo && dailyItem.creatorId) {
                         enrichedDailyItem.creator = {
                             id: dailyItem.creatorId,
@@ -303,10 +306,40 @@ export function Watch() {
                             subscriberCount: 0
                         };
                     }
-
+                    allItems.push({ type: 'sparring', data: enrichedDailyItem as any });
+                }
+            }
+            if ((activeTab === 'mix' || activeTab === 'drill') && dailyDrillRes.data) {
+                const dailyItem = dailyDrillRes.data;
+                const exists = allItems.some(item => item.data.id === dailyItem.id);
+                if (!exists) {
+                    const creator = creatorsMap[dailyItem.creatorId];
                     allItems.push({
-                        type: 'sparring',
-                        data: enrichedDailyItem as any
+                        type: 'drill',
+                        data: {
+                            ...dailyItem,
+                            creatorName: creator?.name || 'Instructor',
+                            creatorProfileImage: creator?.avatarUrl || undefined,
+                        } as any
+                    });
+                }
+            }
+            if ((activeTab === 'mix' || activeTab === 'lesson') && dailyLessonRes.data) {
+                const dailyItem = dailyLessonRes.data;
+                const exists = allItems.some(item => item.data.id === dailyItem.id);
+                if (!exists) {
+                    const creatorId = dailyItem.creatorId || (dailyItem as any).course?.creator_id;
+                    const creator = creatorsMap[creatorId];
+                    allItems.push({
+                        type: 'lesson',
+                        data: {
+                            ...dailyItem,
+                            creatorId,
+                            creatorName: creator?.name || 'Instructor',
+                            creatorProfileImage: creator?.avatarUrl || undefined,
+                            price: (dailyItem as any).course?.price || 0,
+                            isSubscriptionExcluded: (dailyItem as any).course?.is_subscription_excluded || false
+                        } as any
                     });
                 }
             }
@@ -365,25 +398,28 @@ export function Watch() {
             ].filter(Boolean));
 
             const filteredItems = allItems.filter(item => {
-                // Determine if item is "free" (0 won or Daily Free)
-                const price = Number((item.data as any).price);
-                const isPriceFree = isNaN(price) || price === 0;
+                // Determine properties
                 const isDailyFree = dailyFreeIds.has(item.data.id);
-                const isFree = isPriceFree || isDailyFree;
+                const isOwned = userPermissions.purchasedItemIds.includes(item.data.id);
 
-                // 1. If it's free, everyone can see it
-                if (isFree) return true;
+                const rawPrice = (item.data as any).price;
+                const price = Number(rawPrice);
+                const isPriceFree = !isNaN(price) && price === 0;
 
-                // 2. Subscribers see everything
-                if (userPermissions.isSubscriber) return true;
+                const isSubExcluded = (item.data as any).isSubscriptionExcluded === true;
 
-                // 3. Logged-in non-subscribers see purchased items
-                if (user) {
-                    return userPermissions.purchasedItemIds.includes(item.data.id);
+                // 1. 구독 회원: 구독 제외 콘텐츠가 아니거나, 구독 제외지만 이미 구매한 경우 노출
+                if (userPermissions.isSubscriber) {
+                    return !isSubExcluded || isOwned;
                 }
 
-                // 4. Guests (not logged in) only see free content (already handled by step 1)
-                return false;
+                // 2. 일반 로그인 회원: 오늘의 무료, 0원 영상, 또는 구매한 영상 노출
+                if (user) {
+                    return isDailyFree || isPriceFree || isOwned;
+                }
+
+                // 3. 비로그인 회원: 오늘의 무료 또는 0원 영상 노출
+                return isDailyFree || isPriceFree;
             });
 
             const finalizedItems = diversifyContent(filteredItems);
@@ -469,6 +505,7 @@ export function Watch() {
                             isLoggedIn={!!user}
                             dailyFreeLessonId={dailyFreeLessonId}
                             dailyFreeSparringId={dailyFreeSparringId}
+                            dailyFreeDrillId={dailyFreeDrillId}
                         />
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center text-zinc-500 gap-4">

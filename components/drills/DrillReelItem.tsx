@@ -245,6 +245,7 @@ interface DrillReelItemProps {
     isSubscriber: boolean;
     purchasedItemIds: string[];
     isLoggedIn: boolean;
+    isDailyFreeDrill?: boolean;
     onVideoReady?: () => void;
 }
 

@@ -23,6 +23,7 @@ interface MixedReelsFeedProps {
     isLoggedIn?: boolean;
     dailyFreeLessonId?: string;
     dailyFreeSparringId?: string;
+    dailyFreeDrillId?: string;
 }
 
 export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
@@ -31,7 +32,8 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
     userPermissions: externalPermissions,
     isLoggedIn: externalIsLoggedIn,
     dailyFreeLessonId,
-    dailyFreeSparringId
+    dailyFreeSparringId,
+    dailyFreeDrillId
 }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -253,6 +255,7 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                             isFollowed={followingCreators.has(item.data.creatorId)}
                             onFollow={() => handleDrillFollow(item.data)}
                             onViewRoutine={() => handleViewRoutine(item.data)}
+                            isDailyFreeDrill={dailyFreeDrillId === item.data.id}
                             offset={offset}
                             isSubscriber={userPermissions.isSubscriber}
                             purchasedItemIds={userPermissions.purchasedItemIds}

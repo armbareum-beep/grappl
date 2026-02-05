@@ -103,6 +103,7 @@ export interface Lesson {
   courseTitle?: string;
   creatorName?: string; // Added for reel display
   creatorProfileImage?: string; // Added for reel display
+  price?: number; // Added for feed filtering
 }
 
 
