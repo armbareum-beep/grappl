@@ -74,7 +74,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
                 });
             }
         }
-    }, [user, video.id, video.creatorId, isActive]);
+    }, [user?.id, video.id, video.creatorId, isActive]);
 
     // Handlers
     const handleFollow = async () => {
@@ -162,7 +162,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
                 recordSparringView(user.id, video.id).catch(console.error);
             });
         }
-    }, [isActive, user, video.id]);
+    }, [isActive, user?.id, video.id]);
 
     // Watch time tracking for settlement (구독자가 소유하지 않은 경우에만 기록)
     const lastTickRef = useRef<number>(0);
@@ -210,7 +210,7 @@ export const SparringReelItem: React.FC<SparringReelItemProps> = ({
 
         const interval = setInterval(handleProgress, 1000);
         return () => clearInterval(interval);
-    }, [isActive, user, isSubscriber, video.id, purchasedItemIds]);
+    }, [isActive, user?.id, isSubscriber, video.id, purchasedItemIds]);
 
 
     // Watch time tracking for preview limit (1 min)

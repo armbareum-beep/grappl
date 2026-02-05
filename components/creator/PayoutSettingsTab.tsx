@@ -28,7 +28,7 @@ export const PayoutSettingsTab: React.FC = () => {
         if (user) {
             loadSettings();
         }
-    }, [user]);
+    }, [user?.id]);
 
     const loadSettings = async () => {
         if (!user) return;

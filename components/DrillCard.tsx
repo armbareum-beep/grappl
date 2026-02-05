@@ -26,7 +26,7 @@ export const DrillCard: React.FC<DrillCardProps> = ({ drill, className }) => {
             // or we might need checkDrillSaved if we introduce it.
             checkRoutineSaved(user.id, drill.id).then(setIsSaved).catch(console.error);
         }
-    }, [user, drill.id]);
+    }, [user?.id, drill.id]);
 
     const handleSave = async (e: React.MouseEvent) => {
         e.preventDefault();

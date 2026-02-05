@@ -27,7 +27,7 @@ export const NotificationDropdown: React.FC = () => {
 
             return () => clearInterval(interval);
         }
-    }, [user]);
+    }, [user?.id]);
 
     // Handle click outside to close dropdown
     useEffect(() => {

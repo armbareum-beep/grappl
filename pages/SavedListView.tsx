@@ -71,7 +71,7 @@ export const SavedListView: React.FC = () => {
         };
 
         fetchData();
-    }, [type, user]);
+    }, [type, user?.id]);
 
     if (loading) return <LoadingScreen />;
     if (error) return <ErrorScreen error={error} />;

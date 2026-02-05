@@ -103,7 +103,7 @@ const RootRedirect: React.FC = () => {
   }
 
   if (user) {
-    return <Navigate to="/browse" replace />;
+    return <Navigate to="/home" replace />;
   }
 
   return <LandingPage />;

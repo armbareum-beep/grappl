@@ -46,7 +46,7 @@ export const QuickJournalWidget: React.FC = () => {
         };
 
         checkDailyJournal();
-    }, [user]);
+    }, [user?.id]);
 
     const moods = [
         { id: 'great', label: '최고였어요', icon: Smile, color: 'text-violet-400', bg: 'bg-violet-500/10', emoji: '🔥' },

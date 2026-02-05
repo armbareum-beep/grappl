@@ -13,7 +13,7 @@ export const StatPowerPanel: React.FC = () => {
         if (user) {
             loadStats();
         }
-    }, [user]);
+    }, [user?.id]);
 
     const loadStats = async () => {
         if (!user) return;

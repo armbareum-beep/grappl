@@ -21,7 +21,6 @@ interface MixedReelsFeedProps {
         purchasedItemIds: string[];
     };
     isLoggedIn?: boolean;
-    dailyFreeDrillId?: string;
     dailyFreeLessonId?: string;
     dailyFreeSparringId?: string;
 }
@@ -31,7 +30,6 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
     initialIndex = 0,
     userPermissions: externalPermissions,
     isLoggedIn: externalIsLoggedIn,
-    dailyFreeDrillId,
     dailyFreeLessonId,
     dailyFreeSparringId
 }) => {
@@ -114,7 +112,7 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
             }
         };
         fetchUserData();
-    }, [user, externalPermissions]);
+    }, [user?.id, externalPermissions]);
 
     // Navigation logic — block swipe if the target item hasn't loaded yet
     const goToNext = () => {
@@ -259,7 +257,6 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                             isSubscriber={userPermissions.isSubscriber}
                             purchasedItemIds={userPermissions.purchasedItemIds}
                             isLoggedIn={isLoggedIn}
-                            isDailyFreeDrill={dailyFreeDrillId === item.data.id}
                             onVideoReady={() => markReady(index)}
                         />
                     );

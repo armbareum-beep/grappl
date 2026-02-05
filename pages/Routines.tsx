@@ -79,7 +79,7 @@ export const Routines: React.FC<{
                     enriched = data.map((r: DrillRoutine) => ({
                         ...r,
                         creatorName: creatorsMap[r.creatorId]?.name || r.creatorName,
-                        creatorProfileImage: creatorsMap[r.creatorId]?.avatarUrl || r.creatorProfileImage
+                        creatorProfileImage: creatorsMap[r.creatorId]?.profileImage || creatorsMap[r.creatorId]?.avatarUrl || r.creatorProfileImage
                     }));
                 }
 

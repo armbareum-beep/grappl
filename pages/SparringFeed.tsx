@@ -49,7 +49,7 @@ const VideoItem: React.FC<{
                     .catch(console.error);
             });
         }
-    }, [user, video.id, video.creatorId]);
+    }, [user?.id, video.id, video.creatorId]);
 
     // Handlers
     const handleFollow = async () => {
@@ -135,13 +135,12 @@ const VideoItem: React.FC<{
                 recordSparringView(user.id, video.id).catch(console.error);
             });
         }
-    }, [isActive, user, video.id]);
+    }, [isActive, user?.id, video.id]);
 
     const toggleMute = () => {
         setMuted(prev => !prev);
     };
 
-    const [aspectRatio, setAspectRatio] = useState(1); // Default to square
 
     // ...
 
@@ -221,7 +220,7 @@ const VideoItem: React.FC<{
                     muted={muted}
                     showControls={false}
                     fillContainer={true}
-                    onAspectRatioChange={setAspectRatio}
+                    forceSquareRatio={true}
                     onProgress={(s) => {
                         // Sparse logging to avoid too many renders if not needed
                     }}
@@ -246,7 +245,7 @@ const VideoItem: React.FC<{
                 muted={muted}
                 showControls={false}
                 fillContainer={true}
-                onAspectRatioChange={setAspectRatio}
+                forceSquareRatio={true}
                 onReady={onVideoReady}
                 onAutoplayBlocked={() => setMuted(true)}
                 onDoubleTap={handleLike}
@@ -260,8 +259,8 @@ const VideoItem: React.FC<{
             style={{ transform: `translateY(${offset * 100}%)`, zIndex: isActive ? 10 : 0 }}
         >
             <div
-                className="relative w-full max-w-[min(100vw,calc(100vh-140px))] z-10 flex items-center justify-center overflow-hidden rounded-lg transition-all duration-300 ease-out"
-                style={{ aspectRatio: aspectRatio }}
+                className="relative w-full max-w-[min(100vw,calc(100vh-140px))] mx-auto z-10 flex items-center justify-center overflow-hidden rounded-lg transition-all duration-300 ease-out aspect-square shadow-2xl border border-white/5"
+                style={{ aspectRatio: 1, margin: 'auto' }}
             >
                 {renderVideoContent()}
                 <div className="absolute inset-0 z-20 cursor-pointer" onClick={toggleMute} />
@@ -386,7 +385,7 @@ const SparringGridItem: React.FC<{
                 checkSparringSaved(user.id, video.id).then(setIsSaved).catch(() => { });
             });
         }
-    }, [user, video.id]);
+    }, [user?.id, video.id]);
 
     useEffect(() => {
         if (isTarget && itemRef.current) {

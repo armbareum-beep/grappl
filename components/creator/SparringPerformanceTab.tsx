@@ -23,7 +23,7 @@ export const SparringPerformanceTab: React.FC = () => {
         if (user) {
             loadSparring();
         }
-    }, [user]);
+    }, [user?.id]);
 
     const loadSparring = async () => {
         if (!user) return;

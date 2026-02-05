@@ -115,7 +115,7 @@ export const MyLibrary: React.FC = () => {
     }
 
     fetchData();
-  }, [user, isCreator]);
+  }, [user?.id, isCreator]);
 
   if (error) {
     return <ErrorScreen error={error} resetMessage="라이브러리를 불러오는 중 오류가 발생했습니다." />;

@@ -26,7 +26,7 @@ export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine, ran
         if (user && routine.id) {
             checkRoutineSaved(user.id, routine.id).then(setIsSaved).catch(console.error);
         }
-    }, [user, routine.id]);
+    }, [user?.id, routine.id]);
     const [isHovering, setIsHovering] = useState(false);
     const [showVideo, setShowVideo] = useState(false);
     const [isDragging, setIsDragging] = useState(false);

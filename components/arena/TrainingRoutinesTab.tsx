@@ -115,7 +115,7 @@ export const TrainingRoutinesTab: React.FC = () => {
             window.removeEventListener('storage', handleStorageChange);
             window.removeEventListener('storage', handleCustomStorage);
         };
-    }, [user]);
+    }, [user?.id]);
 
     const toggleDrillSelection = (drill: Drill) => {
         const drillId = drill.id;
@@ -222,7 +222,7 @@ export const TrainingRoutinesTab: React.FC = () => {
 
     useEffect(() => {
         loadRoutines();
-    }, [user]);
+    }, [user?.id]);
 
     const handleCreateRoutine = () => {
         setIsCreatePromptOpen(true);
@@ -715,19 +715,6 @@ export const TrainingRoutinesTab: React.FC = () => {
                                                 </div>
                                                 {/* Creator Info */}
                                                 <div className="flex items-center gap-2 group/creator">
-                                                    <div className="w-5 h-5 rounded-full overflow-hidden bg-zinc-800 border border-zinc-700">
-                                                        {routine.creatorProfileImage ? (
-                                                            <img
-                                                                src={routine.creatorProfileImage}
-                                                                className="w-full h-full object-cover"
-                                                                alt={routine.creatorName}
-                                                            />
-                                                        ) : (
-                                                            <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-zinc-500">
-                                                                {routine.creatorName?.charAt(0) || 'U'}
-                                                            </div>
-                                                        )}
-                                                    </div>
                                                     <span className="text-[11px] font-medium text-zinc-500 group-hover/creator:text-zinc-300 transition-colors uppercase tracking-tight">{routine.creatorName}</span>
                                                 </div>
                                             </div>
@@ -828,22 +815,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                                                 <span>{new Date(routine.createdAt).toLocaleDateString()}</span>
                                             </div>
                                             <div className="pt-3 border-t border-zinc-800/50 flex items-center justify-between group/creator">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-7 h-7 rounded-full bg-zinc-800 border border-zinc-800 overflow-hidden ring-1 ring-zinc-800 group-hover/creator:ring-violet-500/50 transition-all shadow-sm">
-                                                        {routine.creatorProfileImage ? (
-                                                            <img
-                                                                src={routine.creatorProfileImage}
-                                                                className="w-full h-full object-cover"
-                                                                alt={routine.creatorName}
-                                                            />
-                                                        ) : (
-                                                            <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-zinc-500">
-                                                                {routine.creatorName?.charAt(0) || 'U'}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <span className="text-xs font-bold text-zinc-400 group-hover/creator:text-zinc-100 transition-colors tracking-tight">{routine.creatorName}</span>
-                                                </div>
+                                                <span className="text-xs font-bold text-zinc-400 group-hover/creator:text-zinc-100 transition-colors tracking-tight">{routine.creatorName}</span>
                                                 <span className="text-[10px] font-bold text-violet-500 bg-violet-500/10 px-1.5 py-0.5 rounded tracking-wider uppercase">INSTRUCTOR</span>
                                             </div>
                                         </div>

@@ -70,6 +70,13 @@ export const CourseDetail: React.FC = () => {
         selectedLessonRef.current = selectedLesson;
     }, [user, selectedLesson]);
 
+    // Record initial view for history (Recent Activity)
+    React.useEffect(() => {
+        if (user && selectedLesson && selectedLesson.id) {
+            updateLastWatched(user.id, selectedLesson.id).catch(console.error);
+        }
+    }, [user?.id, selectedLesson?.id]);
+
     // Save progress on page leave (unmount / beforeunload)
     React.useEffect(() => {
         const saveOnLeave = () => {
@@ -328,7 +335,7 @@ export const CourseDetail: React.FC = () => {
         }
 
         fetchData();
-    }, [id, user, location.search, isSubscribed, isAdmin]);
+    }, [id, user?.id, user?.ownedVideoIds?.length, location.search, isSubscribed, isAdmin]);
 
     const handlePurchase = async () => {
         if (!user) {
@@ -471,7 +478,7 @@ export const CourseDetail: React.FC = () => {
             lastSavedTimeRef.current = seconds;
             updateLastWatched(user.id, selectedLesson.id, Math.floor(seconds));
         }
-    }, [user, selectedLesson, ownsCourse, isPreviewMode]);
+    }, [user?.id, selectedLesson, ownsCourse, isPreviewMode]);
 
     const handleLessonSelect = async (lesson: Lesson) => {
         if (selectedLesson?.id === lesson.id) return;

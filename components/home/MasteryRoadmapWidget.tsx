@@ -142,7 +142,7 @@ export const MasteryRoadmapWidget: React.FC = () => {
         };
 
         fetchData();
-    }, [user]);
+    }, [user?.id]);
 
     // [DEMO] Mock Data Fallback
     useEffect(() => {

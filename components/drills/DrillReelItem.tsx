@@ -245,7 +245,6 @@ interface DrillReelItemProps {
     isSubscriber: boolean;
     purchasedItemIds: string[];
     isLoggedIn: boolean;
-    isDailyFreeDrill?: boolean;
     onVideoReady?: () => void;
 }
 
@@ -319,7 +318,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
         if (isActive && user) {
             recordDrillView(drill.id, user.id);
         }
-    }, [isActive, drill.id, user]);
+    }, [isActive, drill.id, user?.id]);
 
     // Watch Time Timer
     useEffect(() => {

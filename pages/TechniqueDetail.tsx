@@ -52,7 +52,7 @@ export const TechniqueDetailPage: React.FC = () => {
         if (user && techniqueId) {
             loadData();
         }
-    }, [user, techniqueId]);
+    }, [user?.id, techniqueId]);
 
     const loadData = async () => {
         if (!user || !techniqueId) return;

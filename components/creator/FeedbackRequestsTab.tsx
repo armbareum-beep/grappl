@@ -20,7 +20,7 @@ export const FeedbackRequestsTab: React.FC = () => {
         if (user) {
             loadRequests();
         }
-    }, [user]);
+    }, [user?.id]);
 
     const loadRequests = async () => {
         if (!user) return;

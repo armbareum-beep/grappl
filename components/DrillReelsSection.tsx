@@ -14,9 +14,8 @@ import { ReelLoginModal } from './auth/ReelLoginModal';
 const DrillCard = ({ drill }: { drill: Drill }) => {
     const [isHovered, setIsHovered] = useState(false);
     const [previewEnded, setPreviewEnded] = useState(false);
-    const { isSubscribed, isAdmin, user } = useAuth();
+    const { user } = useAuth();
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-    const canWatchFull = isSubscribed || isAdmin;
 
     const getVimeoId = (url?: string) => {
         if (!url) return null;
@@ -68,7 +67,7 @@ const DrillCard = ({ drill }: { drill: Drill }) => {
                     vimeoId={vimeoId || ''}
                     title={drill.title}
                     playing={isHovered}
-                    maxPreviewDuration={canWatchFull ? undefined : 10}
+                    maxPreviewDuration={30} // 30s preview for guests on landing page
                     onPreviewLimitReached={() => {
                         setPreviewEnded(true);
                         if (!user) {

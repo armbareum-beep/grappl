@@ -73,7 +73,6 @@ export function Watch() {
         purchasedItemIds: []
     });
 
-    const [dailyFreeDrillId, setDailyFreeDrillId] = useState<string | undefined>(undefined);
     const [dailyFreeLessonId, setDailyFreeLessonId] = useState<string | undefined>(undefined);
     const [dailyFreeSparringId, setDailyFreeSparringId] = useState<string | undefined>(undefined);
 
@@ -201,7 +200,6 @@ export function Watch() {
 
             // Daily free IDs logic
 
-            setDailyFreeDrillId(dailyDrillRes.data?.id);
             setDailyFreeLessonId(dailyLessonRes.data?.id);
             setDailyFreeSparringId(dailySparringRes.data?.id);
 
@@ -469,7 +467,6 @@ export function Watch() {
                             items={items}
                             userPermissions={userPermissions}
                             isLoggedIn={!!user}
-                            dailyFreeDrillId={dailyFreeDrillId}
                             dailyFreeLessonId={dailyFreeLessonId}
                             dailyFreeSparringId={dailyFreeSparringId}
                         />

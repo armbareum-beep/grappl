@@ -51,7 +51,7 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
             }
         };
         checkSaved();
-    }, [user, item.id, type]);
+    }, [user?.id, item.id, type]);
 
     const handleSave = async (e: React.MouseEvent) => {
         e.preventDefault();

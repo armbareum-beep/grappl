@@ -113,7 +113,7 @@ export const JournalTab: React.FC = () => {
         setShareImage(null);
         if (user) loadData();
         else setLoading(false);
-    }, [user]);
+    }, [user?.id]);
 
     useEffect(() => {
         // Scroll to end when date range or items change

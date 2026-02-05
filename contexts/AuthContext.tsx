@@ -120,7 +120,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     avatar_url: parsed.avatar_url
                 };
             }
-            return { isAdmin: false, isCreator: false, isSubscribed: false, subscriptionTier: undefined, ownedVideoIds: [] };
+            // CRITICAL FIX: Return current state instead of defaulting to false
+            // This prevents UI from flickering or redirecting during transient network issues
+            return {
+                isAdmin: isAdmin,
+                isCreator: isCreator,
+                isSubscribed: isSubscribed,
+                subscriptionTier: user?.subscription_tier,
+                ownedVideoIds: user?.ownedVideoIds || []
+            };
         }
     };
 
@@ -200,6 +208,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     }
                 } else {
                     if (mounted) {
+                        // Only clear if we are certain there is no session
+                        // In some transient cases, session might be null during a brief refresh gap
                         setUser(null);
                         setIsCreator(false);
                         setIsAdmin(false);
@@ -208,7 +218,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
             } catch (error) {
                 console.error('Error initializing auth:', error);
-                if (mounted) setUser(null);
+                // On initialization error, don't clear state if we were already logged in (unlikely during init though)
             } finally {
                 if (mounted) setLoading(false);
             }
