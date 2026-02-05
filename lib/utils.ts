@@ -39,14 +39,7 @@ export function hasHighlight(text: string | null | undefined): boolean {
  */
 export async function hardReload(preserveKeys: string[] = []) {
     try {
-        console.log('[HardReload] Starting full cleanup...');
-
-        // 0. Preserve specified keys
-        const preservedValues: Record<string, string> = {};
-        for (const key of preserveKeys) {
-            const val = localStorage.getItem(key);
-            if (val) preservedValues[key] = val;
-        }
+        console.log('[HardReload] Starting cleanup...');
 
         // 1. Unregister Service Workers
         if ('serviceWorker' in navigator) {
@@ -64,20 +57,26 @@ export async function hardReload(preserveKeys: string[] = []) {
             );
         }
 
-        // 3. Clear storage
-        localStorage.clear();
-        sessionStorage.clear();
+        // 3. Selective LocalStorage Clear (Keep auth and specified keys)
+        // Only clear keys that aren't related to auth or explicitly preserved
+        const keysToKeep = [...preserveKeys];
+        const allKeys = Object.keys(localStorage);
 
-        // 4. Restore preserved keys
-        for (const [key, val] of Object.entries(preservedValues)) {
-            localStorage.setItem(key, val);
+        for (const key of allKeys) {
+            if (key.startsWith('sb-') || key.startsWith('supabase.') || keysToKeep.includes(key)) {
+                continue;
+            }
+            localStorage.removeItem(key);
         }
+
+        // Session storage can usually be cleared fully as it's less critical for auth persistence in our case
+        sessionStorage.clear();
 
     } catch (error) {
         console.error('[HardReload] Error during cleanup:', error);
     }
 
-    // 5. Force Reload
+    // 4. Force Reload
     window.location.reload();
 }
 /**

@@ -8,35 +8,7 @@ interface AdminRouteProps {
 
 export const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
     const { user, loading, isAdmin } = useAuth();
-    const [isRevalidating, setIsRevalidating] = React.useState(false);
-    const [shouldRedirect, setShouldRedirect] = React.useState(false);
-
-    // Track revalidation/grace period
-    React.useEffect(() => {
-        let timeout: NodeJS.Timeout;
-
-        if (!loading) {
-            if (user && !isAdmin) {
-                // If user exists but not admin, wait a bit before redirecting
-                // This handles cases where isAdmin might be false for a split second 
-                // during a background refresh/revalidation
-                setIsRevalidating(true);
-                timeout = setTimeout(() => {
-                    setShouldRedirect(true);
-                    setIsRevalidating(false);
-                }, 2000); // 2 second grace period
-            } else {
-                setIsRevalidating(false);
-                setShouldRedirect(false);
-            }
-        }
-
-        return () => {
-            if (timeout) clearTimeout(timeout);
-        };
-    }, [loading, user, isAdmin]);
-
-    if (loading || (isRevalidating && !shouldRedirect)) {
+    if (loading) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 gap-6">
                 <div className="relative w-16 h-16">
@@ -48,7 +20,10 @@ export const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
         );
     }
 
-    if (!user || (shouldRedirect && !isAdmin)) {
+    // Direct check: if not loading and definitely not an admin, boot them.
+    // AuthContext now preserves isAdmin=true on transient errors, so this is safe.
+    if (!user || !isAdmin) {
+        console.warn('[AdminRoute] Access denied: User not found or not admin. Redirecting to home.');
         return <Navigate to="/" replace />;
     }
 

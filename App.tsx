@@ -91,8 +91,12 @@ const RootRedirect: React.FC = () => {
   const [forceLoad, setForceLoad] = React.useState(false);
 
   React.useEffect(() => {
-    // Fail-safe: If Auth loading takes > 1.5s, force show Landing
-    const timer = setTimeout(() => setForceLoad(true), 1500);
+    // Fail-safe: If Auth loading takes > 4s, force show Landing
+    // Increased from 1.5s to 4s to allow for slower mobile connections
+    const timer = setTimeout(() => {
+      setForceLoad(true);
+      console.warn('[RootRedirect] Auth loading exceeded 4s, forcing landing page display');
+    }, 4000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -121,21 +125,27 @@ const OAuthRedirectHandler: React.FC = () => {
 
   React.useEffect(() => {
     // 로그인 완료되고, 아직 체크하지 않았으며, 로그인 페이지가 아닐 때만 실행
+    // Added safety check for window.location to avoid infinite loops
     if (user && !loading && !hasChecked && location.pathname !== '/login') {
-      setHasChecked(true);
-
       try {
         const savedPath = localStorage.getItem('oauth_redirect_path');
         if (savedPath && savedPath !== '/login' && savedPath !== '/' && savedPath !== location.pathname) {
           localStorage.removeItem('oauth_redirect_path');
+          setHasChecked(true); // Set checked here to prevent multiple redirect attempts
+
           console.log('OAuth redirect to:', savedPath);
           // 약간의 지연을 두어 인증 상태가 완전히 설정된 후 리다이렉트
           setTimeout(() => {
-            window.location.href = savedPath;
-          }, 100);
+            if (window.location.pathname !== savedPath) {
+              window.location.href = savedPath;
+            }
+          }, 150);
+        } else {
+          setHasChecked(true); // Even if no path found, mark as checked
         }
       } catch (e) {
         console.warn('Failed to restore redirect path:', e);
+        setHasChecked(true);
       }
     }
   }, [user, loading, hasChecked, location.pathname]);
