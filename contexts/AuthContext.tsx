@@ -58,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
                 // Don't return here, we still want to revalidate in background
             } catch (e) {
-                console.error('Error parsing user cache', e);
+                // Ignore cache parsing errors
             }
         }
 
@@ -106,7 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 avatar_url: newStatus.avatar_url
             };
         } catch (error) {
-            console.error('Error checking user status:', error);
+            // console.error('Error checking user status:', error);
             // If network fails but we had cache, keep using cache
             if (cached) {
                 const parsed = JSON.parse(cached);
@@ -188,7 +188,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                                 localStorage.removeItem(cacheKey);
                             }
                         } catch (e) {
-                            console.error('Error parsing user cache', e);
+                            // Ignore
                         }
                     }
 

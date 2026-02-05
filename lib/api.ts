@@ -26,7 +26,6 @@ export async function withTimeout<T>(
     try {
         return await Promise.race([promise, timeout]) as T;
     } catch (err: any) {
-        console.warn(`[withTimeout] Operation timed out or failed:`, err);
         // Return a Supabase-like error object so destructuring { data, error } doesn't crash
         return {
             data: null,
@@ -143,7 +142,6 @@ export async function toggleLessonSave(userId: string, lessonId: string): Promis
             return { saved: true };
         }
     } catch (error) {
-        console.error('Error toggling lesson save:', error);
         throw error;
     }
 }

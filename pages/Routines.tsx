@@ -6,7 +6,7 @@ import { Search, ChevronDown } from 'lucide-react';
 
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
-import { cn } from '../lib/utils';
+import { cn, calculateHotScore } from '../lib/utils';
 import { UnifiedContentCard } from '../components/library/UnifiedContentCard';
 
 
@@ -186,7 +186,7 @@ export const Routines: React.FC<{
             return new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime();
         }
         if (sortBy === 'popular') {
-            return (b.views || 0) - (a.views || 0);
+            return calculateHotScore(b.views, b.createdAt) - calculateHotScore(a.views, a.createdAt);
         }
         return 0; // Keep shuffled order if sortBy is 'shuffled'
     });

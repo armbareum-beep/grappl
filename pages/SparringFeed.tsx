@@ -7,7 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { ContentBadge } from '../components/common/ContentBadge';
 import { ReelLoginModal } from '../components/auth/ReelLoginModal';
 
-import { cn } from '../lib/utils';
+import { cn, calculateHotScore } from '../lib/utils';
 /* eslint-disable react-hooks/exhaustive-deps */
 
 import { VideoPlayer } from '../components/VideoPlayer';
@@ -41,13 +41,13 @@ const VideoItem: React.FC<{
                         setIsLiked(status.liked);
                         setIsSaved(status.saved);
                     })
-                    .catch(console.error);
+                    .catch(() => { });
 
                 checkSparringOwnership(user.id, video.id)
                     .then(hasPurchased => {
                         setOwns(hasPurchased);
                     })
-                    .catch(console.error);
+                    .catch(() => { });
             });
         }
     }, [user?.id, video.id, video.creatorId]);
@@ -66,7 +66,7 @@ const VideoItem: React.FC<{
             const result = await toggleCreatorFollow(user.id, video.creatorId);
             setIsFollowed(result.followed);
         } catch (error) {
-            console.error('Follow failed', error);
+            // console.error('Follow failed', error);
             setIsFollowed(!newStatus); // Revert
         }
     };
@@ -84,7 +84,7 @@ const VideoItem: React.FC<{
             const result = await toggleSparringLike(user.id, video.id);
             setIsLiked(result.liked);
         } catch (error) {
-            console.error('Like failed', error);
+            // console.error('Like failed', error);
             setIsLiked(!newStatus); // Revert
             setLocalLikes(prev => !newStatus ? prev + 1 : prev - 1);
         }
@@ -102,7 +102,7 @@ const VideoItem: React.FC<{
             const result = await toggleSparringSave(user.id, video.id);
             setIsSaved(result.saved);
         } catch (error) {
-            console.error('Save failed', error);
+            // console.error('Save failed', error);
             setIsSaved(!newStatus); // Revert
         }
     };
@@ -131,7 +131,7 @@ const VideoItem: React.FC<{
     useEffect(() => {
         if (isActive && user && video.id && hasAccess) {
             import('../lib/api').then(({ recordSparringView }) => {
-                recordSparringView(user.id, video.id).catch(console.error);
+                recordSparringView(user.id, video.id).catch(() => { });
             });
         }
     }, [isActive, user, video.id, hasAccess]);
@@ -224,7 +224,7 @@ const VideoItem: React.FC<{
                     showControls={false}
                     fillContainer={true}
                     forceSquareRatio={true}
-                    onProgress={(s) => {
+                    onProgress={() => {
                         // Sparse logging to avoid too many renders if not needed
                     }}
                     onReady={onVideoReady}
@@ -656,17 +656,9 @@ export const SparringFeed: React.FC<{
 
             if (loadedVideos.length > 0) {
                 // Enrich creator names if needed (though already done via transform)
-                const now = Date.now();
-                const getHotScore = (item: any) => {
-                    const views = item.views || 0;
-                    const createdDate = item.createdAt ? new Date(item.createdAt).getTime() : now;
-                    const hoursSinceCreation = Math.max(0, (now - createdDate) / (1000 * 60 * 60));
-                    return views / Math.pow(hoursSinceCreation + 2, 1.5);
-                };
-
                 const hotVideos = [...loadedVideos]
                     .filter((v: SparringVideo) => (v.views || 0) >= 5)
-                    .sort((a, b) => getHotScore(b) - getHotScore(a));
+                    .sort((a, b) => calculateHotScore(b.views, b.createdAt) - calculateHotScore(a.views, a.createdAt));
 
                 const processed = loadedVideos.map((v: SparringVideo) => {
                     const hotIndex = hotVideos.findIndex(s => s.id === v.id);
@@ -762,7 +754,7 @@ export const SparringFeed: React.FC<{
             return new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime();
         }
         if (sortBy === 'popular') {
-            return (b.views || 0) - (a.views || 0);
+            return calculateHotScore(b.views, b.createdAt) - calculateHotScore(a.views, a.createdAt);
         }
         return 0; // Keep shuffled order if sortBy is 'shuffled'
     });
