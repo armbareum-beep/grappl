@@ -1,15 +1,10 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, memo } from 'react';
 import { Lesson } from '../../types';
-import { Share2, Volume2, VolumeX, Bookmark, Heart, ChevronLeft, BookOpen } from 'lucide-react';
+import { BookOpen } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
-import { toggleLessonLike, getLessonInteractionStatus, toggleCreatorFollow, updateLastWatched, extractVimeoId } from '../../lib/api';
-import { ReelLoginModal } from '../auth/ReelLoginModal';
-import { VideoPlayer } from '../VideoPlayer';
-import { useOrientationFullscreen } from '../../hooks/useOrientationFullscreen';
-
-// Lazy load ShareModal
-const ShareModal = React.lazy(() => import('../social/ShareModal'));
+import { useNavigate } from 'react-router-dom';
+import { toggleLessonLike, getLessonInteractionStatus, toggleCreatorFollow, updateLastWatched } from '../../lib/api';
+import { BaseReelItem } from './BaseReelItem';
 
 interface LessonReelItemProps {
     lesson: Lesson;
@@ -24,16 +19,16 @@ interface LessonReelItemProps {
     onVideoReady?: () => void;
 }
 
-export const LessonReelItem: React.FC<LessonReelItemProps> = ({
+export const LessonReelItem: React.FC<LessonReelItemProps> = memo(({
     lesson,
     isActive,
     offset,
     isSubscriber,
     purchasedItemIds = [],
-    isLoggedIn,
+    isLoggedIn = false,
     isDailyFreeLesson = false,
     isMuted = false,
-    onToggleMute,
+    onToggleMute = () => { },
     onVideoReady
 }) => {
     const { user } = useAuth();
@@ -42,39 +37,18 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
     const [isSaved, setIsSaved] = useState(false);
     const [isFollowed, setIsFollowed] = useState(false);
     const [likeCount, setLikeCount] = useState((lesson as any).likes || 0);
-    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-    const [watchTime, setWatchTime] = useState(0);
-    const [progress, setProgress] = useState(0);
-    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-    const [isPaused, setIsPaused] = useState(false);
-    const [showLikeAnimation, setShowLikeAnimation] = useState(false);
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
-    const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const isPausedRef = useRef(isPaused);
 
-    // Fullscreen on landscape
-    const containerRef = useRef<HTMLDivElement>(null);
-    useOrientationFullscreen(containerRef, isActive);
-
-    useEffect(() => {
-        isPausedRef.current = isPaused;
-    }, [isPaused]);
-
-    const vimeoFullId = extractVimeoId(lesson.vimeoUrl || lesson.videoUrl || '');
+    // Sync isPaused with BaseReelItem isn't strictly necessary if we just rely on BaseReelItem's local state, 
+    // but for the watch time tick, we need to know if it's playing.
+    // However, BaseReelItem handles its own pause. To keep the timer accurate, 
+    // we'll actually let BaseReelItem handle the UI and just pass isActive.
+    const isPausedRef = useRef(false);
 
     // Access Control
-    const hasAccess = isDailyFreeLesson || (lesson as any).price === 0 || (isLoggedIn && (isSubscriber || purchasedItemIds.includes(lesson.id)));
+    const lessonPrice = Number((lesson as any).price || 0);
+    const hasAccess = isDailyFreeLesson || lessonPrice === 0 || (isLoggedIn && (isSubscriber || purchasedItemIds.includes(lesson.id)));
 
-    // Notify parent when this item is ready to display
-    const [videoPlayerReady, setVideoPlayerReady] = useState(false);
-    const onVideoReadyRef = useRef(onVideoReady);
-    onVideoReadyRef.current = onVideoReady;
-    useEffect(() => {
-        if (videoPlayerReady) {
-            onVideoReadyRef.current?.();
-        }
-    }, [videoPlayerReady]);
-
+    // Interaction status
     useEffect(() => {
         if (user && isActive && lesson.creatorId) {
             getLessonInteractionStatus(user.id, lesson.id, lesson.creatorId)
@@ -82,74 +56,59 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
                     setIsLiked(status.liked);
                     setIsSaved(status.saved);
                     setIsFollowed(status.followed);
+
+                    // Self-Correction: If API says I liked it, but count is 0, it must be at least 1 locally
+                    if (status.liked && likeCount === 0) {
+                        setLikeCount(1);
+                    }
                 });
         }
     }, [user?.id, lesson.id, isActive, lesson.creatorId]);
 
-    // Watch time tracking for non-logged-in users AND logged-in users (history)
-    const lastTickRef = useRef<number>(0);
-    const accumulatedTimeRef = useRef<number>(0);
-
-    // Initial View Record (mark as recent)
+    // Initial View Record
     useEffect(() => {
         if (isActive && user) {
-            // Record initial view to mark as recent without resetting progress
             updateLastWatched(user.id, lesson.id).catch(console.error);
         }
     }, [isActive, user?.id, lesson.id]);
 
+    // Watch time tracking (Keep existing robust logic)
     useEffect(() => {
-        // Enforce immediate lock for unauthorized users
-        if (!hasAccess && isActive) {
-            setIsLoginModalOpen(true);
-            return;
-        }
+        if (!hasAccess || !isActive || !user) return;
 
-        // Logged-in users WITH access: Record watch progress
-        if (user && isActive && hasAccess) {
-            lastTickRef.current = Date.now();
-            accumulatedTimeRef.current = 0;
+        let lastTick = Date.now();
+        let accumulated = 0;
 
-            timerRef.current = setInterval(() => {
-                const now = Date.now();
-                const elapsed = (now - lastTickRef.current) / 1000;
-                lastTickRef.current = now;
+        const timer = setInterval(() => {
+            const now = Date.now();
+            const elapsed = (now - lastTick) / 1000;
+            lastTick = now;
 
-                if (elapsed > 0 && elapsed < 5 && !isPausedRef.current) {
-                    accumulatedTimeRef.current += elapsed;
-                }
-
-                // Record every 5 seconds
-                if (accumulatedTimeRef.current >= 5) {
-                    const timeToSend = Math.floor(accumulatedTimeRef.current);
-                    accumulatedTimeRef.current -= timeToSend;
-
-                    updateLastWatched(user.id, lesson.id, timeToSend).catch(console.error);
-                }
-            }, 1000);
-        }
-        else {
-            // Clear timer when not active
-            if (timerRef.current) {
-                clearInterval(timerRef.current);
+            if (elapsed > 0 && elapsed < 5 && !isPausedRef.current) {
+                accumulated += elapsed;
             }
-            accumulatedTimeRef.current = 0;
-        }
 
-        return () => {
-            if (timerRef.current) {
-                clearInterval(timerRef.current);
+            if (accumulated >= 5) {
+                const send = Math.floor(accumulated);
+                accumulated -= send;
+                updateLastWatched(user.id, lesson.id, send).catch(console.error);
             }
-        };
+        }, 1000);
+
+        return () => clearInterval(timer);
     }, [isActive, user, lesson.id, hasAccess]);
 
     const handleLike = async () => {
-        if (!user) {
-            navigate('/login');
-            return;
-        }
-        setIsLiked(!isLiked);
-        setLikeCount((prev: number) => isLiked ? prev - 1 : prev + 1);
+        if (!user) { navigate('/login'); return; }
+        const newStatus = !isLiked;
+        setIsLiked(newStatus);
+
+        // Optimistic Update with prevention of negative numbers
+        setLikeCount((prev: number) => {
+            if (newStatus) return prev + 1; // Like
+            return Math.max(0, prev - 1); // Unlike, but floor at 0
+        });
+
         await toggleLessonLike(user.id, lesson.id);
     };
 
@@ -160,195 +119,67 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = ({
         await toggleCreatorFollow(user.id, lesson.creatorId);
     };
 
-    const handleSave = async (e?: React.MouseEvent) => {
-        if (e) e.stopPropagation();
+    const handleSave = async () => {
         if (!user) { navigate('/login'); return; }
-
-        // Optimistic UI
         const newStatus = !isSaved;
         setIsSaved(newStatus);
-
         try {
             const { toggleLessonSave: toggle } = await import('../../lib/api');
             const result = await toggle(user.id, lesson.id);
             setIsSaved(result.saved);
         } catch (error) {
             console.error('Save failed', error);
-            setIsSaved(!newStatus); // Revert
+            setIsSaved(!newStatus);
         }
     };
-
-    // Click Handling for Play/Pause and Like
-    const handleVideoClick = () => {
-        if (!hasAccess) return;
-        if (clickTimeoutRef.current) {
-            // Double click detected
-            clearTimeout(clickTimeoutRef.current);
-            clickTimeoutRef.current = null;
-
-            // Trigger like
-            handleLike();
-            setShowLikeAnimation(true);
-            setTimeout(() => setShowLikeAnimation(false), 800);
-        } else {
-            // Single click - wait to see if double click follows
-            clickTimeoutRef.current = setTimeout(() => {
-                clickTimeoutRef.current = null;
-                // Toggle play/pause
-                setIsPaused(!isPaused);
-            }, 250);
-        }
-    };
-
 
     return (
-        <div
-            ref={containerRef}
-            className="absolute inset-0 w-full h-full bg-black overflow-hidden select-none transition-transform duration-300 ease-out will-change-transform"
-            style={{ transform: `translateY(${offset * 100}%)`, zIndex: isActive ? 10 : 0 }}
-        >
-            <div className="w-full h-full relative flex items-center justify-center">
-                <div className="relative w-full max-w-[min(100vw,calc((100vh-200px)*16/9))] aspect-video z-10 flex items-center justify-center overflow-hidden rounded-lg">
-                    <VideoPlayer
-                        vimeoId={vimeoFullId || lesson.videoUrl || ''}
-                        title={lesson.title}
-                        playing={isActive && !isPaused}
-                        showControls={false}
-                        fillContainer={true}
-                        onProgress={(s, d, p) => setProgress(p ? p * 100 : 0)}
-                        onReady={() => setVideoPlayerReady(true)}
-                        onDoubleTap={handleLike}
-                        muted={isMuted}
-                        isPreviewMode={!isLoggedIn && ((lesson as any).price === 0 || isDailyFreeLesson)}
-                        maxPreviewDuration={60}
-                        onPreviewLimitReached={() => setIsLoginModalOpen(true)}
-                    />
-                    <div className="absolute inset-0 z-20 cursor-pointer" onClick={handleVideoClick} />
-
-                    {/* Like Animation */}
-                    {showLikeAnimation && (
-                        <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
-                            <Heart
-                                className="w-24 h-24 text-violet-500 fill-violet-500 animate-ping"
-                                style={{ animationDuration: '0.8s', animationIterationCount: '1' }}
-                            />
-                        </div>
-                    )}
-                </div>
-
-                <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80 pointer-events-none z-30" />
-
-                <div className="absolute inset-0 pointer-events-none z-40 flex justify-center">
-                    <div className="absolute top-6 left-1/2 -translate-x-1/2 w-full max-w-[min(100vw,calc((100vh-200px)*16/9))] flex justify-between px-4 pointer-events-none">
-                        <div className="pointer-events-auto">
-                            <button
-                                onClick={(e) => { e.stopPropagation(); navigate(-1); }}
-                                className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-black/60 transition-all shadow-xl active:scale-95"
-                            >
-                                <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
-                            </button>
-                        </div>
-
-                        <div className="pointer-events-auto">
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onToggleMute?.(); }}
-                                className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all shadow-2xl"
-                            >
-                                {isMuted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="relative w-full h-full max-w-[min(100vw,calc((100vh-200px)*16/9))] flex">
-                        <div className="flex-1 relative">
-
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="relative w-full h-full">
-                                    <div className="absolute bottom-10 right-4 flex flex-col gap-5 z-[70] pointer-events-auto items-center">
-                                        <div className="flex flex-col items-center gap-1">
-                                            <button onClick={(e) => { e.stopPropagation(); handleLike(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
-                                                <Heart className={`w-5 h-5 md:w-7 md:h-7 ${isLiked ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
-                                            </button>
-                                            <span className="text-[11px] md:text-sm font-bold text-white drop-shadow-md">{likeCount.toLocaleString()}</span>
-                                        </div>
-                                        {lesson.courseId && (
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    navigate(`/courses/${lesson.courseId}`);
-                                                }}
-                                                className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl"
-                                                title="클래스 보기"
-                                            >
-                                                <BookOpen className="w-5 h-5 md:w-6 md:h-6" />
-                                            </button>
-                                        )}
-                                        <button
-                                            onClick={handleSave}
-                                            className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl"
-                                        >
-                                            <Bookmark className={`w-5 h-5 md:w-6 md:h-6 ${isSaved ? 'fill-white' : ''}`} />
-                                        </button>
-                                        <button onClick={(e) => { e.stopPropagation(); setIsShareModalOpen(true); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl">
-                                            <Share2 className="w-5 h-5 md:w-6 md:h-6" />
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="absolute bottom-10 left-0 right-0 w-full px-6 z-[60] text-white flex flex-col items-start gap-1 pointer-events-none">
-                                <div className="w-full pointer-events-auto pr-20 bg-black/30 md:bg-transparent p-4 md:p-0 rounded-2xl backdrop-blur-sm md:backdrop-blur-none">
-                                    <div className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider mb-2 bg-violet-500/10 text-violet-400 border border-violet-500/20">LESSON</div>
-                                    <div className="flex items-center gap-3 mb-3">
-                                        <Link to={`/creator/${lesson.creatorId}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                                            {lesson.creatorProfileImage && (
-                                                <img src={lesson.creatorProfileImage} alt={lesson.creatorName} className="w-8 h-8 rounded-full border border-white/20 object-cover" />
-                                            )}
-                                            <span className="text-white font-bold text-sm drop-shadow-sm">{lesson.creatorName}</span>
-                                        </Link>
-                                        <span className="text-white/60 text-xs mt-0.5">•</span>
-                                        <button onClick={(e) => { e.stopPropagation(); handleFollow(); }} className={`px-4 py-1.5 rounded-full text-[11px] font-bold border transition-all active:scale-95 ${isFollowed ? 'bg-violet-600 text-white border-violet-600' : 'bg-transparent text-violet-400 border-violet-500 hover:bg-violet-600 hover:text-white'}`}>
-                                            {isFollowed ? 'Following' : 'Follow'}
-                                        </button>
-                                    </div>
-                                    <div className="mb-2">
-                                        <h3 className="font-black text-lg md:text-xl lg:text-3xl leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] line-clamp-2">{lesson.title}</h3>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Progress Bar / Teaser Bar */}
-            <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!hasAccess ? 'h-1.5 bg-violet-900/30' : 'h-1 bg-zinc-800/40'}`}>
-                <div
-                    className={`h-full transition-all ease-linear ${!hasAccess ? 'bg-white/40' : 'bg-violet-500 duration-100'}`}
-                    style={{ width: `${progress}%` }}
-                />
-            </div>
-
-            {/* Login Modal for non-logged-in users */}
-            <ReelLoginModal
-                isOpen={isLoginModalOpen}
-                onClose={() => setIsLoginModalOpen(false)}
-                redirectUrl={`/watch?tab=lesson&id=${lesson.id}`}
-            />
-
-            {/* Share Modal */}
-            <React.Suspense fallback={null}>
-                {isShareModalOpen && (
-                    <ShareModal
-                        isOpen={isShareModalOpen}
-                        onClose={() => setIsShareModalOpen(false)}
-                        title={lesson.title}
-                        text={`${lesson.creatorName}님의 레슨을 확인해보세요`}
-                        imageUrl={lesson.thumbnailUrl}
-                        url={`${window.location.origin}/watch?tab=lesson&id=${lesson.id}`}
-                    />
-                )}
-            </React.Suspense>
-        </div>
+        <BaseReelItem
+            id={lesson.id}
+            type="lesson"
+            title={lesson.title}
+            videoUrl={lesson.vimeoUrl || lesson.videoUrl || ''}
+            thumbnailUrl={lesson.thumbnailUrl}
+            creatorId={lesson.creatorId}
+            creatorName={lesson.creatorName}
+            creatorProfileImage={lesson.creatorProfileImage}
+            isActive={isActive}
+            offset={offset}
+            isLiked={isLiked}
+            likeCount={likeCount}
+            onLike={handleLike}
+            isSaved={isSaved}
+            onSave={handleSave}
+            isFollowed={isFollowed}
+            onFollow={handleFollow}
+            isMuted={isMuted}
+            onToggleMute={onToggleMute}
+            hasAccess={hasAccess}
+            isLoggedIn={isLoggedIn}
+            redirectUrl={`/watch?tab=lesson&id=${lesson.id}`}
+            shareText={`${lesson.creatorName}님의 레슨을 확인해보세요`}
+            onVideoReady={onVideoReady}
+            onPauseChange={(p) => { isPausedRef.current = p; }}
+            maxPreviewDuration={60}
+            renderExtraActions={() => lesson.courseId && (
+                <button
+                    onClick={(e) => { e.stopPropagation(); navigate(`/courses/${lesson.courseId}?lessonId=${lesson.id}`); }}
+                    className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl"
+                    title="클래스 보기"
+                >
+                    <BookOpen className="w-5 h-5 md:w-6 md:h-6" />
+                </button>
+            )}
+        />
     );
-};
+}, (prevProps, nextProps) => {
+    // Only re-render if these critical props change
+    return (
+        prevProps.lesson.id === nextProps.lesson.id &&
+        prevProps.isActive === nextProps.isActive &&
+        prevProps.offset === nextProps.offset &&
+        prevProps.isMuted === nextProps.isMuted &&
+        prevProps.isDailyFreeLesson === nextProps.isDailyFreeLesson &&
+        prevProps.isSubscriber === nextProps.isSubscriber
+    );
+});

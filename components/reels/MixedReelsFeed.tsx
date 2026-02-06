@@ -48,26 +48,75 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
     const [likedDrills, setLikedDrills] = useState<Set<string>>(new Set());
     const [savedDrills, setSavedDrills] = useState<Set<string>>(new Set());
     const [followingCreators, setFollowingCreators] = useState<Set<string>>(new Set());
+    // Local override for like counts to handle optimistic updates accurately without double-counting
+    const [overrideCounts, setOverrideCounts] = useState<Record<string, number>>({});
 
     // Mute state shared - default to false to attempt autoplay with sound
     const [isMuted, setIsMuted] = useState(false);
+    const toggleMute = useCallback(() => setIsMuted(prev => !prev), []);
     const containerRef = useRef<HTMLDivElement>(null);
 
     // Track which items have their video ready (for blocking swipe to unloaded items)
-    const [readyItems, setReadyItems] = useState<Set<number>>(() => new Set());
+    // Initialize with current index so first item is always swipeable
+    const [readyItems, setReadyItems] = useState<Set<number>>(() => new Set([initialIndex]));
+    const pendingTimeouts = useRef<Map<number, NodeJS.Timeout>>(new Map());
+
     const markReady = useCallback((index: number) => {
+        console.log('[MixedReelsFeed] markReady called for index:', index);
+
+        // Clear any pending timeout for this index
+        const timeout = pendingTimeouts.current.get(index);
+        if (timeout) {
+            clearTimeout(timeout);
+            pendingTimeouts.current.delete(index);
+        }
+
         setReadyItems(prev => {
-            if (prev.has(index)) return prev;
+            if (prev.has(index)) {
+                console.log('[MixedReelsFeed] Index already ready:', index);
+                return prev;
+            }
             const next = new Set(prev);
             next.add(index);
+            console.log('[MixedReelsFeed] Added to readyItems:', index, 'Total:', next.size);
             return next;
         });
     }, []);
+
+    // Auto-ready neighbors after timeout (fallback if video fails to load)
+    // Neighbor preload timeout - DON'T include readyItems in deps to avoid canceling timeouts
+    useEffect(() => {
+        const neighborsToPreload = [-1, 1].map(offset => currentIndex + offset)
+            .filter(idx => idx >= 0 && idx < items.length);
+
+        neighborsToPreload.forEach(idx => {
+            // Check pendingTimeouts to avoid duplicates (readyItems check happens in markReady)
+            if (!pendingTimeouts.current.has(idx)) {
+                console.log('[MixedReelsFeed] Setting timeout for neighbor index:', idx);
+                const timeout = setTimeout(() => {
+                    console.log('[MixedReelsFeed] Timeout: forcing ready for index', idx);
+                    pendingTimeouts.current.delete(idx);
+                    markReady(idx);
+                }, 1500); // 1.5초 후 자동 ready
+                pendingTimeouts.current.set(idx, timeout);
+            }
+        });
+
+        // Only cleanup old timeouts that are no longer neighbors
+        pendingTimeouts.current.forEach((timeout, idx) => {
+            if (Math.abs(idx - currentIndex) > 1) {
+                clearTimeout(timeout);
+                pendingTimeouts.current.delete(idx);
+            }
+        });
+    }, [currentIndex, items.length, markReady]);
 
     // Clear stale ready states when scrolling far (items beyond ±2 get unmounted)
     useEffect(() => {
         setReadyItems(prev => {
             const next = new Set<number>();
+            // Always keep current index ready
+            next.add(currentIndex);
             for (const idx of prev) {
                 if (Math.abs(idx - currentIndex) <= 2) next.add(idx);
             }
@@ -117,19 +166,26 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
     }, [user?.id, externalPermissions]);
 
     // Navigation logic — block swipe if the target item hasn't loaded yet
-    const goToNext = () => {
-        const next = currentIndex + 1;
-        if (next < items.length && readyItems.has(next)) {
-            setCurrentIndex(next);
-        }
-    };
+    // SIMPLIFIED: Always allow swipe, no blocking
+    const goToNext = useCallback(() => {
+        setCurrentIndex(prev => {
+            const next = prev + 1;
+            if (next < items.length) {
+                return next;
+            }
+            return prev;
+        });
+    }, [items.length]);
 
-    const goToPrevious = () => {
-        const prev = currentIndex - 1;
-        if (prev >= 0 && readyItems.has(prev)) {
-            setCurrentIndex(prev);
-        }
-    };
+    const goToPrevious = useCallback(() => {
+        setCurrentIndex(prev => {
+            const prevIdx = prev - 1;
+            if (prevIdx >= 0) {
+                return prevIdx;
+            }
+            return prev;
+        });
+    }, []);
 
     // Keyboard navigation
     useEffect(() => {
@@ -144,7 +200,7 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [currentIndex, items.length]);
+    }, [goToNext, goToPrevious]);
 
     // Mouse wheel navigation
     const lastScrollTime = useRef(0);
@@ -164,56 +220,73 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
         };
         window.addEventListener('wheel', handleWheel, { passive: false });
         return () => window.removeEventListener('wheel', handleWheel);
-    }, [currentIndex, readyItems, items.length]);
+    }, [goToNext, goToPrevious]);
 
     // Touch handling
-    const [touchStart, setTouchStart] = useState<{ y: number } | null>(null);
+    const touchStartRef = useRef<{ y: number } | null>(null);
 
-    const handleTouchStart = (e: React.TouchEvent) => {
-        setTouchStart({ y: e.targetTouches[0].clientY });
-    };
+    const handleTouchStart = useCallback((e: React.TouchEvent) => {
+        touchStartRef.current = { y: e.targetTouches[0].clientY };
+    }, []);
 
-    const handleTouchEnd = (e: React.TouchEvent) => {
-        if (!touchStart) return;
+    const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+        if (!touchStartRef.current) return;
         const touchEndY = e.changedTouches[0].clientY;
-        const yDistance = touchStart.y - touchEndY;
+        const yDistance = touchStartRef.current.y - touchEndY;
 
         if (Math.abs(yDistance) > 50) {
             if (yDistance > 0) goToNext();
             else goToPrevious();
         }
-        setTouchStart(null);
-    };
+        touchStartRef.current = null;
+    }, [goToNext, goToPrevious]);
 
-    // Drill Handlers
-    const handleDrillLike = async (drill: Drill) => {
+    // Drill Handlers - memoized to prevent re-renders
+    const handleDrillLike = useCallback(async (drill: Drill) => {
         if (!user) { navigate('/login'); return; }
-        const newSet = new Set(likedDrills);
-        if (newSet.has(drill.id)) newSet.delete(drill.id);
-        else newSet.add(drill.id);
-        setLikedDrills(newSet);
+
+        const isLiked = likedDrills.has(drill.id);
+        setLikedDrills(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(drill.id)) newSet.delete(drill.id);
+            else newSet.add(drill.id);
+            return newSet;
+        });
+
+        // Update count optimistically using overrideCounts
+        setOverrideCounts(prev => {
+            const currentCount = prev[drill.id] ?? drill.likes ?? 0;
+            // If we are LIKING (!isLiked), add 1. If UNLIKING, subtract 1 but floor at 0.
+            const newCount = !isLiked ? currentCount + 1 : Math.max(0, currentCount - 1);
+            return { ...prev, [drill.id]: newCount };
+        });
+
         await toggleDrillLike(user.id, drill.id);
-    };
+    }, [user, navigate, likedDrills]);
 
-    const handleDrillSave = async (drill: Drill) => {
+    const handleDrillSave = useCallback(async (drill: Drill) => {
         if (!user) { navigate('/login'); return; }
-        const newSet = new Set(savedDrills);
-        if (newSet.has(drill.id)) newSet.delete(drill.id);
-        else newSet.add(drill.id);
-        setSavedDrills(newSet);
+        setSavedDrills(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(drill.id)) newSet.delete(drill.id);
+            else newSet.add(drill.id);
+            return newSet;
+        });
         await toggleDrillSave(user.id, drill.id);
-    };
+    }, [user, navigate]);
 
-    const handleDrillFollow = async (drill: Drill) => {
+    const handleDrillFollow = useCallback(async (drill: Drill) => {
         if (!user) { navigate('/login'); return; }
-        const newSet = new Set(followingCreators);
-        if (newSet.has(drill.creatorId)) newSet.delete(drill.creatorId);
-        else newSet.add(drill.creatorId);
-        setFollowingCreators(newSet);
+        setFollowingCreators(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(drill.creatorId)) newSet.delete(drill.creatorId);
+            else newSet.add(drill.creatorId);
+            return newSet;
+        });
         await toggleCreatorFollow(user.id, drill.creatorId);
-    };
+    }, [user, navigate]);
 
-    const handleViewRoutine = async (drill: Drill) => {
+    const handleViewRoutine = useCallback(async (drill: Drill) => {
         try {
             const { getRoutineByDrillId } = await import('../../lib/api');
             const { data: routine } = await getRoutineByDrillId(drill.id);
@@ -223,7 +296,7 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
         } catch (error) {
             console.error('Error fetching routine for drill:', error);
         }
-    };
+    }, [navigate]);
 
     return (
         <div
@@ -239,6 +312,9 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                 const item = items[index];
                 const isActive = offset === 0;
 
+                // Always render neighbors (offset ±1, ±2) for preloading
+                // The readyItems check only blocks SWIPING, not RENDERING
+
                 if (item.type === 'drill') {
                     return (
                         <DrillReelItem
@@ -246,10 +322,10 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                             drill={item.data}
                             isActive={isActive}
                             isMuted={!isActive || isMuted}
-                            onToggleMute={() => setIsMuted(!isMuted)}
+                            onToggleMute={toggleMute}
                             isLiked={likedDrills.has(item.data.id)}
                             onLike={() => handleDrillLike(item.data)}
-                            likeCount={(item.data.likes || 0) + (likedDrills.has(item.data.id) ? 1 : 0)}
+                            likeCount={overrideCounts[item.data.id] ?? (item.data.likes || 0)}
                             isSaved={savedDrills.has(item.data.id)}
                             onSave={() => handleDrillSave(item.data)}
                             isFollowed={followingCreators.has(item.data.creatorId)}
@@ -275,7 +351,7 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                             isSubscriber={userPermissions.isSubscriber}
                             purchasedItemIds={userPermissions.purchasedItemIds}
                             isMuted={!isActive || isMuted}
-                            onToggleMute={() => setIsMuted(!isMuted)}
+                            onToggleMute={toggleMute}
                             onVideoReady={() => markReady(index)}
                         />
                     );
@@ -291,7 +367,7 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                             isLoggedIn={isLoggedIn}
                             isDailyFreeLesson={dailyFreeLessonId === item.data.id}
                             isMuted={!isActive || isMuted}
-                            onToggleMute={() => setIsMuted(!isMuted)}
+                            onToggleMute={toggleMute}
                             onVideoReady={() => markReady(index)}
                         />
                     );
@@ -299,7 +375,7 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                 return null;
             })}
 
-
+            {/* Loading indicators removed - swipe is always allowed now */}
         </div>
     );
 };

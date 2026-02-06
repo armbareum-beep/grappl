@@ -524,10 +524,13 @@ export const RoutineDetail: React.FC = () => {
 
     // Description videos require subscription or ownership (or daily free drill)
     const isDailyFreeDrill = currentDrill?.id === dailyFreeDrillId;
+    const routinePrice = Number(routine?.price || 0);
+    const drillPriceInObject = Number((currentDrill as any).price || 0);
+
     const hasDescriptionAccess =
         isSubscribed ||
-        (!isCustomRoutine && (owns || routine?.price === 0)) ||
-        currentDrill?.price === 0 ||
+        (!isCustomRoutine && (owns || routinePrice === 0)) ||
+        drillPriceInObject === 0 ||
         isDailyFreeDrill;
 
     // Action videos are ALWAYS accessible (even for non-logged-in users)
@@ -766,7 +769,7 @@ export const RoutineDetail: React.FC = () => {
                                             fillContainer={true}
                                             onProgress={handleProgress}
                                             onEnded={() => handleDrillComplete()}
-                                            maxPreviewDuration={user ? undefined : 15}
+                                            maxPreviewDuration={user ? undefined : 60}
                                             onPreviewLimitReached={() => setIsLoginModalOpen(true)}
                                             isPaused={isLoginModalOpen}
                                         />

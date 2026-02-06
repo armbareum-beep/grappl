@@ -145,21 +145,32 @@ export function Watch() {
 
             const { fetchCreatorsByIds, transformLesson, transformSparringVideo, transformDrill, getDailyFreeDrill, getDailyFreeLesson, getDailyFreeSparring } = await import('../lib/api');
 
-            // Filter Drills: Must belong to at least one routine (joined via routine_drills)
+            // Filter Drills:
+            // Strategy: Fetch ALL drills with their routine pricing info.
+            // Filter logic:
+            // 1. If drill has NO routine (Orphan) -> SHOW (assume free/feed content)
+            // 2. If drill has ANY free routine -> SHOW
+            // 3. If drill has ONLY paid routines -> HIDE
             let drillQuery = supabase.from('drills')
-                .select('*, routine_drills!inner(id)')
+                .select(`
+                    *,
+                    routine_drills (
+                        routines (
+                            price
+                        )
+                    )
+                `)
                 .order('created_at', { ascending: false })
                 .limit(100);
 
-            // Filter Sparring: Must be explicitly published. 
-            // Removed price filter to show all sparring (including free ones)
+            // ... (Sparring and Lesson queries remain same)
+
             let sparringQuery = supabase.from('sparring_videos')
                 .select('*')
                 .eq('is_published', true)
                 .order('created_at', { ascending: false })
                 .limit(100);
 
-            // Filter Lessons: Fetch those belonging to a published course
             let lessonQuery = supabase.from('lessons')
                 .select('*, course:courses!inner(*)')
                 .eq('course.published', true)
@@ -181,7 +192,7 @@ export function Watch() {
                 // Fetch from all three types just in case
                 queries.push(
                     Promise.all([
-                        supabase.from('drills').select('*, routine_drills(id)').eq('id', targetId).maybeSingle(),
+                        supabase.from('drills').select('*, routine_drills(routines(price))').eq('id', targetId).maybeSingle(),
                         supabase.from('sparring_videos').select('*').eq('id', targetId).maybeSingle(),
                         supabase.from('lessons').select('*, course:courses(*)').eq('id', targetId).maybeSingle()
                     ])
@@ -192,14 +203,14 @@ export function Watch() {
 
             const [drillsRes, sparringRes, lessonsRes, targetRes] = await Promise.all(queries);
 
+            // ... (Daily free content logic remains same)
+
             // Get daily free content IDs
             const [dailyDrillRes, dailyLessonRes, dailySparringRes] = await Promise.all([
                 getDailyFreeDrill(),
                 getDailyFreeLesson(),
                 getDailyFreeSparring()
             ]);
-
-            // Daily free IDs logic
 
             setDailyFreeLessonId(dailyLessonRes.data?.id);
             setDailyFreeSparringId(dailySparringRes.data?.id);
@@ -208,10 +219,12 @@ export function Watch() {
             let allItems: MixedItem[] = [];
             const allCreatorIds: string[] = [];
 
+            // Correctly extract creator IDs from the new drill structure
             if (drillsRes.data) drillsRes.data.forEach((d: any) => d.creator_id && allCreatorIds.push(d.creator_id));
             if (lessonsRes.data) lessonsRes.data.forEach((l: any) => (l.course?.creator_id || l.creator_id) && allCreatorIds.push(l.course?.creator_id || l.creator_id));
             if (sparringRes.data) sparringRes.data.forEach((s: any) => s.creator_id && allCreatorIds.push(s.creator_id));
-            if (sparringRes.data) sparringRes.data.forEach((s: any) => s.creator_id && allCreatorIds.push(s.creator_id));
+
+            // ... (Add Daily/Target IDs logic remains same)
 
             // Add Daily Content Creator IDs
             if (dailyDrillRes.data && dailyDrillRes.data.creatorId) allCreatorIds.push(dailyDrillRes.data.creatorId);
@@ -228,9 +241,24 @@ export function Watch() {
 
             const creatorsMap = await fetchCreatorsByIds([...new Set(allCreatorIds)]);
 
-            // Transform
+            // Transform Drills with Smart Filtering
             if (drillsRes.data) {
-                allItems = [...allItems, ...drillsRes.data.map((d: any) => {
+                // Filter Logic
+                const visibleDrills = drillsRes.data.filter((drill: any) => {
+                    const routines = drill.routine_drills?.map((rd: any) => rd.routines).flat().filter(Boolean) || [];
+
+                    // 1. Orphan (No Routine) -> Show
+                    if (routines.length === 0) return true;
+
+                    // 2. Has any FREE routine -> Show
+                    const hasFreeRoutine = routines.some((r: any) => r.price === 0);
+                    if (hasFreeRoutine) return true;
+
+                    // 3. Only Paid Routines -> Hide
+                    return false;
+                });
+
+                allItems = [...allItems, ...visibleDrills.map((d: any) => {
                     const transformed = transformDrill(d);
                     const creator = creatorsMap[d.creator_id];
                     return {
@@ -238,7 +266,7 @@ export function Watch() {
                         data: {
                             ...transformed,
                             creatorName: creator?.name || 'Instructor',
-                            creatorProfileImage: creator?.avatarUrl || undefined,
+                            creatorProfileImage: creator?.profileImage || undefined,
                         }
                     };
                 })];
@@ -254,7 +282,7 @@ export function Watch() {
                         transformed.creator = {
                             id: s.creator_id,
                             name: creatorInfo.name || 'Unknown',
-                            profileImage: creatorInfo.avatarUrl || '',
+                            profileImage: creatorInfo.profileImage || '',
                             bio: '',
                             subscriberCount: 0
                         };
@@ -278,7 +306,7 @@ export function Watch() {
                             ...transformed,
                             creatorId,
                             creatorName: creator?.name || 'Instructor',
-                            creatorProfileImage: creator?.avatarUrl || undefined,
+                            creatorProfileImage: creator?.profileImage || undefined,
                             price: l.course?.price || 0,
                             isSubscriptionExcluded: l.course?.is_subscription_excluded || l.is_subscription_excluded || false
                         }
@@ -301,7 +329,7 @@ export function Watch() {
                         enrichedDailyItem.creator = {
                             id: dailyItem.creatorId,
                             name: creatorInfo.name || 'Unknown',
-                            profileImage: creatorInfo.avatarUrl || '',
+                            profileImage: creatorInfo.profileImage || '',
                             bio: '',
                             subscriberCount: 0
                         };
@@ -319,7 +347,7 @@ export function Watch() {
                         data: {
                             ...dailyItem,
                             creatorName: creator?.name || 'Instructor',
-                            creatorProfileImage: creator?.avatarUrl || undefined,
+                            creatorProfileImage: creator?.profileImage || undefined,
                         } as any
                     });
                 }
@@ -336,7 +364,7 @@ export function Watch() {
                             ...dailyItem,
                             creatorId,
                             creatorName: creator?.name || 'Instructor',
-                            creatorProfileImage: creator?.avatarUrl || undefined,
+                            creatorProfileImage: creator?.profileImage || undefined,
                             price: (dailyItem as any).course?.price || 0,
                             isSubscriptionExcluded: (dailyItem as any).course?.is_subscription_excluded || false
                         } as any
@@ -357,7 +385,7 @@ export function Watch() {
                             data: {
                                 ...transformed,
                                 creatorName: creator?.name || 'Instructor',
-                                creatorProfileImage: creator?.avatarUrl || undefined,
+                                creatorProfileImage: creator?.profileImage || undefined,
                             } as any
                         });
                     } else if (ts?.data) {
@@ -367,7 +395,7 @@ export function Watch() {
                             transformed.creator = {
                                 id: ts.data.creator_id,
                                 name: creatorInfo.name || 'Unknown',
-                                profileImage: creatorInfo.avatarUrl || '',
+                                profileImage: creatorInfo.profileImage || '',
                                 bio: '',
                                 subscriberCount: 0
                             };
@@ -383,7 +411,7 @@ export function Watch() {
                                 ...transformed,
                                 creatorId,
                                 creatorName: creator?.name || 'Instructor',
-                                creatorProfileImage: creator?.avatarUrl || undefined
+                                creatorProfileImage: creator?.profileImage || undefined
                             } as any
                         });
                     }
@@ -418,7 +446,7 @@ export function Watch() {
                     return isDailyFree || isPriceFree || isOwned;
                 }
 
-                // 3. 비로그인 회원: 오늘의 무료 또는 0원 영상 노출
+                // 3. 비로그인 회원: 오늘의 무료 또는 0원 영상 노출 (미리보기로 감상)
                 return isDailyFree || isPriceFree;
             });
 

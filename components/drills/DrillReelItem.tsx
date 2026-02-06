@@ -1,20 +1,15 @@
 
-import React, { useRef, useState, useEffect, useMemo } from 'react';
+import React, { useRef, useState, useEffect, useMemo, memo } from 'react';
 import { Drill } from '../../types';
-import { Heart, Bookmark, Share2, Zap, MessageCircle, ListVideo, Volume2, VolumeX, ChevronLeft, AlertCircle } from 'lucide-react';
+import { Zap, MessageCircle, ListVideo, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import Player from '@vimeo/player';
-import { useWakeLock } from '../../hooks/useWakeLock';
-import { ReelLoginModal } from '../auth/ReelLoginModal';
-
-// Lazy load ShareModal
-const ShareModal = React.lazy(() => import('../social/ShareModal'));
+// import { useWakeLock } from '../../hooks/useWakeLock';
+import { BaseReelItem } from '../reels/BaseReelItem';
 
 // --- Helper Functions ---
-import { extractVimeoId, recordDrillView } from '../../lib/api';
-import { useOrientationFullscreen } from '../../hooks/useOrientationFullscreen';
-
+import { extractVimeoId } from '../../lib/api';
 
 // --- Sub-Component: Single Video Player ---
 interface SingleVideoPlayerProps {
@@ -26,6 +21,7 @@ interface SingleVideoPlayerProps {
     isMuted: boolean;
     isPaused: boolean; // User-triggered pause state
     onReady: () => void;
+    onPlay?: () => void;
     onProgress: (percent: number, seconds?: number) => void;
     onError: (msg: string) => void;
     isPreviewMode?: boolean;
@@ -42,6 +38,7 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
     isMuted,
     isPaused,
     onReady,
+    onPlay,
     onProgress,
     onError,
     isPreviewMode = false,
@@ -53,130 +50,188 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
     const playerRef = useRef<Player | null>(null);
     const [_isPlaying, setIsPlaying] = useState(false);
     const [ready, setReady] = useState(false);
-    useWakeLock(isActive && isVisible && _isPlaying);
+    // Removed useWakeLock temporarily to rule out crash source
+    // useWakeLock(isActive && isVisible && _isPlaying);
 
     // Analyze URL
     const vimeoId = useMemo(() => extractVimeoId(url), [url]);
     const useVimeo = !!vimeoId;
 
     // --- Vimeo Lifecycle ---
+    // --- Vimeo Lifecycle ---
     useEffect(() => {
-        if (!shouldLoad || !useVimeo || !containerRef.current) {
-            // Cleanup if unloading or not vimeo
-            if (playerRef.current) {
-                const player = playerRef.current;
-                const currentContainer = containerRef.current;
-
-                // Priority 1: Destroy the Vimeo Player instance FIRST
-                try {
-                    player.unload().then(() => player?.destroy()).catch(() => {
-                        // Fallback destruction
-                        try { player?.destroy(); } catch (e) { }
-                    });
-                } catch (_e) { }
-
-                // Priority 2: Nuke the DOM to ensure no iframe remains
-                if (currentContainer) {
-                    const iframes = currentContainer.querySelectorAll('iframe');
-                    iframes.forEach(iframe => {
-                        try {
-                            iframe.src = 'about:blank';
-                            iframe.removeAttribute('src');
-                        } catch (e) { /* ignore */ }
-                    });
-                    currentContainer.innerHTML = '';
-                }
-
-                playerRef.current = null;
-                setReady(false);
+        // Early return if no valid URL or shouldn't load
+        if (!url || !shouldLoad) {
+            if (!url && shouldLoad) {
+                onReady(); // Still notify ready to unblock navigation
             }
             return;
         }
 
+        let isMounted = true;
+
         // Initialize Vimeo
         if (!playerRef.current) {
             const fullId = extractVimeoId(url);
-            if (!fullId) return;
+            console.log('[SingleVideoPlayer] Init ID:', fullId, 'for URL:', url);
 
+            if (!fullId) {
+                console.error('[SingleVideoPlayer] Failed to extract vimeo ID from:', url);
+                onError('비디오 ID 오류');
+                return;
+            }
+
+            // Common options for both SDK and Iframe
             const options: any = {
-                background: true,
-                autoplay: false,
+                autoplay: false, // We control playback manually via useEffect
                 loop: true,
                 muted: isMuted,
                 autopause: false,
                 controls: false,
-                playsinline: true
+                playsinline: true,
+                dnt: true
             };
 
             const [baseId, hash] = fullId.includes(':') ? fullId.split(':') : [fullId, null];
             let player: Player;
 
-            if (hash) {
-                // Manual iframe for private videos (avoid oEmbed auth issues)
-                const iframe = document.createElement('iframe');
-                const params = new URLSearchParams({
-                    h: hash,
-                    background: '1',
-                    autoplay: '0',
-                    loop: '1',
-                    muted: isMuted ? '1' : '0',
-                    autopause: '0',
-                    controls: '0',
-                    playsinline: '1',
-                    dnt: '1'
-                });
-                iframe.src = `https://player.vimeo.com/video/${baseId}?${params.toString()}`;
-                iframe.width = '100%';
-                iframe.height = '100%';
-                iframe.frameBorder = '0';
-                iframe.allow = 'autoplay; fullscreen; picture-in-picture';
+            try {
+                if (hash) {
+                    console.log('[SingleVideoPlayer] Creating manual iframe for Private Video. ID:', baseId, 'Hash:', hash);
+                    // Manual iframe for private videos (avoid oEmbed auth issues)
+                    const iframe = document.createElement('iframe');
+                    const params = new URLSearchParams({
+                        h: hash,
+                        autoplay: '0',
+                        loop: '1',
+                        muted: isMuted ? '1' : '0',
+                        autopause: '0',
+                        controls: '0',
+                        playsinline: '1',
+                        dnt: '1',
+                        background: '0' // Explicitly disable background mode
+                    });
+                    iframe.src = `https://player.vimeo.com/video/${baseId}?${params.toString()}`;
+                    iframe.width = '100%';
+                    iframe.height = '100%';
+                    iframe.frameBorder = '0';
+                    iframe.allow = 'autoplay; fullscreen; picture-in-picture';
 
-                containerRef.current!.innerHTML = '';
-                containerRef.current!.appendChild(iframe);
+                    if (containerRef.current) {
+                        containerRef.current.innerHTML = '';
+                        containerRef.current.appendChild(iframe);
+                    }
 
-                player = new Player(iframe);
-            } else {
-                options.id = Number(baseId);
-                player = new Player(containerRef.current!, options);
-            }
-            playerRef.current = player;
-
-            player.on('loaded', () => {
-                setReady(true);
-                onReady(); // Notify parent that this SPECIFIC player is ready
-                player.setVolume(isMuted ? 0 : 1);
-            });
-
-            player.on('timeupdate', (data) => {
-                onProgress(data.percent * 100, data.seconds);
-
-                // Preview limit check
-                if (isPreviewMode && maxPreviewDuration && data.seconds >= maxPreviewDuration) {
-                    player?.pause().catch(() => { });
-                    onPreviewLimitReached?.();
+                    player = new Player(iframe);
+                } else {
+                    options.id = Number(baseId);
+                    if (containerRef.current) {
+                        player = new Player(containerRef.current, options);
+                    } else {
+                        return;
+                    }
                 }
-            });
-            player.on('play', () => setIsPlaying(true));
-            player.on('pause', () => setIsPlaying(false));
-            player.on('error', (err) => {
-                console.error('[DrillPlayer] Vimeo Error Event:', err);
-                onError('재생 오류가 발생했습니다');
-            });
+                playerRef.current = player;
+
+                // Immediately notify parent to hide loading overlay
+                // Vimeo iframe will show its own loading state (black screen -> video)
+                console.log('[SingleVideoPlayer] Player created, notifying ready immediately');
+                onReady();
+
+                // Track actual ready state for playback control
+                player.ready().then(() => {
+                    if (!isMounted) return;
+                    console.log('[SingleVideoPlayer] Player .ready() resolved!', url);
+                    setReady(true); // Now we can control playback
+                    player.setVolume(isMuted ? 0 : 1).catch(() => { });
+                }).catch(e => {
+                    console.warn('[SingleVideoPlayer] .ready() failed', e);
+                    // Still allow playback attempts
+                    setReady(true);
+                });
+
+                player.on('loaded', () => {
+                    if (!isMounted) return;
+                    console.log('[SingleVideoPlayer] Player Loaded Event!', url);
+                    setReady(true);
+                    player.setVolume(isMuted ? 0 : 1).catch(() => { });
+                });
+
+                player.on('timeupdate', (data) => {
+                    if (!isMounted) return;
+                    const seconds = data.seconds;
+                    if (seconds > 0.1) {
+                        onPlay?.();
+                        // Force ready state if it wasn't set (backup for missed 'loaded' event)
+                        setReady(prev => {
+                            if (!prev) onReady();
+                            return true;
+                        });
+                    }
+
+                    if (isPreviewMode && maxPreviewDuration) {
+                        onProgress((seconds / maxPreviewDuration) * 100, seconds);
+                    } else {
+                        onProgress(data.percent * 100, seconds);
+                    }
+
+                    // Preview limit check
+                    if (isPreviewMode && maxPreviewDuration && seconds >= maxPreviewDuration) {
+                        player?.pause().catch(() => { });
+                        onPreviewLimitReached?.();
+                    }
+                });
+                player.on('play', () => {
+                    if (!isMounted) return;
+                    setIsPlaying(true);
+                    onPlay?.();
+                    // Force ready state if it wasn't set
+                    setReady(prev => {
+                        if (!prev) onReady();
+                        return true;
+                    });
+                });
+                player.on('pause', () => { if (isMounted) setIsPlaying(false); });
+                player.on('error', (err) => {
+                    console.error('[DrillPlayer] Vimeo Error Event:', err);
+                    onError('재생 오류가 발생했습니다');
+                    onReady();
+                });
+            } catch (initError) {
+                console.error('[DrillPlayer] Initialization failed:', initError);
+                onError('플레이어 초기화 실패');
+                onReady(); // prevent hang
+            }
         } else {
             // Player already exists, if it's already ready, re-trigger onReady 
-            // to ensure parent state (mainVideoReady/descVideoReady) is in sync
             if (ready) {
                 onReady();
             }
         }
-    }, [shouldLoad, useVimeo, url, ready, onReady]); // Added ready and onReady to deps to ensure sync
+
+        // CLEANUP FUNCTION
+        return () => {
+            isMounted = false;
+            const player = playerRef.current;
+            playerRef.current = null;
+
+            if (player) {
+                player.destroy().catch(() => { });
+            }
+
+            if (containerRef.current) {
+                containerRef.current.innerHTML = '';
+            }
+            setReady(false);
+        };
+    }, [shouldLoad, useVimeo, url]);
 
     // --- Playback Control ---
     useEffect(() => {
         const player = playerRef.current;
         const videoEl = videoRef.current;
 
-        // Play only if: Active Item AND Visible Type (Action/Desc) AND Ready AND Not Paused
+        // ONLY play active item to prevent device resource exhaustion and auto-pause conflicts
         const shouldPlay = isActive && isVisible && !isPaused;
 
         const syncPlayback = async () => {
@@ -187,12 +242,49 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
                     } else {
                         const isPlayerPaused = await player.getPaused();
                         if (isPlayerPaused) {
-                            await player.play();
+                            try {
+                                await player.play();
+                            } catch (playError: any) {
+                                console.warn('[DrillPlayer] First play attempt failed:', playError);
+                                // If autoplay blocked, try muting
+                                if (playError.name === 'NotAllowedError') {
+                                    console.log('[DrillPlayer] Autoplay blocked, trying muted...');
+                                    await player.setVolume(0);
+                                    await player.setMuted(true);
+                                    try {
+                                        await player.play();
+                                        console.log('[DrillPlayer] Muted autoplay success');
+                                    } catch (retryError) {
+                                        console.error('[DrillPlayer] Muted autoplay also failed:', retryError);
+                                        // CRITICAL: Even if playback fails, notify "Play" to remove spinner
+                                        // so the user sees the paused video player (and can tap it to play)
+                                        onPlay?.();
+                                    }
+                                } else {
+                                    // Other errors
+                                    console.error('[DrillPlayer] Play error:', playError);
+                                    // Still remove spinner
+                                    onPlay?.();
+                                }
+                            }
+                        } else {
+                            // Already playing - ensure parent knows
+                            onPlay?.();
                         }
                     }
                     await player.setVolume(isMuted ? 0 : 1);
+                    // CRITICAL: After unmuting, immediately call play() to prevent pause
+                    // Vimeo player may pause briefly when transitioning from muted to unmuted
+                    if (!isMuted && shouldPlay) {
+                        const stillPaused = await player.getPaused();
+                        if (stillPaused) {
+                            await player.play();
+                        }
+                    }
                 } catch (e) {
-                    // console.warn('[DrillPlayer] Playback sync error:', e);
+                    console.warn('[DrillPlayer] Playback sync generic error:', e);
+                    // If something renders wrong, try to clear spinner
+                    if (shouldPlay) onPlay?.();
                 }
             } else if (!useVimeo && videoEl) {
                 if (shouldPlay) {
@@ -232,7 +324,12 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
             muted={isMuted}
             src={videoSrc}
             poster={thumbnailUrl}
-            onTimeUpdate={(e) => onProgress((e.currentTarget.currentTime / e.currentTarget.duration) * 100)}
+            onTimeUpdate={(e) => {
+                const ct = e.currentTarget.currentTime;
+                if (ct > 0.1) onPlay?.();
+                onProgress((ct / e.currentTarget.duration) * 100);
+            }}
+            onPlay={() => onPlay?.()}
             onLoadedMetadata={() => { setReady(true); onReady(); }}
             onError={() => onError('비디오 로드 실패')}
         />
@@ -263,7 +360,7 @@ interface DrillReelItemProps {
     onVideoReady?: () => void;
 }
 
-export const DrillReelItem: React.FC<DrillReelItemProps> = ({
+export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
     drill,
     isActive,
     isMuted,
@@ -283,365 +380,333 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = ({
     isDailyFreeDrill = false,
     onVideoReady,
 }) => {
-    // Logic: 
-    // Main Video: Active(0) and Neighbors(+/-1) -> Load for fast feed scrolling.
-    // Description Video: Active(0) only -> Load while watching main video. 
-    // (Optimization: Don't load neighbor descriptions to save bandwidth for current video)
-    const shouldLoadMain = Math.abs(offset) <= 1;
-    const shouldLoadDesc = offset === 0;
-
-    // State
+    const { user } = useAuth();
     const [currentVideoType, setCurrentVideoType] = useState<'main' | 'description'>('main');
-    const [progress, setProgress] = useState(0);
-    const [loadError, setLoadError] = useState<string | null>(null);
     const [mainVideoReady, setMainVideoReady] = useState(false);
     const [descVideoReady, setDescVideoReady] = useState(false);
-    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-    const [isPaused, setIsPaused] = useState(false);
-    const [showLikeAnimation, setShowLikeAnimation] = useState(false);
-    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    // Track actual playback start to hide thumbnails seamlessly
+    const [mainVideoStarted, setMainVideoStarted] = useState(false);
+    const [descVideoStarted, setDescVideoStarted] = useState(false);
+    const [mainError, setMainError] = useState<string | null>(null);
+    const [descError, setDescError] = useState<string | null>(null);
+    const [retryCount, setRetryCount] = useState(0);
 
+    // User Interaction State for Play/Pause
+    const [userPaused, setUserPaused] = useState(false);
 
-    // Fullscreen on landscape
-    const containerRef = useRef<HTMLDivElement>(null);
-    useOrientationFullscreen(containerRef, isActive);
-
-    const isVideoReady = currentVideoType === 'main' ? mainVideoReady : descVideoReady;
-
-    const navigate = useNavigate();
-    const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-    // Reset error state and clear ready states when scrolling away or back
+    // Reset state when drill changes or inactive
     useEffect(() => {
         if (!isActive) {
-            // Optional: reset to main when scrolling away
-            if (Math.abs(offset) > 1) {
-                setCurrentVideoType('main');
-                setMainVideoReady(false);
-                setDescVideoReady(false);
-            }
-        } else {
-            // Reset error state when this item becomes active
-            setLoadError(null);
+            setCurrentVideoType('main');
+            setUserPaused(false);
         }
-    }, [isActive, offset]);
+    }, [isActive, drill.id]);
+
+    // Active item always loads. Neighbors only load if within range.
+    // Priority: Active first, then neighbors
+    const isActiveItem = offset === 0;
+    const isNeighbor = Math.abs(offset) === 1;
+
+    // Load main video: active always, neighbors after small delay via parent's readyItems
+    const shouldLoadMain = isActiveItem || isNeighbor;
+    const shouldLoadDesc = isActiveItem; // Description only for active item
+
+    // Current error for the selected video type
+    const currentError = currentVideoType === 'main' ? mainError : descError;
 
     // Access Control
-    const hasAccess = isDailyFreeDrill || (drill as any).price === 0 || (isLoggedIn && (isSubscriber || purchasedItemIds.includes(drill.id)));
+    const drillPrice = Number((drill as any).price || 0);
+    const hasAccess = isDailyFreeDrill || drillPrice === 0 || (isLoggedIn && (isSubscriber || purchasedItemIds.includes(drill.id)));
 
-    // Watch time tracking for history and preview
-    const { user } = useAuth();
-
-    // Record view for history as soon as it's active
+    // Record view history
     useEffect(() => {
         if (isActive && user && hasAccess) {
-            recordDrillView(drill.id, user.id);
+            import('../../lib/api').then(({ recordDrillView }) => {
+                recordDrillView(drill.id).catch(console.error);
+            });
         }
     }, [isActive, drill.id, user, hasAccess]);
 
-    // Strictly control access: if not permitted, show login modal
+    // Notify ready for swipe blocking
+    // Active: wait for playback start, Neighbor: ready when loaded
     useEffect(() => {
-        if (!hasAccess && isActive) {
-            setIsLoginModalOpen(true);
-        }
-    }, [isActive, hasAccess]);
+        const isReady = currentVideoType === 'main' ? mainVideoReady : descVideoReady;
+        const isStarted = currentVideoType === 'main' ? mainVideoStarted : descVideoStarted;
 
+        console.log('[DrillReelItem] Ready check - id:', drill.id, 'isActive:', isActive, 'isReady:', isReady, 'isStarted:', isStarted);
 
-    // Auto polling for processing status
+        if (!isReady) return;
 
-
-    // URLs
-    const actionUrl = drill.vimeoUrl || drill.videoUrl;
-    // Prepare description url
-    let finalDescUrl = drill.descriptionVideoUrl;
-    // If not absolute, assume vimeo ID or path?
-    // Actually our api returns signed urls or vimeo urls.
-
-    // --- Handlers ---
-    const handleVideoClick = (e: React.MouseEvent) => {
-        if (clickTimeoutRef.current) {
-            clearTimeout(clickTimeoutRef.current);
-            clickTimeoutRef.current = null;
-            handleDoubleTap(e);
-        } else {
-            clickTimeoutRef.current = setTimeout(() => {
-                clickTimeoutRef.current = null;
-                togglePlay();
-            }, 300);
-        }
-    };
-
-    const handleDoubleTap = (_e: React.MouseEvent) => {
-        // Like animation
-
-        setShowLikeAnimation(true);
-        setTimeout(() => setShowLikeAnimation(false), 1000);
-        if (!isLiked) onLike();
-    };
-
-    const togglePlay = () => {
-        setIsPaused(!isPaused);
-    };
-
-    // --- Touch/Swipe Logic ---
-    const [touchStart, setTouchStart] = useState<{ x: number, y: number } | null>(null);
-
-    // Swipe needs to be handled carefully. 
-    // We already have vertical swipe in parent. Here we want Horizontal swipe for Video Type.
-    const handleTouchStart = (e: React.TouchEvent) => {
-        setTouchStart({
-            x: e.targetTouches[0].clientX,
-            y: e.targetTouches[0].clientY
-        });
-    };
-
-    const handleTouchEnd = (e: React.TouchEvent) => {
-        if (!touchStart) return;
-
-        const touchEndX = e.changedTouches[0].clientX;
-        const touchEndY = e.changedTouches[0].clientY;
-
-        const xDistance = touchStart.x - touchEndX;
-        const yDistance = touchStart.y - touchEndY;
-
-        // Horizontal Swipes (check if horizontal movement is dominant)
-        if (Math.abs(xDistance) > Math.abs(yDistance) && Math.abs(xDistance) > 50) {
-            if (xDistance > 0) { // Swipe Left -> Show Description
-                if (currentVideoType === 'main') {
-                    setCurrentVideoType('description');
-                }
-            } else { // Swipe Right -> Show Main
-                if (currentVideoType === 'description') {
-                    setCurrentVideoType('main');
-                }
+        if (isActive) {
+            // Active: wait for playback
+            if (isStarted) {
+                console.log('[DrillReelItem] Active video started, notifying ready - id:', drill.id);
+                onVideoReady?.();
             }
+        } else {
+            // Neighbor: ready when loaded
+            console.log('[DrillReelItem] Neighbor video loaded, notifying ready - id:', drill.id);
+            onVideoReady?.();
         }
-        // Vertical swipes are handled by parent (propagation)
+    }, [currentVideoType, mainVideoReady, mainVideoStarted, descVideoReady, descVideoStarted, isActive, onVideoReady, drill.id]);
 
-        setTouchStart(null);
-    };
+    const actionUrl = drill.vimeoUrl || drill.videoUrl;
+    const finalDescUrl = drill.descriptionVideoUrl;
 
-
-    const isProcessing = !drill.vimeoUrl && (!drill.videoUrl || drill.videoUrl.includes('placeholder'));
-
-    // Notify parent when this item is ready to display
-    const onVideoReadyRef = useRef(onVideoReady);
-    onVideoReadyRef.current = onVideoReady;
+    // Debug: 설명 영상 URL 확인
     useEffect(() => {
-        if (!isProcessing && (loadError || mainVideoReady)) {
-            onVideoReadyRef.current?.();
+        if (isActive) {
+            console.log('[DrillReelItem] drill.id:', drill.id);
+            console.log('[DrillReelItem] drill.vimeoUrl:', drill.vimeoUrl);
+            console.log('[DrillReelItem] drill.videoUrl:', drill.videoUrl);
+            console.log('[DrillReelItem] Derived actionUrl:', actionUrl);
+            console.log('[DrillReelItem] finalDescUrl:', finalDescUrl);
+            console.log('[DrillReelItem] currentVideoType:', currentVideoType);
+            console.log('[DrillReelItem] shouldLoadMain:', shouldLoadMain, 'userPaused:', userPaused);
         }
-    }, [isProcessing, loadError, mainVideoReady]);
+    }, [isActive, drill, currentVideoType, finalDescUrl]);
 
-    if (isProcessing) {
-        return (
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-4 bg-slate-950" style={{ transform: `translateY(${offset * 100}%)` }}>
-                <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-6"></div>
-                <h2 className="text-xl font-bold text-white mb-2">영상 처리 중입니다...</h2>
-                <p className="text-slate-400 text-center max-w-xs mb-8">잠시만 기다려주세요.</p>
-            </div>
-        );
-    }
+    // Safety Timeout: Force show video after 2s even if not started (prevents stuck loading)
+    useEffect(() => {
+        if (!isActive) return;
+
+        const timeout = setTimeout(() => {
+            if (currentVideoType === 'main' && !mainVideoStarted && !mainError) {
+                console.log('[DrillReelItem] Safety timeout - forcing main start');
+                setMainVideoStarted(true);
+            }
+            if (currentVideoType === 'description' && !descVideoStarted && !descError) {
+                console.log('[DrillReelItem] Safety timeout - forcing desc start');
+                setDescVideoStarted(true);
+            }
+        }, 2000); // Reduced from 4s to 2s
+
+        return () => clearTimeout(timeout);
+    }, [isActive, currentVideoType, mainVideoStarted, descVideoStarted, mainError, descError]);
 
     return (
-        <div
-            ref={containerRef}
-            className="absolute inset-0 w-full h-full bg-black overflow-hidden select-none transition-transform duration-300 ease-out will-change-transform"
-            style={{ transform: `translateY(${offset * 100}%)`, zIndex: isActive ? 10 : 0 }}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-        >
-            {/* Video Layer */}
-            <div className="absolute inset-0 bg-black flex items-center justify-center">
-                <div className="relative w-full h-full max-w-[56.25vh] bg-black">
-                    {/* Action Player */}
-                    <SingleVideoPlayer
-                        url={actionUrl}
-                        thumbnailUrl={drill.thumbnailUrl}
-                        isActive={isActive}
-                        isVisible={currentVideoType === 'main'}
-                        shouldLoad={shouldLoadMain}
-                        isMuted={isMuted}
-                        isPaused={isPaused}
-                        onReady={() => setMainVideoReady(true)}
-                        onProgress={(p) => { if (currentVideoType === 'main') setProgress(p); }}
-                        onError={(e) => setLoadError(e)}
-                        isPreviewMode={!isLoggedIn && isDailyFreeDrill}
-                        maxPreviewDuration={60}
-                        onPreviewLimitReached={() => setIsLoginModalOpen(true)}
-                    />
-
-                    {/* Description Player */}
-                    <SingleVideoPlayer
-                        url={finalDescUrl}
-                        thumbnailUrl={drill.thumbnailUrl} // Or desc thumbnail?
-                        isActive={isActive}
-                        isVisible={currentVideoType === 'description'}
-                        shouldLoad={shouldLoadDesc} // Load only when active (or neighborhood if we wanted)
-                        isMuted={isMuted}
-                        isPaused={isPaused}
-                        onReady={() => setDescVideoReady(true)}
-                        onProgress={(p) => { if (currentVideoType === 'description') setProgress(p); }}
-                        onError={(e) => setLoadError(e)}
-                        isPreviewMode={!isLoggedIn && isDailyFreeDrill}
-                        maxPreviewDuration={60}
-                        onPreviewLimitReached={() => setIsLoginModalOpen(true)}
-                    />
-
-                    {/* Click Handler Overlay */}
-                    <div
-                        className="absolute inset-0 z-30 cursor-pointer"
-                        onClick={handleVideoClick}
-                    />
-
-                    {/* Like Animation */}
-                    {showLikeAnimation && (
-                        <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
-                            <Heart
-                                className="w-24 h-24 text-violet-500 fill-violet-500 animate-ping"
-                                style={{ animationDuration: '0.8s', animationIterationCount: '1' }}
-                            />
+        <BaseReelItem
+            id={drill.id}
+            type="drill"
+            title={drill.title}
+            videoUrl={actionUrl || ''}
+            thumbnailUrl={drill.thumbnailUrl}
+            creatorId={drill.creatorId}
+            creatorName={drill.creatorName}
+            creatorProfileImage={(drill as any).creatorProfileImage}
+            isActive={isActive}
+            offset={offset}
+            isLiked={isLiked}
+            likeCount={likeCount}
+            onLike={onLike}
+            isSaved={isSaved}
+            onSave={onSave}
+            isFollowed={isFollowed}
+            onFollow={onFollow}
+            isMuted={isMuted}
+            onToggleMute={onToggleMute}
+            hasAccess={hasAccess}
+            isLoggedIn={isLoggedIn}
+            redirectUrl={`/watch?tab=drill&id=${drill.id}`}
+            shareText={`${drill.creatorName || 'Instructor'}님의 드릴을 확인해보세요`}
+            aspectRatio="portrait"
+            maxPreviewDuration={30}
+            renderHeaderActions={() => (
+                <div className="flex flex-col gap-2 bg-black/30 backdrop-blur-sm p-1.5 rounded-full border border-white/10">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            console.log('[DrillReelItem] Setting video type to MAIN');
+                            setCurrentVideoType('main');
+                        }}
+                        className={`p-2 md:p-2.5 rounded-full transition-transform duration-200 ${currentVideoType === 'main' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10'}`}
+                    >
+                        <Zap className="w-5 h-5 md:w-5 md:h-5" fill={currentVideoType === 'main' ? "currentColor" : "none"} />
+                    </button>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            console.log('[DrillReelItem] Setting video type to DESCRIPTION');
+                            console.log('[DrillReelItem] finalDescUrl:', finalDescUrl);
+                            setCurrentVideoType('description');
+                        }}
+                        className={`p-2 md:p-2.5 rounded-full transition-transform duration-200 ${currentVideoType === 'description' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10'}`}
+                    >
+                        <MessageCircle className={`w-5 h-5 md:w-5 md:h-5 ${currentVideoType === 'description' ? 'fill-current' : 'fill-none'}`} />
+                    </button>
+                </div>
+            )}
+            renderExtraActions={() => (
+                <button
+                    onClick={(e) => { e.stopPropagation(); onViewRoutine(); }}
+                    className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 active:scale-90 shadow-2xl"
+                    title="루틴 보기"
+                >
+                    <ListVideo className="w-5 h-5 md:w-6 md:h-6" />
+                </button>
+            )}
+            renderFooterInfo={() => (
+                <>
+                    {currentVideoType === 'description' && <span className="text-sm font-normal text-white/70 ml-2">(설명 영상 재생 중)</span>}
+                    {drill.tags && drill.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                            {(drill.tags || []).slice(0, 3).map((tag, idx) => (
+                                <span key={idx} className="text-white/90 text-sm">#{tag}</span>
+                            ))}
                         </div>
                     )}
+                </>
+            )}
+            customVideoContent={(basePaused, reportProgress, onPreviewLimitReached) => (
+                <motion.div
+                    className="relative w-full h-full bg-black"
+                    drag="x"
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={0.2}
+                    onDragEnd={(_, info) => {
+                        const threshold = 50;
+                        console.log('[DrillReelItem] Drag offset:', info.offset.x);
+                        // Swap per user request: "Swipe Right (Drag > 0) -> Action (Main)"
+                        if (info.offset.x > threshold && currentVideoType === 'description') {
+                            console.log('[DrillReelItem] Swiping Right -> Switching to Main (Action)');
+                            setCurrentVideoType('main');
+                        } else if (info.offset.x < -threshold && currentVideoType === 'main' && finalDescUrl) {
+                            console.log('[DrillReelItem] Swiping Left -> Switching to Description');
+                            setCurrentVideoType('description');
+                        }
+                    }}
+                >
+                    <div className="relative w-full h-full bg-black">
+                        {/* Action Player */}
+                        <div className={`absolute inset-0 transition-opacity duration-300 ${currentVideoType === 'main' ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}>
+                            {shouldLoadMain && (
+                                <SingleVideoPlayer
+                                    key={`main-${drill.id}`}
+                                    url={actionUrl}
+                                    thumbnailUrl={drill.thumbnailUrl}
+                                    isActive={isActive}
+                                    isVisible={currentVideoType === 'main'}
+                                    shouldLoad={shouldLoadMain}
+                                    isMuted={!isActive || isMuted}  // Neighbors always muted for preload
+                                    isPaused={basePaused} // Use BaseReelItem's pause state
+                                    onReady={() => setMainVideoReady(true)}
+                                    onPlay={() => {
+                                        if (!mainVideoStarted) {
+                                            console.log('[DrillReelItem] Main Video Started Playing');
+                                            setMainVideoStarted(true);
+                                        }
+                                    }}
+                                    onProgress={(p) => reportProgress(p)}
+                                    onError={setMainError}
+                                    isPreviewMode={!isLoggedIn || !hasAccess}
+                                    maxPreviewDuration={30}
+                                    onPreviewLimitReached={onPreviewLimitReached}
+                                />
+                            )}
+                        </div>
 
-                    {/* Loading Overlay (only if current video not ready) */}
-                    {shouldLoadMain && !isVideoReady && !loadError && (
-                        <div className="absolute inset-0 z-20 pointer-events-none">
-                            <img src={drill.thumbnailUrl} className="w-full h-full object-cover" alt="" />
-                            {isActive && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[2px]">
-                                    <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        {/* Description Player */}
+                        <div className={`absolute inset-0 transition-opacity duration-300 ${currentVideoType === 'description' ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}>
+                            {shouldLoadDesc && finalDescUrl && (
+                                <SingleVideoPlayer
+                                    key={`desc-${drill.id}`}
+                                    url={finalDescUrl}
+                                    thumbnailUrl={drill.thumbnailUrl}
+                                    isActive={isActive}
+                                    isVisible={currentVideoType === 'description'}
+                                    shouldLoad={shouldLoadDesc}
+                                    isMuted={isMuted}
+                                    isPaused={basePaused}
+                                    onReady={() => setDescVideoReady(true)}
+                                    onPlay={() => {
+                                        if (!descVideoStarted) {
+                                            console.log('[DrillReelItem] Description Video Started Playing');
+                                            setDescVideoStarted(true);
+                                        }
+                                    }}
+                                    onProgress={(p) => reportProgress(p)}
+                                    onError={setDescError}
+                                    isPreviewMode={!isLoggedIn || !hasAccess}
+                                    maxPreviewDuration={30}
+                                    onPreviewLimitReached={onPreviewLimitReached}
+                                />
+                            )}
+
+                            {/* No description video message */}
+                            {shouldLoadDesc && !finalDescUrl && currentVideoType === 'description' && (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black text-zinc-400">
+                                    <MessageCircle className="w-12 h-12 mb-3 opacity-50" />
+                                    <p className="text-lg font-medium">설명 영상이 없습니다</p>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setCurrentVideoType('main');
+                                        }}
+                                        className="mt-4 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-full text-sm font-medium transition-colors"
+                                    >
+                                        액션 영상 보기
+                                    </button>
                                 </div>
                             )}
                         </div>
-                    )}
 
-                    {/* Error Overlay */}
-                    {loadError && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-400 z-30 bg-black">
-                            <AlertCircle className="w-10 h-10 mb-2 text-red-500" />
-                            <p>{loadError}</p>
-                        </div>
-                    )}
-
-                </div>
-            </div>
-
-            {/* Controls & UI Layer (Same as before) */}
-            {isActive && (
-                <div className="absolute inset-0 z-40 pointer-events-none flex justify-center">
-                    <div className="relative h-full w-full max-w-[56.25vh] flex">
-                        <div className="absolute left-0 top-0 bottom-0 flex flex-col items-center py-6 pl-4 pointer-events-auto">
-                            <button onClick={(e) => { e.stopPropagation(); navigate(-1); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-black/60 mb-4">
-                                <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
-                            </button>
-                            <div className="flex flex-col gap-2 bg-black/30 backdrop-blur-sm p-1.5 rounded-full border border-white/10">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); setCurrentVideoType('main'); }}
-                                    className={`p-2 md:p-2.5 rounded-full transition-all ${currentVideoType === 'main' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10'}`}
-                                >
-                                    <Zap className="w-5 h-5 md:w-5 md:h-5" fill={currentVideoType === 'main' ? "currentColor" : "none"} />
-                                </button>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setCurrentVideoType('description');
-                                    }}
-                                    className={`p-2 md:p-2.5 rounded-full transition-all ${currentVideoType === 'description' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10'}`}
-                                >
-                                    <MessageCircle className={`w-5 h-5 md:w-5 md:h-5 ${currentVideoType === 'description' ? 'fill-current' : 'fill-none'}`} />
-                                </button>
-                            </div>
+                        {/* Thumbnail Poster - Fades out when video actually starts playing */}
+                        <div
+                            className={`absolute inset-0 z-20 pointer-events-none transition-opacity duration-500 ${(currentVideoType === 'main' ? mainVideoStarted : descVideoStarted) ? 'opacity-0' : 'opacity-100'
+                                }`}
+                            style={{ display: (currentVideoType === 'main' ? mainVideoStarted : descVideoStarted) ? 'none' : 'block' }}
+                        >
+                            {drill.thumbnailUrl && (
+                                <img src={drill.thumbnailUrl} className="w-full h-full object-cover" alt="" />
+                            )}
                         </div>
 
-                        <div className="absolute top-6 right-4 z-[70] pointer-events-auto">
-                            <button onClick={(e) => { e.stopPropagation(); onToggleMute(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 shadow-2xl">
-                                {isMuted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
-                            </button>
-                        </div>
-
-                        <div className="absolute bottom-10 right-4 flex flex-col gap-5 z-[70] pointer-events-auto items-center">
-                            <div className="flex flex-col items-center gap-1">
-                                <button onClick={(e) => { e.stopPropagation(); onLike(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 active:scale-90 shadow-2xl">
-                                    <Heart className={`w-5 h-5 md:w-7 md:h-7 ${isLiked ? 'fill-violet-500 text-violet-500' : ''}`} />
-                                </button>
-                                <span className="text-[11px] md:text-sm font-bold text-white shadow-black drop-shadow-md">{likeCount}</span>
-                            </div>
-                            <button onClick={(e) => { e.stopPropagation(); onViewRoutine(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 active:scale-90 shadow-2xl">
-                                <ListVideo className="w-5 h-5 md:w-6 md:h-6" />
-                            </button>
-                            <button onClick={(e) => { e.stopPropagation(); onSave(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 active:scale-90 shadow-2xl">
-                                <Bookmark className={`w-5 h-5 md:w-6 md:h-6 ${isSaved ? 'fill-zinc-100' : ''}`} />
-                            </button>
-                            <button onClick={(e) => { e.stopPropagation(); setIsShareModalOpen(true); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 active:scale-90 shadow-2xl">
-                                <Share2 className="w-5 h-5 md:w-6 md:h-6" />
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Metadata Footer - Lowered on mobile */}
-            <div className="absolute left-0 right-0 w-full bottom-10 px-6 z-40 pointer-events-none">
-                <div className="flex items-end justify-between max-w-[56.25vh] mx-auto">
-                    <div className="flex-1 pr-20">
-                        <div className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider mb-2 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">DRILL</div>
-                        <div className="flex items-center gap-3 mb-3">
-                            <Link to={`/creator/${drill.creatorId}`} className="flex items-center gap-2 hover:opacity-80 pointer-events-auto">
-                                {(drill as any).creatorProfileImage && (
-                                    <img src={(drill as any).creatorProfileImage} alt="" className="w-8 h-8 rounded-full border border-white/20 object-cover" />
+                        {/* Error Overlay with Retry */}
+                        {currentError && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-400 z-30 bg-black">
+                                <AlertCircle className="w-10 h-10 mb-2 text-red-500" />
+                                <p>{currentError}</p>
+                                {retryCount < 3 && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setMainError(null);
+                                            setDescError(null);
+                                            setMainVideoReady(false);
+                                            setDescVideoReady(false);
+                                            setMainVideoStarted(false);
+                                            setDescVideoStarted(false);
+                                            setRetryCount(prev => prev + 1);
+                                        }}
+                                        className="mt-4 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-full text-sm font-medium transition-colors"
+                                    >
+                                        다시 시도 ({3 - retryCount}회 남음)
+                                    </button>
                                 )}
-                                <span className="text-white font-bold text-sm drop-shadow-sm">{drill.creatorName || 'Instructor'}</span>
-                            </Link>
-                            <span className="text-white/60 text-xs">•</span>
-                            <button onClick={(e) => { e.stopPropagation(); onFollow(); }} className={`px-4 py-1.5 rounded-full text-[11px] font-bold border transition-all active:scale-95 pointer-events-auto ${isFollowed ? 'bg-violet-600 text-white border-violet-600' : 'bg-transparent text-violet-400 border-violet-500 hover:bg-violet-600 hover:text-white'}`}>
-                                {isFollowed ? 'Following' : 'Follow'}
-                            </button>
-                        </div>
-                        <h3 className="font-black text-lg md:text-xl lg:text-3xl leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] line-clamp-2">
-                            {drill.title}
-                            {currentVideoType === 'description' && <span className="text-sm font-normal text-white/70 ml-2">(설명)</span>}
-                        </h3>
-                        {drill.tags && drill.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mb-3">
-                                {(drill.tags || []).slice(0, 3).map((tag, idx) => (
-                                    <span key={idx} className="text-white/90 text-sm">#{tag}</span>
-                                ))}
                             </div>
                         )}
                     </div>
-                </div>
-            </div>
-
-            {/* Progress Bar */}
-            <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all ${!hasAccess ? 'h-1.5 bg-violet-900/30' : 'h-1 bg-zinc-800/40'}`}>
-                <div
-                    className={`h-full transition-all ease-linear ${!hasAccess ? 'bg-white/40' : 'bg-violet-500 duration-100'}`}
-                    style={{ width: `${progress}%` }}
-                />
-            </div>
-
-            {/* Login Modal for non-logged-in users */}
-            <ReelLoginModal
-                isOpen={isLoginModalOpen}
-                onClose={() => setIsLoginModalOpen(false)}
-                redirectUrl={`/watch?tab=drill&id=${drill.id}`}
-            />
-
-            {/* Share Modal */}
-            <React.Suspense fallback={null}>
-                {isShareModalOpen && (
-                    <ShareModal
-                        isOpen={isShareModalOpen}
-                        onClose={() => setIsShareModalOpen(false)}
-                        title={drill.title}
-                        text={`${drill.creatorName || 'Instructor'}님의 드릴을 확인해보세요`}
-                        imageUrl={drill.thumbnailUrl}
-                        url={`${window.location.origin}/watch?tab=drill&id=${drill.id}`}
-                    />
-                )}
-            </React.Suspense>
-
-        </div>
+                </motion.div>
+            )}
+        />
     );
-};
+}, (prevProps, nextProps) => {
+    // Only re-render if these critical props change
+    return (
+        prevProps.drill.id === nextProps.drill.id &&
+        // Add URL checks to ensure updates (e.g. from polling) trigger re-render
+        prevProps.drill.videoUrl === nextProps.drill.videoUrl &&
+        prevProps.drill.vimeoUrl === nextProps.drill.vimeoUrl &&
+        prevProps.drill.descriptionVideoUrl === nextProps.drill.descriptionVideoUrl &&
+        prevProps.drill.thumbnailUrl === nextProps.drill.thumbnailUrl &&
+        prevProps.isActive === nextProps.isActive &&
+        prevProps.offset === nextProps.offset &&
+        prevProps.isMuted === nextProps.isMuted &&
+        prevProps.isLiked === nextProps.isLiked &&
+        prevProps.isSaved === nextProps.isSaved &&
+        prevProps.isFollowed === nextProps.isFollowed &&
+        prevProps.likeCount === nextProps.likeCount &&
+        prevProps.isDailyFreeDrill === nextProps.isDailyFreeDrill &&
+        prevProps.isSubscriber === nextProps.isSubscriber
+    );
+});

@@ -7,10 +7,11 @@ import {
     checkCourseOwnership,
     recordWatchTime,
     updateLastWatched,
-    incrementLessonViews,
-    getLessonProgress
+    recordLessonView,
+    getLessonProgress,
+    toggleLessonLike,
+    checkLessonLiked
 } from '../lib/api';
-import { toggleLessonLike, checkLessonLiked } from '../lib/api-lessons';
 import { updateMasteryFromWatch } from '../lib/api-technique-mastery';
 import { Heart, ArrowLeft, Calendar, Eye, Clock, BookOpen, Share2, ExternalLink, Lock } from 'lucide-react';
 import { Lesson, Course } from '../types';
@@ -121,19 +122,23 @@ export const LessonDetail: React.FC = () => {
             setOwns(false);
 
             try {
-                const lessonData = await getLesson(id);
+                const { data: lessonData, error: lessonError } = await getLesson(id);
+                if (lessonError) throw lessonError;
                 setLesson(lessonData);
 
                 if (lessonData) {
                     // Check like status
                     if (user) {
-                        checkLessonLiked(user.id, lessonData.id).then(({ liked }) => setIsLiked(liked));
+                        checkLessonLiked(user.id, lessonData.id).then((liked) => setIsLiked(liked));
                     }
 
                     let courseData = null;
                     if (lessonData.courseId) {
-                        courseData = await getCourse(lessonData.courseId);
-                        setCourse(courseData);
+                        const cData = await getCourse(lessonData.courseId);
+                        if (cData) {
+                            courseData = cData;
+                            setCourse(courseData);
+                        }
                     }
 
                     const isCreator = user && courseData && courseData.creatorId === user.id;
@@ -176,7 +181,7 @@ export const LessonDetail: React.FC = () => {
                     }
 
                     // 1. Check if first lesson of its course OR course is free (Free Preview/Access)
-                    if (!hasAccess && (courseData && courseData.price === 0)) {
+                    if (!hasAccess && (courseData && Number(courseData.price || 0) === 0)) {
                         hasAccess = true;
                     }
 
@@ -209,7 +214,7 @@ export const LessonDetail: React.FC = () => {
         if (!lesson || !owns || !id) return;
 
         const timer = setTimeout(() => {
-            incrementLessonViews(id).catch(console.error);
+            recordLessonView(id).catch(console.error);
         }, 5000); // 5 seconds
 
         return () => clearTimeout(timer);

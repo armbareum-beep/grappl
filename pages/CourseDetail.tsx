@@ -106,13 +106,13 @@ export const CourseDetail: React.FC = () => {
             setError(null);
 
             try {
-                const [courseData, lessonsData] = await Promise.all([
+                const [courseData, lessonsResponse] = await Promise.all([
                     getCourseById(id),
                     getLessonsByCourse(id),
                 ]);
 
                 setCourse(courseData);
-                setLessons(lessonsData);
+                setLessons(lessonsResponse.data || []);
 
                 // Fetch bundled drills
                 try {
@@ -170,8 +170,8 @@ export const CourseDetail: React.FC = () => {
                                 owns = courseVimeoIds.some(vid => directIds.includes(vid));
                             }
 
-                            if (!owns && lessonsData?.length > 0) {
-                                for (const lesson of lessonsData) {
+                            if (!owns && lessonsResponse.data && lessonsResponse.data.length > 0) {
+                                for (const lesson of lessonsResponse.data) {
                                     const lessonVimeoIds = [lesson.vimeoUrl, (lesson as any).vimeo_url, lesson.videoUrl]
                                         .filter(Boolean).map(v => String(v).trim().toLowerCase());
                                     if (lessonVimeoIds.some(vid => directIds.includes(vid))) {
@@ -186,9 +186,11 @@ export const CourseDetail: React.FC = () => {
 
                         // Progress and Interactions
                         const completed = new Set<string>();
-                        for (const lesson of lessonsData) {
-                            const prog = await getLessonProgress(user.id, lesson.id);
-                            if (prog?.completed) completed.add(lesson.id);
+                        if (lessonsResponse.data) {
+                            for (const lesson of lessonsResponse.data) {
+                                const prog = await getLessonProgress(user.id, lesson.id);
+                                if (prog?.completed) completed.add(lesson.id);
+                            }
                         }
                         setCompletedLessons(completed);
                         checkCourseLiked(user.id, id).then(setIsLiked);
@@ -253,8 +255,9 @@ export const CourseDetail: React.FC = () => {
         }
 
         if (!course) return;
+        const coursePrice = Number(course.price || 0);
 
-        if (course.price === 0) {
+        if (coursePrice === 0) {
             setPurchasing(true);
             try {
                 // Free course enrollment
@@ -333,7 +336,7 @@ export const CourseDetail: React.FC = () => {
             }
         }
 
-        if (course?.price === 0) return true;
+        if (Number(course?.price || 0) === 0) return true;
 
         if (lesson.id === dailyFreeLessonId) {
             return true; // Allow guests so they can see the 30s preview
@@ -463,11 +466,11 @@ export const CourseDetail: React.FC = () => {
         );
     }
 
-    const isFree = course.price === 0;
+    const isFree = Number(course.price || 0) === 0;
     const formattedPrice = isFree ? '무료' : new Intl.NumberFormat('ko-KR', {
         style: 'currency',
         currency: 'KRW',
-    }).format(course.price);
+    }).format(Number(course.price || 0));
 
     const totalDuration = lessons.reduce((total, lesson) => {
         if (!lesson.length) return total;
@@ -508,17 +511,11 @@ export const CourseDetail: React.FC = () => {
         setIsLiked(newStatus);
         setLikeCount(prev => newStatus ? prev + 1 : prev - 1);
 
-        const { liked, error } = await toggleCourseLike(user.id, id);
-        if (error) {
-            console.error('Like failed:', error);
-            setIsLiked(!newStatus); // Revert
-            setLikeCount(prev => newStatus ? prev - 1 : prev + 1);
-        } else {
-            setIsLiked(liked);
-            // Fetch actual count to ensure accuracy
-            const count = await getCourseLikeCount(id);
-            setLikeCount(count);
-        }
+        const { liked } = await toggleCourseLike(user.id, id);
+
+        setIsLiked(liked);
+        const count = await getCourseLikeCount(id);
+        setLikeCount(count);
     };
 
     const handleFollow = async (e: React.MouseEvent) => {
@@ -558,18 +555,14 @@ export const CourseDetail: React.FC = () => {
         const newStatus = !isSaved;
         setIsSaved(newStatus);
 
-        const { saved, error } = await toggleCourseSave(user.id, id);
-        if (error) {
-            console.error('Save failed:', error);
-            setIsSaved(!newStatus);
-            toastError('저장 중 오류가 발생했습니다.');
+        const { saved } = await toggleCourseSave(user.id, id);
+
+        if (saved) {
+            success('보관함에 저장되었습니다.');
         } else {
-            if (saved) {
-                success('보관함에 저장되었습니다.');
-            } else {
-                success('보관함에서 삭제되었습니다.');
-            }
+            success('보관함에서 삭제되었습니다.');
         }
+        setIsSaved(saved);
     };
 
     const renderVideoPlayer = () => {
