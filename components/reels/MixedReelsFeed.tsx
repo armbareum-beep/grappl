@@ -350,6 +350,7 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                             dailyFreeId={dailyFreeSparringId}
                             isSubscriber={userPermissions.isSubscriber}
                             purchasedItemIds={userPermissions.purchasedItemIds}
+                            isLoggedIn={isLoggedIn}
                             isMuted={!isActive || isMuted}
                             onToggleMute={toggleMute}
                             onVideoReady={() => markReady(index)}

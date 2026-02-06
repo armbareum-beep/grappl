@@ -4,6 +4,32 @@ import { Lesson, Difficulty, VideoCategory } from '../types';
 
 // ==================== Lessons ====================
 
+export function transformLesson(data: any): Lesson {
+    return {
+        id: data.id,
+        courseId: data.course_id,
+        creatorId: data.creator_id,
+        title: data.title,
+        description: data.description,
+        category: data.category,
+        lessonNumber: data.lesson_number,
+        vimeoUrl: data.vimeo_url,
+        videoUrl: data.video_url,
+        thumbnailUrl: data.thumbnail_url || data.course?.thumbnail_url,
+        courseTitle: data.course?.title,
+        length: data.length,
+        durationMinutes: data.duration_minutes || data.duration || 0,
+        views: data.views || 0,
+        difficulty: data.difficulty,
+        createdAt: data.created_at,
+        isSubscriptionExcluded: data.is_subscription_excluded ?? data.course?.is_subscription_excluded ?? false,
+        isPreview: data.is_preview,
+        uniformType: data.uniform_type,
+        price: data.price ?? data.course?.price ?? 0,
+        likes: data.likes || 0,
+    };
+}
+
 export async function createLesson(lessonData: {
     courseId?: string | null;
     creatorId?: string;
@@ -11,13 +37,28 @@ export async function createLesson(lessonData: {
     description: string;
     category?: VideoCategory;
     lessonNumber: number;
-    vimeoUrl: string;
+    vimeoUrl?: string; // Optional for early creation
     length: string | number;
     difficulty: Difficulty;
     durationMinutes?: number;
     thumbnailUrl?: string;
     uniformType?: string;
 }) {
+    let finalThumbnailUrl = lessonData.thumbnailUrl;
+
+    // Auto-fetch thumbnail if missing
+    if (!finalThumbnailUrl && lessonData.vimeoUrl) {
+        try {
+            const { getVimeoVideoInfo } = await import('./vimeo');
+            const videoInfo = await getVimeoVideoInfo(lessonData.vimeoUrl);
+            if (videoInfo?.thumbnail) {
+                finalThumbnailUrl = videoInfo.thumbnail;
+            }
+        } catch (err) {
+            console.warn('Failed to auto-fetch lesson thumbnail:', err);
+        }
+    }
+
     const { data, error } = await supabase
         .from('lessons')
         .insert([{
@@ -28,10 +69,10 @@ export async function createLesson(lessonData: {
             category: lessonData.category || null,
             lesson_number: lessonData.lessonNumber,
             vimeo_url: lessonData.vimeoUrl || null,
-            length: String(lessonData.length),
+            length: lessonData.length ? String(lessonData.length) : null,
             difficulty: lessonData.difficulty,
             duration_minutes: lessonData.durationMinutes,
-            thumbnail_url: lessonData.thumbnailUrl,
+            thumbnail_url: finalThumbnailUrl,
             uniform_type: lessonData.uniformType,
         }])
 
@@ -42,21 +83,23 @@ export async function createLesson(lessonData: {
 }
 
 export async function updateLesson(id: string, updates: Partial<Lesson>) {
+    const dbData: any = {};
+    if (updates.title) dbData.title = updates.title;
+    if (updates.description) dbData.description = updates.description;
+    if (updates.courseId !== undefined) dbData.course_id = updates.courseId;
+    if (updates.creatorId) dbData.creator_id = updates.creatorId;
+    if (updates.lessonNumber !== undefined) dbData.lesson_number = updates.lessonNumber;
+    if (updates.vimeoUrl) dbData.vimeo_url = updates.vimeoUrl;
+    if (updates.difficulty) dbData.difficulty = updates.difficulty;
+    if (updates.uniformType) dbData.uniform_type = updates.uniformType;
+    if (updates.durationMinutes !== undefined) dbData.duration_minutes = updates.durationMinutes;
+    if (updates.length) dbData.length = String(updates.length);
+    if (updates.thumbnailUrl) dbData.thumbnail_url = updates.thumbnailUrl;
+    if (updates.category) dbData.category = updates.category;
+
     const { data, error } = await supabase
         .from('lessons')
-        .update({
-            course_id: updates.courseId,
-            title: updates.title,
-            description: updates.description,
-            category: updates.category,
-            lesson_number: updates.lessonNumber,
-            vimeo_url: updates.vimeoUrl,
-            length: updates.length,
-            difficulty: updates.difficulty,
-            duration_minutes: updates.durationMinutes,
-            thumbnail_url: updates.thumbnailUrl,
-            uniform_type: updates.uniformType,
-        })
+        .update(dbData)
         .eq('id', id)
         .select()
         .single();
@@ -73,12 +116,47 @@ export async function deleteLesson(id: string) {
     return { error };
 }
 
-export async function getLesson(id: string) {
+export async function getLessonById(id: string) {
+    const { data, error } = await supabase
+        .from('lessons')
+        .select('*, creators(name, profile_image)')
+        .eq('id', id)
+        .single();
+
+    return { data, error };
+}
+
+export async function getLessons(limit: number = 200) {
+    const { data, error } = await supabase
+        .from('lessons')
+        .select('*, course:courses(title, thumbnail_url, is_subscription_excluded, price)')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+    if (error) {
+        console.error('Error fetching lessons:', error);
+        return [];
+    }
+
+    return (data || []).map(transformLesson);
+}
+
+export async function getCreatorLessons(creatorId: string) {
     const { data, error } = await supabase
         .from('lessons')
         .select('*')
-        .eq('id', id)
-        .single();
+        .eq('creator_id', creatorId)
+        .order('created_at', { ascending: false });
+
+    return { data, error };
+}
+
+export async function getAllCreatorLessons(creatorId: string) {
+    const { data, error } = await supabase
+        .from('lessons')
+        .select('*')
+        .eq('creator_id', creatorId)
+        .order('created_at', { ascending: false });
 
     return { data, error };
 }
@@ -91,6 +169,29 @@ export async function getLessonsByCourse(courseId: string) {
         .order('lesson_number');
 
     return { data, error };
+}
+
+export async function reorderLessons(lessonOrders: { id: string, lessonNumber: number }[]) {
+    const updates = lessonOrders.map(({ id, lessonNumber }) =>
+        supabase
+            .from('lessons')
+            .update({ lesson_number: lessonNumber })
+            .eq('id', id)
+    );
+
+    const results = await Promise.all(updates);
+    const firstError = results.find(r => r.error)?.error;
+
+    return { error: firstError };
+}
+
+export async function removeLessonFromCourse(lessonId: string) {
+    const { error } = await supabase
+        .from('lessons')
+        .update({ course_id: null })
+        .eq('id', lessonId);
+
+    return { error };
 }
 
 export async function getStandaloneLessons(creatorId?: string) {
@@ -109,47 +210,4 @@ export async function getStandaloneLessons(creatorId?: string) {
     return { data, error };
 }
 
-export async function toggleLessonLike(userId: string, lessonId: string) {
-    // Check if already liked
-    const { data: existing } = await supabase
-        .from('user_interactions')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('content_type', 'lesson')
-        .eq('content_id', lessonId)
-        .eq('interaction_type', 'like')
-        .single();
 
-    if (existing) {
-        // Unlike
-        const { error } = await supabase
-            .from('user_interactions')
-            .delete()
-            .eq('id', existing.id);
-        return { liked: false, error };
-    } else {
-        // Like
-        const { error } = await supabase
-            .from('user_interactions')
-            .insert([{
-                user_id: userId,
-                content_type: 'lesson',
-                content_id: lessonId,
-                interaction_type: 'like'
-            }]);
-        return { liked: true, error };
-    }
-}
-
-export async function checkLessonLiked(userId: string, lessonId: string) {
-    const { data, error } = await supabase
-        .from('user_interactions')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('content_type', 'lesson')
-        .eq('content_id', lessonId)
-        .eq('interaction_type', 'like')
-        .single();
-
-    return { liked: !!data, error };
-}

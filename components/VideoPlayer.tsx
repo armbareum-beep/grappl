@@ -29,6 +29,7 @@ interface VideoPlayerProps {
     onDuration?: (duration: number) => void;
     onAspectRatioChange?: (ratio: number) => void;
     onAutoplayBlocked?: () => void;
+    hideInternalOverlay?: boolean;
 }
 
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -50,7 +51,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     onReady,
     muted = false, // Default to false
     onAspectRatioChange,
-    onAutoplayBlocked
+    onAutoplayBlocked,
+    hideInternalOverlay = false
 }) => {
     const [isPlaying, setIsPlaying] = useState(false);
     useWakeLock(isPlaying);
@@ -137,8 +139,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
             // If we extracted a valid numeric ID, prefer using id (+h) over url
             // For private videos (with hash), we MUST use manual iframe to avoid OEmbed authentication issues
-            // Actually, for consistency and reliability on localhost, let's use manual iframe for BOTH hash and non-hash numeric IDs.
-            if (numericId > 0) {
+            // UPDATE: For public videos (no hash), we revert to SDK for better stability on iOS/iPhone
+            if (numericId > 0 && hash) {
                 const iframe = document.createElement('iframe');
                 const params = new URLSearchParams();
                 if (hash) params.append('h', hash);
@@ -177,9 +179,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
                 // Initialize player with the iframe
                 player = new Player(iframe);
-                console.log('[VideoPlayer] Strategy: Manual Iframe (Numeric ID)');
+                console.log('[VideoPlayer] Strategy: Manual Iframe (Private Video)');
             }
             else {
+                // If we have a numeric ID but no hash (Public Video), pass it to options
+                // This ensures SDK handles it safely without us manually creating iframes
+                if (numericId > 0) {
+                    options.id = numericId;
+                }
+
                 // Check if it's a direct video URL (mp4, m3u8, etc)
                 const isDirectVideo = vimeoIdStr.match(/\.(mp4|m3u8|webm|ogv)(\?.*)?$/i) || vimeoIdStr.includes('storage.googleapis.com') || vimeoIdStr.includes('supabase.co/storage');
 
@@ -190,7 +198,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     return;
                 }
 
-                // Fallback to URL
+                // Fallback to URL or ID via options
                 player = new Player(containerRef.current, options);
             }
 
@@ -198,6 +206,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
             playerRef.current = player;
             const currentPlayer = player; // Capture for closure safety
+            let hasNotifiedReady = false;
+
+            const notifyReady = () => {
+                if (!hasNotifiedReady) {
+                    hasNotifiedReady = true;
+                    console.log('[VideoPlayer] Notifying ready (playback started)');
+                    onReadyRef.current?.();
+                }
+            };
 
             if (currentPlayer) {
                 currentPlayer.on('error', (data) => {
@@ -211,20 +228,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
                     console.error('Vimeo Player Error:', data);
                     setPlayerError(data);
+
+                    // Still notify ready so swipe navigation isn't blocked
+                    notifyReady();
                 });
 
                 currentPlayer.on('play', () => {
-                    // Strict enforcement: if we shouldn't be playing, pause immediately
-                    // DISABLED: This causes issues when user manually plays but parent prop hasn't updated yet.
-                    // Trust the user's interaction if they clicked play on the control bar.
-                    /*
-                    if (!playingRef.current) {
-                        console.log('[VideoPlayer] Play event detected but playing prop is false -> Forcing pause');
-                        currentPlayer.pause().catch(() => { });
-                        return;
-                    }
-                    */
                     setIsPlaying(true);
+                    // Notify ready when video actually starts playing
+                    notifyReady();
                 });
                 currentPlayer.on('pause', () => setIsPlaying(false));
                 currentPlayer.on('bufferstart', () => setIsPlaying(false));
@@ -262,13 +274,25 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
                 player.on('timeupdate', (data) => {
                     const seconds = data.seconds;
+                    const max = maxPreviewDurationRef.current;
+                    const isPreview = isPreviewModeRef.current;
+
+                    // Notify ready when we have actual playback progress
+                    if (seconds > 0.1) {
+                        notifyReady();
+                    }
+
+                    let reportPercent = data.percent;
+                    if (isPreview && max) {
+                        reportPercent = Math.min(1, seconds / max);
+                    }
+
                     if (onProgressRef.current) {
-                        onProgressRef.current(seconds, data.duration, data.percent);
+                        onProgressRef.current(seconds, data.duration, reportPercent);
                     }
                     checkTimeLimit(seconds);
 
-                    const max = maxPreviewDurationRef.current;
-                    if (isPreviewModeRef.current && max) {
+                    if (isPreview && max) {
                         const remaining = max - seconds;
                         if (containerRef.current) {
                             setTimeRemaining(Math.max(0, Math.ceil(remaining)));
@@ -277,6 +301,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 });
 
                 currentPlayer.on('loaded', () => {
+                    console.log('[VideoPlayer] Loaded event fired, playing:', playingRef.current);
                     if (startTime && startTime > 0) {
                         currentPlayer.setCurrentTime(startTime).catch(err =>
                             console.warn('Failed to set initial time:', err)
@@ -295,7 +320,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                         })
                         .catch(err => console.warn('[VideoPlayer] Failed to get dimensions:', err));
 
-                    onReadyRef.current?.();
+                    // For non-playing videos (neighbors), notify ready on load
+                    // For active videos, wait for actual playback start
+                    if (!playingRef.current) {
+                        console.log('[VideoPlayer] Not playing (neighbor), notifying ready on load');
+                        notifyReady();
+                    }
                 });
             }
 
@@ -317,31 +347,31 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
         return () => {
             // CRITICAL: Nullify playerRef IMMEDIATELY to prevent race conditions
-            // where React creates a new player before async cleanup completes
             const playerToDestroy = player;
             if (player === playerRef.current) {
                 playerRef.current = null;
             }
 
-            // Priority 1: Destroy the Vimeo Player instance FIRST to stop audio/playback logic
+            // Priority 1: SYNCHRONOUS destroy - avoid async unload() to prevent race conditions
+            // The async unload().then(destroy) pattern causes delays where new players init before old ones cleanup
             if (playerToDestroy) {
                 try {
-                    playerToDestroy.unload().then(() => playerToDestroy?.destroy()).catch(() => {
-                        // Fallback destruction
-                        try { playerToDestroy?.destroy(); } catch (e) { }
-                    });
-                } catch (_e) { }
+                    // Direct destroy without waiting for unload - faster and prevents race condition
+                    playerToDestroy.destroy();
+                } catch (_e) {
+                    // Player might already be destroyed, ignore
+                }
             }
 
-            // Priority 2: Nuke the DOM to ensure no iframe remains
+            // Priority 2: Immediate DOM cleanup
             if (currentContainer) {
-                // Force stop any iframe src
                 const iframes = currentContainer.querySelectorAll('iframe');
                 iframes.forEach(iframe => {
                     try {
+                        // Stop any pending network requests
                         iframe.src = 'about:blank';
-                        iframe.removeAttribute('src');
-                    } catch (e) { /* ignore */ }
+                        iframe.remove();
+                    } catch (_e) { /* ignore */ }
                 });
                 currentContainer.innerHTML = '';
             }
@@ -384,17 +414,27 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         syncPlayback();
     }, [playing, muted]); // Add muted to dependency to retry if props change matches logic
 
-    // Sync muted state
+    // Sync muted state - and resume playback immediately after unmuting
     useEffect(() => {
         if (!playerRef.current) return;
 
-        playerRef.current.getMuted().then(currentMuted => {
-            if (currentMuted !== muted && playerRef.current) {
-                playerRef.current.setMuted(muted).catch(err => {
-                    console.warn('[VideoPlayer] Failed to set muted state:', err);
-                });
+        const syncMuted = async () => {
+            try {
+                const currentMuted = await playerRef.current?.getMuted();
+                if (currentMuted !== muted && playerRef.current) {
+                    await playerRef.current.setMuted(muted);
+                    // CRITICAL: After unmuting, immediately call play() to prevent pause
+                    // Vimeo player sometimes pauses briefly when transitioning from muted to unmuted
+                    if (!muted && playingRef.current) {
+                        await playerRef.current.play();
+                    }
+                }
+            } catch (err) {
+                console.warn('[VideoPlayer] Failed to sync muted state:', err);
             }
-        });
+        };
+
+        syncMuted();
     }, [muted]);
 
 
@@ -498,7 +538,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             )}
 
             {/* 프리뷰 타이머 (재생 중 표시) */}
-            {isPreviewMode && !showUpgradeOverlay && timeRemaining !== null && timeRemaining > 0 && (
+            {isPreviewMode && !showUpgradeOverlay && timeRemaining !== null && timeRemaining > 0 && showControls && (
                 <div className="absolute top-4 right-4 z-20 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-md border border-violet-500/30">
                     <span className="text-xs font-bold text-violet-300">
                         프리뷰: {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')} 남음
@@ -517,7 +557,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             )}
 
             {/* 업그레이드 오버레이 (프리뷰 종료 시 표시) */}
-            {showUpgradeOverlay && (
+            {showUpgradeOverlay && !hideInternalOverlay && (
                 <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/90 backdrop-blur-md">
                     <div className="max-w-md mx-4 text-center">
                         <div className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-3 md:mb-6 rounded-full bg-violet-600/20 flex items-center justify-center border border-violet-500/30">

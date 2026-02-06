@@ -42,3 +42,8 @@ public/version.json
 *.log
 backend/*.log
 nul
+
+# Backups and temp
+_OLD_BACKUP/
+tmpclaude-*
+.claude/

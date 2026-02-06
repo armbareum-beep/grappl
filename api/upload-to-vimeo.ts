@@ -182,14 +182,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             const currentThumbnail = currentRecord?.thumbnail_url;
 
-            // Only use vumbnail if current one is missing or is already a vumbnail/placeholder
-            const isDefaultThumbnail = !currentThumbnail ||
-                currentThumbnail.includes('vumbnail.com') ||
-                currentThumbnail.includes('placehold.co');
+            const isPlaceholder = (url?: string) =>
+                !url ||
+                url.includes('vumbnail.com') ||
+                url.includes('placehold.co') ||
+                url.includes('Processing...');
 
-            const finalThumbnailUrl = (thumbnailUrl || !isDefaultThumbnail)
-                ? (thumbnailUrl || currentThumbnail)
-                : `https://vumbnail.com/${vimeoId}.jpg`; // vumbnail is already high-res by default
+            const isDefaultThumbnail = isPlaceholder(currentThumbnail);
+            const isProvidedThumbnailPlaceholder = isPlaceholder(thumbnailUrl);
+
+            console.log('[Vercel] Thumbnail Decision:', {
+                provided: thumbnailUrl,
+                current: currentThumbnail,
+                isProvidedPlaceholder: isProvidedThumbnailPlaceholder,
+                isCurrentDefault: isDefaultThumbnail
+            });
+
+            // CRITICAL: If we have a GOOD current thumbnail (captured), 
+            // and the provided one is a placeholder or missing, KEEP the current one.
+            const finalThumbnailUrl = (thumbnailUrl && !isProvidedThumbnailPlaceholder)
+                ? thumbnailUrl
+                : (!isDefaultThumbnail ? currentThumbnail : `https://vumbnail.com/${vimeoId}.jpg`);
+
+            console.log('[Vercel] Final Thumbnail:', finalThumbnailUrl);
 
             const updateData: any = {};
 

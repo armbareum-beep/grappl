@@ -245,13 +245,16 @@ export function Watch() {
             if (drillsRes.data) {
                 // Filter Logic
                 const visibleDrills = drillsRes.data.filter((drill: any) => {
+                    // Always show daily free drill
+                    if (dailyDrillRes.data && drill.id === dailyDrillRes.data.id) return true;
+
                     const routines = drill.routine_drills?.map((rd: any) => rd.routines).flat().filter(Boolean) || [];
 
                     // 1. Orphan (No Routine) -> Show
                     if (routines.length === 0) return true;
 
                     // 2. Has any FREE routine -> Show
-                    const hasFreeRoutine = routines.some((r: any) => r.price === 0);
+                    const hasFreeRoutine = routines.some((r: any) => Number(r.price || 0) === 0);
                     if (hasFreeRoutine) return true;
 
                     // 3. Only Paid Routines -> Hide
@@ -273,7 +276,11 @@ export function Watch() {
             }
 
             if (sparringRes.data) {
-                allItems = [...allItems, ...sparringRes.data.map((s: any) => {
+                const visibleSparring = sparringRes.data.filter((s: any) => {
+                    const price = Number(s.price || 0);
+                    return price === 0 || s.id === dailySparringRes.data?.id;
+                });
+                allItems = [...allItems, ...visibleSparring.map((s: any) => {
                     const transformed = transformSparringVideo(s);
                     const creatorInfo = creatorsMap[s.creator_id];
 
@@ -296,26 +303,29 @@ export function Watch() {
             }
 
             if (lessonsRes.data) {
-                allItems = [...allItems, ...lessonsRes.data.map((l: any) => {
+                const visibleLessons = lessonsRes.data.filter((l: any) => {
+                    const price = Number(l.price ?? l.course?.price ?? 0);
+                    return price === 0 || l.id === dailyLessonRes.data?.id;
+                });
+                allItems = [...allItems, ...visibleLessons.map((l: any) => {
                     const transformed = transformLesson(l);
                     const creatorId = l.course?.creator_id || l.creator_id;
                     const creator = creatorsMap[creatorId];
+                    if (creator) {
+                        transformed.creatorName = creator.name;
+                        transformed.creatorProfileImage = creator.profileImage;
+                    }
                     return {
                         type: 'lesson' as const,
                         data: {
                             ...transformed,
                             creatorId,
-                            creatorName: creator?.name || 'Instructor',
-                            creatorProfileImage: creator?.profileImage || undefined,
-                            price: l.course?.price || 0,
+                            price: Number(l.course?.price || 0),
                             isSubscriptionExcluded: l.course?.is_subscription_excluded || l.is_subscription_excluded || false
                         }
                     };
                 })];
             }
-
-
-
 
             // Ensure Daily Free items are included
             // This is critical for Guest users who can ONLY see these videos

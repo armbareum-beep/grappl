@@ -599,7 +599,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
                                     onProgress={(p) => reportProgress(p)}
                                     onError={setMainError}
                                     isPreviewMode={!isLoggedIn || !hasAccess}
-                                    maxPreviewDuration={30}
+                                    maxPreviewDuration={60}
                                     onPreviewLimitReached={onPreviewLimitReached}
                                 />
                             )}
@@ -627,7 +627,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
                                     onProgress={(p) => reportProgress(p)}
                                     onError={setDescError}
                                     isPreviewMode={!isLoggedIn || !hasAccess}
-                                    maxPreviewDuration={30}
+                                    maxPreviewDuration={60}
                                     onPreviewLimitReached={onPreviewLimitReached}
                                 />
                             )}

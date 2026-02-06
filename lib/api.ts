@@ -1,4 +1,6 @@
 import { createNotification as createNotify } from './api-notifications';
+export * from './api-user-interactions';
+export * from './api-lessons';
 import { supabase } from './supabase';
 
 import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, SparringReview, Testimonial, SparringVideo, CompletedRoutineRecord, SiteSettings } from '../types';
@@ -83,145 +85,6 @@ export function parseVimeoId(vimeoIdStr?: string | null): VimeoInfo | null {
     return { id, hash, fullId };
 }
 
-// Lesson Interactions
-
-// Lesson Interactions
-export async function toggleLessonLike(userId: string, lessonId: string): Promise<{ liked: boolean }> {
-    const { data: existing, error: fetchError } = await supabase
-        .from('user_interactions')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('content_type', 'lesson')
-        .eq('content_id', lessonId)
-        .eq('interaction_type', 'like')
-        .maybeSingle();
-
-    if (fetchError) throw fetchError;
-
-    if (existing) {
-        const { error } = await supabase
-            .from('user_interactions')
-            .delete()
-            .eq('id', existing.id);
-        if (error) throw error;
-        return { liked: false };
-    } else {
-        const { error } = await supabase
-            .from('user_interactions')
-            .insert({
-                user_id: userId,
-                content_type: 'lesson',
-                content_id: lessonId,
-                interaction_type: 'like'
-            });
-        if (error) throw error;
-        return { liked: true };
-    }
-}
-
-export async function checkLessonLiked(userId: string, lessonId: string): Promise<{ liked: boolean }> {
-    const { data } = await supabase
-        .from('user_interactions')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('content_type', 'lesson')
-        .eq('content_id', lessonId)
-        .eq('interaction_type', 'like')
-        .maybeSingle();
-    return { liked: !!data };
-}
-
-export async function toggleLessonSave(userId: string, lessonId: string): Promise<{ saved: boolean }> {
-    try {
-        const { data: existing, error: fetchError } = await supabase
-            .from('user_interactions')
-            .select('id')
-            .eq('user_id', userId)
-            .eq('content_type', 'lesson')
-            .eq('content_id', lessonId)
-            .eq('interaction_type', 'save')
-            .maybeSingle();
-
-        if (fetchError) throw fetchError;
-
-        if (existing) {
-            const { error } = await supabase
-                .from('user_interactions')
-                .delete()
-                .eq('id', existing.id);
-            if (error) throw error;
-            return { saved: false };
-        } else {
-            const { error } = await supabase
-                .from('user_interactions')
-                .insert({
-                    user_id: userId,
-                    content_type: 'lesson',
-                    content_id: lessonId,
-                    interaction_type: 'save'
-                });
-            if (error) throw error;
-            return { saved: true };
-        }
-    } catch (error) {
-        throw error;
-    }
-}
-
-export async function getLessonInteractionStatus(userId: string, lessonId: string, creatorId: string) {
-    const [likeData, followData, saveData] = await Promise.all([
-        supabase.from('user_interactions').select('id').eq('user_id', userId).eq('content_type', 'lesson').eq('content_id', lessonId).eq('interaction_type', 'like').maybeSingle(),
-        supabase.from('creator_follows').select('id').eq('follower_id', userId).eq('creator_id', creatorId).maybeSingle(),
-        supabase.from('user_interactions').select('id').eq('user_id', userId).eq('content_type', 'lesson').eq('content_id', lessonId).eq('interaction_type', 'save').maybeSingle()
-    ]);
-
-    return {
-        liked: !!likeData.data,
-        followed: !!followData.data,
-        saved: !!saveData.data
-    };
-}
-
-export async function checkLessonSaved(userId: string, lessonId: string): Promise<boolean> {
-    const { data } = await supabase
-        .from('user_interactions')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('content_type', 'lesson')
-        .eq('content_id', lessonId)
-        .eq('interaction_type', 'save')
-        .maybeSingle();
-    return !!data;
-}
-
-export async function getUserSavedLessons(userId: string): Promise<Lesson[]> {
-    const { data, error } = await withTimeout(
-        supabase
-            .from('user_interactions')
-            .select('content_id')
-            .eq('user_id', userId)
-            .eq('content_type', 'lesson')
-            .eq('interaction_type', 'save'),
-        10000
-    ) as any;
-
-    if (error || !data || data.length === 0) return [];
-
-    const lessonIds = data.map((item: any) => item.content_id);
-    const lessons: Lesson[] = [];
-
-    for (const lessonId of lessonIds) {
-        const { data: lessonData } = await supabase.from('lessons').select('*, course:courses(title, thumbnail_url)').eq('id', lessonId).maybeSingle();
-        if (lessonData) lessons.push(transformLesson(lessonData));
-    }
-
-    return lessons;
-}
-
-
-
-
-
 function transformCreator(data: any): Creator {
     return {
         id: data.id,
@@ -276,30 +139,8 @@ function transformCourse(data: any): Course {
     };
 }
 
-export function transformLesson(data: any): Lesson {
-    return {
-        id: data.id,
-        courseId: data.course_id,
-        creatorId: data.creator_id,
-        title: data.title,
-        description: data.description,
-        category: data.category,
-        lessonNumber: data.lesson_number,
-        vimeoUrl: data.vimeo_url,
-        videoUrl: data.video_url,
-        thumbnailUrl: data.thumbnail_url || data.course?.thumbnail_url,
-        courseTitle: data.course?.title,
-        length: data.length,
-        durationMinutes: data.duration_minutes || data.duration || 0,
-        views: data.views || 0,
-        difficulty: data.difficulty,
-        createdAt: data.created_at,
-        isSubscriptionExcluded: data.is_subscription_excluded ?? data.course?.is_subscription_excluded ?? false,
-        isPreview: data.is_preview,
-        uniformType: data.uniform_type,
-        price: data.price ?? data.course?.price ?? 0,
-    };
-}
+
+// Logic for transformLesson moved to api-lessons.ts
 
 
 
@@ -395,6 +236,32 @@ export async function getCreatorById(id: string): Promise<Creator | null> {
         return null;
     }
 }
+
+export async function fetchCreatorsByIds(creatorIds: string[]): Promise<Record<string, Creator>> {
+    if (!creatorIds || creatorIds.length === 0) return {};
+    try {
+        const uniqueIds = Array.from(new Set(creatorIds));
+        const { data, error } = await supabase
+            .from('creators')
+            .select('*')
+            .in('id', uniqueIds);
+
+        if (error) {
+            console.error('Error fetching creators by IDs:', error);
+            return {};
+        }
+
+        const map: Record<string, Creator> = {};
+        (data || []).forEach((c: any) => {
+            map[c.id] = transformCreator(c);
+        });
+        return map;
+    } catch (e) {
+        console.error('fetchCreatorsByIds exception:', e);
+        return {};
+    }
+}
+
 
 
 // Courses API
@@ -728,154 +595,7 @@ export async function getCoursesByCreator(creatorId: string): Promise<Course[]> 
 }
 
 // Lessons API
-export async function getLessonsByCourse(courseId: string): Promise<Lesson[]> {
-    const { data, error } = await withTimeout(
-        supabase
-            .from('lessons')
-            .select('*')
-            .eq('course_id', courseId)
-            .order('lesson_number', { ascending: true }), 10000);
-
-    if (error) {
-        console.error('Error fetching lessons:', error);
-        throw error;
-    }
-
-    return (data || []).map(transformLesson);
-}
-
-export async function getLessons(limit: number = 200): Promise<(Lesson & { course?: { title: string; creatorName?: string } })[]> {
-    const { data, error } = await supabase
-        .from('lessons')
-        .select('*')
-        .order('lesson_number', { ascending: true })
-        .limit(limit);
-
-    if (error) {
-        console.error('Error fetching all lessons:', error);
-        return [];
-    }
-
-    // Transform lessons and fetch course titles
-    const lessons = (data || []).map(transformLesson);
-
-    // Get unique course IDs
-    const courseIds = [...new Set(lessons.map(l => l.courseId).filter(Boolean))];
-
-    if (courseIds.length === 0) {
-        return lessons.map(l => ({ ...l, course: undefined }));
-    }
-
-    // Fetch course titles & creator names
-    const { data: courses } = await supabase
-        .from('courses')
-        .select('id, title, thumbnail_url, creator:creators(name)')
-        .in('id', courseIds);
-
-    const courseMap = new Map((courses || []).map((c: any) => [c.id, {
-        title: c.title,
-        creatorName: c.creator?.name,
-        thumbnailUrl: c.thumbnail_url
-    }]));
-
-    return lessons.map(lesson => {
-        const courseInfo = lesson.courseId ? courseMap.get(lesson.courseId) : undefined;
-        return {
-            ...lesson,
-            thumbnailUrl: lesson.thumbnailUrl || courseInfo?.thumbnailUrl,
-            course: courseInfo ? {
-                title: courseInfo.title,
-                creatorName: courseInfo.creatorName
-            } : undefined
-        };
-    });
-}
-
-export async function getAllCreatorLessons(creatorId: string): Promise<Lesson[]> {
-    // Get all courses by this creator first
-    const { data: courses } = await supabase
-        .from('courses')
-        .select('id')
-        .eq('creator_id', creatorId);
-
-    const courseIds = courses?.map(c => c.id) || [];
-
-    const queries = [];
-
-    // 1. Get lessons from creator's courses
-    if (courseIds.length > 0) {
-        queries.push(
-            supabase
-                .from('lessons')
-                .select('*')
-                .in('course_id', courseIds)
-        );
-    }
-
-    // 2. Get standalone lessons owned by this creator
-    queries.push(
-        supabase
-            .from('lessons')
-            .select('*')
-            .eq('creator_id', creatorId)
-            .is('course_id', null)
-    );
-
-    const results = await Promise.all(queries);
-    const allLessons = results.flatMap(r => r.data || []);
-
-    // Remove duplicates and sort by created_at
-    // We deduplicate by ID first, then by vimeoUrl to handle existing duplicates in DB
-    const deduplicatedByUrl = new Map<string, any>();
-
-    // Sort so that lessons with course_id come first, then newer ones
-    const sortedAll = [...allLessons].sort((a, b) => {
-        if (a.course_id && !b.course_id) return -1;
-        if (!a.course_id && b.course_id) return 1;
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-
-    sortedAll.forEach(lesson => {
-        // Use ID as primary key, but if vimeo_url exists, use it as a secondary de-dupe key
-        const key = lesson.id;
-        const vimeoKey = lesson.vimeo_url ? `vimeo-${lesson.vimeo_url}` : null;
-
-        if (!deduplicatedByUrl.has(key)) {
-            if (!vimeoKey || !Array.from(deduplicatedByUrl.values()).some(l => l.vimeo_url === lesson.vimeo_url)) {
-                deduplicatedByUrl.set(key, lesson);
-            }
-        }
-    });
-
-    const uniqueLessons = Array.from(deduplicatedByUrl.values())
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-
-    return uniqueLessons.map(transformLesson);
-}
-
-
-export async function getLessonById(id: string): Promise<Lesson | null> {
-    const { data, error } = await supabase
-        .rpc('get_lesson_secure_v2', { p_lesson_id: id }); // Trying get_lesson_secure_v2 as a potential alternative
-
-    if (error) {
-        if (error.code === 'PGRST202' || error.message.includes('not found')) {
-            // Likely RPC missing, fallback to direct fetch
-            console.log('[API] secure RPC missing or failed, trying direct fetch for lesson:', id);
-        } else {
-            console.error('Error fetching secure lesson:', error);
-        }
-
-        const { data: directData } = await supabase.from('lessons').select('*').eq('id', id).maybeSingle();
-        return directData ? transformLesson(directData) : null;
-    }
-
-    const lesson = data?.[0] || data;
-    if (!lesson) return null;
-
-    return transformLesson(lesson);
-}
+// End of Lessons API section - functions exported from ./api-lessons.ts above
 
 // Videos API (keep for backward compatibility)
 export async function getVideos(): Promise<Video[]> {
@@ -1038,280 +758,13 @@ export async function incrementSparringViews(videoId: string): Promise<void> {
     }
 }
 
-// Record Sparring View History
-export async function recordSparringView(userId: string, videoId: string) {
-    // 1. Increment global view count
-    await incrementSparringViews(videoId);
-
-    // 2. Track user history
-    const { error } = await supabase
-        .from('user_sparring_views')
-        .upsert({
-            user_id: userId,
-            video_id: videoId,
-            last_watched_at: new Date().toISOString(),
-        }, {
-            onConflict: 'user_id, video_id'
-        });
-
-    if (error) {
-        // Ignore if table doesn't exist yet (for dev)
-        if (error.code !== '42P01') {
-            console.error('Error recording sparring view:', error);
-        }
-    }
-}
-
-// Increment Lesson Views
-export async function incrementLessonViews(lessonId: string): Promise<void> {
-    const { error } = await supabase.rpc('increment_lesson_views', {
-        lesson_id: lessonId,
-    });
-
-    if (error) {
-        console.error('Error incrementing lesson views:', error);
-    }
-}
-
-
-// Record Routine View History
-export async function recordRoutineView(userId: string, routineId: string) {
-    // 1. Increment global view count
-    await incrementRoutineViews(routineId);
-
-    // 2. Track user history
-    const { error } = await supabase
-        .from('user_routine_views')
-        .upsert({
-            user_id: userId,
-            routine_id: routineId,
-            last_watched_at: new Date().toISOString(),
-        }, {
-            onConflict: 'user_id, routine_id'
-        });
-
-    if (error) {
-        if (error.code !== '42P01') {
-            console.error('Error recording routine view:', error);
-        }
-    }
-}
-
-// Record Drill View History
-export async function recordDrillView(userId: string, drillId: string) {
-    if (drillId.startsWith('mock-')) return;
-
-    // 1. Increment global view count
-    await incrementDrillViews(drillId);
-
-    // 2. Track user history
-    const { error } = await supabase
-        .from('user_drill_views')
-        .upsert({
-            user_id: userId,
-            drill_id: drillId,
-            last_watched_at: new Date().toISOString(),
-        }, {
-            onConflict: 'user_id, drill_id'
-        });
-
-    if (error) {
-        if (error.code !== '42P01') {
-            console.error('Error recording drill view:', error);
-        }
-    }
-}
-
-
-// Sparring Interactions
-export async function toggleCreatorFollow(userId: string, creatorId: string): Promise<{ followed: boolean }> {
-    // Check if already followed
-    const { data, error: fetchError } = await supabase
-        .from('creator_follows')
-        .select('id')
-        .eq('follower_id', userId)
-        .eq('creator_id', creatorId)
-        .maybeSingle();
-
-    if (fetchError) throw fetchError;
-
-    if (data) {
-        // Unfollow
-        const { error } = await supabase
-            .from('creator_follows')
-            .delete()
-            .eq('id', data.id);
-        if (error) throw error;
-        return { followed: false };
-    } else {
-        // Follow
-        const { error } = await supabase
-            .from('creator_follows')
-            .insert({ follower_id: userId, creator_id: creatorId });
-        if (error) throw error;
-        return { followed: true };
-    }
-}
-
-export async function checkCreatorFollowStatus(userId: string, creatorId: string): Promise<boolean> {
-    const { data } = await supabase
-        .from('creator_follows')
-        .select('id')
-        .eq('follower_id', userId)
-        .eq('creator_id', creatorId)
-        .maybeSingle();
-    return !!data;
-}
-
-export async function getUserFollowedCreators(userId: string): Promise<string[]> {
-    const { data, error } = await supabase
-        .from('creator_follows')
-        .select('creator_id')
-        .eq('follower_id', userId);
-
-    if (error) {
-        console.error('Error fetching followed creators:', error);
-        return [];
-    }
-
-
-    return (data || []).map((d: any) => d.creator_id);
-}
 
 
 
-export async function toggleSparringLike(userId: string, videoId: string): Promise<{ liked: boolean }> {
-    // Check if already liked
-    const { data, error: fetchError } = await supabase
-        .from('user_sparring_likes')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('video_id', videoId)
-        .maybeSingle();
 
-    if (fetchError) throw fetchError;
 
-    if (data) {
-        // Unlike
-        const { error } = await supabase
-            .from('user_sparring_likes')
-            .delete()
-            .eq('id', data.id);
-        if (error) throw error;
-        return { liked: false };
-    } else {
-        // Like
-        const { error } = await supabase
-            .from('user_sparring_likes')
-            .insert({ user_id: userId, video_id: videoId });
-        if (error) throw error;
-        return { liked: true };
-    }
-}
 
-export async function checkSparringLiked(userId: string, videoId: string): Promise<{ liked: boolean }> {
-    const { data } = await supabase
-        .from('user_sparring_likes')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('video_id', videoId)
-        .maybeSingle();
-    return { liked: !!data };
-}
 
-export async function getSparringInteractionStatus(userId: string, videoId: string, creatorId: string) {
-    const [likeData, followData, saveData] = await Promise.all([
-        supabase.from('user_sparring_likes').select('id').eq('user_id', userId).eq('video_id', videoId).maybeSingle(),
-        supabase.from('creator_follows').select('id').eq('follower_id', userId).eq('creator_id', creatorId).maybeSingle(),
-        supabase.from('user_saved_sparring').select('id').eq('user_id', userId).eq('video_id', videoId).maybeSingle()
-    ]);
-
-    return {
-        liked: !!likeData.data,
-        followed: !!followData.data,
-        saved: !!saveData.data
-    };
-}
-
-export async function toggleSparringSave(userId: string, videoId: string) {
-    // Check if already saved
-    const { data, error: fetchError } = await supabase
-        .from('user_saved_sparring')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('video_id', videoId)
-        .maybeSingle();
-
-    if (fetchError) throw fetchError;
-
-    if (data) {
-        // Unsave
-        const { error } = await supabase
-            .from('user_saved_sparring')
-            .delete()
-            .eq('id', data.id);
-        if (error) throw error;
-        return { saved: false };
-    } else {
-        // Save
-        const { error } = await supabase
-            .from('user_saved_sparring')
-            .insert({ user_id: userId, video_id: videoId });
-        if (error) throw error;
-        return { saved: true };
-    }
-}
-
-export async function checkSparringSaved(userId: string, videoId: string): Promise<boolean> {
-    const { data } = await supabase
-        .from('user_saved_sparring')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('video_id', videoId)
-        .maybeSingle();
-    return !!data;
-}
-
-export async function getSavedSparringVideos(userId: string): Promise<SparringVideo[]> {
-    // 1. Fetch saved video IDs
-    const { data: savedItems, error: savedError } = await withTimeout(
-        supabase
-            .from('user_saved_sparring')
-            .select('video_id')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false }),
-        10000
-    ) as any;
-
-    if (savedError || !savedItems || savedItems.length === 0) return [];
-
-    const videoIds = savedItems.map((item: any) => item.video_id).filter(Boolean);
-
-    // 2. Fetch full video details
-    const { data: videos, error: videosError } = await supabase
-        .from('sparring_videos')
-        .select('*')
-        .in('id', videoIds)
-        .eq('is_published', true);
-
-    if (videosError || !videos) return [];
-
-    // 3. Extract creator IDs and fetch creator info
-    const creatorIds = Array.from(new Set(videos.map((v: any) => v.creator_id).filter(Boolean)));
-    const userMap = await fetchCreatorsByIds(creatorIds as string[]);
-
-    // 4. Transform and maintain order
-    return videoIds.map((id: string) => {
-        const video = videos.find((v: any) => v.id === id);
-        if (!video) return null;
-
-        const creator = userMap[video.creator_id];
-        return transformSparringVideo({
-            ...video,
-            creator: creator
-        });
-    }).filter(Boolean) as SparringVideo[];
-}
 
 export async function getPurchasedSparringVideos(userId: string): Promise<SparringVideo[]> {
     try {
@@ -1848,108 +1301,6 @@ export async function updateCourse(courseId: string, courseData: Partial<Course>
     return { data: transformCourse(data), error: null };
 }
 
-export async function createLesson(lessonData: Partial<Lesson>) {
-    let finalThumbnailUrl = lessonData.thumbnailUrl;
-
-    // Auto-fetch thumbnail if missing
-    if (!finalThumbnailUrl && lessonData.vimeoUrl) {
-        try {
-            const videoInfo = await getVimeoVideoInfo(lessonData.vimeoUrl);
-            if (videoInfo?.thumbnail) {
-                finalThumbnailUrl = videoInfo.thumbnail;
-            }
-        } catch (err) {
-            console.warn('Failed to auto-fetch lesson thumbnail:', err);
-        }
-    }
-
-    const dbData = {
-        course_id: lessonData.courseId,
-        creator_id: lessonData.creatorId, // Make sure creator_id is passed
-        title: lessonData.title,
-        description: lessonData.description,
-        lesson_number: lessonData.lessonNumber,
-        vimeo_url: lessonData.vimeoUrl,
-        thumbnail_url: finalThumbnailUrl,
-        length: lessonData.length,
-        duration_minutes: lessonData.durationMinutes,
-        difficulty: lessonData.difficulty,
-        uniform_type: lessonData.uniformType,
-    };
-
-    // Auto-fetch length/duration if missing but vimeoUrl exists
-    if (lessonData.vimeoUrl && (!dbData.length || !dbData.duration_minutes)) {
-        try {
-            const videoInfo = await getVimeoVideoInfo(lessonData.vimeoUrl);
-            if (videoInfo) {
-                if (!dbData.length) dbData.length = formatDuration(videoInfo.duration);
-                if (!dbData.duration_minutes) dbData.duration_minutes = Math.floor(videoInfo.duration / 60);
-                if (!dbData.thumbnail_url) dbData.thumbnail_url = videoInfo.thumbnail;
-            }
-        } catch (err) {
-            console.warn('Failed to auto-fetch Vimeo info for lesson:', err);
-        }
-    }
-
-    const { data, error } = await withTimeout(
-        supabase
-            .from('lessons')
-            .insert(dbData)
-            .select()
-            .single(),
-        30000
-    );
-
-    if (error) {
-        console.error('Error creating lesson:', error);
-        return { error };
-    }
-    return { data: transformLesson(data), error: null };
-}
-
-export async function updateLesson(lessonId: string, lessonData: Partial<Lesson>) {
-    const dbData: any = {};
-    if (lessonData.title) dbData.title = lessonData.title;
-    if (lessonData.description) dbData.description = lessonData.description;
-    if (lessonData.courseId !== undefined) dbData.course_id = lessonData.courseId;
-    if (lessonData.creatorId) dbData.creator_id = lessonData.creatorId;
-    if (lessonData.lessonNumber !== undefined) dbData.lesson_number = lessonData.lessonNumber;
-    if (lessonData.vimeoUrl) dbData.vimeo_url = lessonData.vimeoUrl;
-    if (lessonData.difficulty) dbData.difficulty = lessonData.difficulty;
-    if (lessonData.uniformType) dbData.uniform_type = lessonData.uniformType;
-    if (lessonData.durationMinutes !== undefined) dbData.duration_minutes = lessonData.durationMinutes;
-    if (lessonData.length) dbData.length = lessonData.length;
-    if (lessonData.thumbnailUrl) dbData.thumbnail_url = lessonData.thumbnailUrl;
-    if (lessonData.category) dbData.category = lessonData.category;
-
-    // If vimeoUrl changed, always try to update metadata (thumbnail, duration)
-    if (lessonData.vimeoUrl) {
-        try {
-            const videoInfo = await getVimeoVideoInfo(lessonData.vimeoUrl);
-            if (videoInfo) {
-                if (!lessonData.thumbnailUrl) dbData.thumbnail_url = videoInfo.thumbnail;
-                if (!lessonData.durationMinutes) dbData.duration_minutes = Math.floor(videoInfo.duration / 60);
-                if (!lessonData.length) dbData.length = formatDuration(videoInfo.duration);
-            }
-        } catch (err) {
-            console.warn('Failed to auto-fetch updated lesson Vimeo info:', err);
-        }
-    }
-
-    const { data, error } = await withTimeout(
-        supabase
-            .from('lessons')
-            .update(dbData)
-            .eq('id', lessonId)
-            .select()
-            .single(),
-        30000
-    );
-
-    if (error) return { error };
-    return { data: transformLesson(data), error: null };
-}
-
 
 export async function updateCourseLessons(courseId: string, lessonIds: string[]) {
     // 1. First, dissociate all lessons currently linked to this course
@@ -1969,15 +1320,13 @@ export async function updateCourseLessons(courseId: string, lessonIds: string[])
 
         if (updateError) return { error: updateError };
 
-        // 3. Ensure lesson numbers are sequential (optional but recommended)
-        // We can just set them based on the order in lessonIds
-        const updatePromises = lessonIds.map((id, index) =>
-            supabase
-                .from('lessons')
-                .update({ lesson_number: index + 1 })
-                .eq('id', id)
-        );
-        await Promise.all(updatePromises);
+        // 3. Ensure lesson numbers are sequential
+        const { reorderLessons } = await import('./api-lessons');
+        const lessonOrders = lessonIds.map((id, index) => ({
+            id,
+            lessonNumber: index + 1
+        }));
+        await reorderLessons(lessonOrders);
     }
 
     return { error: null };
@@ -2035,21 +1384,6 @@ export async function createSupportTicket(ticketData: {
     return { error };
 }
 
-
-
-export async function reorderLessons(lessonOrders: { id: string, lessonNumber: number }[]) {
-    const promises = lessonOrders.map(item =>
-        supabase
-            .from('lessons')
-            .update({ lesson_number: item.lessonNumber })
-            .eq('id', item.id)
-    );
-
-    const results = await Promise.all(promises);
-    const firstError = results.find(r => r.error)?.error;
-
-    return { error: firstError || null };
-}
 
 export async function getPublicLessons(limit: number = 50) {
     const { data, error } = await supabase
@@ -2311,11 +1645,13 @@ export async function uploadHeroImage(file: File): Promise<{ url: string | null;
 /**
  * 썸네일 이미지를 Supabase Storage에 업로드
  */
-export async function uploadThumbnail(blob: Blob, bucketName: string = 'course-thumbnails'): Promise<{ url: string | null; error: any }> {
+export async function uploadThumbnail(blob: Blob, bucketName: string = 'thumbnails'): Promise<{ url: string | null; error: any }> {
     const fileName = `thumb-${crypto.randomUUID()}.jpg`;
     const filePath = `${fileName}`;
-    // Remove redundant 'course-thumbnails' from the list since it's now the default
-    const bucketsToTry = [bucketName, 'images']; // Priority list
+
+    // Ensure we start with the requested bucket (default: thumbnails)
+    const bucketsToTry = [bucketName];
+    if (bucketName !== 'images') bucketsToTry.push('images'); // Fallback for legacy
 
     let lastError: any = null;
 
@@ -2339,7 +1675,7 @@ export async function uploadThumbnail(blob: Blob, bucketName: string = 'course-t
                 return { url: data.publicUrl, error: null };
             }
 
-            console.warn(`Failed to upload to ${bucket}:`, uploadError);
+            console.warn(`Failed to upload to ${bucket}:`, JSON.stringify(uploadError, null, 2));
             lastError = uploadError;
         } catch (e) {
             console.warn(`Exception uploading to ${bucket}:`, e);
@@ -2546,26 +1882,7 @@ export async function checkSubscriptionStatus(userId: string, creatorId: string)
 /**
  * Delete a lesson (admin only)
  */
-export async function deleteLesson(lessonId: string) {
-    const { error } = await supabase
-        .from('lessons')
-        .delete()
-        .eq('id', lessonId);
-
-    return { error };
-}
-
-/**
- * Remove a lesson from a course (unlink only, does not delete the lesson)
- */
-export async function removeLessonFromCourse(lessonId: string) {
-    const { error } = await supabase
-        .from('lessons')
-        .update({ course_id: null, lesson_number: null })
-        .eq('id', lessonId);
-
-    return { error };
-}
+// deleteLesson and removeLessonFromCourse are already exported from ./api-lessons.ts above
 
 /**
  * Get all courses (for admin management)
@@ -5268,6 +4585,7 @@ export async function getDrills(creatorId?: string, limit: number = 50, forceRef
             creatorProfileImage: creator?.avatar_url,
             durationMinutes: drill.duration_minutes || 0,
             views: drill.views || 0,
+            likes: drill.likes || 0,
             createdAt: drill.created_at
         };
     });
@@ -7649,164 +6967,7 @@ export async function getCompositeCombatPower(userId: string): Promise<CombatPow
 // Drill Interactions (Likes & Saves)
 // ============================================
 
-/**
- * Toggle like on a drill
- */
-export async function toggleDrillLike(userId: string, drillId: string): Promise<{ liked: boolean; error?: any }> {
-    try {
-        // Check if already liked
-        const { data: existing } = await supabase
-            .from('user_drill_likes')
-            .select('id')
-            .eq('user_id', userId)
-            .eq('drill_id', drillId)
-            .limit(1);
 
-        if (existing && existing.length > 0) {
-            // Unlike
-            const { error } = await supabase
-                .from('user_drill_likes')
-                .delete()
-                .eq('user_id', userId)
-                .eq('drill_id', drillId);
-
-            return { liked: false, error };
-        } else {
-            // Like
-            const { error } = await supabase
-                .from('user_drill_likes')
-                .insert({ user_id: userId, drill_id: drillId });
-
-            return { liked: true, error };
-        }
-    } catch (error) {
-        console.error('Error toggling drill like:', error);
-        return { liked: false, error };
-    }
-}
-
-/**
- * Check if user has liked a drill
- */
-export async function checkDrillLiked(userId: string, drillId: string): Promise<boolean> {
-    const { data, error } = await supabase
-        .from('user_drill_likes')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('drill_id', drillId)
-        .limit(1);
-
-    if (error && error.code !== 'PGRST116') console.error('Error checking drill liked:', error);
-    return !!(data && data.length > 0);
-}
-
-/**
- * Get drill like count
- */
-export async function getDrillLikeCount(drillId: string): Promise<number> {
-    const { count } = await supabase
-        .from('user_drill_likes')
-        .select('*', { count: 'exact', head: true })
-        .eq('drill_id', drillId);
-
-    return count || 0;
-}
-
-/**
- * Toggle save/bookmark on a drill
- */
-export async function toggleDrillSave(userId: string, drillId: string): Promise<{ saved: boolean; error?: any }> {
-    try {
-        // Check if already saved
-        const { data: existing } = await supabase
-            .from('user_saved_drills')
-            .select('id')
-            .eq('user_id', userId)
-            .eq('drill_id', drillId)
-            .limit(1);
-
-        if (existing && existing.length > 0) {
-            // Unsave
-            const { error } = await supabase
-                .from('user_saved_drills')
-                .delete()
-                .eq('user_id', userId)
-                .eq('drill_id', drillId);
-
-            return { saved: false, error };
-        } else {
-            // Save
-            const { error } = await supabase
-                .from('user_saved_drills')
-                .insert({ user_id: userId, drill_id: drillId });
-
-            return { saved: true, error };
-        }
-    } catch (error) {
-        console.error('Error toggling drill save:', error);
-        return { saved: false, error };
-    }
-}
-
-/**
- * Check if user has saved a drill
- */
-export async function checkDrillSaved(userId: string, drillId: string): Promise<boolean> {
-    const { data } = await supabase
-        .from('user_saved_drills')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('drill_id', drillId)
-        .limit(1);
-
-    return !!(data && data.length > 0);
-}
-
-/**
- * Get user's saved drills
- */
-export async function getUserSavedDrills(userId: string): Promise<Drill[]> {
-    const { data } = await supabase
-        .from('user_saved_drills')
-        .select('drill_id')
-        .eq('user_id', userId);
-
-    if (!data || data.length === 0) return [];
-
-    // Fetch full drill data for saved drill IDs
-    const drillIds = data.map(item => item.drill_id);
-    const drills: Drill[] = [];
-
-    for (const drillId of drillIds) {
-        const result: any = await getDrillById(drillId);
-        if (result && !result.error) drills.push(result);
-    }
-
-    return drills;
-}
-
-/**
- * Get user's liked drills
- */
-export async function getUserLikedDrills(userId: string): Promise<Drill[]> {
-    const { data } = await supabase
-        .from('user_drill_likes')
-        .select('drill_id')
-        .eq('user_id', userId);
-
-    if (!data || data.length === 0) return [];
-
-    // Fetch full drill data for liked drill IDs
-    const drillIds = data.map(item => item.drill_id);
-    const drills: Drill[] = [];
-
-    for (const drillId of drillIds) {
-        const result: any = await getDrillById(drillId);
-        if (result && !result.error) drills.push(result);
-    }
-
-    return drills;
-}
 
 export async function getCoursePreviewVideo(courseId: string) {
     const { data } = await supabase
@@ -7823,139 +6984,7 @@ export async function getCoursePreviewVideo(courseId: string) {
 /**
  * Get user's saved courses
  */
-export async function getUserSavedCourses(userId: string): Promise<Course[]> {
-    const { data } = await supabase
-        .from('user_saved_courses')
-        .select('course_id')
-        .eq('user_id', userId);
 
-    if (!data || data.length === 0) return [];
-
-    const courseIds = data.map(item => item.course_id);
-    const courses: Course[] = [];
-
-    for (const courseId of courseIds) {
-        const result = await getCourseById(courseId);
-        if (result) courses.push(result);
-    }
-
-    return courses;
-}
-
-/**
- * Toggle save/bookmark on a course
- */
-export async function toggleCourseSave(userId: string, courseId: string): Promise<{ saved: boolean; error?: any }> {
-    try {
-        const { data: existing } = await supabase
-            .from('user_saved_courses')
-            .select('id')
-            .eq('user_id', userId)
-            .eq('course_id', courseId)
-            .limit(1);
-
-        if (existing && existing.length > 0) {
-            const { error } = await supabase
-                .from('user_saved_courses')
-                .delete()
-                .eq('user_id', userId)
-                .eq('course_id', courseId);
-            return { saved: false, error };
-        } else {
-            const { error } = await supabase
-                .from('user_saved_courses')
-                .insert({ user_id: userId, course_id: courseId });
-            return { saved: true, error };
-        }
-    } catch (error) {
-        console.error('Error toggling course save:', error);
-        return { saved: false, error };
-    }
-}
-
-/**
- * Check if user has saved a course
- */
-export async function checkCourseSaved(userId: string, courseId: string): Promise<boolean> {
-    const { data } = await supabase
-        .from('user_saved_courses')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('course_id', courseId)
-        .limit(1);
-
-    return !!(data && data.length > 0);
-}
-
-/**
- * Toggle save/bookmark on a routine
- */
-export async function toggleRoutineSave(userId: string, routineId: string): Promise<{ saved: boolean; error?: any }> {
-    try {
-        const { data: existing } = await supabase
-            .from('user_saved_routines')
-            .select('id')
-            .eq('user_id', userId)
-            .eq('routine_id', routineId)
-            .limit(1);
-
-        if (existing && existing.length > 0) {
-            const { error } = await supabase
-                .from('user_saved_routines')
-                .delete()
-                .eq('user_id', userId)
-                .eq('routine_id', routineId);
-            return { saved: false, error };
-        } else {
-            const { error } = await supabase
-                .from('user_saved_routines')
-                .insert({ user_id: userId, routine_id: routineId });
-            return { saved: true, error };
-        }
-    } catch (error) {
-        console.error('Error toggling routine save:', error);
-        return { saved: false, error };
-    }
-}
-
-/**
- * Check if user has saved a routine
- */
-export async function checkRoutineSaved(userId: string, routineId: string): Promise<boolean> {
-    const { data } = await supabase
-        .from('user_saved_routines')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('routine_id', routineId)
-        .limit(1);
-
-    return !!(data && data.length > 0);
-}
-
-/**
- * Get user's saved routines
- */
-export async function getUserSavedRoutines(userId: string): Promise<DrillRoutine[]> {
-    const { data } = await withTimeout(
-        supabase
-            .from('user_saved_routines')
-            .select('routine_id')
-            .eq('user_id', userId),
-        10000
-    ) as any;
-
-    if (!data || data.length === 0) return [];
-
-    const routineIds = data.map((item: any) => item.routine_id);
-    const routines: DrillRoutine[] = [];
-
-    for (const routineId of routineIds) {
-        const result = await getRoutineById(routineId);
-        if (result && !result.error) routines.push(result.data);
-    }
-
-    return routines;
-}
 
 
 
@@ -8067,77 +7096,7 @@ export async function fetchAllDrills(limit: number = 50) {
     }
 }
 
-/**
- * Fetch creators by IDs (checking both users and creators tables)
- */
-export async function fetchCreatorsByIds(creatorIds: string[]) {
-    if (!creatorIds || creatorIds.length === 0) return {};
 
-    try {
-        const uniqueIds = [...new Set(creatorIds)];
-
-        // 1. Fetch from users table 
-        const userPromise = supabase
-            .from('users')
-            .select('id, name, avatar_url, profile_image_url')
-            .in('id', uniqueIds);
-
-        // 2. Fetch from creators table
-        const creatorPromise = supabase
-            .from('creators')
-            .select('id, name, profile_image')
-            .in('id', uniqueIds);
-
-        const [userRes, creatorRes] = await Promise.all([userPromise, creatorPromise]);
-
-        const creatorsMap: Record<string, {
-            name: string;
-            avatarUrl: string | null;
-            profileImage: string | null;
-            id: string
-        }> = {};
-
-        // Initialize
-        uniqueIds.forEach(id => {
-            creatorsMap[id] = { id, name: 'Unknown Creator', avatarUrl: null, profileImage: null };
-        });
-
-        // Fill with user data
-        userRes.data?.forEach(u => {
-            const prioritizedImage = u.profile_image_url || u.avatar_url;
-            creatorsMap[u.id] = {
-                id: u.id,
-                name: u.name || creatorsMap[u.id].name,
-                avatarUrl: u.avatar_url,
-                profileImage: prioritizedImage
-            };
-        });
-
-        // Override/fill with creator data (Priority)
-        creatorRes.data?.forEach(c => {
-            if (creatorsMap[c.id]) {
-                if (c.name) creatorsMap[c.id].name = c.name;
-                if (c.profile_image) {
-                    creatorsMap[c.id].profileImage = c.profile_image;
-                    // For backward compatibility if any code uses avatarUrl
-                    creatorsMap[c.id].avatarUrl = c.profile_image;
-                }
-            } else {
-                creatorsMap[c.id] = {
-                    id: c.id,
-                    name: c.name || 'Unknown Creator',
-                    avatarUrl: c.profile_image,
-                    profileImage: c.profile_image
-                };
-            }
-        });
-
-        return creatorsMap;
-    } catch (error) {
-        console.error('Error fetching creators:', error);
-        return {};
-    }
-}
 
 /**
  * Safe fetch drills avoiding RLS join issues (Legacy wrapper)
@@ -8260,48 +7219,7 @@ export async function getCourseSparringVideos(courseId: string) {
 /**
  * Toggle like on a course
  */
-export async function toggleCourseLike(userId: string, courseId: string): Promise<{ liked: boolean; error?: any }> {
-    try {
-        const { data: existing } = await supabase
-            .from('user_course_likes')
-            .select('id')
-            .eq('user_id', userId)
-            .eq('course_id', courseId)
-            .limit(1);
 
-        if (existing && existing.length > 0) {
-            const { error } = await supabase
-                .from('user_course_likes')
-                .delete()
-                .eq('user_id', userId)
-                .eq('course_id', courseId);
-            return { liked: false, error };
-        } else {
-            const { error } = await supabase
-                .from('user_course_likes')
-                .insert({ user_id: userId, course_id: courseId });
-            return { liked: true, error };
-        }
-    } catch (error) {
-        console.error('Error toggling course like:', error);
-        return { liked: false, error };
-    }
-}
-
-/**
- * Check if user has liked a course
- */
-export async function checkCourseLiked(userId: string, courseId: string): Promise<boolean> {
-    const { data, error } = await supabase
-        .from('user_course_likes')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('course_id', courseId)
-        .limit(1);
-
-    if (error && error.code !== 'PGRST116') console.error('Error checking course liked:', error);
-    return !!(data && data.length > 0);
-}
 
 /**
  * Get course like count
@@ -8455,49 +7373,7 @@ export async function removeCourseSparringVideo(courseId: string, sparringId: st
     return { error: updateError };
 }
 
-// ==================== TRAINING LOG LIKES ====================
 
-export async function toggleTrainingLogLike(userId: string, logId: string): Promise<{ liked: boolean; error?: any }> {
-    // 1. Check if liked
-    const { data: existing, error: checkError } = await supabase
-        .from('training_log_likes')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('log_id', logId)
-        .maybeSingle();
-
-    if (checkError) return { liked: false, error: checkError };
-
-    if (existing) {
-        // Unlike by ID
-        const { error: deleteError } = await supabase.from('training_log_likes').delete().eq('id', existing.id);
-        if (deleteError) return { liked: false, error: deleteError };
-        return { liked: false };
-    } else {
-        // Like
-        const { error: insertError } = await supabase.from('training_log_likes').insert({ user_id: userId, log_id: logId });
-        if (insertError) return { liked: false, error: insertError };
-        return { liked: true };
-    }
-}
-
-export async function getTrainingLogLikes(logId: string) {
-    const { count, error } = await supabase
-        .from('training_log_likes')
-        .select('*', { count: 'exact', head: true })
-        .eq('log_id', logId);
-    return { count: count || 0, error };
-}
-
-export async function checkTrainingLogLiked(userId: string, logId: string) {
-    const { data } = await supabase
-        .from('training_log_likes')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('log_id', logId)
-        .maybeSingle();
-    return !!data;
-}
 
 export async function getTrainingLogComments(logId: string) {
     const { data, error } = await supabase
@@ -9193,3 +8069,8 @@ export async function getLessonHistory(userId: string) {
     }
 }
 
+
+// ============================================================================
+// User Interactions (Save/Like/View) - New Unified System
+// ============================================================================
+export * from './api-user-interactions';
