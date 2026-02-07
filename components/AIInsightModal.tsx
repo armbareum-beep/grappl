@@ -230,7 +230,7 @@ export const AIInsightModal: React.FC<AIInsightModalProps> = ({
                                                 className="group bg-zinc-800/40 border border-zinc-700/30 rounded-2xl p-4 flex items-center gap-4 hover:border-rose-500/30 transition-all cursor-pointer"
                                             >
                                                 <div className="w-16 h-12 rounded-xl bg-zinc-800 overflow-hidden relative flex-shrink-0">
-                                                    <img src={video.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                                                    <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                                                     <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
                                                         <Play className="w-3 h-3 text-white fill-current" />
                                                     </div>

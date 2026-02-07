@@ -217,6 +217,7 @@ export const Browse: React.FC<{
                 <input
                   type="text"
                   placeholder="클래스 검색..."
+                  aria-label="클래스 검색"
                   className="w-full pl-11 pr-4 py-3.5 bg-zinc-900/50 border border-zinc-800 rounded-2xl text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/50 focus:ring-4 focus:ring-violet-500/10 transition-all backdrop-blur-sm"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}

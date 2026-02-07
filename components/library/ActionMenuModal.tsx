@@ -44,6 +44,7 @@ export const ActionMenuModal: React.FC<ActionMenuModalProps> = ({
                     <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-transparent" />
                     <button
                         onClick={onClose}
+                        aria-label="메뉴 닫기"
                         className="absolute top-4 right-4 p-2 rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-white/20 transition-colors"
                     >
                         <X className="w-5 h-5" />

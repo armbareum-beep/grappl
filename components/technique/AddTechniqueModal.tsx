@@ -137,6 +137,7 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
                     </div>
                     <button
                         onClick={onClose}
+                        aria-label="콘텐츠 추가 닫기"
                         className="w-10 h-10 flex items-center justify-center text-zinc-400 hover:text-white transition-all hover:bg-zinc-800 rounded-xl"
                     >
                         <X className="w-6 h-6" />

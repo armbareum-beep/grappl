@@ -232,6 +232,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                     </h2>
                     <button
                         onClick={onClose}
+                        aria-label="게시물 작성 닫기"
                         className="text-slate-500 hover:text-white transition-colors p-2 rounded-full hover:bg-white/5"
                     >
                         <X className="w-5 h-5" />

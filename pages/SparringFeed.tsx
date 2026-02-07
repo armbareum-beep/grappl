@@ -883,6 +883,7 @@ export const SparringFeed: React.FC<{
                             <input
                                 type="text"
                                 placeholder="스파링 검색..."
+                                aria-label="스파링 검색"
                                 value={searchTerm || ''}
                                 onChange={(e) => {
                                     const value = e.target.value;

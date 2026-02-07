@@ -90,6 +90,7 @@ export const Instructors: React.FC = () => {
                         <input
                             type="text"
                             placeholder="인스트럭터 검색..."
+                            aria-label="인스트럭터 검색"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full bg-zinc-950/50 border border-zinc-800 rounded-2xl py-4 pl-12 pr-6 text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/50 focus:ring-4 focus:ring-violet-500/10 transition-all backdrop-blur-sm"

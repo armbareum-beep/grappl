@@ -214,6 +214,7 @@ export const Routines: React.FC<{
                             <input
                                 type="text"
                                 placeholder="루틴 검색..."
+                                aria-label="루틴 검색"
                                 value={searchTerm}
                                 onChange={(e) => setInternalSearchTerm(e.target.value)}
                                 className="w-full pl-11 pr-4 py-3.5 bg-zinc-900/50 border border-zinc-800 rounded-2xl text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/50 focus:ring-4 focus:ring-violet-500/10 transition-all backdrop-blur-sm"

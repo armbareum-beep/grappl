@@ -120,7 +120,7 @@ export const TechniqueNode: React.FC<ContentNodeProps> = ({ id, data, selected, 
     return (
         <div
             className={`
-                relative h-12 flex items-center justify-center
+                relative min-h-[3rem] h-auto flex items-center justify-center
                 min-w-[160px] max-w-[300px]
                 cursor-pointer
             `}
@@ -144,7 +144,7 @@ export const TechniqueNode: React.FC<ContentNodeProps> = ({ id, data, selected, 
             <motion.div
                 whileHover={!isMinimal ? { scale: 1.02 } : {}}
                 className={`
-                    absolute inset-0 rounded-full
+                    relative w-full min-h-[3rem] rounded-[24px]
                     ${style.bgClass} backdrop-blur-md
                     border ${style.borderClass}
                     flex items-center justify-center px-6
@@ -163,7 +163,7 @@ export const TechniqueNode: React.FC<ContentNodeProps> = ({ id, data, selected, 
             >
                 {/* Title */}
                 <span className={`
-                    ${style.textClass} text-sm font-bold truncate text-center
+                    ${style.textClass} text-sm font-bold text-center whitespace-pre-wrap break-words leading-tight py-2
                     ${isMinimal ? 'opacity-0' : 'opacity-100'} transition-opacity
                     select-none
                 `}>

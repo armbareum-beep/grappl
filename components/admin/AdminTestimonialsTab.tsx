@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Trash2, Edit, Plus, Star, User, X, Check } from 'lucide-react';
+import { Trash2, Edit, Plus, Star, User } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 
 interface Testimonial {

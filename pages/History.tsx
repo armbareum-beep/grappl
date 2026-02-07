@@ -88,6 +88,7 @@ export const History: React.FC = () => {
                                 autoFocus
                                 type="text"
                                 placeholder="시청 기록 검색"
+                                aria-label="시청 기록 검색"
                                 className="bg-transparent border-none outline-none text-sm w-full placeholder:text-zinc-500"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}

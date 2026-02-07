@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Network, BookOpen, Users } from 'lucide-react';
+import { Network, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { TechniqueChainLibrarySection } from './TechniqueChainLibrarySection';

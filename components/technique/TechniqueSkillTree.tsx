@@ -142,7 +142,7 @@ const DraggableTechnique: React.FC<{
                         }
                     }}
                 >
-                    <h3 className="text-white font-bold text-[13px] truncate group-hover:text-violet-400 transition-colors">
+                    <h3 className="text-white font-bold text-[13px] whitespace-pre-wrap break-words leading-tight group-hover:text-violet-400 transition-colors">
                         {node.data.label || node.data.lesson?.title || node.data.drill?.title || '기술 콘텐츠'}
                     </h3>
                     {mastery && (

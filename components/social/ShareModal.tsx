@@ -100,6 +100,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                                 </div>
                                 <button
                                     onClick={onClose}
+                                    aria-label="공유 모달 닫기"
                                     className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-2xl text-zinc-500 hover:text-white transition-all active:scale-95"
                                 >
                                     <X className="w-5 h-5" />

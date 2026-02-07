@@ -98,7 +98,7 @@ export const ThumbnailCropper: React.FC<ThumbnailCropperProps> = ({ imageSrc, on
                         <span className="w-1 h-4 bg-violet-500 rounded-full"></span>
                         썸네일 위치 조정 ({getAspectLabel(aspectRatio)})
                     </h3>
-                    <button onClick={onCancel} className="p-2 hover:bg-zinc-800 rounded-full transition-colors"><X className="w-5 h-5 text-zinc-400" /></button>
+                    <button onClick={onCancel} aria-label="썸네일 편집 취소" className="p-2 hover:bg-zinc-800 rounded-full transition-colors"><X className="w-5 h-5 text-zinc-400" /></button>
                 </div>
                 <div className="relative flex-1 bg-black">
                     <Cropper

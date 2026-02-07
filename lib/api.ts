@@ -5179,7 +5179,7 @@ export async function getDailyFreeDrill() {
                     .select('*')
                     .eq('id', drillId)
                     .maybeSingle(),
-                5000
+                10000
             );
             selectedDrill = drill;
         }
@@ -5194,7 +5194,7 @@ export async function getDailyFreeDrill() {
                     // Removed price restriction to allow free content
                     .neq('drills.vimeo_url', '')
                     .not('drills.vimeo_url', 'like', 'ERROR%'),
-                5000
+                10000
             );
 
             if (error) throw error;
@@ -5296,7 +5296,7 @@ export async function getDailyFreeLesson() {
                     .select('*, courses!inner(*)')
                     .eq('id', lessonId)
                     .maybeSingle(),
-                5000
+                10000
             );
             selectedLesson = lesson;
         }
@@ -5311,7 +5311,7 @@ export async function getDailyFreeLesson() {
                     .neq('vimeo_url', '')
                     .not('vimeo_url', 'like', 'ERROR%')
                     .limit(50),
-                5000
+                10000
             );
 
             if (error) throw error;
@@ -5402,7 +5402,7 @@ export async function getDailyFreeSparring() {
                     .select('*')
                     .eq('id', sparringId)
                     .maybeSingle(),
-                5000
+                10000
             );
             selectedSparring = sparring;
         }
@@ -5420,7 +5420,7 @@ export async function getDailyFreeSparring() {
                     .not('video_url', 'like', 'ERROR%')
                     .order('id')
                     .limit(50),
-                5000
+                10000
             );
 
             if (error) throw error;

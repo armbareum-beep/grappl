@@ -82,6 +82,12 @@ export const InstructorCarousel: React.FC<InstructorCarouselProps> = ({ searchQu
                 })
             );
 
+            // Shuffle the creators for random display order on refresh
+            for (let i = creatorsWithCounts.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [creatorsWithCounts[i], creatorsWithCounts[j]] = [creatorsWithCounts[j], creatorsWithCounts[i]];
+            }
+
             setCreators(creatorsWithCounts);
             setLoading(false);
         } catch (error) {

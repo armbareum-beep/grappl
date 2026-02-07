@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -133,11 +133,11 @@ export const Home: React.FC = () => {
         return 'aspect-[3/4] md:aspect-square lg:aspect-[4/3] w-full max-w-6xl';
     };
 
-    const slides = [
+    const slides = useMemo(() => [
         dailyLesson && { type: 'lesson', data: dailyLesson },
         dailyDrill && { type: 'drill', data: dailyDrill },
         dailySparring && { type: 'sparring', data: dailySparring }
-    ].filter(Boolean);
+    ].filter(Boolean), [dailyLesson, dailyDrill, dailySparring]);
 
     if (loading) return <LoadingScreen />;
 
@@ -211,7 +211,7 @@ export const Home: React.FC = () => {
                                                                 <div className="flex items-center gap-2 pr-4 border-r border-white/10">
                                                                     <div className="w-7 h-7 md:w-9 md:h-9 rounded-full overflow-hidden bg-zinc-800 border-2 border-white/10 flex-shrink-0 shadow-xl">
                                                                         {drill.creatorProfileImage ? (
-                                                                            <img src={drill.creatorProfileImage} className="w-full h-full object-cover" alt="" />
+                                                                            <img src={drill.creatorProfileImage} className="w-full h-full object-cover" alt={`${drill.creatorName || '크리에이터'} 프로필`} />
                                                                         ) : (
                                                                             <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">{drill.creatorName?.charAt(0) || 'U'}</div>
                                                                         )}
@@ -262,7 +262,7 @@ export const Home: React.FC = () => {
                                                                 <div className="flex items-center gap-2 pr-4 border-r border-white/10">
                                                                     <div className="w-7 h-7 md:w-9 md:h-9 rounded-full overflow-hidden bg-zinc-800 border-2 border-white/10 flex-shrink-0 shadow-xl">
                                                                         {(lesson as any).creatorProfileImage ? (
-                                                                            <img src={(lesson as any).creatorProfileImage} className="w-full h-full object-cover" alt="" />
+                                                                            <img src={(lesson as any).creatorProfileImage} className="w-full h-full object-cover" alt={`${(lesson as any).creatorName || '크리에이터'} 프로필`} />
                                                                         ) : (
                                                                             <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">{(lesson as any).creatorName?.charAt(0) || 'U'}</div>
                                                                         )}
@@ -313,7 +313,7 @@ export const Home: React.FC = () => {
                                                                 <div className="flex items-center gap-2 pr-4 border-r border-white/10">
                                                                     <div className="w-7 h-7 md:w-9 md:h-9 rounded-full overflow-hidden bg-zinc-800 border-2 border-white/10 flex-shrink-0 shadow-xl">
                                                                         {sparring.creator?.profileImage ? (
-                                                                            <img src={sparring.creator.profileImage} className="w-full h-full object-cover" alt="" />
+                                                                            <img src={sparring.creator.profileImage} className="w-full h-full object-cover" alt={`${sparring.creator?.name || '크리에이터'} 프로필`} />
                                                                         ) : (
                                                                             <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">{sparring.creator?.name?.charAt(0) || 'U'}</div>
                                                                         )}

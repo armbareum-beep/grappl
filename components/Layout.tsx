@@ -375,6 +375,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <button
                   ref={mobileMenuButtonRef}
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  aria-label={mobileMenuOpen ? "메뉴 닫기" : "메뉴 열기"}
+                  aria-expanded={mobileMenuOpen}
                   className="text-muted-foreground hover:text-foreground p-2"
                 >
                   {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}

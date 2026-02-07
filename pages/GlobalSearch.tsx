@@ -132,6 +132,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
                                         <input
                                             className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-2xl py-3.5 pl-12 pr-10 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all text-base font-medium"
                                             placeholder="기술 이름, 인스트럭터 검색"
+                                            aria-label="기술 이름, 인스트럭터 검색"
                                             value={searchTerm}
                                             onChange={(e) => setSearchTerm(e.target.value)}
                                             autoFocus
@@ -220,7 +221,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
                                                     {(activeTab === 'all' ? results.courses.slice(0, 3) : results.courses).map(course => (
                                                         <div key={course.id} onClick={() => handleItemClick(`/courses/${course.id}`)} className="flex gap-4 bg-zinc-900/50 p-3 rounded-2xl border border-zinc-800/50 cursor-pointer hover:border-zinc-700 hover:bg-zinc-800/50 transition-all group">
                                                             <div className="w-28 aspect-video bg-zinc-800 rounded-xl overflow-hidden flex-shrink-0 relative shadow-lg">
-                                                                <img src={course.thumbnailUrl} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                                                                <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
                                                             </div>
                                                             <div className="flex-1 min-w-0 flex flex-col justify-center py-1">
                                                                 <h4 className="font-bold text-white line-clamp-1 text-sm group-hover:text-violet-400 transition-colors">{course.title}</h4>
@@ -251,7 +252,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
                                                     {(activeTab === 'all' ? results.routines.slice(0, 3) : results.routines).map(routine => (
                                                         <div key={routine.id} onClick={() => handleItemClick(`/routines/${routine.id}`)} className="flex gap-4 bg-zinc-900/50 p-3 rounded-2xl border border-zinc-800/50 cursor-pointer hover:border-zinc-700 hover:bg-zinc-800/50 transition-all group">
                                                             <div className="w-16 aspect-square bg-zinc-800 rounded-xl overflow-hidden flex-shrink-0 relative shadow-lg">
-                                                                <img src={routine.thumbnailUrl} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                                                                <img src={routine.thumbnailUrl} alt={routine.title} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
                                                             </div>
                                                             <div className="flex-1 min-w-0 flex flex-col justify-center py-1">
                                                                 <h4 className="font-bold text-white line-clamp-1 text-sm group-hover:text-emerald-400 transition-colors">{routine.title}</h4>
@@ -285,7 +286,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
                                                 <div className="grid grid-cols-2 gap-3">
                                                     {(activeTab === 'all' ? results.sparring.slice(0, 4) : results.sparring).map(match => (
                                                         <div key={match.id} onClick={() => handleItemClick(`/sparring/${match.id}`)} className="bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800/50 relative aspect-video cursor-pointer group shadow-lg">
-                                                            <img src={match.thumbnailUrl} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" />
+                                                            <img src={match.thumbnailUrl} alt={match.title} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" />
                                                             <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                                                 <PlayCircle className="w-8 h-8 text-white/90" />
                                                             </div>
@@ -320,7 +321,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose }) =
                                                             <div className="flex items-center gap-3 mb-3">
                                                                 <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden border border-zinc-700">
                                                                     {feed.userAvatar ? (
-                                                                        <img src={feed.userAvatar} className="w-full h-full object-cover" />
+                                                                        <img src={feed.userAvatar} alt={`${feed.userName || '사용자'} 프로필`} className="w-full h-full object-cover" />
                                                                     ) : (
                                                                         <div className="w-full h-full flex items-center justify-center text-xs font-bold text-zinc-500 bg-zinc-800">{(feed.userName || 'U')[0]}</div>
                                                                     )}

@@ -145,6 +145,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     </div>
                     <button
                         onClick={onClose}
+                        aria-label="결제 모달 닫기"
                         className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
                     >
                         <X className="w-5 h-5" />

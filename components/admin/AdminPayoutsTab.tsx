@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertCircle, Copy, Building, User, Clock, Download } from 'lucide-react';
+import { Copy, Building, User, Clock, Download } from 'lucide-react';
 import { getCreatorPayoutsAdmin } from '../../lib/api';
 import { getAdminSettlements, exportSettlementsToCSV } from '../../lib/api-admin';
 

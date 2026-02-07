@@ -308,7 +308,14 @@ export async function deleteCreator(creatorId: string) {
             await supabase.from('drills').delete().in('id', drillIds);
         }
 
-        // 4. Finally delete creator
+        // 4. Delete sparring videos
+        const { data: sparring } = await supabase.from('sparring_videos').select('id').eq('creator_id', creatorId);
+        if (sparring && sparring.length > 0) {
+            const sparringIds = sparring.map(s => s.id);
+            await supabase.from('sparring_videos').delete().in('id', sparringIds);
+        }
+
+        // 5. Finally delete creator
         const { error } = await supabase
             .from('creators')
             .delete()
@@ -316,7 +323,7 @@ export async function deleteCreator(creatorId: string) {
 
         if (error) throw error;
 
-        // 5. Update user status
+        // 6. Update user status
         await supabase.from('users').update({ is_creator: false }).eq('id', creatorId);
 
         return { error: null };

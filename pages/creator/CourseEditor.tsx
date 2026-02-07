@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Plus, GripVertical, Video, Trash2, Edit, CheckCircle, BookOpen, X, Link2, Upload, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Plus, GripVertical, Video, Trash2, Edit, CheckCircle, BookOpen, X, Link2, Upload, Loader2, ArrowUpDown } from 'lucide-react';
 import { getCourseById, createCourse, updateCourse, getLessonsByCourse, createLesson, updateLesson, deleteLesson, removeLessonFromCourse, getDrills, getCourseDrillBundles, addCourseDrillBundle, removeCourseDrillBundle, getAllCreatorLessons, reorderLessons, getSparringVideos, getCourseSparringVideos, addCourseSparringVideo, removeCourseSparringVideo, getCreators, extractVimeoId } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { Course, Lesson, VideoCategory, Difficulty, Drill, SparringVideo, UniformType, Creator } from '../../types';
@@ -135,6 +135,7 @@ export const CourseEditor: React.FC = () => {
     const [lessonUploadMode, setLessonUploadMode] = useState<'file' | 'url'>('file');
     const [vimeoUrlInput, setVimeoUrlInput] = useState('');
     const [vimeoUrlLoading, setVimeoUrlLoading] = useState(false);
+    const [importSourceCreatorId, setImportSourceCreatorId] = useState<string>(''); // For Admin to switch source
 
     // Drills State
     const [availableDrills, setAvailableDrills] = useState<Drill[]>([]);
@@ -169,32 +170,67 @@ export const CourseEditor: React.FC = () => {
             const newIndex = lessons.findIndex((l) => l.id === over.id);
 
             const newLessons = arrayMove(lessons, oldIndex, newIndex);
-            setLessons(newLessons);
+
+            // Recalculate lesson numbers
+            const updatedLessons = newLessons.map((l, index) => ({
+                ...l,
+                lessonNumber: index + 1
+            }));
 
             // If it's an existing course, update the order in the database
             if (!isNew && id) {
-                const lessonOrders = newLessons.map((l, index) => ({
+                const lessonOrders = updatedLessons.map(l => ({
                     id: l.id,
-                    lessonNumber: index + 1
+                    lessonNumber: l.lessonNumber
                 }));
 
                 try {
+                    // Update UI immediately for responsiveness
+                    setLessons(updatedLessons);
+
                     const { error } = await reorderLessons(lessonOrders);
                     if (error) throw error;
                     success('순서가 저장되었습니다.');
                 } catch (err) {
                     console.error('Error reordering lessons:', err);
                     toastError('순서 저장 중 오류가 발생했습니다.');
-                    // Revert UI if needed, but usually better to just alert
+                    // Revert is complex, just reload page if needed or manual fix
                 }
             } else {
-                // For new course, just update local state (handles lessonNumber)
-                const updatedIndices = newLessons.map((l, index) => ({
-                    ...l,
-                    lessonNumber: index + 1
-                }));
-                setLessons(updatedIndices);
+                // For new course, just update local state
+                setLessons(updatedLessons);
             }
+        }
+    };
+
+    const handleReverseOrder = async () => {
+        if (lessons.length < 2) return;
+
+        if (!window.confirm('현재 레슨 순서를 완전히 거꾸로 뒤집으시겠습니까? (1번이 마지막으로 이동합니다)')) return;
+
+        const reversedLessons = [...lessons].reverse().map((l, index) => ({
+            ...l,
+            lessonNumber: index + 1
+        }));
+
+        if (!isNew && id) {
+            const lessonOrders = reversedLessons.map(l => ({
+                id: l.id,
+                lessonNumber: l.lessonNumber
+            }));
+
+            try {
+                setLessons(reversedLessons);
+                const { error } = await reorderLessons(lessonOrders);
+                if (error) throw error;
+                success('순서가 반전되었습니다.');
+            } catch (err) {
+                console.error('Error reversing lessons:', err);
+                toastError('순서 변경 중 오류가 발생했습니다.');
+            }
+        } else {
+            setLessons(reversedLessons);
+            success('순서가 반전되었습니다.');
         }
     };
 
@@ -228,7 +264,7 @@ export const CourseEditor: React.FC = () => {
 
     async function fetchCourseData(courseId: string) {
         try {
-            const [course, courseLessons] = await Promise.all([
+            const [course, lessonsResponse] = await Promise.all([
                 getCourseById(courseId),
                 getLessonsByCourse(courseId)
             ]);
@@ -238,7 +274,7 @@ export const CourseEditor: React.FC = () => {
                     setSelectedCreatorId(course.creatorId);
                 }
             }
-            setLessons(courseLessons);
+            setLessons(lessonsResponse.data || []);
         } catch (error) {
             console.error('Error fetching course:', error);
         } finally {
@@ -424,6 +460,8 @@ export const CourseEditor: React.FC = () => {
                 });
                 if (error) throw error;
                 if (data) {
+                    const effectiveCreatorId = (isAdmin && selectedCreatorId) ? selectedCreatorId : user.id;
+
                     // Create or Link lessons for the new course
                     for (let i = 0; i < lessons.length; i++) {
                         const lesson = lessons[i];
@@ -432,11 +470,12 @@ export const CourseEditor: React.FC = () => {
                             await updateLesson(lesson.id, {
                                 courseId: data.id,
                                 lessonNumber: i + 1,
+                                creatorId: effectiveCreatorId
                             });
                         } else {
                             await createLesson({
                                 courseId: data.id,
-                                creatorId: (isAdmin && selectedCreatorId) ? selectedCreatorId : user.id,
+                                creatorId: effectiveCreatorId,
                                 title: lesson.title,
                                 description: lesson.description || '',
                                 lessonNumber: i + 1,
@@ -474,6 +513,29 @@ export const CourseEditor: React.FC = () => {
                 const effectiveCreatorId = (isAdmin && selectedCreatorId) ? selectedCreatorId : user.id;
                 const { error } = await updateCourse(id, { ...courseToSave, creatorId: effectiveCreatorId });
                 if (error) throw error;
+
+                // Sync all lessons to the new creator
+                if (lessons.length > 0) {
+                    const updatePromises = lessons.map(lesson =>
+                        updateLesson(lesson.id, {
+                            creatorId: effectiveCreatorId
+                        })
+                    );
+                    await Promise.all(updatePromises);
+                }
+
+                // Link bundled drills
+                if (bundledDrills.length > 0) {
+                    for (const drill of bundledDrills) {
+                        // Check if already bundled to avoid duplicates/errors if API doesn't handle it
+                        // relying on API being idempotent or UI state being accurate
+                        // But wait, toggleDrillBundle handles add/remove. 
+                        // Simply saving the course doesn't usually re-link drills unless we need to sync ownership too?
+                        // Typically Drill ownership isn't transferred with Course ownership, so we skip this.
+                    }
+                }
+
+
                 success('저장되었습니다. 클래스 페이지로 이동합니다.');
 
                 navigate(`/courses/${id}`);
@@ -526,15 +588,24 @@ export const CourseEditor: React.FC = () => {
         }
     };
 
-    const handleOpenImportModal = async () => {
-        if (!user) return;
-        setShowImportModal(true);
+    const loadImportableLessons = async (targetCreatorId: string) => {
         try {
-            const allLessons = await getAllCreatorLessons(user.id);
-            setCreatorLessons(allLessons);
+            const { data, error } = await getAllCreatorLessons(targetCreatorId);
+            if (error) throw error;
+            setCreatorLessons(data || []);
         } catch (error) {
             console.error('Error loading creator lessons:', error);
+            toastError('레슨 목록을 불러오지 못했습니다.');
+            setCreatorLessons([]);
         }
+    };
+
+    const handleOpenImportModal = async () => {
+        if (!user) return;
+        const targetId = (isAdmin && selectedCreatorId) ? selectedCreatorId : user.id;
+        setImportSourceCreatorId(targetId);
+        setShowImportModal(true);
+        await loadImportableLessons(targetId);
     };
 
     const handleImportLessons = async () => {
@@ -571,8 +642,8 @@ export const CourseEditor: React.FC = () => {
                     }]);
                 }
 
-                const updatedLessons = await getLessonsByCourse(id);
-                setLessons(updatedLessons);
+                const { data: updatedLessons } = await getLessonsByCourse(id);
+                setLessons(updatedLessons || []);
                 setShowImportModal(false);
                 setSelectedImportIds(new Set());
                 success('레슨을 가져왔습니다!');
@@ -892,6 +963,14 @@ export const CourseEditor: React.FC = () => {
                                     </div>
 
                                     <div className="flex gap-2 w-full sm:w-auto">
+                                        <button
+                                            onClick={handleReverseOrder}
+                                            disabled={lessons.length < 2}
+                                            className="flex-1 sm:flex-none flex items-center justify-center gap-2 text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 px-3 py-2.5 rounded-xl transition-all font-semibold border border-zinc-700 shadow-lg disabled:opacity-50 disabled:pointer-events-none"
+                                            title="순서 반전 (역순 정렬)"
+                                        >
+                                            <ArrowUpDown className="w-4.5 h-4.5" />
+                                        </button>
                                         <button
                                             onClick={handleOpenImportModal}
                                             className="flex-1 sm:flex-none flex items-center justify-center gap-2 text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 px-5 py-2.5 rounded-xl transition-all font-semibold border border-zinc-700 shadow-lg"
@@ -1444,6 +1523,29 @@ export const CourseEditor: React.FC = () => {
                             </div>
 
                             <div className="flex-1 overflow-y-auto min-h-0 mb-6 space-y-3 pr-2 scrollbar-thin scrollbar-thumb-zinc-700">
+                                {isAdmin && (
+                                    <div className="mb-4 bg-zinc-950 p-4 rounded-xl border border-zinc-800">
+                                        <label className="text-xs font-bold text-zinc-500 mb-2.5 block uppercase tracking-wider">레슨 소유자 선택 (관리자 전용)</label>
+                                        <div className="relative">
+                                            <select
+                                                value={importSourceCreatorId}
+                                                onChange={(e) => {
+                                                    setImportSourceCreatorId(e.target.value);
+                                                    loadImportableLessons(e.target.value);
+                                                }}
+                                                className="w-full pl-4 pr-10 py-3 bg-zinc-900 border border-zinc-700 rounded-xl text-zinc-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none appearance-none font-medium"
+                                            >
+                                                <option value={user.id}>관리자 ({user.user_metadata?.name || 'Admin'})</option>
+                                                {creators.map(c => (
+                                                    <option key={c.id} value={c.id}>{c.name} (ID: {c.handle || c.id.slice(0, 4)})</option>
+                                                ))}
+                                            </select>
+                                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                                 {creatorLessons.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center py-20 bg-zinc-950/50 rounded-2xl border border-zinc-800/50">
                                         <BookOpen className="w-12 h-12 text-zinc-800 mb-4" />

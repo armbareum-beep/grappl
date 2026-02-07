@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { TrainingLog } from '../../types';
 import { getPublicTrainingLogs } from '../../lib/api';
-import { Heart, MessageCircle, Repeat, Send, MoreHorizontal, User, PlayCircle, Clock, Swords, Share2 } from 'lucide-react';
+import { Heart, MessageCircle, MoreHorizontal, User, Clock, Swords, Share2 } from 'lucide-react';
 
 interface PublicJournalFeedProps {
     onLogClick: (log: TrainingLog) => void;

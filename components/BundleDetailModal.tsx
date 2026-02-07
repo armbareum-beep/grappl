@@ -71,6 +71,7 @@ export const BundleDetailModal: React.FC<BundleDetailModalProps> = ({
                 <div className="sticky top-0 z-10 bg-gradient-to-r from-violet-600 to-violet-700 p-6">
                     <button
                         onClick={onClose}
+                        aria-label="번들 상세 닫기"
                         className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
                     >
                         <X className="w-5 h-5 text-white" />

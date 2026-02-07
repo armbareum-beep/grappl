@@ -468,7 +468,7 @@ export const LoadModal: React.FC<LoadModalProps> = ({ isOpen, onClose, trees, on
                                 <p className="text-zinc-500 text-sm font-medium">저장된 나의 스킬 로드맵 목록</p>
                             </div>
                         </div>
-                        <button onClick={onClose} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-2xl text-zinc-500 hover:text-white transition-all">
+                        <button onClick={onClose} aria-label="로드맵 목록 닫기" className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-2xl text-zinc-500 hover:text-white transition-all">
                             <X className="w-5 h-5" />
                         </button>
                     </div>

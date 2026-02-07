@@ -77,6 +77,7 @@ export const Modal: React.FC<ModalProps> = ({
                             {/* Close Button */}
                             <button
                                 onClick={onClose}
+                                aria-label="모달 닫기"
                                 className="absolute top-6 right-6 p-2 bg-zinc-800/50 hover:bg-zinc-800 rounded-xl text-zinc-500 hover:text-white transition-all active:scale-95"
                             >
                                 <X className="w-5 h-5" />

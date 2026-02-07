@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Trophy, Sparkles, Star, Zap, Share2 } from 'lucide-react';
+import { Trophy, Sparkles, Zap, Share2 } from 'lucide-react';
 import { getBeltInfo, getBeltIcon } from '../lib/belt-system';
 import { ShareModal } from './social/ShareModal';
 import { motion, AnimatePresence } from 'framer-motion';

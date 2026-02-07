@@ -49,6 +49,7 @@ export const ReelSubscriptionModal: React.FC<ReelSubscriptionModalProps> = ({
                             {/* Close Button */}
                             <button
                                 onClick={onClose}
+                                aria-label="구독 안내 닫기"
                                 className="absolute top-6 right-6 p-2 bg-white/5 hover:bg-white/10 rounded-full text-white/50 hover:text-white transition-colors z-20"
                             >
                                 <X className="w-5 h-5" />

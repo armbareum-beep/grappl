@@ -83,6 +83,16 @@ export const LandingPage: React.FC = () => {
                 getDailyFreeSparring()
             ]);
 
+            console.log('Daily Content Fetch Result:', {
+                drill: drillRes,
+                lesson: lessonRes,
+                sparring: sparringRes
+            });
+
+            if (lessonRes.error) {
+                console.error('Error fetching daily lesson:', lessonRes.error);
+            }
+
             setDailyDrill(drillRes.data);
             setDailyLesson(lessonRes.data);
             setDailySparring(sparringRes.data);
@@ -356,7 +366,7 @@ export const LandingPage: React.FC = () => {
                                                                         <div className="flex items-center gap-2 pr-4 border-r border-white/10">
                                                                             <div className="w-7 h-7 md:w-9 md:h-9 rounded-full overflow-hidden bg-zinc-800 border-2 border-white/10 flex-shrink-0 shadow-xl">
                                                                                 {drill.creatorProfileImage ? (
-                                                                                    <img src={drill.creatorProfileImage} className="w-full h-full object-cover" alt="" />
+                                                                                    <img src={drill.creatorProfileImage} className="w-full h-full object-cover" alt={`${drill.creatorName || '크리에이터'} 프로필`} />
                                                                                 ) : (
                                                                                     <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">{drill.creatorName?.charAt(0) || 'U'}</div>
                                                                                 )}
@@ -398,7 +408,7 @@ export const LandingPage: React.FC = () => {
                                                                         <div className="flex items-center gap-2 pr-4 border-r border-white/10">
                                                                             <div className="w-7 h-7 md:w-9 md:h-9 rounded-full overflow-hidden bg-zinc-800 border-2 border-white/10 flex-shrink-0 shadow-xl">
                                                                                 {lesson.creatorProfileImage ? (
-                                                                                    <img src={lesson.creatorProfileImage} className="w-full h-full object-cover" alt="" />
+                                                                                    <img src={lesson.creatorProfileImage} className="w-full h-full object-cover" alt={`${lesson.creatorName || '크리에이터'} 프로필`} />
                                                                                 ) : (
                                                                                     <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">{lesson.creatorName?.charAt(0) || 'U'}</div>
                                                                                 )}
@@ -440,7 +450,7 @@ export const LandingPage: React.FC = () => {
                                                                         <div className="flex items-center gap-2 pr-4 border-r border-white/10">
                                                                             <div className="w-7 h-7 md:w-9 md:h-9 rounded-full overflow-hidden bg-zinc-800 border-2 border-white/10 flex-shrink-0 shadow-xl">
                                                                                 {(sparring.creator as any)?.profileImage || (sparring.creator as any)?.avatar_url ? (
-                                                                                    <img src={(sparring.creator as any)?.profileImage || (sparring.creator as any)?.avatar_url} className="w-full h-full object-cover" alt="" />
+                                                                                    <img src={(sparring.creator as any)?.profileImage || (sparring.creator as any)?.avatar_url} className="w-full h-full object-cover" alt={`${typeof sparring.creator?.name === 'string' ? sparring.creator.name : '크리에이터'} 프로필`} />
                                                                                 ) : (
                                                                                     <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">{(sparring.creator?.name as string)?.charAt(0) || 'U'}</div>
                                                                                 )}

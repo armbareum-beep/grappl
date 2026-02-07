@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Clock, Dumbbell, Network, GraduationCap } from 'lucide-react';
+import { Play } from 'lucide-react';
 import { Course, DrillRoutine, SparringVideo } from '../../types';
 
 interface PopularContentSectionProps {

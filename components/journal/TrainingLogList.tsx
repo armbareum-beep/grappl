@@ -1,6 +1,6 @@
 import React from 'react';
 import { TrainingLog } from '../../types';
-import { Calendar, Clock, Activity, Trash2, Edit2, BookOpen, MapPin } from 'lucide-react';
+import { Calendar, Clock, Activity, Trash2, Edit2, BookOpen } from 'lucide-react';
 import { AICoachWidget } from './AICoachWidget';
 
 interface TrainingLogListProps {

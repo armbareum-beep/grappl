@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useEmblaCarousel from 'embla-carousel-react';
-import { Play, Clapperboard, ChevronUp, ChevronDown, Bookmark, Share2, Clock } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { Drill, Lesson, SparringVideo } from '../types';
 import { getDailyFreeDrill, getDailyFreeLesson, getDailyFreeSparring } from '../lib/api';
 import { cn, upgradeThumbnailQuality } from '../lib/utils';

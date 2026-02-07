@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, ArrowRight, Video, Target, Dumbbell } from 'lucide-react';
+import { Play, Video, Target, Dumbbell } from 'lucide-react';
 
 interface ActivityItem {
     id: string;

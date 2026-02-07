@@ -95,6 +95,7 @@ export const RoutineDetailModal: React.FC<RoutineDetailModalProps> = ({
                         <div className="flex justify-end p-6 absolute top-0 right-0 z-20">
                             <button
                                 onClick={onClose}
+                                aria-label="루틴 상세 닫기"
                                 className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-2xl text-zinc-500 hover:text-white transition-all active:scale-95"
                             >
                                 <X className="w-6 h-6" />

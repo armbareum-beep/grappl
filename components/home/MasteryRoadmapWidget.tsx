@@ -15,7 +15,7 @@ async function fetchContentTitle(contentId: string, type: 'technique' | 'lesson'
             return res.data?.name || 'Unknown Technique';
         } else if (type === 'lesson') {
             const l = await getLessonById(contentId);
-            return l?.title || 'Unknown Lesson';
+            return l.data?.title || 'Unknown Lesson';
         } else if (type === 'drill') {
             const d = await getDrillById(contentId);
             // getDrillById returns the object directly or with .data depending on version, 
@@ -236,7 +236,7 @@ export const MasteryRoadmapWidget: React.FC = () => {
                                     </span>
                                 </div>
 
-                                <h3 className="text-xl md:text-3xl font-black text-white mb-2 truncate leading-tight group-hover:text-violet-200 transition-colors">
+                                <h3 className="text-xl md:text-3xl font-black text-white mb-2 whitespace-pre-wrap break-words leading-tight group-hover:text-violet-200 transition-colors">
                                     {mapData.title}
                                 </h3>
 

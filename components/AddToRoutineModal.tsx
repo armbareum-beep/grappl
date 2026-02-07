@@ -106,6 +106,7 @@ export const AddToRoutineModal: React.FC<AddToRoutineModalProps> = ({
                     </div>
                     <button
                         onClick={onClose}
+                        aria-label="루틴 추가 닫기"
                         className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
                     >
                         <X className="w-4 h-4" />
