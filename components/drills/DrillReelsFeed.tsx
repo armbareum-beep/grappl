@@ -68,14 +68,18 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
                     getUserLikedDrills(user.id),
                     getUserSavedDrills(user.id),
                     getUserFollowedCreators(user.id),
-                    supabase.from('users').select('is_subscriber').eq('id', user.id).maybeSingle(),
+                    supabase.from('users').select('is_subscriber, is_complimentary_subscription, is_admin').eq('id', user.id).maybeSingle(),
                     supabase.from('purchases').select('item_id').eq('user_id', user.id)
                 ]);
                 setLiked(new Set(likedDrills.map(d => d.id)));
                 setSaved(new Set(savedDrills.map(d => d.id)));
                 setFollowing(new Set(followedCreators));
                 setUserPermissions({
-                    isSubscriber: userRes.data?.is_subscriber === true,
+                    isSubscriber: !!(
+                        userRes.data?.is_subscriber === true ||
+                        userRes.data?.is_complimentary_subscription === true ||
+                        userRes.data?.is_admin === true
+                    ),
                     purchasedItemIds: purchasesRes.data?.map(p => p.item_id) || []
                 });
             } catch (error) {

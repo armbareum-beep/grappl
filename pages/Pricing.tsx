@@ -28,12 +28,17 @@ export const Pricing: React.FC = () => {
     if (!user) return;
     const { data } = await supabase
       .from('users')
-      .select('is_subscriber, subscription_tier')
+      .select('is_subscriber, is_complimentary_subscription, is_admin, subscription_tier')
       .eq('id', user.id)
       .single();
 
     if (data) {
-      setIsSubscribed(data.is_subscriber || false);
+      const hasSub = !!(
+        data.is_subscriber === true ||
+        data.is_complimentary_subscription === true ||
+        data.is_admin === true
+      );
+      setIsSubscribed(hasSub);
       setCurrentTier(data.subscription_tier || null);
     }
   };

@@ -103,7 +103,7 @@ async function getUserInfo(userId: string | null) {
     const [userRes, purchasesRes] = await Promise.all([
       supabase
         .from('users')
-        .select('is_subscriber, subscription_tier')
+        .select('is_subscriber, is_complimentary_subscription, is_admin, subscription_tier')
         .eq('id', userId)
         .maybeSingle(),
       supabase
@@ -112,7 +112,11 @@ async function getUserInfo(userId: string | null) {
         .eq('user_id', userId)
     ]);
 
-    const isSubscriber = userRes.data?.is_subscriber === true;
+    const isSubscriber = !!(
+      userRes.data?.is_subscriber === true ||
+      userRes.data?.is_complimentary_subscription === true ||
+      userRes.data?.is_admin === true
+    );
     const subscriptionTier = userRes.data?.subscription_tier;
     const purchasedItemIds = purchasesRes.data?.map(p => p.item_id) || [];
 

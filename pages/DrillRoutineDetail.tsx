@@ -50,7 +50,7 @@ export const DrillRoutineDetail: React.FC = () => {
                 // Record View History
                 if (user) {
                     import('../lib/api').then(({ recordRoutineView }) => {
-                        recordRoutineView(user.id, id).catch(console.error);
+                        recordRoutineView(id).catch(console.error);
                     });
                 }
             }
@@ -70,12 +70,17 @@ export const DrillRoutineDetail: React.FC = () => {
             // Check subscription status
             const { data: userData } = await supabase
                 .from('users')
-                .select('is_subscriber')
+                .select('is_subscriber, is_complimentary_subscription, is_admin')
                 .eq('id', user.id)
                 .single();
 
             if (userData) {
-                setIsSubscriber(userData.is_subscriber);
+                const hasSub = !!(
+                    userData.is_subscriber === true ||
+                    userData.is_complimentary_subscription === true ||
+                    userData.is_admin === true
+                );
+                setIsSubscriber(hasSub);
             }
 
             // Check ownership

@@ -141,11 +141,15 @@ export const CourseDetail: React.FC = () => {
                         // DIRECT DB CHECK - Bypass AuthContext potential inconsistencies
                         const { data: directUserData } = await supabase
                             .from('users')
-                            .select('is_subscriber, owned_video_ids')
+                            .select('is_subscriber, is_complimentary_subscription, is_admin, owned_video_ids')
                             .eq('id', user.id)
                             .maybeSingle();
 
-                        const dbIsSubscribed = directUserData?.is_subscriber ?? isSubscribed;
+                        const dbIsSubscribed = !!(
+                            directUserData?.is_subscriber === true ||
+                            directUserData?.is_complimentary_subscription === true ||
+                            directUserData?.is_admin === true
+                        );
                         setActualIsSubscribed(dbIsSubscribed);
 
                         let owns = await checkCourseOwnership(user.id, id);
