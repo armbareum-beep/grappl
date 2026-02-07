@@ -64,6 +64,7 @@ export const RoutineDetail: React.FC = () => {
     const [currentTime, setCurrentTime] = useState(0);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const [debugInfo, setDebugInfo] = useState<any>(null);
+    const [hasRetriedAccess, setHasRetriedAccess] = useState(false);
     const isDebug = searchParams.get('debug') === 'true';
 
     // Debug log for troubleshooting video playback
@@ -544,12 +545,25 @@ export const RoutineDetail: React.FC = () => {
         drillPriceInObject === 0 ||
         isDailyFreeDrill;
 
+    // Full access means the user owns the routine, is subscribed, or the routine is free
+    const hasFullAccess = isSubscribed || owns || routine?.price === 0;
+
     // Action videos are ALWAYS accessible (even for non-logged-in users)
     // Description videos require hasDescriptionAccess
     const hasAccess = isActionVideo || hasDescriptionAccess;
 
-    // Full access means the user owns the routine, is subscribed, or the routine is free
-    const hasFullAccess = isSubscribed || owns || routine?.price === 0;
+    // Smart Retry: If access is denied but user is logged in, try refreshing permissions once
+    // This handles cases where a subscription was just granted (e.g. by Admin) but cache is stale
+    useEffect(() => {
+        if (loading || !user) return; // Wait for initial load
+
+        // If we don't have access and haven't tried refreshing yet
+        if (!hasAccess && !hasRetriedAccess) {
+            console.log('[RoutineDetail] Access denied, attempting one-time permission refresh...');
+            setHasRetriedAccess(true);
+            refreshUser();
+        }
+    }, [hasAccess, loading, user, hasRetriedAccess, refreshUser]);
 
 
     const formatTime = (seconds: number) => {
