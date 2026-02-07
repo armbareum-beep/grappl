@@ -229,6 +229,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                         return;
                     }
 
+                    // Filter out specific iOS Vimeo SDK error (TypeError)
+                    // The SDK fails to wrap the manual iframe on some iOS devices, causing "undefined is not an object".
+                    // Since the native iframe usually plays fine, we ignore this monitoring error.
+                    if (data?.message && (typeof data.message === 'string') && (
+                        data.message.includes('o.name.includes') ||
+                        data.message.includes('undefined is not an object') ||
+                        data.message.includes("reading 'includes'") // Chrome/Android just in case
+                    )) {
+                        console.warn('[VideoPlayer] Ignoring iOS Vimeo SDK specific error, assuming playback continues:', data);
+                        return;
+                    }
+
                     // Don't set error if component unmounted
                     if (!containerRef.current) return;
 
