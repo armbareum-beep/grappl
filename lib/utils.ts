@@ -35,11 +35,11 @@ export function hasHighlight(text: string | null | undefined): boolean {
  * 1. Unregistering all Service Workers
  * 2. Clearing Cache Storage
  * 3. Clearing LocalStorage and SessionStorage
- * 4. Reloading the page from server
+ * 4. Reloading the page from server with cache busting
  */
-export async function hardReload(preserveKeys: string[] = []) {
+export async function hardReload(preserveKeys: string[] = [], forceAll: boolean = false) {
     try {
-        console.log('[HardReload] Starting cleanup...');
+        console.log('[HardReload] Starting cleanup... ForceAll:', forceAll);
 
         // 1. Unregister Service Workers
         if ('serviceWorker' in navigator) {
@@ -57,27 +57,33 @@ export async function hardReload(preserveKeys: string[] = []) {
             );
         }
 
-        // 3. Selective LocalStorage Clear (Keep auth and specified keys)
-        // Only clear keys that aren't related to auth or explicitly preserved
-        const keysToKeep = [...preserveKeys];
-        const allKeys = Object.keys(localStorage);
+        // 3. LocalStorage Clear
+        if (forceAll) {
+            localStorage.clear();
+        } else {
+            // Selective LocalStorage Clear (Keep auth and specified keys)
+            const keysToKeep = [...preserveKeys];
+            const allKeys = Object.keys(localStorage);
 
-        for (const key of allKeys) {
-            if (key.startsWith('sb-') || key.startsWith('supabase.') || keysToKeep.includes(key)) {
-                continue;
+            for (const key of allKeys) {
+                if (key.startsWith('sb-') || key.startsWith('supabase.') || keysToKeep.includes(key)) {
+                    continue;
+                }
+                localStorage.removeItem(key);
             }
-            localStorage.removeItem(key);
         }
 
-        // Session storage can usually be cleared fully as it's less critical for auth persistence in our case
+        // Session storage can usually be cleared fully
         sessionStorage.clear();
 
     } catch (error) {
         console.error('[HardReload] Error during cleanup:', error);
     }
 
-    // 4. Force Reload
-    window.location.reload();
+    // 4. Force Reload with Cache Busting
+    const url = new URL(window.location.href);
+    url.searchParams.set('reload_t', Date.now().toString());
+    window.location.href = url.toString();
 }
 /**
  * Calculates a 'Hot Score' for ranking content based on views and age.

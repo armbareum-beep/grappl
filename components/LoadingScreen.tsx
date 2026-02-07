@@ -41,7 +41,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ message = '무림�
                         {message}
                     </motion.p>
                     <p className="text-zinc-500 text-sm font-medium animate-pulse">
-                        잠시만 기다려 주세요
+                        잠시만 기다려 주세요 (지속될 경우 자동 복구가 실행됩니다)
                     </p>
                 </div>
             </div>

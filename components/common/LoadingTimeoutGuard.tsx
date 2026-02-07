@@ -30,7 +30,7 @@ export const LoadingTimeoutGuard: React.FC<LoadingTimeoutGuardProps> = ({
     }, [loading, timeoutMs]);
 
     const handleClearCache = async () => {
-        await hardReload();
+        await hardReload([], true);
     };
 
     return (

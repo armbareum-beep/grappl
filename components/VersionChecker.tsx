@@ -36,10 +36,12 @@ export const VersionChecker: React.FC = () => {
         console.log(`[VersionCheck] Updating to version: ${newVersion}...`);
 
         try {
-            await hardReload([LAST_UPDATE_KEY]);
+            await hardReload([LAST_UPDATE_KEY], false);
         } catch (error) {
             console.error('[VersionCheck] Error during hard reload:', error);
-            window.location.reload();
+            const url = new URL(window.location.href);
+            url.searchParams.set('reload_t', Date.now().toString());
+            window.location.href = url.toString();
         }
     };
 
