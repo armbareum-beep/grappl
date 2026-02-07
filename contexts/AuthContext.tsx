@@ -9,6 +9,7 @@ interface User extends SupabaseUser {
     ownedVideoIds?: string[];
     profile_image_url?: string;
     avatar_url?: string; // DB value
+    is_complimentary_subscription?: boolean;
 }
 
 interface AuthContextType {
@@ -64,7 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             console.log('[AuthContext] Fetching fresh user status for:', userId);
             const queriesPromise = Promise.all([
-                supabase.from('users').select('email, is_admin, is_subscriber, subscription_tier, owned_video_ids, profile_image_url, avatar_url').eq('id', userId).maybeSingle(),
+                supabase.from('users').select('email, is_admin, is_subscriber, is_complimentary_subscription, subscription_tier, owned_video_ids, profile_image_url, avatar_url').eq('id', userId).maybeSingle(),
                 supabase.from('creators').select('approved, profile_image').eq('id', userId).maybeSingle()
             ]);
 
@@ -83,7 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             const newStatus = {
                 isAdmin: !!(userData?.is_admin === true || userData?.email === 'armbareum@gmail.com' || userData?.is_admin === 1),
-                isSubscribed: !!(userData?.is_subscriber === true || userData?.is_subscriber === 1),
+                isSubscribed: !!(userData?.is_subscriber === true || userData?.is_subscriber === 1 || userData?.is_complimentary_subscription === true),
                 subscriptionTier: userData?.subscription_tier,
                 ownedVideoIds: userData?.owned_video_ids || [],
                 isCreator: !!(creatorData?.approved === true || creatorData?.approved === 1),
