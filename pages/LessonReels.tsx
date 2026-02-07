@@ -31,8 +31,11 @@ export function LessonReels() {
 
                 const isSubscribed = !!(
                     userRes.data?.is_subscriber === true ||
+                    userRes.data?.is_subscriber === 1 ||
                     userRes.data?.is_complimentary_subscription === true ||
-                    userRes.data?.is_admin === true
+                    userRes.data?.is_complimentary_subscription === 1 ||
+                    userRes.data?.is_admin === true ||
+                    userRes.data?.is_admin === 1
                 );
 
                 setUserPermissions({

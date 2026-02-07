@@ -33,7 +33,10 @@ export const Browse: React.FC<{
 
   const fetchCourses = async () => {
     try {
-      setLoading(true);
+      // Only show full loading if we have no courses at all
+      if (courses.length === 0) {
+        setLoading(true);
+      }
       setError(null);
       const [data, freeLessonRes] = await Promise.all([
         getCourses(),
@@ -157,7 +160,7 @@ export const Browse: React.FC<{
   const difficulties = ['All', 'Beginner', 'Intermediate', 'Advanced'];
   const uniforms = ['All', 'Gi', 'No-Gi'];
 
-  if (loading) {
+  if (loading && courses.length === 0) {
     return (
       <LoadingScreen message="클래스 목록을 불러오고 있습니다..." />
     );

@@ -13,7 +13,7 @@ export default function DebugAccess() {
             // Get user data
             const { data: userData } = await supabase
                 .from('users')
-                .select('id, email, is_subscriber, subscription_tier')
+                .select('id, email, is_subscriber, is_complimentary_subscription, is_admin, subscription_tier')
                 .eq('id', user.id)
                 .single();
 
@@ -55,6 +55,8 @@ export default function DebugAccess() {
                         <div><span className="text-gray-400">ID:</span> {debugInfo.user.id}</div>
                         <div><span className="text-gray-400">Email:</span> {debugInfo.user.email}</div>
                         <div><span className="text-gray-400">구독자:</span> {debugInfo.user.is_subscriber ? 'Yes' : 'No'}</div>
+                        <div><span className="text-gray-400">무료 구독:</span> {debugInfo.user.is_complimentary_subscription ? 'Yes' : 'No'}</div>
+                        <div><span className="text-gray-400">관리자:</span> {debugInfo.user.is_admin ? 'Yes' : 'No'}</div>
                         <div><span className="text-gray-400">구독 티어:</span> {debugInfo.user.subscription_tier || 'None'}</div>
                     </div>
                 </div>

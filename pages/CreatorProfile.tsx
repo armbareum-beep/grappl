@@ -447,7 +447,7 @@ export const CreatorProfile: React.FC = () => {
                                     className="w-full px-4 py-3 bg-black border border-zinc-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent placeholder-zinc-600"
                                 />
                                 <p className="text-xs text-zinc-500 mt-2">
-                                    YouTube에 업로드한 영상의 링크를 입력해주세요 (비공개/unlisted 가능)
+                                    YouTube에 업로드한 10분 이내의 영상 링크를 입력해주세요 (비공개/unlisted 가능)
                                 </p>
                             </div>
 

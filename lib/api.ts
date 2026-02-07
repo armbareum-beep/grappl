@@ -14,6 +14,40 @@ export const SUBSCRIPTION_CREATOR_SHARE = 0.8; // 80% to creator for subscriptio
 export const SUBSCRIPTION_PLATFORM_SHARE = 0.2;
 
 
+// ==================== CACHING SYSTEM ====================
+interface CacheItem<T> {
+    data: T;
+    timestamp: number;
+}
+
+const GLOBAL_CACHE: Record<string, CacheItem<any>> = {};
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes default
+
+function getFromCache<T>(key: string): T | null {
+    const item = GLOBAL_CACHE[key];
+    if (item && Date.now() - item.timestamp < CACHE_TTL) {
+        return item.data as T;
+    }
+    return null;
+}
+
+function setToCache<T>(key: string, data: T): void {
+    GLOBAL_CACHE[key] = {
+        data,
+        timestamp: Date.now()
+    };
+}
+
+export function clearApiCache(path?: string) {
+    if (path) {
+        delete GLOBAL_CACHE[path];
+    } else {
+        Object.keys(GLOBAL_CACHE).forEach(key => delete GLOBAL_CACHE[key]);
+    }
+}
+
+
+
 
 
 // Helper to safely wrap promises with a timeout
@@ -173,6 +207,10 @@ export async function getPlatformStats() {
 
 // Creators API
 export async function getCreators(): Promise<Creator[]> {
+    const cacheKey = 'creators_approved';
+    const cached = getFromCache<Creator[]>(cacheKey);
+    if (cached) return cached;
+
     try {
         const { data, error } = await withTimeout(
             supabase
@@ -188,7 +226,9 @@ export async function getCreators(): Promise<Creator[]> {
             throw error;
         }
 
-        return (data || []).map(transformCreator);
+        const transformed = (data || []).map(transformCreator);
+        setToCache(cacheKey, transformed);
+        return transformed;
     } catch (e) {
         console.error('getCreators timeout/fail:', e);
         return []; // Return empty array on failure to prevent infinite loading
@@ -265,8 +305,14 @@ export async function fetchCreatorsByIds(creatorIds: string[]): Promise<Record<s
 
 
 // Courses API
-// Courses API
 export async function getCourses(limit: number = 50, offset: number = 0): Promise<Course[]> {
+    const cacheKey = `courses_l${limit}_o${offset}`;
+    const cached = getFromCache<Course[]>(cacheKey);
+    if (cached) {
+        console.log(`📦 Serving getCourses from cache: ${cacheKey}`);
+        return cached;
+    }
+
     try {
         console.log('🔍 getCourses: Starting fetch...');
         // First, try to get courses with creator info (for authenticated users)
@@ -333,6 +379,7 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
         });
 
         console.log('✅ getCourses: Transformed data:', transformed.length, 'courses');
+        setToCache(cacheKey, transformed);
         return transformed;
     } catch (e) {
         console.error('❌ getCourses timeout/fail:', e);

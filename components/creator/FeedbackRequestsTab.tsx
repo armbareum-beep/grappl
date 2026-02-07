@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getFeedbackRequests, submitFeedbackResponse, updateFeedbackStatus } from '../../lib/api';
 import { FeedbackRequest } from '../../types';
 import { MessageSquare, Clock, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn, getYouTubeEmbedUrl } from '../../lib/utils';
 
 type FilterStatus = 'all' | 'pending' | 'in_progress' | 'completed';
 
@@ -205,15 +205,26 @@ export const FeedbackRequestsTab: React.FC = () => {
                                     </div>
                                     <div>
                                         <h3 className="text-sm font-medium text-zinc-400 mb-2">영상 확인</h3>
-                                        <a
-                                            href={selectedRequest.videoUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-2 text-violet-400 hover:text-violet-300 hover:underline transition-colors"
-                                        >
-                                            <ExternalLink className="w-4 h-4" />
-                                            YouTube에서 보기
-                                        </a>
+                                        <div className="flex flex-col gap-3">
+                                            <div className="relative aspect-video rounded-xl overflow-hidden border border-zinc-800 bg-black group">
+                                                <iframe
+                                                    src={getYouTubeEmbedUrl(selectedRequest.videoUrl)}
+                                                    className="absolute inset-0 w-full h-full"
+                                                    frameBorder="0"
+                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                    allowFullScreen
+                                                />
+                                            </div>
+                                            <a
+                                                href={selectedRequest.videoUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-2 text-violet-400 hover:text-violet-300 hover:underline transition-colors text-sm"
+                                            >
+                                                <ExternalLink className="w-4 h-4" />
+                                                YouTube 앱/브라우저에서 보기
+                                            </a>
+                                        </div>
                                     </div>
                                     <div className="md:col-span-2">
                                         <h3 className="text-sm font-medium text-zinc-400 mb-2">요청 내용</h3>

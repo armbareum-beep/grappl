@@ -12,6 +12,7 @@ import {
     toggleLessonLike,
     checkLessonLiked
 } from '../lib/api';
+import { supabase } from '../lib/supabase';
 import { updateMasteryFromWatch } from '../lib/api-technique-mastery';
 import { Heart, ArrowLeft, Calendar, Eye, Clock, BookOpen, Share2, ExternalLink, Lock } from 'lucide-react';
 import { Lesson, Course } from '../types';
@@ -144,10 +145,31 @@ export const LessonDetail: React.FC = () => {
                     const isCreator = user && courseData && courseData.creatorId === user.id;
                     let isOwner = user && lessonData.courseId ? await checkCourseOwnership(user.id, lessonData.courseId) : false;
 
+                    // DIRECT DB CHECK - Bypass context lag
+                    let dbIsSubscribed = isSubscribed;
+                    let dbIsAdmin = isAdmin;
 
+                    if (user) {
+                        const { data: directUserData } = await supabase
+                            .from('users')
+                            .select('is_subscriber, is_complimentary_subscription, is_admin')
+                            .eq('id', user.id)
+                            .maybeSingle();
 
-                    // Core Permission Check - also check Vimeo IDs
-                    let hasAccess = isAdmin || (isSubscribed && !lessonData.isSubscriptionExcluded) || isOwner || isCreator;
+                        if (directUserData) {
+                            dbIsAdmin = !!(directUserData.is_admin === true || directUserData.is_admin === 1);
+                            dbIsSubscribed = !!(
+                                directUserData.is_subscriber === true ||
+                                directUserData.is_subscriber === 1 ||
+                                directUserData.is_complimentary_subscription === true ||
+                                directUserData.is_complimentary_subscription === 1 ||
+                                dbIsAdmin
+                            );
+                        }
+                    }
+
+                    // Core Permission Check - use DB values for better reliability
+                    let hasAccess = dbIsAdmin || (dbIsSubscribed && !lessonData.isSubscriptionExcluded) || isOwner || isCreator;
 
                     if (!hasAccess && user && user.ownedVideoIds) {
                         const normalizedOwnedIds = user.ownedVideoIds.map(oid => String(oid).trim().toLowerCase());

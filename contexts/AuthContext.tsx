@@ -95,7 +95,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
                 const newStatus = {
                     isAdmin: !!(userData?.is_admin === true || userData?.email === 'armbareum@gmail.com' || userData?.is_admin === 1),
-                    isSubscribed: !!(userData?.is_admin === true || userData?.email === 'armbareum@gmail.com' || userData?.is_admin === 1 || userData?.is_subscriber === true || userData?.is_subscriber === 1 || userData?.is_complimentary_subscription === true),
+                    isSubscribed: !!(
+                        userData?.is_admin === true ||
+                        userData?.email === 'armbareum@gmail.com' ||
+                        userData?.is_admin === 1 ||
+                        userData?.is_subscriber === true ||
+                        userData?.is_subscriber === 1 ||
+                        userData?.is_complimentary_subscription === true ||
+                        userData?.is_complimentary_subscription === 1
+                    ),
                     subscriptionTier: userData?.subscription_tier,
                     ownedVideoIds: userData?.owned_video_ids || [],
                     isCreator: !!(creatorData?.approved === true || creatorData?.approved === 1),

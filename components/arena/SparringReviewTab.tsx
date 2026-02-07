@@ -13,6 +13,7 @@ const ShareModal = React.lazy(() => import('../social/ShareModal'));
 import { createFeedPost } from '../../lib/api';
 import { ErrorScreen } from '../ErrorScreen';
 import { supabase } from '../../lib/supabase';
+import { getYouTubeEmbedUrl } from '../../lib/utils';
 
 
 
@@ -22,39 +23,6 @@ interface SparringReviewTabProps {
 
 
 
-// Helper function to convert YouTube URL to embed URL
-const getYouTubeEmbedUrl = (url: string): string => {
-    if (!url) return url;
-
-    // Already an embed URL
-    if (url.includes('youtube.com/embed/')) {
-        return url;
-    }
-
-    // Extract video ID from various YouTube URL formats
-    let videoId = '';
-
-    // Format: https://www.youtube.com/watch?v=VIDEO_ID
-    if (url.includes('youtube.com/watch?v=')) {
-        videoId = url.split('watch?v=')[1]?.split('&')[0];
-    }
-    // Format: https://youtu.be/VIDEO_ID
-    else if (url.includes('youtu.be/')) {
-        videoId = url.split('youtu.be/')[1]?.split('?')[0];
-    }
-    // Format: https://www.youtube.com/v/VIDEO_ID
-    else if (url.includes('youtube.com/v/')) {
-        videoId = url.split('youtube.com/v/')[1]?.split('?')[0];
-    }
-
-    // Return embed URL if we found a video ID
-    if (videoId) {
-        return `https://www.youtube.com/embed/${videoId}`;
-    }
-
-    // Return original URL if we couldn't parse it
-    return url;
-};
 
 export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI = false }) => {
     const { user } = useAuth();
@@ -152,10 +120,19 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
         if (!user) return;
         const { data } = await supabase
             .from('users')
-            .select('is_subscriber')
+            .select('is_subscriber, is_complimentary_subscription, is_admin')
             .eq('id', user.id)
             .single();
-        setIsSubscriber(data?.is_subscriber || false);
+
+        const hasSub = !!(
+            data?.is_subscriber === true ||
+            data?.is_subscriber === 1 ||
+            data?.is_complimentary_subscription === true ||
+            data?.is_complimentary_subscription === 1 ||
+            data?.is_admin === true ||
+            data?.is_admin === 1
+        );
+        setIsSubscriber(hasSub);
     };
 
     const loadReviews = async () => {
@@ -748,7 +725,6 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
                     setShowQuestModal(false);
                 }}
                 questName="스파링 복기 완료"
-                xpEarned={xpEarned}
                 combatPowerEarned={20}
                 streak={userStreak}
                 bonusReward={bonusReward}

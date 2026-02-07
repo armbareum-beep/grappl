@@ -97,3 +97,39 @@ export function calculateHotScore(views: number = 0, createdAt: string | null | 
     // Score = views / (hours + 2)^1.5
     return views / Math.pow(hoursSinceCreation + 2, 1.5);
 }
+
+/**
+ * Helper function to convert YouTube URL to embed URL
+ */
+export const getYouTubeEmbedUrl = (url: string): string => {
+    if (!url) return url;
+
+    // Already an embed URL
+    if (url.includes('youtube.com/embed/')) {
+        return url;
+    }
+
+    // Extract video ID from various YouTube URL formats
+    let videoId = '';
+
+    // Format: https://www.youtube.com/watch?v=VIDEO_ID
+    if (url.includes('youtube.com/watch?v=')) {
+        videoId = url.split('watch?v=')[1]?.split('&')[0];
+    }
+    // Format: https://youtu.be/VIDEO_ID
+    else if (url.includes('youtu.be/')) {
+        videoId = url.split('youtu.be/')[1]?.split('?')[0];
+    }
+    // Format: https://www.youtube.com/v/VIDEO_ID
+    else if (url.includes('youtube.com/v/')) {
+        videoId = url.split('youtube.com/v/')[1]?.split('?')[0];
+    }
+
+    // Return embed URL if we found a video ID
+    if (videoId) {
+        return `https://www.youtube.com/embed/${videoId}`;
+    }
+
+    // Return original URL if we couldn't parse it
+    return url;
+};

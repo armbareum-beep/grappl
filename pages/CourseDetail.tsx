@@ -147,8 +147,11 @@ export const CourseDetail: React.FC = () => {
 
                         const dbIsSubscribed = !!(
                             directUserData?.is_subscriber === true ||
+                            directUserData?.is_subscriber === 1 ||
                             directUserData?.is_complimentary_subscription === true ||
-                            directUserData?.is_admin === true
+                            directUserData?.is_complimentary_subscription === 1 ||
+                            directUserData?.is_admin === true ||
+                            directUserData?.is_admin === 1
                         );
                         setActualIsSubscribed(dbIsSubscribed);
 

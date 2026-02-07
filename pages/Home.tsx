@@ -57,7 +57,12 @@ export const Home: React.FC = () => {
 
     useEffect(() => {
         const fetchData = async () => {
-            setLoading(true);
+            // Only show full loading if we have no content at all
+            const hasExistingContent = slides.length > 0 || trendingCourses.length > 0;
+            if (!hasExistingContent) {
+                setLoading(true);
+            }
+
             try {
                 // Fetch all global and user-specific data in parallel
                 const promises: Promise<any>[] = [
@@ -139,7 +144,8 @@ export const Home: React.FC = () => {
         dailySparring && { type: 'sparring', data: dailySparring }
     ].filter(Boolean), [dailyLesson, dailyDrill, dailySparring]);
 
-    if (loading) return <LoadingScreen />;
+    // Only show loading screen if we are loading AND have no content yet
+    if (loading && slides.length === 0 && trendingCourses.length === 0) return <LoadingScreen />;
 
     return (
         <div className="min-h-screen bg-black text-white selection:bg-violet-500/30">

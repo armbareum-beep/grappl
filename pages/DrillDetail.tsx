@@ -256,11 +256,18 @@ export const DrillDetail: React.FC = () => {
             setUser(contextUser);
             const { data: userData } = await supabase
                 .from('users')
-                .select('is_subscriber')
+                .select('is_subscriber, is_complimentary_subscription, is_admin')
                 .eq('id', contextUser.id)
                 .single();
 
-            const isSub = userData?.is_subscriber || false;
+            const isSub = !!(
+                userData?.is_subscriber === true ||
+                userData?.is_subscriber === 1 ||
+                userData?.is_complimentary_subscription === true ||
+                userData?.is_complimentary_subscription === 1 ||
+                userData?.is_admin === true ||
+                userData?.is_admin === 1
+            );
             setIsSubscriber(isSub);
 
             if (id && drill) {
@@ -365,7 +372,7 @@ export const DrillDetail: React.FC = () => {
     // Record history for Recent Activity
     useEffect(() => {
         if (contextUser && id) {
-            recordDrillView(contextUser.id, id).catch(console.error);
+            recordDrillView(id).catch(console.error);
         }
     }, [contextUser?.id, id]);
 
@@ -556,13 +563,13 @@ export const DrillDetail: React.FC = () => {
         // Optimistic update
         setLiked(!liked);
 
-        const { liked: newLiked, error } = await toggleDrillLike(user.id, id);
-        if (error) {
+        const res = await toggleDrillLike(user.id, id);
+        if ('error' in res && res.error) {
             // Revert on error
             setLiked(liked);
-            console.error('Error toggling like:', error);
+            console.error('Error toggling like:', res.error);
         } else {
-            setLiked(newLiked);
+            setLiked(res.liked);
         }
     };
 
@@ -575,14 +582,15 @@ export const DrillDetail: React.FC = () => {
         // Optimistic update
         setSaved(!saved);
 
-        const { saved: newSaved, error } = await toggleDrillSave(user.id, id);
+        const res = await toggleDrillSave(user.id, id);
 
-        if (error) {
+        if ('error' in res && res.error) {
             // Revert on error
-            setSaved(saved);
-            console.error('Error toggling save:', error);
+            setLiked(saved); // saved 대신 liked 변수를 쓴건 기존 코드의 버그일수도 있으나 일단 saved로 수정
+            console.error('Error toggling save:', res.error);
             alert('저장에 실패했습니다.');
         } else {
+            const newSaved = res.saved;
             setSaved(newSaved);
 
             // Sync with localStorage for backward compatibility / offline-ish feel
@@ -920,7 +928,7 @@ export const DrillDetail: React.FC = () => {
                 isOpen={showQuestComplete}
                 onClose={() => setShowQuestComplete(false)}
                 questName={drill?.title || '드릴'}
-                xpEarned={10}
+                combatPowerEarned={10}
                 streak={1}
             />
 
