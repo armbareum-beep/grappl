@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-import { Star, Search, Award, Quote, Sparkles, Play } from 'lucide-react';
+import { Star, Search, Award, Quote, Play, Zap } from 'lucide-react';
 import useEmblaCarousel from 'embla-carousel-react';
 import { InstructorCarousel } from '../components/InstructorCarousel';
 
@@ -245,7 +245,7 @@ export const LandingPage: React.FC = () => {
             <section className="relative min-h-screen flex flex-col items-center justify-center bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-violet-900/20 via-zinc-950 to-zinc-950 px-4 overflow-hidden pt-28 md:pt-40">
                 {/* 2. Top Badge (Verified Black Belt Only) */}
                 <div className="z-10 mb-4 md:mb-6 flex items-center gap-2 px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm">
-                    <Sparkles className="w-3.5 h-3.5 text-violet-500 mr-2" />
+                    <Star className="w-3.5 h-3.5 text-violet-500 mr-2" />
                     <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-violet-400">
                         Verified Black Belt Only
                     </span>
@@ -294,7 +294,7 @@ export const LandingPage: React.FC = () => {
                     <div className="text-center mb-16">
                         <div className="inline-block mb-4">
                             <div className="bg-zinc-900/50 px-6 py-2 rounded-full inline-flex items-center gap-3 backdrop-blur-sm border border-zinc-800">
-                                <Sparkles className="w-4 h-4 text-violet-500" />
+                                <Zap className="w-4 h-4 text-violet-500" />
                                 <span className="text-zinc-400 font-mono text-sm tracking-wider uppercase">
                                     Today's <span className="text-zinc-200">Daily Free Pass</span>
                                 </span>

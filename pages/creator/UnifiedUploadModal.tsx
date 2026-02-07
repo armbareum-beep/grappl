@@ -206,7 +206,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         });
     }, [tasks, mainVideo.videoId, descVideo.videoId]);
 
-    const handleFileUpload = async (file: File, type: 'main' | 'desc', setter: React.Dispatch<React.SetStateAction<ProcessingState>>) => {
+    const handleFileUpload = async (file: File, setter: React.Dispatch<React.SetStateAction<ProcessingState>>) => {
         const objectUrl = URL.createObjectURL(file);
         setter(prev => ({
             ...prev,
@@ -273,7 +273,8 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         if (contentType === 'drill') {
             result = await createDrill(commonData);
         } else if (contentType === 'lesson') {
-            result = await createLesson({ ...commonData, courseId: undefined, lessonNumber: 1 });
+            // Fix: 'length' is required for createLesson
+            result = await createLesson({ ...commonData, courseId: undefined, lessonNumber: 1, length: formData.length });
         } else if (contentType === 'sparring') {
             result = await createSparringVideo({ ...commonData, price: formData.price });
         }
@@ -431,12 +432,37 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                         value={state.vimeoUrl || ''}
                         onChange={(e) => {
                             const val = e.target.value;
-                            const vid = extractVimeoId(val) || val;
+
+                            // Smart parse for ID:HASH format or standard URLs
+                            let vid = '';
+                            let hash = '';
+
+                            if (val.includes(':') && !val.includes('http')) {
+                                // Handle "123456:abcdef" format
+                                const parts = val.split(':');
+                                vid = parts[0];
+                                hash = parts[1];
+                            } else if (val.includes('vimeo.com/') && val.split('/').length > 4) {
+                                // Handle "vimeo.com/123456/abcdef" format
+                                const parts = val.split('vimeo.com/')[1].split('/');
+                                vid = parts[0];
+                                hash = parts[1];
+                            } else {
+                                vid = extractVimeoId(val) || val;
+                            }
+
+                            // Construct proper embed URL
+                            let embedUrl = '';
+                            if (vid) {
+                                embedUrl = `https://player.vimeo.com/video/${vid}`;
+                                if (hash) embedUrl += `?h=${hash}`;
+                            }
+
                             setter(prev => ({
                                 ...prev,
                                 vimeoUrl: val ? val : null,
                                 status: val ? 'complete' : (prev.file ? 'ready' : 'idle'),
-                                previewUrl: val ? `https://player.vimeo.com/video/${vid}` : (prev.file ? prev.previewUrl : null)
+                                previewUrl: val ? embedUrl : (prev.file ? prev.previewUrl : null)
                             }));
                         }}
                         placeholder="Vimeo URL 또는 ID를 입력하세요"
@@ -463,7 +489,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
 
                 {(state.status === 'idle' || state.status === 'error') && !state.vimeoUrl ? (
                     <div className="flex-1 min-h-[250px] border-2 border-dashed border-zinc-800 rounded-xl p-6 text-center hover:border-violet-500 hover:bg-zinc-800/50 transition-all cursor-pointer relative flex flex-col items-center justify-center group">
-                        <input type="file" accept="video/*" onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], type, setter)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                        <input type="file" accept="video/*" onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], setter)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                         <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mb-4 group-hover:bg-violet-500/20 transition-colors">
                             <Upload className="w-8 h-8 text-zinc-400 group-hover:text-violet-400" />
                         </div>

@@ -479,11 +479,11 @@ export const CreatorDashboard: React.FC = () => {
                     earnings: earningsData
                 });
 
-                setCourses(coursesData || []);
+                setCourses(Array.isArray(coursesData) ? coursesData : []);
                 setDrills(Array.isArray(drillsData) ? drillsData : (drillsData as any)?.data || []);
-                setLessons(lessonsData || []);
-                setRoutines(routinesData?.data || []);
-                setSparringVideos(sparringData?.data || []);
+                setLessons(Array.isArray(lessonsData) ? lessonsData : (lessonsData as any)?.data || []);
+                setRoutines(Array.isArray(routinesData) ? routinesData : (routinesData as any)?.data || []);
+                setSparringVideos(Array.isArray(sparringData) ? sparringData : (sparringData as any)?.data || []);
 
                 if (earningsData && 'data' in earningsData) {
                     setEarnings(earningsData.data);
@@ -504,6 +504,53 @@ export const CreatorDashboard: React.FC = () => {
         // 처리중 상태는 페이지 새로고침 시점에 최신 데이터로 업데이트됨
 
     }, [user?.id]); // FIX: Only re-run if user ID changes, preventing infinite loops on object reference updates
+
+    // Polling for processing items (Lessons & Drills)
+    useEffect(() => {
+        if (!user) return;
+
+        const hasProcessingLessons = lessons.some(l => !l.vimeoUrl);
+        // Drill processing check: no vimeoUrl OR vimeoUrl is empty string (sometimes it might be null)
+        const hasProcessingDrills = drills.some(d => !d.vimeoUrl || d.vimeoUrl.trim() === '');
+
+        if (!hasProcessingLessons && !hasProcessingDrills) return;
+
+        const pollInterval = setInterval(async () => {
+            // Poll Lessons if needed
+            if (hasProcessingLessons) {
+                try {
+                    // Fix: Handle object return type from getAllCreatorLessons
+                    const result = await getAllCreatorLessons(user.id).catch(() => ({ data: [] }));
+                    const latestLessons = (result && 'data' in (result as any))
+                        ? (result as any).data
+                        : (Array.isArray(result) ? result : []);
+
+                    if (latestLessons && latestLessons.length > 0) {
+                        setLessons(latestLessons);
+                    }
+                } catch (err) {
+                    console.error('Error polling lessons:', err);
+                }
+            }
+
+            // Poll Drills if needed
+            if (hasProcessingDrills) {
+                try {
+                    const result = await getDrills(user.id);
+                    const latestDrills = Array.isArray(result) ? result : (result as any)?.data || [];
+
+                    if (latestDrills && latestDrills.length > 0) {
+                        setDrills(latestDrills);
+                    }
+                } catch (err) {
+                    console.error('Error polling drills:', err);
+                }
+            }
+        }, 5000); // Poll every 5 seconds
+
+        return () => clearInterval(pollInterval);
+    }, [user, lessons, drills, courses, routines]); // Re-run effect when data updates
+
 
     const handleDeleteDrill = async (drillId: string, drillTitle: string) => {
         if (!confirm(`"${drillTitle}" 드릴을 삭제하시겠습니까?`)) return;

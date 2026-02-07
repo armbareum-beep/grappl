@@ -28,7 +28,7 @@ export const Browse: React.FC<{
   const [sortBy, setSortBy] = useState<'shuffled' | 'latest' | 'popular'>('shuffled');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
-  const categories = ['All', 'Standing', 'Guard', 'Passing', 'Side', 'Mount', 'Back'];
+  const categories = ['All', 'Standing', 'Guard', 'Passing', 'Side', 'Mount', 'Back', 'Submission'];
   const ownershipOptions = ['All', 'My Classes', 'Not Purchased'];
 
   const fetchCourses = async () => {
@@ -99,8 +99,9 @@ export const Browse: React.FC<{
     if (selectedCategory === 'Guard') matchesCategory = course.category === 'Guard' || (course.category as string || '').includes('Guard');
     if (selectedCategory === 'Passing') matchesCategory = course.category === 'Passing' || (course.category as string || '').includes('Pass');
     if (selectedCategory === 'Side') matchesCategory = (course.category as string || '').includes('Side') || (course.category as string || '').includes('Defense');
-    if (selectedCategory === 'Mount') matchesCategory = (course.category as string || '').includes('Mount') || (course.category as string || '').includes('Submission');
+    if (selectedCategory === 'Mount') matchesCategory = (course.category as string || '').includes('Mount');
     if (selectedCategory === 'Back') matchesCategory = (course.category as string || '').includes('Back');
+    if (selectedCategory === 'Submission') matchesCategory = course.category === 'Submission';
 
     const matchesDifficulty = selectedDifficulty === 'All' || course.difficulty === selectedDifficulty;
     const matchesUniform = selectedUniform === 'All' || (course as any).uniform_type === selectedUniform;

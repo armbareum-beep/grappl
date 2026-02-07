@@ -321,7 +321,11 @@ const App: React.FC = () => {
                 <Route path="/lessons/:id" element={<LessonDetail />} />
                 <Route path="/instructors" element={<Instructors />} />
                 <Route path="/profile/:userId" element={<UserProfile />} />
-                <Route path="/settings" element={<Settings />} />
+                <Route path="/settings" element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                } />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/contact" element={<Contact />} />

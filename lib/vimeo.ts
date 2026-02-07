@@ -27,6 +27,11 @@ export function extractVimeoId(input: string): string | null {
         return input.trim();
     }
 
+    // Support ID:HASH format (e.g. 123456:abcdef)
+    if (/^\d+:[a-zA-Z0-9]+$/.test(input.trim())) {
+        return input.trim();
+    }
+
     // Try to extract from URL
     const patterns = [
         /vimeo\.com\/(\d+)/,

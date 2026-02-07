@@ -40,7 +40,7 @@ export const Routines: React.FC<{
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const categories = ['All', 'Standing', 'Guard', 'Passing', 'Side', 'Mount', 'Back'];
+    const categories = ['All', 'Standing', 'Guard', 'Passing', 'Side', 'Mount', 'Back', 'Submission'];
 
     useEffect(() => {
         loadRoutines();
@@ -125,15 +125,15 @@ export const Routines: React.FC<{
             (r.creatorName && r.creatorName.toLowerCase().includes(searchTerm.toLowerCase()));
 
         // Category mapping
-        // Category mapping
         let matchesCategory = selectedCategory === 'All';
 
         if (selectedCategory === 'Standing') matchesCategory = (r.category as string) === 'Takedown' || r.category === 'Standing';
         if (selectedCategory === 'Guard') matchesCategory = r.category === 'Guard';
         if (selectedCategory === 'Passing') matchesCategory = r.category === 'Passing';
         if (selectedCategory === 'Side') matchesCategory = (r.category as string) === 'Defense' || r.category === 'Side' || (r.category as string) === 'Side Control';
-        if (selectedCategory === 'Mount') matchesCategory = (r.category as string) === 'Submission' || r.category === 'Mount';
+        if (selectedCategory === 'Mount') matchesCategory = r.category === 'Mount';
         if (selectedCategory === 'Back') matchesCategory = r.category === 'Back' || (r.category as string) === 'Back Control';
+        if (selectedCategory === 'Submission') matchesCategory = r.category === 'Submission';
 
         // Difficulty & Uniform
         const matchesDifficulty = selectedDifficulty === 'All' || r.difficulty === selectedDifficulty;

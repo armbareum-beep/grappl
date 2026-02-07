@@ -131,7 +131,7 @@ const VideoItem: React.FC<{
     useEffect(() => {
         if (isActive && user && video.id && hasAccess) {
             import('../lib/api').then(({ recordSparringView }) => {
-                recordSparringView(user.id, video.id).catch(() => { });
+                recordSparringView(video.id).catch(() => { });
             });
         }
     }, [isActive, user, video.id, hasAccess]);

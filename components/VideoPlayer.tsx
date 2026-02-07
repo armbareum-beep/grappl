@@ -256,11 +256,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                             if (!hasReachedRef.current) {
                                 hasReachedRef.current = true;
                                 if (containerRef.current) {
-                                    if (onPreviewLimitReached) onPreviewLimitReached();
                                     setShowUpgradeOverlay(true);
                                 }
-                                if (onPreviewLimitReached) onPreviewLimitReached();
-                                if (onPreviewEnded) onPreviewEnded();
+                                onPreviewLimitReached?.();
+                                onPreviewEnded?.();
                             }
                         } else {
                             hasReachedRef.current = false;

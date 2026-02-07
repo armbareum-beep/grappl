@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { VideoCategory, Difficulty, UniformType } from '../../types';
-import { createLesson, getLesson, updateLesson } from '../../lib/api-lessons';
-import { uploadThumbnail, getCreators } from '../../lib/api';
-import { formatDuration } from '../../lib/vimeo';
-import { ArrowLeft, Upload, FileVideo, Loader, Type, AlignLeft, Users, Camera, Trash2 } from 'lucide-react';
+import { VideoCategory, Difficulty, UniformType, Lesson } from '../../types';
+import { createLesson, getLessonById, updateLesson } from '../../lib/api-lessons';
+import { uploadThumbnail } from '../../lib/api';
+import { getCreators } from '../../lib/api-admin';
+import { ArrowLeft, Upload, Loader, FileVideo, Camera, Trash2 } from 'lucide-react';
 import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 import { useToast } from '../../contexts/ToastContext';
 import { Creator } from '../../types';
@@ -56,7 +56,7 @@ export const UploadLesson: React.FC = () => {
     const [videoState, setVideoState] = useState<ProcessingState>(initialProcessingState);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const videoRef = React.useRef<HTMLVideoElement>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
     const [croppingImage, setCroppingImage] = useState<string | null>(null);
 
     useEffect(() => {
@@ -70,7 +70,7 @@ export const UploadLesson: React.FC = () => {
         async function fetchLesson() {
             setIsLoading(true);
             try {
-                const { data, error } = await getLesson(id!);
+                const { data, error } = await getLessonById(id!);
                 if (error) throw error;
                 if (data) {
                     setFormData({
@@ -90,7 +90,7 @@ export const UploadLesson: React.FC = () => {
                 toastError('레슨 정보를 불러오는데 실패했습니다.');
                 navigate('/creator');
             } finally {
-                setIsLoading(true);
+                setIsLoading(false);
             }
         }
         fetchLesson();
@@ -184,7 +184,7 @@ export const UploadLesson: React.FC = () => {
                 const videoId = crypto.randomUUID();
                 await queueUpload(videoState.file, 'action', {
                     videoId,
-                    filename: `${videoId}.${videoState.file.name.split('.').pop() || 'mp4'}`,
+                    filename: `${videoId}.${videoState.file.name.split('.').pop() || 'mp4'} `,
                     cuts: [],
                     title: formData.title,
                     description: formData.description,
@@ -201,7 +201,7 @@ export const UploadLesson: React.FC = () => {
             navigate('/creator?tab=materials');
         } catch (err: any) {
             console.error('Submission error:', err);
-            toastError(`오류가 발생했습니다: ${err.message}`);
+            toastError(`오류가 발생했습니다: ${err.message} `);
         } finally {
             setIsSubmitting(false);
         }
@@ -277,8 +277,7 @@ export const UploadLesson: React.FC = () => {
                                     onChange={e => setFormData({ ...formData, category: e.target.value as VideoCategory })}
                                     className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none"
                                 >
-                                    <option value="Standing">Standing</option>
-                                    <option value="Ground">Ground</option>
+                                    {Object.values(VideoCategory).map(cat => <option key={cat} value={cat}>{cat}</option>)}
                                 </select>
                             </div>
                             <div className="grid grid-cols-2 gap-4">

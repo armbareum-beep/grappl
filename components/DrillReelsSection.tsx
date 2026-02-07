@@ -161,7 +161,8 @@ export const DrillReelsSection: React.FC<DrillReelsSectionProps> = ({ title, sub
                 // 1. Get Daily Free Drill
                 const dailyRes = await getDailyFreeDrill();
 
-                // 2. Get other free drills (via routines with price 0)
+                // 2. Get other free drills (via routines)
+                // STRICTLY allow only drills included in FREE routines (price === 0)
                 const { data: freeRoutineDrills } = await supabase
                     .from('routine_drills')
                     .select(`
@@ -170,17 +171,17 @@ export const DrillReelsSection: React.FC<DrillReelsSectionProps> = ({ title, sub
                             creator_id
                         ),
                         routines!inner (
+                            id,
                             price
                         )
                     `)
-                    .eq('routines.price', 0)
-                    .not('drills.vimeo_url', 'is', null) // Ensure vimeo_url exists
-                    .limit(20);
+                    .eq('routines.price', 0) // Enforce Free Routine Only
+                    .not('drills.vimeo_url', 'is', null)
+                    .limit(50); // Increased limit due to potential duplicates to settle down to ~20 unique
 
                 let finalDrills: Drill[] = [];
 
                 if (dailyRes.data) {
-                    // Ensure vimeoUrl is populated from snake_case vimeo_url
                     const dailyDrill = {
                         ...dailyRes.data,
                         vimeoUrl: dailyRes.data.vimeoUrl || (dailyRes.data as any).vimeo_url,
@@ -208,11 +209,11 @@ export const DrillReelsSection: React.FC<DrillReelsSectionProps> = ({ title, sub
                             createdAt: d.created_at,
                             difficulty: d.difficulty,
                             category: d.category,
-                            durationMinutes: d.duration_minutes
+                            durationMinutes: d.duration_minutes || 0
                         }));
 
-                    // Deduplicate by ID just in case
-                    const uniqueOthers = others.filter((drill, index, self) =>
+                    // Deduplicate
+                    const uniqueOthers = others.filter((drill: any, index: number, self: any[]) =>
                         index === self.findIndex((t) => t.id === drill.id)
                     );
 

@@ -80,17 +80,37 @@ export function DrillReels() {
 
             const { fetchCreatorsByIds } = await import('../lib/api');
 
-            // Get drills that belong to a routine
-            const { data: allDrills, error: drillError } = await supabase
-                .from('drills')
-                .select('*, routine_drills!inner(id)')
+            console.log('[DrillReels] Loading content...');
+
+            // Get drills strictly from FREE routines
+            const { data: freeRoutineDrills, error: drillError } = await supabase
+                .from('routine_drills')
+                .select(`
+                    drill:drills!inner (
+                         *
+                    ),
+                    routines!inner (
+                        price
+                    )
+                `)
+                .eq('routines.price', 0)
                 .order('created_at', { ascending: false })
                 .limit(100);
 
-            if (drillError) throw drillError;
+            // Extract drills from the Join result
+            const allDrills = freeRoutineDrills?.map((item: any) => item.drill) || [];
+
+            if (drillError) {
+                console.error('[DrillReels] Fetch error:', drillError);
+                throw drillError;
+            }
+
+            console.log('[DrillReels] Raw drills fetched:', allDrills?.length);
 
             const allCreatorIds = allDrills?.map((d: any) => d.creator_id).filter(Boolean) || [];
             const creatorsMap = await fetchCreatorsByIds([...new Set(allCreatorIds)]);
+
+            console.log('[DrillReels] Creators map keys:', Object.keys(creatorsMap).length);
 
             const processedDrills = (allDrills || [])
                 .filter((d: any) => {
@@ -98,6 +118,8 @@ export function DrillReels() {
                     const hasError = (d.vimeo_url?.toString().includes('ERROR')) ||
                         (d.video_url?.toString().includes('ERROR')) ||
                         (d.description_video_url?.toString().includes('ERROR'));
+
+                    if (hasError) console.warn('[DrillReels] Skipping drill likely due to error URL:', d.id);
                     return !hasError;
                 })
                 .map((d: any) => ({
@@ -106,7 +128,7 @@ export function DrillReels() {
                     description: d.description,
                     creatorId: d.creator_id,
                     creatorName: creatorsMap[d.creator_id]?.name || 'Instructor',
-                    creatorProfileImage: creatorsMap[d.creator_id]?.avatarUrl || undefined,
+                    creatorProfileImage: creatorsMap[d.creator_id]?.profileImage || undefined,
                     category: d.category,
                     difficulty: d.difficulty,
                     thumbnailUrl: d.thumbnail_url,

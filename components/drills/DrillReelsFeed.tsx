@@ -29,6 +29,8 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
         isSubscriber: false,
         purchasedItemIds: [] as string[]
     });
+    // Local override for like counts to handle optimistic updates accurately without double-counting
+    const [overrideCounts, setOverrideCounts] = useState<Record<string, number>>({});
 
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -203,7 +205,26 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
         else newLiked.add(drill.id);
         setLiked(newLiked);
 
-        await toggleDrillLike(user.id, drill.id);
+        // Update count optimistically using overrideCounts
+        const currentCount = overrideCounts[drill.id] ?? drill.likes ?? 0;
+        // If we are LIKING (isLiked=false), add 1. If UNLIKING, subtract 1 but floor at 0.
+        // NOTE: We track based on "previous applied state".
+        // If isLiked was true -> Unliking -> count - 1
+        // If isLiked was false -> Liking -> count + 1
+        const newCount = !isLiked ? currentCount + 1 : Math.max(0, currentCount - 1);
+
+        setOverrideCounts(prev => ({ ...prev, [drill.id]: newCount }));
+
+        try {
+            await toggleDrillLike(user.id, drill.id);
+        } catch (error) {
+            console.error('Like failed, rolling back:', error);
+            setLiked(liked); // Revert liked set
+            setOverrideCounts(prev => {
+                const { [drill.id]: _, ...rest } = prev;
+                return rest; // Revert to original prop value
+            });
+        }
     };
 
     const handleSave = async (drill: Drill) => {
@@ -252,22 +273,30 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
         }
     };
 
-    // Touch handling for Vertical Swipe (Feed Navigation)
-    const [touchStart, setTouchStart] = useState<{ y: number } | null>(null);
+    // Touch handling for Vertical Swipe (Feed Navigation) & Horizontal (Like)
+    const [touchStart, setTouchStart] = useState<{ x: number, y: number } | null>(null);
 
     const handleTouchStart = (e: React.TouchEvent) => {
-        setTouchStart({ y: e.targetTouches[0].clientY });
+        setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
     };
 
     const handleTouchEnd = (e: React.TouchEvent) => {
         if (!touchStart) return;
+        const touchEndX = e.changedTouches[0].clientX;
         const touchEndY = e.changedTouches[0].clientY;
+        const xDistance = touchStart.x - touchEndX;
         const yDistance = touchStart.y - touchEndY;
 
-        // Vertical Swipe Threshold
-        if (Math.abs(yDistance) > 50) {
-            if (yDistance > 0) goToNext(); // Swipe Up
-            else goToPrevious(); // Swipe Down
+        // Determine if horizontal or vertical swipe
+        if (Math.abs(xDistance) > Math.abs(yDistance)) {
+            // Horizontal Swipe - Handled by DrillReelItem for video switching
+            // Do NOT handle here to avoid conflicts
+        } else {
+            // Vertical Swipe Threshold (Feed Navigation)
+            if (Math.abs(yDistance) > 50) {
+                if (yDistance > 0) goToNext(); // Swipe Up
+                else goToPrevious(); // Swipe Down
+            }
         }
         setTouchStart(null);
     };
@@ -298,7 +327,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
                         onToggleMute={() => setIsMuted(!isMuted)}
                         isLiked={liked.has(drill.id)}
                         onLike={() => handleLike(drill)}
-                        likeCount={(drill.likes || 0) + (liked.has(drill.id) ? 1 : 0)}
+                        likeCount={overrideCounts[drill.id] ?? (drill.likes || 0)}
                         isSaved={saved.has(drill.id)}
                         onSave={() => handleSave(drill)}
                         isFollowed={following.has(drill.creatorId)}

@@ -573,8 +573,8 @@ export const TechniqueSkillTree: React.FC = () => {
                                     };
                                 }
                                 const contentId = node.contentId || '';
-                                const lesson = node.contentType === 'lesson' ? lessons.find((l: Lesson) => l.id === contentId) : undefined;
-                                const drill = node.contentType === 'drill' ? drills.find((d: Drill) => d.id === contentId) : undefined;
+                                const lesson = (node.contentType === 'lesson' && Array.isArray(lessons)) ? lessons.find((l: Lesson) => l.id === contentId) : undefined;
+                                const drill = (node.contentType === 'drill' && Array.isArray(drills)) ? drills.find((d: Drill) => d.id === contentId) : undefined;
 
                                 // Determine status (simplified for guest data reconstruction after login)
                                 const isCompleted = node.contentType === 'lesson'
@@ -743,8 +743,8 @@ export const TechniqueSkillTree: React.FC = () => {
 
                     const contentId = node.contentId || (node as any).techniqueId || '';
 
-                    const lesson = contentType === 'lesson' ? lessons.find((l: Lesson) => l.id === contentId) : undefined;
-                    const drill = contentType === 'drill' ? drills.find((d: Drill) => d.id === contentId) : undefined;
+                    const lesson = (contentType === 'lesson' && Array.isArray(lessons)) ? lessons.find((l: Lesson) => l.id === contentId) : undefined;
+                    const drill = (contentType === 'drill' && Array.isArray(drills)) ? drills.find((d: Drill) => d.id === contentId) : undefined;
 
                     // Determine completion status
                     const isCompleted = contentType === 'lesson'
@@ -755,7 +755,7 @@ export const TechniqueSkillTree: React.FC = () => {
                         ? skills.some(s => s.courseId === lesson?.courseId && s.status === 'learning')
                         : false;
 
-                    const mastery = contentType === 'technique'
+                    const mastery = (contentType === 'technique' && Array.isArray(masteryRes))
                         ? masteryRes.find((m: UserTechniqueMastery) => m.techniqueId === contentId)
                         : undefined;
 
@@ -820,8 +820,8 @@ export const TechniqueSkillTree: React.FC = () => {
                                         };
                                     }
                                     const contentId = node.contentId || '';
-                                    const lesson = node.contentType === 'lesson' ? lessons.find((l: Lesson) => l.id === contentId) : undefined;
-                                    const drill = node.contentType === 'drill' ? drills.find((d: Drill) => d.id === contentId) : undefined;
+                                    const lesson = (node.contentType === 'lesson' && Array.isArray(lessons)) ? lessons.find((l: Lesson) => l.id === contentId) : undefined;
+                                    const drill = (node.contentType === 'drill' && Array.isArray(drills)) ? drills.find((d: Drill) => d.id === contentId) : undefined;
                                     return {
                                         id: node.id,
                                         type: 'content',
@@ -890,8 +890,8 @@ export const TechniqueSkillTree: React.FC = () => {
                                             };
                                         }
                                         const contentId = node.contentId || '';
-                                        const lesson = node.contentType === 'lesson' ? lessons.find((l: Lesson) => l.id === contentId) : undefined;
-                                        const drill = node.contentType === 'drill' ? drills.find((d: Drill) => d.id === contentId) : undefined;
+                                        const lesson = (node.contentType === 'lesson' && Array.isArray(lessons)) ? lessons.find((l: Lesson) => l.id === contentId) : undefined;
+                                        const drill = (node.contentType === 'drill' && Array.isArray(drills)) ? drills.find((d: Drill) => d.id === contentId) : undefined;
                                         return {
                                             id: node.id,
                                             type: 'content',
@@ -978,8 +978,8 @@ export const TechniqueSkillTree: React.FC = () => {
                                 };
                             }
                             const contentId = node.contentId || '';
-                            const lesson = node.contentType === 'lesson' ? lessons.find((l: Lesson) => l.id === contentId) : undefined;
-                            const drill = node.contentType === 'drill' ? drills.find((d: Drill) => d.id === contentId) : undefined;
+                            const lesson = (node.contentType === 'lesson' && Array.isArray(lessons)) ? lessons.find((l: Lesson) => l.id === contentId) : undefined;
+                            const drill = (node.contentType === 'drill' && Array.isArray(drills)) ? drills.find((d: Drill) => d.id === contentId) : undefined;
                             return {
                                 id: node.id,
                                 type: 'content',

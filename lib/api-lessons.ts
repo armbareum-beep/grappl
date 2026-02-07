@@ -148,7 +148,8 @@ export async function getCreatorLessons(creatorId: string) {
         .eq('creator_id', creatorId)
         .order('created_at', { ascending: false });
 
-    return { data, error };
+    return { data: (data || []).map(transformLesson), error };
+
 }
 
 export async function getAllCreatorLessons(creatorId: string) {
@@ -158,7 +159,8 @@ export async function getAllCreatorLessons(creatorId: string) {
         .eq('creator_id', creatorId)
         .order('created_at', { ascending: false });
 
-    return { data, error };
+    return { data: (data || []).map(transformLesson), error };
+
 }
 
 export async function getLessonsByCourse(courseId: string) {
@@ -168,7 +170,8 @@ export async function getLessonsByCourse(courseId: string) {
         .eq('course_id', courseId)
         .order('lesson_number');
 
-    return { data, error };
+    return { data: (data || []).map(transformLesson), error };
+
 }
 
 export async function reorderLessons(lessonOrders: { id: string, lessonNumber: number }[]) {
@@ -207,7 +210,8 @@ export async function getStandaloneLessons(creatorId?: string) {
 
     const { data, error } = await query.order('created_at', { ascending: false });
 
-    return { data, error };
+    return { data: (data || []).map(transformLesson), error };
+
 }
 
 

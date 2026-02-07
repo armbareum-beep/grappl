@@ -15,7 +15,10 @@
       "Bash(npx vite:*)",
       "Bash(git config:*)",
       "Bash(netstat:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: prevent infinite loading on logout and session expiry\n\n- Add 3s timeout to getSession\\(\\) in initAuth to prevent hanging\n- Set loading=false immediately after setting user \\(non-blocking\\)\n- Run checkUserStatus in background without blocking UI\n- Remove blocking getSession\\(\\) call from SIGNED_OUT handler\n- Add try-catch-finally to auth state change handlers\n- Ensure loading is always set to false in all code paths\n- signOut now clears state immediately and reloads page\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)"
     ]
   }
 }
