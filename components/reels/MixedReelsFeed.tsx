@@ -144,7 +144,7 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                     getUserLikedDrills(user.id),
                     getUserSavedDrills(user.id),
                     getUserFollowedCreators(user.id),
-                    !externalPermissions ? supabase.from('users').select('is_subscriber').eq('id', user.id).maybeSingle() : Promise.resolve({ data: null }),
+                    !externalPermissions ? supabase.from('users').select('is_subscriber, is_complimentary_subscription, is_admin').eq('id', user.id).maybeSingle() : Promise.resolve({ data: null }),
                     !externalPermissions ? supabase.from('purchases').select('item_id').eq('user_id', user.id) : Promise.resolve({ data: [] })
                 ]);
 
@@ -153,8 +153,15 @@ export const MixedReelsFeed: React.FC<MixedReelsFeedProps> = ({
                 setFollowingCreators(new Set(followed));
 
                 if (!externalPermissions) {
+                    const isSubscribed = !!(
+                        userRes.data?.is_subscriber === true ||
+                        userRes.data?.is_complimentary_subscription === true ||
+                        userRes.data?.is_admin === true ||
+                        userRes.data?.is_admin === 1
+                    );
+
                     setUserPermissions({
-                        isSubscriber: userRes.data?.is_subscriber === true,
+                        isSubscriber: isSubscribed,
                         purchasedItemIds: purchasesRes.data?.map((p: any) => p.item_id) || []
                     });
                 }

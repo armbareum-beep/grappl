@@ -23,12 +23,20 @@ export function LessonReels() {
         const loadUserPermissions = async () => {
             if (!user?.id) return;
             try {
-                const [userRes, purchasesRes] = await Promise.all([
-                    supabase.from('users').select('is_subscriber').eq('id', user.id).maybeSingle(),
+                const [userRes, , purchasesRes] = await Promise.all([
+                    supabase.from('users').select('is_subscriber, is_complimentary_subscription, is_admin').eq('id', user.id).maybeSingle(),
+                    supabase.from('creators').select('approved').eq('id', user.id).maybeSingle(),
                     supabase.from('purchases').select('item_id').eq('user_id', user.id)
                 ]);
+
+                const isSubscribed = !!(
+                    userRes.data?.is_subscriber === true ||
+                    userRes.data?.is_complimentary_subscription === true ||
+                    userRes.data?.is_admin === true
+                );
+
                 setUserPermissions({
-                    isSubscriber: userRes.data?.is_subscriber === true,
+                    isSubscriber: isSubscribed,
                     purchasedItemIds: purchasesRes.data?.map(p => p.item_id) || []
                 });
             } catch (error) {
@@ -87,7 +95,7 @@ export function LessonReels() {
                         ...transformed,
                         creatorId: creatorId,
                         creatorName: creator?.name || 'Instructor',
-                        creatorProfileImage: creator?.avatarUrl || undefined,
+                        creatorProfileImage: (creator as any)?.profileImage || (creator as any)?.avatarUrl || undefined,
                     },
                     accessInfo: { canAccess }
                 };

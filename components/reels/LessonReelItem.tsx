@@ -46,7 +46,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = memo(({
 
     // Access Control
     const lessonPrice = Number((lesson as any).price || 0);
-    const hasAccess = isDailyFreeLesson || lessonPrice === 0 || (isLoggedIn && (isSubscriber || purchasedItemIds.includes(lesson.id)));
+    const hasAccess = isDailyFreeLesson || lessonPrice === 0 || (isLoggedIn && (isSubscriber || purchasedItemIds.includes(lesson.id) || (lesson.courseId && purchasedItemIds.includes(lesson.courseId))));
 
     // Interaction status
     useEffect(() => {
@@ -154,7 +154,7 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = memo(({
             onFollow={handleFollow}
             isMuted={isMuted}
             onToggleMute={onToggleMute}
-            hasAccess={hasAccess}
+            hasAccess={!!hasAccess}
             isLoggedIn={isLoggedIn}
             redirectUrl={`/watch?tab=lesson&id=${lesson.id}`}
             shareText={`${lesson.creatorName}님의 레슨을 확인해보세요`}

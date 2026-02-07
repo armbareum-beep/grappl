@@ -156,6 +156,7 @@ export function Watch() {
                     *,
                     routine_drills (
                         routines (
+                            id,
                             price
                         )
                     )
