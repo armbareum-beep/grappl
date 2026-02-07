@@ -248,6 +248,9 @@ export function Watch() {
                     // Always show daily free drill
                     if (dailyDrillRes.data && drill.id === dailyDrillRes.data.id) return true;
 
+                    // Subscriber sees EVERYTHING
+                    if (userPermissions.isSubscriber) return true;
+
                     const routines = drill.routine_drills?.map((rd: any) => rd.routines).flat().filter(Boolean) || [];
 
                     // 1. Orphan (No Routine) -> Show
@@ -257,7 +260,11 @@ export function Watch() {
                     const hasFreeRoutine = routines.some((r: any) => Number(r.price || 0) === 0);
                     if (hasFreeRoutine) return true;
 
-                    // 3. Only Paid Routines -> Hide
+                    // 3. Has any PURCHASED routine -> Show
+                    const hasPurchasedRoutine = routines.some((r: any) => userPermissions.purchasedItemIds.includes(r.id));
+                    if (hasPurchasedRoutine) return true;
+
+                    // 4. Only Paid & Unpurchased Routines -> Hide
                     return false;
                 });
 
@@ -278,7 +285,7 @@ export function Watch() {
             if (sparringRes.data) {
                 const visibleSparring = sparringRes.data.filter((s: any) => {
                     const price = Number(s.price || 0);
-                    return price === 0 || s.id === dailySparringRes.data?.id;
+                    return userPermissions.isSubscriber || userPermissions.purchasedItemIds.includes(s.id) || price === 0 || s.id === dailySparringRes.data?.id;
                 });
                 allItems = [...allItems, ...visibleSparring.map((s: any) => {
                     const transformed = transformSparringVideo(s);
@@ -305,7 +312,11 @@ export function Watch() {
             if (lessonsRes.data) {
                 const visibleLessons = lessonsRes.data.filter((l: any) => {
                     const price = Number(l.price ?? l.course?.price ?? 0);
-                    return price === 0 || l.id === dailyLessonRes.data?.id;
+                    // Check if course is purchased (if lessson belongs to course) OR lesson itself is purchased
+                    const isPurchased = userPermissions.purchasedItemIds.includes(l.id) ||
+                        (l.course?.id && userPermissions.purchasedItemIds.includes(l.course.id));
+
+                    return userPermissions.isSubscriber || isPurchased || price === 0 || l.id === dailyLessonRes.data?.id;
                 });
                 allItems = [...allItems, ...visibleLessons.map((l: any) => {
                     const transformed = transformLesson(l);
