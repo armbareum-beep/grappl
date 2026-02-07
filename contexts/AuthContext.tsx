@@ -39,7 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Check user status from database
     const checkUserStatus = async (userId: string, isInitial: boolean = false, force: boolean = false) => {
-        const cacheKey = `user_status_v2_${userId}`;
+        const cacheKey = `user_status_v4_${userId}`;
         const cached = localStorage.getItem(cacheKey);
         let cachedData: any = null;
 
@@ -75,7 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
 
                 const queriesPromise = Promise.all([
-                    supabase.from('users').select('email, is_admin, is_subscriber, is_complimentary_subscription, subscription_tier, owned_video_ids, profile_image_url, avatar_url').eq('id', userId).maybeSingle(),
+                    supabase.from('users').select('email, is_admin, is_subscriber, is_complimentary_subscription, subscription_tier, profile_image_url, avatar_url').eq('id', userId).maybeSingle(),
                     supabase.from('creators').select('approved, profile_image').eq('id', userId).maybeSingle()
                 ]);
 
@@ -94,18 +94,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const creatorData = creatorRes?.data;
 
                 const newStatus = {
-                    isAdmin: !!(userData?.is_admin === true || userData?.email === 'armbareum@gmail.com' || userData?.is_admin === 1),
+                    isAdmin: !!(userData?.is_admin || userData?.email === 'armbareum@gmail.com'),
                     isSubscribed: !!(
-                        userData?.is_admin === true ||
+                        userData?.is_admin ||
                         userData?.email === 'armbareum@gmail.com' ||
-                        userData?.is_admin === 1 ||
-                        userData?.is_subscriber === true ||
-                        userData?.is_subscriber === 1 ||
-                        userData?.is_complimentary_subscription === true ||
-                        userData?.is_complimentary_subscription === 1
+                        userData?.is_subscriber ||
+                        userData?.is_complimentary_subscription
                     ),
                     subscriptionTier: userData?.subscription_tier,
-                    ownedVideoIds: userData?.owned_video_ids || [],
+                    ownedVideoIds: [], // Column removed from DB - ownership now tracked via purchases table
                     isCreator: !!(creatorData?.approved === true || creatorData?.approved === 1),
                     profile_image_url: creatorData?.profile_image || userData?.profile_image_url || userData?.avatar_url,
                     avatar_url: userData?.avatar_url

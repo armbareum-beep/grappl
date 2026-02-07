@@ -6,7 +6,7 @@ async function diagnoseUser() {
     // 1. Find user by email
     const { data: users, error: userError } = await supabase
         .from('users')
-        .select('id, email, owned_video_ids, is_subscriber, subscription_tier')
+        .select('id, email, is_subscriber, is_complimentary_subscription, subscription_tier')
         .or('email.ilike.%test1%,id.ilike.%test1%')
         .limit(5);
 
@@ -25,13 +25,8 @@ async function diagnoseUser() {
         console.log(`\nUser: ${user.email}`);
         console.log(`ID: ${user.id}`);
         console.log(`Subscriber: ${user.is_subscriber}`);
+        console.log(`Complimentary: ${user.is_complimentary_subscription}`);
         console.log(`Tier: ${user.subscription_tier}`);
-        console.log(`owned_video_ids:`, user.owned_video_ids);
-        console.log(`owned_video_ids type:`, Array.isArray(user.owned_video_ids) ? 'array' : typeof user.owned_video_ids);
-
-        if (Array.isArray(user.owned_video_ids) && user.owned_video_ids.length > 0) {
-            console.log(`First ID: "${user.owned_video_ids[0]}" (length: ${user.owned_video_ids[0]?.length})`);
-        }
     });
 
     // 2. Check a sample course

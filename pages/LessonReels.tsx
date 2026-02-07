@@ -56,7 +56,9 @@ export function LessonReels() {
 
     const loadLessonContent = async () => {
         try {
-            setLoading(true);
+            if (lessons.length === 0) {
+                setLoading(true);
+            }
 
             const { fetchCreatorsByIds, transformLesson, getDailyFreeLesson } = await import('../lib/api');
             const { canAccessContentSync } = await import('../lib/api-accessible-content');

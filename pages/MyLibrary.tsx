@@ -255,11 +255,20 @@ export const MyLibrary: React.FC = () => {
             <div className="w-20 h-20 bg-zinc-900 rounded-full flex items-center justify-center mx-auto mb-6 border border-zinc-800">
               <Bookmark className="w-10 h-10 text-zinc-700" />
             </div>
-            <h3 className="text-xl font-bold text-white mb-2">저장된 콘텐츠가 없습니다</h3>
-            <p className="text-zinc-500 mb-8">라이브러리에서 마음에 드는 콘텐츠를 저장해 보세요.</p>
+            {user?.id && (useAuth().isSubscribed) ? (
+              <>
+                <h3 className="text-xl font-bold text-white mb-2">저장된 콘텐츠가 없습니다</h3>
+                <p className="text-zinc-500 mb-8">구독 멤버십 혜택으로 모든 클래스를 시청할 수 있습니다. 라이브러리에서 원하는 클래스를 찾아보세요!</p>
+              </>
+            ) : (
+              <>
+                <h3 className="text-xl font-bold text-white mb-2">저장된 콘텐츠가 없습니다</h3>
+                <p className="text-zinc-500 mb-8">라이브러리에서 마음에 드는 콘텐츠를 저장해 보세요.</p>
+              </>
+            )}
             <Link to="/library">
               <Button variant="primary" size="lg">
-                콘텐츠 둘러보기
+                라이브러리 둘러보기
               </Button>
             </Link>
           </div>

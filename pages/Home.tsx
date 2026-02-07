@@ -432,7 +432,7 @@ export const Home: React.FC = () => {
                         items={trendingSparring}
                         type="sparring"
                         variant="standard"
-                        basePath="/watch?type=sparring"
+                        basePath="/watch?tab=sparring"
                     />
                 )}
 
@@ -443,7 +443,7 @@ export const Home: React.FC = () => {
                         items={newSparring}
                         type="sparring"
                         variant="standard"
-                        basePath="/watch?type=sparring"
+                        basePath="/watch?tab=sparring"
                     />
                 )}
 

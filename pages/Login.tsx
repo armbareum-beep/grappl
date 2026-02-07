@@ -217,9 +217,21 @@ export const Login: React.FC = () => {
                                     )}
                                 </button>
                             </div>
-                            {!isLogin && (
-                                <p className="mt-1 text-xs text-zinc-500 ml-1">최소 6자 이상 입력해주세요</p>
-                            )}
+                            <div className="flex items-center justify-between mt-1 px-1">
+                                {!isLogin ? (
+                                    <p className="text-xs text-zinc-500">최소 6자 이상 입력해주세요</p>
+                                ) : (
+                                    <div />
+                                )}
+                                {isLogin && (
+                                    <Link
+                                        to="/forgot-password"
+                                        className="text-xs font-medium text-violet-400 hover:text-violet-300 transition-colors"
+                                    >
+                                        비밀번호를 잊으셨나요?
+                                    </Link>
+                                )}
+                            </div>
                         </div>
 
                         <button

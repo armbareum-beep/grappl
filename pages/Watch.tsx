@@ -55,7 +55,7 @@ const diversifyContent = (array: MixedItem[]) => {
 };
 
 export function Watch() {
-    const { user, isSubscribed } = useAuth();
+    const { user, isSubscribed, isAdmin, loading: authLoading } = useAuth();
     const [searchParams] = useSearchParams();
 
     // Initialize tab from URL or default to 'mix'
@@ -136,12 +136,16 @@ export function Watch() {
 
     // Load Data based on activeTab
     useEffect(() => {
+        if (authLoading) return; // Wait for auth to settle
         loadContent();
-    }, [activeTab, userPermissions.isSubscriber, userPermissions.purchasedItemIds.length]);
+    }, [activeTab, user?.id, authLoading]);
 
     const loadContent = async () => {
         try {
-            setLoading(true);
+            // Stale-While-Revalidate: Only show loading screen if we have no items
+            if (items.length === 0) {
+                setLoading(true);
+            }
 
             const { fetchCreatorsByIds, transformLesson, transformSparringVideo, transformDrill, getDailyFreeDrill, getDailyFreeLesson, getDailyFreeSparring } = await import('../lib/api');
 
@@ -441,34 +445,42 @@ export function Watch() {
             }
 
             // --- Strict Filtering Logic ---
-            const dailyFreeIds = new Set([
-                dailyDrillRes.data?.id,
-                dailyLessonRes.data?.id,
-                dailySparringRes.data?.id
-            ].filter(Boolean));
-
             const filteredItems = allItems.filter(item => {
+                // If it's a specific target requested via URL, we allow it (handled in unshift later)
+                if (targetId && item.data.id === targetId) return true;
+
                 // Determine properties
-                const isDailyFree = dailyFreeIds.has(item.data.id);
-                const isOwned = userPermissions.purchasedItemIds.includes(item.data.id);
+                const video = item.data;
+                const dailyDrillIdState = (dailyDrillRes as any)?.data?.id;
+                const dailyLessonIdState = (dailyLessonRes as any)?.data?.id;
+                const dailySparringIdState = (dailySparringRes as any)?.data?.id;
 
-                const rawPrice = (item.data as any).price;
-                const price = Number(rawPrice);
-                const isPriceFree = !isNaN(price) && price === 0;
+                const isDailyFree = (item.type === 'drill' && dailyDrillIdState === video.id) ||
+                    (item.type === 'lesson' && dailyLessonIdState === video.id) ||
+                    (item.type === 'sparring' && dailySparringIdState === video.id);
 
-                const isSubExcluded = (item.data as any).isSubscriptionExcluded === true;
+                const price = Number(video.price);
+                const isPriceFree = isNaN(price) || price === 0;
+                const isOwned = userPermissions.purchasedItemIds.includes(video.id);
+                const isSubExcluded = (video as any).isSubscriptionExcluded === true;
 
-                // 1. 구독 회원: 구독 제외 콘텐츠가 아니거나, 구독 제외지만 이미 구매한 경우 노출
+                // 1. 관리자 또는 본인 영상: 모두 노출
+                const creatorId = (video as any).creatorId || (video as any).creator_id;
+                if (user && (isAdmin || creatorId === user.id)) {
+                    return true;
+                }
+
+                // 2. 구독 회원: 구독 제외 콘텐츠가 아니거나, 구독 제외지만 이미 구매한 경우 노출
                 if (userPermissions.isSubscriber) {
                     return !isSubExcluded || isOwned;
                 }
 
-                // 2. 일반 로그인 회원: 오늘의 무료, 0원 영상, 또는 구매한 영상 노출
+                // 3. 일반 로그인 회원: 오늘의 무료, 0원 영상, 또는 구매한 영상 노출
                 if (user) {
                     return isDailyFree || isPriceFree || isOwned;
                 }
 
-                // 3. 비로그인 회원: 오늘의 무료 또는 0원 영상 노출 (미리보기로 감상)
+                // 4. 비로그인 회원: 오늘의 무료 또는 0원 영상 노출 (미리보기로 감상)
                 return isDailyFree || isPriceFree;
             });
 

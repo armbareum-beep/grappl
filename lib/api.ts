@@ -2074,12 +2074,22 @@ export async function calculateCreatorEarnings(creatorId: string) {
     const { data: ownedRoutines } = await supabase
         .from('user_routine_purchases')
         .select(`
-            user_id, 
+            user_id,
             routine_id,
             routine:routines (
                 routine_drills ( drill_id )
             )
         `);
+
+    // Get sparring videos owned by users
+    const { data: ownedVideos } = await supabase
+        .from('user_videos')
+        .select('user_id, video_id');
+
+    // Get drills owned directly by users
+    const { data: ownedDrills } = await supabase
+        .from('user_drills')
+        .select('user_id, drill_id');
 
     const ownershipMap = new Map<string, boolean>();
 
@@ -2100,10 +2110,31 @@ export async function calculateCreatorEarnings(creatorId: string) {
         }
     });
 
+    // 3. Map owned sparring videos
+    ownedVideos?.forEach(uv => {
+        ownershipMap.set(`${uv.user_id}_video_${uv.video_id}`, true);
+    });
+
+    // 4. Map directly owned drills
+    ownedDrills?.forEach(ud => {
+        ownershipMap.set(`${ud.user_id}_drill_${ud.drill_id}`, true);
+    });
+
     // Get actual watch seconds from video_watch_logs
+    // Note: Since recordWatchTime now only records paid subscribers, this data is already filtered
+    // But we still need to join with users table for safety and to exclude owned content
     const { data: watchLogs } = await supabase
         .from('video_watch_logs')
-        .select(`user_id, watch_seconds, lesson_id, video_id`);
+        .select(`user_id, watch_seconds, lesson_id, video_id, drill_id`);
+
+    // Get paid subscriber IDs (is_subscriber=true AND is_complimentary_subscription=false)
+    const { data: paidSubscribers } = await supabase
+        .from('users')
+        .select('id')
+        .eq('is_subscriber', true)
+        .or('is_complimentary_subscription.is.null,is_complimentary_subscription.eq.false');
+
+    const paidSubscriberIds = new Set(paidSubscribers?.map(u => u.id) || []);
 
     // Fetch mapping data for all content types to attribute creator_id
     const [
@@ -2135,17 +2166,23 @@ export async function calculateCreatorEarnings(creatorId: string) {
     watchLogs?.forEach((log: any) => {
         const seconds = log.watch_seconds || 0;
         const userId = log.user_id;
-        const contentId = log.lesson_id || log.video_id;
+        const contentId = log.lesson_id || log.video_id || log.drill_id;
 
         if (!contentId) return;
+
+        // Only count paid subscribers (safety check - recordWatchTime already filters)
+        if (!paidSubscriberIds.has(userId)) return;
 
         // Skip if user owns the course (direct purchase items don't count toward subscription pool)
         if (log.lesson_id) {
             const courseId = lessonCourseMap.get(log.lesson_id);
             if (courseId && ownershipMap.has(`${userId}_course_${courseId}`)) return;
         } else if (log.video_id) {
+            // Check sparring/video ownership
+            if (ownershipMap.has(`${userId}_video_${log.video_id}`)) return;
+        } else if (log.drill_id) {
             // Check drill ownership via routine
-            if (ownershipMap.has(`${userId}_drill_${log.video_id}`)) return;
+            if (ownershipMap.has(`${userId}_drill_${log.drill_id}`)) return;
         }
 
         totalWatchTime += seconds;
@@ -4032,15 +4069,103 @@ export async function revokeComplimentarySubscription(userId: string) {
 /**
  * Record watch time for a video or lesson
  * Adds the delta seconds to the daily log
+ *
+ * SETTLEMENT LOGIC:
+ * - Only records for PAID subscribers (is_subscriber=true AND is_complimentary_subscription=false)
+ * - Excludes content that the user has purchased (doesn't count toward subscription revenue)
  */
 export async function recordWatchTime(userId: string, seconds: number, videoId?: string, lessonId?: string, drillId?: string) {
     if (!videoId && !lessonId && !drillId) return { error: new Error('VideoId, LessonId or DrillId required') };
     if (seconds <= 0) return { error: null };
 
+    // 1. Check if user is a PAID subscriber (not complimentary)
+    const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('is_subscriber, is_complimentary_subscription')
+        .eq('id', userId)
+        .maybeSingle();
+
+    if (userError || !userData) {
+        // Can't verify subscriber status, skip recording
+        return { error: null };
+    }
+
+    const isPaidSubscriber = userData.is_subscriber === true && !userData.is_complimentary_subscription;
+    if (!isPaidSubscriber) {
+        // Not a paid subscriber, don't record for settlement purposes
+        return { error: null };
+    }
+
+    // 2. Check if user owns this content (purchased)
+    let isOwned = false;
+
+    if (lessonId) {
+        // Get the course_id for this lesson
+        const { data: lesson } = await supabase
+            .from('lessons')
+            .select('course_id')
+            .eq('id', lessonId)
+            .maybeSingle();
+
+        if (lesson?.course_id) {
+            // Check if user owns this course
+            const { data: ownership } = await supabase
+                .from('user_courses')
+                .select('course_id')
+                .eq('user_id', userId)
+                .eq('course_id', lesson.course_id)
+                .maybeSingle();
+            isOwned = !!ownership;
+        }
+    } else if (videoId) {
+        // Check sparring video ownership
+        const { data: ownership } = await supabase
+            .from('user_videos')
+            .select('video_id')
+            .eq('user_id', userId)
+            .eq('video_id', videoId)
+            .maybeSingle();
+        isOwned = !!ownership;
+    } else if (drillId) {
+        // Check drill ownership (via user_drills or user_routines)
+        const { data: drillOwnership } = await supabase
+            .from('user_drills')
+            .select('drill_id')
+            .eq('user_id', userId)
+            .eq('drill_id', drillId)
+            .maybeSingle();
+
+        if (drillOwnership) {
+            isOwned = true;
+        } else {
+            // Check if user owns a routine containing this drill
+            const { data: routineDrills } = await supabase
+                .from('routine_drills')
+                .select('routine_id')
+                .eq('drill_id', drillId);
+
+            if (routineDrills && routineDrills.length > 0) {
+                const routineIds = routineDrills.map(rd => rd.routine_id);
+                const { data: routineOwnership } = await supabase
+                    .from('user_routines')
+                    .select('routine_id')
+                    .eq('user_id', userId)
+                    .in('routine_id', routineIds)
+                    .limit(1);
+                isOwned = !!(routineOwnership && routineOwnership.length > 0);
+            }
+        }
+    }
+
+    if (isOwned) {
+        // User owns this content, don't count toward subscription settlement
+        return { error: null };
+    }
+
+    // 3. Record watch time (only for paid subscribers watching non-owned content)
     const today = new Date().toISOString().split('T')[0];
     const matchQuery: any = { user_id: userId, date: today };
 
-    // Determine the target ID column
     let conflictTarget = '';
     if (videoId) {
         matchQuery.video_id = videoId;
@@ -4050,29 +4175,21 @@ export async function recordWatchTime(userId: string, seconds: number, videoId?:
         conflictTarget = 'user_id,lesson_id,date';
     } else if (drillId) {
         matchQuery.drill_id = drillId;
-        conflictTarget = 'user_id,drill_id,date'; // Assuming user added constraint: UNIQUE(user_id, drill_id, date)
-        // If constraint relies on index name, you might need to check DB. 
-        // For now, let's assume standard unique index naming or it will fall back to PK if id is used? 
-        // No, video_watch_logs usually has a composite key. 
-        // We might need to ensure the constraint exists for drill_id.
+        conflictTarget = 'user_id,drill_id,date';
     }
 
-    // 1. Get current log
     const { data: currentLog, error: fetchError } = await supabase
         .from('video_watch_logs')
         .select('id, watch_seconds')
         .match(matchQuery)
-        .maybeSingle(); // Use maybeSingle to avoid 406 error on empty
+        .maybeSingle();
 
     if (fetchError) {
         console.error('Error fetching watch log:', fetchError);
-        // Continue to try upsert anyway? 
     }
 
-    // 2. Upsert
     const newSeconds = (currentLog?.watch_seconds || 0) + seconds;
 
-    // We add drill_id to the insert payload
     const payload = {
         ...matchQuery,
         watch_seconds: newSeconds,

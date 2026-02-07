@@ -45,6 +45,7 @@ export const CourseDetail: React.FC = () => {
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isPaywallOpen, setIsPaywallOpen] = useState(false);
     const [actualIsSubscribed, setActualIsSubscribed] = useState<boolean | null>(null); // Direct DB check to bypass AuthContext
+    const [actualIsAdmin, setActualIsAdmin] = useState<boolean | null>(null); // Direct DB check to bypass AuthContext
 
     const [initialStartTime, setInitialStartTime] = useState<number>(0);
     const [_currentTime, setCurrentTime] = useState<number>(0);
@@ -139,30 +140,32 @@ export const CourseDetail: React.FC = () => {
 
                     if (user) {
                         // DIRECT DB CHECK - Bypass AuthContext potential inconsistencies
-                        const { data: directUserData } = await supabase
+                        const { data: directUserData, error: userQueryError } = await supabase
                             .from('users')
-                            .select('is_subscriber, is_complimentary_subscription, is_admin, owned_video_ids')
+                            .select('is_subscriber, is_complimentary_subscription, is_admin')
                             .eq('id', user.id)
                             .maybeSingle();
 
-                        const dbIsSubscribed = !!(
-                            directUserData?.is_subscriber === true ||
-                            directUserData?.is_subscriber === 1 ||
-                            directUserData?.is_complimentary_subscription === true ||
-                            directUserData?.is_complimentary_subscription === 1 ||
-                            directUserData?.is_admin === true ||
-                            directUserData?.is_admin === 1
-                        );
-                        setActualIsSubscribed(dbIsSubscribed);
+                        // Only set actual values if query succeeded - otherwise keep null to fall back to AuthContext
+                        if (directUserData && !userQueryError) {
+                            const dbIsAdmin = !!(directUserData.is_admin);
+                            const dbIsSubscribed = !!(
+                                directUserData.is_subscriber ||
+                                directUserData.is_complimentary_subscription ||
+                                dbIsAdmin
+                            );
+                            setActualIsSubscribed(dbIsSubscribed);
+                            setActualIsAdmin(dbIsAdmin);
+                        }
 
                         let owns = await checkCourseOwnership(user.id, id);
 
-                        // Double check manual ownership client-side
-                        if (!owns && directUserData?.owned_video_ids) {
-                            const directIds = directUserData.owned_video_ids.map((oid: any) => String(oid).trim().toLowerCase());
+                        // Check ownership via user.ownedVideoIds from AuthContext
+                        if (!owns && user.ownedVideoIds) {
+                            const normalizedOwnedIds = user.ownedVideoIds.map((oid: any) => String(oid).trim().toLowerCase());
                             const courseIdLower = String(id).trim().toLowerCase();
 
-                            if (directIds.includes(courseIdLower)) {
+                            if (normalizedOwnedIds.includes(courseIdLower)) {
                                 owns = true;
                             }
 
@@ -174,14 +177,14 @@ export const CourseDetail: React.FC = () => {
                                     (courseData as any).preview_vimeo_id
                                 ].filter(Boolean).map(v => String(v).trim().toLowerCase());
 
-                                owns = courseVimeoIds.some(vid => directIds.includes(vid));
+                                owns = courseVimeoIds.some(vid => normalizedOwnedIds.includes(vid));
                             }
 
                             if (!owns && lessonsResponse.data && lessonsResponse.data.length > 0) {
                                 for (const lesson of lessonsResponse.data) {
                                     const lessonVimeoIds = [lesson.vimeoUrl, (lesson as any).vimeo_url, lesson.videoUrl]
                                         .filter(Boolean).map(v => String(v).trim().toLowerCase());
-                                    if (lessonVimeoIds.some(vid => directIds.includes(vid))) {
+                                    if (lessonVimeoIds.some(vid => normalizedOwnedIds.includes(vid))) {
                                         owns = true;
                                         break;
                                     }
@@ -189,7 +192,7 @@ export const CourseDetail: React.FC = () => {
                             }
                         }
 
-                        setOwnsCourse(owns || (user.ownedVideoIds?.some(oid => String(oid).trim().toLowerCase() === String(id).trim().toLowerCase())) || false);
+                        setOwnsCourse(owns);
 
                         // Progress and Interactions
                         const completed = new Set<string>();
@@ -288,11 +291,13 @@ export const CourseDetail: React.FC = () => {
     };
 
     const canWatchLesson = (lesson: Lesson) => {
-        if (isAdmin) return true;
+        if (actualIsAdmin ?? isAdmin) return true;
         if (ownsCourse) return true;
 
         // Use direct DB check value if available, otherwise fall back to context
-        const subscriptionStatus = actualIsSubscribed ?? isSubscribed;
+        // Also check user object directly as additional fallback
+        const subscriptionStatus = actualIsSubscribed ?? isSubscribed ??
+            !!(user?.isSubscriber || (user as any)?.is_complimentary_subscription);
         if (subscriptionStatus && !course?.isSubscriptionExcluded) return true;
 
         // Check owned_video_ids for lesson UUID, course UUID, and Vimeo IDs
@@ -951,7 +956,7 @@ export const CourseDetail: React.FC = () => {
                     </Button>
                 )}
 
-                {!course?.isSubscriptionExcluded && !ownsCourse && !isFree && (
+                {!course?.isSubscriptionExcluded && !ownsCourse && !isFree && !(actualIsSubscribed ?? isSubscribed) && (
                     <div className="relative pt-6">
                         <div className="absolute inset-x-0 top-0 flex items-center justify-center">
                             <span className="bg-zinc-900 px-3 text-[10px] font-extrabold text-zinc-600 uppercase tracking-widest">or</span>

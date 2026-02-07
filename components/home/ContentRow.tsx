@@ -274,7 +274,7 @@ export const ContentRow: React.FC<ContentRowProps> = ({
     const handleClick = (item: any) => {
         if (type === 'course') navigate(`/courses/${item.courseId || item.id}`);
         else if (type === 'routine') navigate(`/routines/${item.id}`);
-        else if (type === 'sparring') navigate(`/watch?id=${item.id}&type=sparring`);
+        else if (type === 'sparring') navigate(`/watch?id=${item.id}&tab=sparring`);
         else if (type === 'lesson') navigate(`/watch?lessonId=${item.id}`);
         else if (type === 'chain') navigate(`/skill-tree?id=${item.id}`);
     };

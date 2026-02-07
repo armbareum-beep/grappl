@@ -27,7 +27,7 @@ export function DrillReels() {
         // Auto-refresh drills every 5 seconds to detect when processing is complete
         const pollInterval = setInterval(() => {
             if (!location.state?.source) {
-                loadDrillContent();
+                loadDrillContent(undefined, true);
             }
         }, 5000);
 
@@ -74,9 +74,12 @@ export function DrillReels() {
         }
     };
 
-    const loadDrillContent = async (initialId?: string) => {
+    const loadDrillContent = async (initialId?: string, isPolling: boolean = false) => {
         try {
-            setLoading(true);
+            // Only show full loading screen if we don't have any drills yet
+            if (drills.length === 0 && !isPolling) {
+                setLoading(true);
+            }
 
             const { fetchCreatorsByIds } = await import('../lib/api');
 
