@@ -39,7 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Check user status from database
     const checkUserStatus = async (userId: string, isInitial: boolean = false, force: boolean = false) => {
-        const cacheKey = `user_status_${userId}`;
+        const cacheKey = `user_status_v2_${userId}`;
         const cached = localStorage.getItem(cacheKey);
         let cachedData: any = null;
 
