@@ -51,8 +51,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setIsAdmin(cachedData.isAdmin || false);
                     setIsSubscribed(cachedData.isSubscribed || false);
                     setIsCreator(cachedData.isCreator || false);
-                    // If it's initial load or cache is still valid, we can return early to prevent blocking
-                    if (cacheAge < CACHE_TTL) {
+                    // If it's initial load, we want to update state from cache for speed, 
+                    // BUT we should NOT return early. We want to fall through to fetch fresh data
+                    // to ensure subscription status is up to date (e.g. manual grants).
+                    // Only return early if using non-initial check and cache is fresh.
+                    if (!isInitial && cacheAge < CACHE_TTL) {
                         return { success: true, ...cachedData, usedCache: true };
                     }
                 }

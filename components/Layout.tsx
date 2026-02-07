@@ -273,7 +273,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     >
 
                       <span className="">{
-                        (user.user_metadata?.name && !user.user_metadata.name.includes('@'))
+                        (user.user_metadata?.name && typeof user.user_metadata.name === 'string' && !user.user_metadata.name.includes('@'))
                           ? user.user_metadata.name
                           : user.email?.split('@')[0]
                       }</span>
@@ -396,7 +396,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <>
                     <div className="px-3 py-3 border-b border-zinc-800/50 mb-2">
                       <p className="text-sm font-bold text-white truncate">{
-                        (user.user_metadata?.name && !user.user_metadata.name.includes('@'))
+                        (user.user_metadata?.name && typeof user.user_metadata.name === 'string' && !user.user_metadata.name.includes('@'))
                           ? user.user_metadata.name
                           : user.email?.split('@')[0]
                       }</p>

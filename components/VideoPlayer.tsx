@@ -178,8 +178,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 containerRef.current.appendChild(iframe);
 
                 // Initialize player with the iframe
-                player = new Player(iframe);
-                console.log('[VideoPlayer] Strategy: Manual Iframe (Private Video)');
+                try {
+                    player = new Player(iframe);
+                    console.log('[VideoPlayer] Strategy: Manual Iframe (Private Video)');
+                } catch (sdkError) {
+                    console.warn('[VideoPlayer] Failed to attach Vimeo SDK to manual iframe (likely iOS restriction). Ignoring to allow playback.', sdkError);
+                    // Do NOT setPlayerError here. We want to leave the iframe alone so it might still play.
+                    // This disables checking for "ended", time tracking, etc., but content is visible.
+                }
             }
             else {
                 // If we have a numeric ID but no hash (Public Video), pass it to options
@@ -267,11 +273,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     }
                 };
 
-                player.on('seeked', (data) => {
+                player?.on('seeked', (data) => {
                     checkTimeLimit(data.seconds);
                 });
 
-                player.on('timeupdate', (data) => {
+                player?.on('timeupdate', (data) => {
                     const seconds = data.seconds;
                     const max = maxPreviewDurationRef.current;
                     const isPreview = isPreviewModeRef.current;
