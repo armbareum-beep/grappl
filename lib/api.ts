@@ -119,7 +119,23 @@ export function parseVimeoId(vimeoIdStr?: string | null): VimeoInfo | null {
     return { id, hash, fullId };
 }
 
-function transformCreator(data: any): Creator {
+import { Tables } from './database.types';
+
+// ... (existing imports)
+
+// Helper types for transformations
+type CreatorData = {
+    id: string;
+    name: string;
+    bio?: string | null;
+    profile_image?: string | null;
+    subscriber_count?: number | null;
+    email?: string; // From RPC or join
+    user?: { avatar_url?: string | null }; // From join
+    avatar_url?: string | null; // From RPC or join
+};
+
+function transformCreator(data: CreatorData): Creator {
     return {
         id: data.id,
         name: data.name,
@@ -132,46 +148,58 @@ function transformCreator(data: any): Creator {
 }
 
 
+type VideoData = Tables<'videos'> & {
+    creator?: { name: string };
+    vimeo_url?: string | null;
+};
 
-function transformVideo(data: any): Video {
+
+function transformVideo(data: VideoData): Video {
     return {
         id: data.id,
         title: data.title,
-        description: data.description,
-        creatorId: data.creator_id,
+        description: data.description || '',
+        creatorId: data.creator_id || '',
         creatorName: data.creator?.name || '알 수 없음',
-        category: data.category,
-        difficulty: data.difficulty,
-        thumbnailUrl: data.thumbnail_url,
-        vimeoUrl: data.vimeo_url,
-        length: data.length,
+        category: data.category as any,
+        difficulty: data.difficulty as any,
+        thumbnailUrl: data.thumbnail_url || '',
+        vimeoUrl: data.vimeo_url || undefined,
+        length: data.length || '', // length is string | null in DB
         price: Number(data.price) || 0,
         views: data.views || 0,
-        createdAt: data.created_at,
+        createdAt: data.created_at || '',
     };
 }
 
-function transformCourse(data: any): Course {
+type CourseData = Tables<'courses'> & {
+    creator?: { name: string; profile_image?: string | null };
+    lesson_count?: number;
+    lessons?: any[];
+};
+
+function transformCourse(data: CourseData): Course {
     return {
         id: data.id,
         title: data.title,
-        description: data.description,
-        creatorId: data.creator_id,
+        description: data.description || '',
+        creatorId: data.creator_id || '',
         creatorName: data.creator?.name || '알 수 없음',
         creatorProfileImage: data.creator?.profile_image || null,
-        category: data.category,
-        difficulty: data.difficulty,
-        thumbnailUrl: data.thumbnail_url,
-        price: data.price,
-        views: data.views,
-        lessonCount: data.lesson_count,
-        createdAt: data.created_at,
-        uniformType: data.uniform_type,
-        isSubscriptionExcluded: data.is_subscription_excluded,
-        published: data.published,
-        previewVimeoId: data.preview_vimeo_id,
+        category: data.category as any,
+        difficulty: data.difficulty as any,
+        thumbnailUrl: data.thumbnail_url || '',
+        price: data.price || 0,
+        views: data.views || 0,
+        lessonCount: data.lesson_count || 0,
+        createdAt: data.created_at || '',
+        uniformType: data.uniform_type as any,
+        isSubscriptionExcluded: data.is_subscription_excluded || false,
+        published: data.published || false,
+        previewVimeoId: data.preview_vimeo_id || undefined,
     };
 }
+
 
 
 // Logic for transformLesson moved to api-lessons.ts

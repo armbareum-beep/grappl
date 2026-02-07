@@ -59,7 +59,19 @@ export async function hardReload(preserveKeys: string[] = [], forceAll: boolean 
 
         // 3. LocalStorage Clear
         if (forceAll) {
+            // Backup keys to preserve
+            const preservedValues: Record<string, string | null> = {};
+            preserveKeys.forEach(key => {
+                const val = localStorage.getItem(key);
+                if (val !== null) preservedValues[key] = val;
+            });
+
             localStorage.clear();
+
+            // Restore preserved keys
+            Object.entries(preservedValues).forEach(([key, value]) => {
+                if (value !== null) localStorage.setItem(key, value);
+            });
         } else {
             // Selective LocalStorage Clear (Keep auth and specified keys)
             const keysToKeep = [...preserveKeys];

@@ -46,7 +46,13 @@ export const LessonReelItem: React.FC<LessonReelItemProps> = memo(({
 
     // Access Control
     const lessonPrice = Number((lesson as any).price || 0);
-    const hasAccess = isDailyFreeLesson || lessonPrice === 0 || (isLoggedIn && (isSubscriber || purchasedItemIds.includes(lesson.id) || (lesson.courseId && purchasedItemIds.includes(lesson.courseId))));
+    // Check if lesson or its course is excluded from subscription
+    const isSubscriptionExcluded = (lesson as any).is_subscription_excluded || (lesson as any).course?.is_subscription_excluded || (lesson as any).isSubscriptionExcluded;
+
+    // Subscriber access requires the content NOT to be excluded
+    const isSubscriberAccess = isSubscriber && !isSubscriptionExcluded;
+
+    const hasAccess = isDailyFreeLesson || lessonPrice === 0 || (isLoggedIn && (isSubscriberAccess || purchasedItemIds.includes(lesson.id) || (lesson.courseId && purchasedItemIds.includes(lesson.courseId))));
 
     // Interaction status
     useEffect(() => {
