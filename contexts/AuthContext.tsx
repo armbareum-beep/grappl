@@ -62,51 +62,79 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         }
 
-        try {
-            console.log('[AuthContext] Fetching fresh user status for:', userId);
-            const queriesPromise = Promise.all([
-                supabase.from('users').select('email, is_admin, is_subscriber, is_complimentary_subscription, subscription_tier, owned_video_ids, profile_image_url, avatar_url').eq('id', userId).maybeSingle(),
-                supabase.from('creators').select('approved, profile_image').eq('id', userId).maybeSingle()
-            ]);
+        let attempt = 0;
+        const maxAttempts = 3;
 
-            // Wait with timeout
-            const resultPromise = Promise.race([
-                queriesPromise,
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 4000))
-            ]);
+        while (attempt < maxAttempts) {
+            try {
+                if (attempt > 0) {
+                    await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt - 1)));
+                    console.log(`[AuthContext] Retrying user status check (${attempt + 1}/${maxAttempts})...`);
+                } else {
+                    console.log('[AuthContext] Fetching fresh user status for:', userId);
+                }
 
-            const [userResult, creatorResult] = await resultPromise as any;
+                const queriesPromise = Promise.all([
+                    supabase.from('users').select('email, is_admin, is_subscriber, is_complimentary_subscription, subscription_tier, owned_video_ids, profile_image_url, avatar_url').eq('id', userId).maybeSingle(),
+                    supabase.from('creators').select('approved, profile_image').eq('id', userId).maybeSingle()
+                ]);
 
-            console.log('[AuthContext] Raw User table result:', userResult);
+                // Wait with timeout (increase timeout per attempt)
+                const timeoutMs = 4000 + (attempt * 2000);
+                const resultPromise = Promise.race([
+                    queriesPromise,
+                    new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout after ${timeoutMs}ms`)), timeoutMs))
+                ]);
 
-            const userData = userResult?.data;
-            const creatorData = creatorResult?.data;
+                const [userRes, creatorRes] = await resultPromise as any;
 
-            const newStatus = {
-                isAdmin: !!(userData?.is_admin === true || userData?.email === 'armbareum@gmail.com' || userData?.is_admin === 1),
-                isSubscribed: !!(userData?.is_admin === true || userData?.email === 'armbareum@gmail.com' || userData?.is_admin === 1 || userData?.is_subscriber === true || userData?.is_subscriber === 1 || userData?.is_complimentary_subscription === true),
-                subscriptionTier: userData?.subscription_tier,
-                ownedVideoIds: userData?.owned_video_ids || [],
-                isCreator: !!(creatorData?.approved === true || creatorData?.approved === 1),
-                profile_image_url: creatorData?.profile_image || userData?.profile_image_url || userData?.avatar_url,
-                avatar_url: userData?.avatar_url
-            };
+                if (userRes?.error) throw userRes.error;
 
-            console.log('[AuthContext] Computed status:', newStatus);
+                const userData = userRes?.data;
+                const creatorData = creatorRes?.data;
 
-            setIsAdmin(newStatus.isAdmin);
-            setIsSubscribed(newStatus.isSubscribed);
-            setIsCreator(newStatus.isCreator);
+                const newStatus = {
+                    isAdmin: !!(userData?.is_admin === true || userData?.email === 'armbareum@gmail.com' || userData?.is_admin === 1),
+                    isSubscribed: !!(userData?.is_admin === true || userData?.email === 'armbareum@gmail.com' || userData?.is_admin === 1 || userData?.is_subscriber === true || userData?.is_subscriber === 1 || userData?.is_complimentary_subscription === true),
+                    subscriptionTier: userData?.subscription_tier,
+                    ownedVideoIds: userData?.owned_video_ids || [],
+                    isCreator: !!(creatorData?.approved === true || creatorData?.approved === 1),
+                    profile_image_url: creatorData?.profile_image || userData?.profile_image_url || userData?.avatar_url,
+                    avatar_url: userData?.avatar_url
+                };
 
-            localStorage.setItem(cacheKey, JSON.stringify({ ...newStatus, _cachedAt: Date.now() }));
-            return { success: true, ...newStatus };
-        } catch (error) {
-            console.warn('Error checking user status, falling back to cache if available:', error);
-            if (cachedData) {
-                return { success: true, ...cachedData, usedCache: true };
+                // console.log('[AuthContext] Computed status:', newStatus);
+
+                setIsAdmin(newStatus.isAdmin);
+                setIsSubscribed(newStatus.isSubscribed);
+                setIsCreator(newStatus.isCreator);
+
+                localStorage.setItem(cacheKey, JSON.stringify({ ...newStatus, _cachedAt: Date.now() }));
+                return { success: true, ...newStatus };
+
+            } catch (error) {
+                console.warn(`Error checking user status (Attempt ${attempt + 1}):`, error);
+                attempt++;
+
+                // If last attempt failed, fallback to cache or default
+                if (attempt >= maxAttempts) {
+                    if (cachedData) {
+                        console.log('[AuthContext] Fetch failed, falling back to cache');
+                        return { success: true, ...cachedData, usedCache: true };
+                    }
+                    return {
+                        success: false,
+                        isAdmin: false,
+                        isCreator: false,
+                        approved: false,
+                        isSubscribed: false,
+                        subscriptionTier: 'free',
+                        ownedVideoIds: []
+                    };
+                }
             }
-            return { success: false, isAdmin: false, isCreator: false, isSubscribed: false, subscriptionTier: undefined, ownedVideoIds: [] };
         }
+        return { success: false };
     };
 
     const refreshUser = async () => {
@@ -139,7 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setTimeout(() => {
                         console.warn('getSession timed out, proceeding without session');
                         resolve({ data: { session: null } });
-                    }, 3000)
+                    }, 8000)
                 );
 
                 const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
