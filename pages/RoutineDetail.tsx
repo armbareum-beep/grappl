@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { getRoutineById, checkDrillRoutineOwnership, getDrillById, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime, getRelatedCourseByCategory, getRelatedRoutines, incrementRoutineView, recordDrillView, toggleRoutineSave, checkRoutineSaved } from '../lib/api';
 import { Drill, DrillRoutine, Course } from '../types';
 import { Button } from '../components/Button';
-import { ChevronLeft, Heart, Bookmark, Share2, Play, Lock, Volume2, VolumeX, List, ListVideo, Zap, MessageCircle, X, Clock, CheckCircle, PlayCircle } from 'lucide-react';
+import { ChevronLeft, Heart, Bookmark, Share2, Play, Lock, Volume2, VolumeX, List, ListVideo, Zap, MessageCircle, X, Clock, CheckCircle, PlayCircle, RefreshCw } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
 import ShareModal from '../components/social/ShareModal';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,7 +21,7 @@ export const RoutineDetail: React.FC = () => {
     const [searchParams] = useSearchParams();
     const playlistParam = searchParams.get('playlist');
     const playlist = useMemo(() => playlistParam ? playlistParam.split(',') : [], [playlistParam]);
-    const { user, loading: authLoading, isSubscribed } = useAuth();
+    const { user, loading: authLoading, isSubscribed, refreshUser } = useAuth();
 
     // Playback Refs
     const [isPlaying, setIsPlaying] = useState(true);
@@ -410,6 +410,17 @@ export const RoutineDetail: React.FC = () => {
     const handlePurchase = () => {
         if (!user) { navigate('/login'); return; }
         if (routine) navigate(`/checkout/routine/${routine.id}`);
+    };
+
+    const handleRefreshPermissions = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (refreshUser && user) {
+            await refreshUser();
+            // Optional: You could show a toast here
+            console.log('[RoutineDetail] User permissions refreshed');
+        } else {
+            window.location.reload();
+        }
     };
 
 
@@ -1093,6 +1104,14 @@ export const RoutineDetail: React.FC = () => {
                                                 <Button onClick={() => navigate('/pricing')} size="lg" className="bg-violet-600 hover:bg-violet-500 text-white rounded-2xl h-16 text-lg font-black w-full active:scale-95 shadow-xl shadow-violet-900/40 flex items-center justify-center gap-2">
                                                     <Zap className="w-6 h-6 fill-current" /> 멤버십 구독하기
                                                 </Button>
+                                                {/* Refresh Permissions Button (Debug/Support) */}
+                                                <button
+                                                    onClick={handleRefreshPermissions}
+                                                    className="text-xs text-zinc-500 hover:text-zinc-300 underline underline-offset-4 flex items-center justify-center gap-2 mt-2 transition-colors z-50 relative pointer-events-auto"
+                                                >
+                                                    <RefreshCw className="w-3 h-3" />
+                                                    이미 구매/구독 하셨나요? 권한 새로고침
+                                                </button>
                                             </div>
                                         </div>
                                     )}

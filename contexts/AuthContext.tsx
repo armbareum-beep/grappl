@@ -24,6 +24,7 @@ interface AuthContextType {
     signOut: () => Promise<void>;
     becomeCreator: (name: string, bio: string) => Promise<{ error: any }>;
     isSubscribed: boolean;
+    refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,28 +37,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isSubscribed, setIsSubscribed] = useState(false);
 
     // Check user status from database
-    const checkUserStatus = async (userId: string, isInitial: boolean = false) => {
+    const checkUserStatus = async (userId: string, isInitial: boolean = false, force: boolean = false) => {
         const cacheKey = `user_status_${userId}`;
         const cached = localStorage.getItem(cacheKey);
         let cachedData: any = null;
 
-        if (cached) {
+        if (cached && !force) {
             try {
                 cachedData = JSON.parse(cached);
                 const cacheAge = Date.now() - (cachedData._cachedAt || 0);
-                const CACHE_TTL = 30 * 60 * 1000; // 30 minutes (extended for better stability)
+                const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
-                if (isInitial || cacheAge < CACHE_TTL) {
-                    setIsAdmin(cachedData.isAdmin || false);
-                    setIsSubscribed(cachedData.isSubscribed || false);
-                    setIsCreator(cachedData.isCreator || false);
-                    // If it's initial load, we want to update state from cache for speed, 
-                    // BUT we should NOT return early. We want to fall through to fetch fresh data
-                    // to ensure subscription status is up to date (e.g. manual grants).
-                    // Only return early if using non-initial check and cache is fresh.
-                    if (!isInitial && cacheAge < CACHE_TTL) {
-                        return { success: true, ...cachedData, usedCache: true };
-                    }
+                // If it's initial load, we want to update state from cache for speed, 
+                // BUT we should NOT return early. We want to fall through to fetch fresh data
+                // to ensure subscription status is up to date (e.g. manual grants).
+                // Only return early if using non-initial check and cache is fresh.
+                if (!isInitial && cacheAge < CACHE_TTL) {
+                    // console.log('[AuthContext] Returning cached user status', cachedData);
+                    return { success: true, ...cachedData, usedCache: true };
                 }
             } catch (e) {
                 console.error('Error parsing cached user status:', e);
@@ -65,6 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         try {
+            console.log('[AuthContext] Fetching fresh user status for:', userId);
             const queriesPromise = Promise.all([
                 supabase.from('users').select('email, is_admin, is_subscriber, subscription_tier, owned_video_ids, profile_image_url, avatar_url').eq('id', userId).maybeSingle(),
                 supabase.from('creators').select('approved, profile_image').eq('id', userId).maybeSingle()
@@ -77,6 +75,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             ]);
 
             const [userResult, creatorResult] = await resultPromise as any;
+
+            console.log('[AuthContext] Raw User table result:', userResult);
 
             const userData = userResult?.data;
             const creatorData = creatorResult?.data;
@@ -91,6 +91,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 avatar_url: userData?.avatar_url
             };
 
+            console.log('[AuthContext] Computed status:', newStatus);
+
             setIsAdmin(newStatus.isAdmin);
             setIsSubscribed(newStatus.isSubscribed);
             setIsCreator(newStatus.isCreator);
@@ -104,6 +106,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
             return { success: false, isAdmin: false, isCreator: false, isSubscribed: false, subscriptionTier: undefined, ownedVideoIds: [] };
         }
+    };
+
+    const refreshUser = async () => {
+        if (!user) return;
+        await checkUserStatus(user.id, false, true);
     };
 
     // Safety timeout to prevent infinite loading
@@ -348,7 +355,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signOut,
         becomeCreator,
         isSubscribed,
-    }), [user, loading, isCreator, isAdmin, isSubscribed]);
+        refreshUser
+    }), [user, loading, isCreator, isAdmin, isSubscribed, refreshUser]);
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
