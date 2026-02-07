@@ -122,7 +122,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const initAuth = async () => {
             try {
-                const { data: { session } } = await supabase.auth.getSession();
+                // Add timeout to getSession to prevent infinite loading on slow/failed network
+                const sessionPromise = supabase.auth.getSession();
+                const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) =>
+                    setTimeout(() => {
+                        console.warn('getSession timed out, proceeding without session');
+                        resolve({ data: { session: null } });
+                    }, 3000)
+                );
+
+                const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
                 if (!mounted) return;
 
                 if (session?.user) {
@@ -131,23 +140,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         ...session.user,
                         isSubscriber: false, // Default to false, will be updated by checkUserStatus
                     } as any);
+                    // Set loading false immediately after setting user - don't wait for full status
+                    setLoading(false);
 
-                    // Fetch full status in background
-                    const status = await checkUserStatus(session.user.id, true);
-                    if (mounted) {
-                        setUser({
-                            ...session.user,
-                            isSubscriber: status.isSubscribed,
-                            subscription_tier: status.subscriptionTier,
-                            ownedVideoIds: status.ownedVideoIds,
-                            profile_image_url: status.profile_image_url,
-                            avatar_url: status.avatar_url
-                        });
-                        setIsAdmin(status.isAdmin);
-                        setIsCreator(status.isCreator);
-                        setIsSubscribed(status.isSubscribed);
-                        setLoading(false);
-                    }
+                    // Fetch full status in background (non-blocking)
+                    checkUserStatus(session.user.id, true).then(status => {
+                        if (mounted) {
+                            setUser({
+                                ...session.user,
+                                isSubscriber: status.isSubscribed,
+                                subscription_tier: status.subscriptionTier,
+                                ownedVideoIds: status.ownedVideoIds,
+                                profile_image_url: status.profile_image_url,
+                                avatar_url: status.avatar_url
+                            });
+                            setIsAdmin(status.isAdmin);
+                            setIsCreator(status.isCreator);
+                            setIsSubscribed(status.isSubscribed);
+                        }
+                    }).catch(err => {
+                        console.warn('Background status check failed:', err);
+                    });
                 } else {
                     if (mounted) setLoading(false);
                 }
@@ -169,28 +182,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         return { ...baseUser } as any;
                     });
 
-                    const status = await checkUserStatus(baseUser.id);
-                    if (mounted) {
-                        const finalIsAdmin = status.isAdmin || baseUser.email === 'armbareum@gmail.com';
-                        setUser({
-                            ...baseUser,
-                            isSubscriber: status.isSubscribed,
-                            subscription_tier: status.subscriptionTier,
-                            ownedVideoIds: status.ownedVideoIds,
-                            profile_image_url: status.profile_image_url,
-                            avatar_url: status.avatar_url
-                        });
+                    try {
+                        const status = await checkUserStatus(baseUser.id);
+                        if (mounted) {
+                            const finalIsAdmin = status.isAdmin || baseUser.email === 'armbareum@gmail.com';
+                            setUser({
+                                ...baseUser,
+                                isSubscriber: status.isSubscribed,
+                                subscription_tier: status.subscriptionTier,
+                                ownedVideoIds: status.ownedVideoIds,
+                                profile_image_url: status.profile_image_url,
+                                avatar_url: status.avatar_url
+                            });
 
-                        setIsAdmin(finalIsAdmin);
-                        setIsCreator(status.isCreator);
-                        setIsSubscribed(status.isSubscribed);
-                        setLoading(false);
+                            setIsAdmin(finalIsAdmin);
+                            setIsCreator(status.isCreator);
+                            setIsSubscribed(status.isSubscribed);
+                        }
+                    } catch (error) {
+                        console.error('Error in auth state change handler:', error);
+                    } finally {
+                        // Always ensure loading is set to false
+                        if (mounted) setLoading(false);
                     }
+                } else {
+                    // No user in session - ensure loading completes
+                    if (mounted) setLoading(false);
                 }
             } else if (event === 'SIGNED_OUT') {
-                // Verify session is actually null to prevent transient flickering
-                const { data: { session: currentSession } } = await supabase.auth.getSession();
-                if (!currentSession && mounted) {
+                // Clear state immediately on sign out - don't block on getSession()
+                // This prevents infinite loading when the session check fails or times out
+                if (mounted) {
                     setUser(null);
                     setIsCreator(false);
                     setIsAdmin(false);
@@ -271,7 +293,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const signOut = async () => {
-        await supabase.auth.signOut();
+        try {
+            setLoading(true);
+            await supabase.auth.signOut();
+        } catch (error) {
+            console.error('Error signing out:', error);
+        } finally {
+            // Force clear state
+            setUser(null);
+            setIsCreator(false);
+            setIsAdmin(false);
+            setIsSubscribed(false);
+            setLoading(false);
+
+            // Clear all local storage
+            try {
+                localStorage.clear();
+                sessionStorage.clear();
+            } catch (e) { }
+
+            // Force reload to clear any memory state and go to home
+            window.location.href = '/';
+        }
     };
 
     const becomeCreator = async (name: string, bio: string) => {
