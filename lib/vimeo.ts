@@ -18,18 +18,23 @@ export interface VimeoVideoInfo {
  * - https://vimeo.com/123456789
  * - https://player.vimeo.com/video/123456789
  * - 123456789 (just the ID)
+ * - 123456789:abcdef (ID:HASH) -> Returns 123456789
  */
 export function extractVimeoId(input: string): string | null {
     if (!input) return null;
 
+    const trimmed = input.trim();
+
     // If it's just a number, return it
-    if (/^\d+$/.test(input.trim())) {
-        return input.trim();
+    if (/^\d+$/.test(trimmed)) {
+        return trimmed;
     }
 
     // Support ID:HASH format (e.g. 123456:abcdef)
-    if (/^\d+:[a-zA-Z0-9]+$/.test(input.trim())) {
-        return input.trim();
+    // Return only the ID part
+    const hashMatch = /^(-?\d+):([a-zA-Z0-9]+)$/.exec(trimmed);
+    if (hashMatch) {
+        return hashMatch[1];
     }
 
     // Try to extract from URL
@@ -46,6 +51,32 @@ export function extractVimeoId(input: string): string | null {
             return match[1];
         }
     }
+
+    return null;
+}
+
+/**
+ * Extract Vimeo video Hash from various URL formats or ID:HASH
+ * Supports:
+ * - 123456789:abcdef -> abcdef
+ * - https://vimeo.com/123456789/abcdef -> abcdef
+ */
+export function extractVimeoHash(input: string): string | null {
+    if (!input) return null;
+
+    const trimmed = input.trim();
+
+    // ID:HASH format
+    const colonMatch = /^\d+:([a-zA-Z0-9]+)$/.exec(trimmed);
+    if (colonMatch) return colonMatch[1];
+
+    // URL format vimeo.com/ID/HASH
+    const urlMatch = /vimeo\.com\/\d+\/([a-zA-Z0-9]+)/.exec(trimmed);
+    if (urlMatch) return urlMatch[1];
+
+    // Player URL format ?h=HASH
+    const playerMatch = /[?&]h=([a-zA-Z0-9]+)/.exec(trimmed);
+    if (playerMatch) return playerMatch[1];
 
     return null;
 }

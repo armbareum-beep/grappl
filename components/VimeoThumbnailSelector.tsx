@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getVimeoThumbnails } from '../lib/api';
+import { getVimeoVideoInfo } from '../lib/vimeo';
 import { Loader2, AlertCircle, Check, RefreshCw } from 'lucide-react';
 
 interface VimeoThumbnail {
@@ -10,12 +11,14 @@ interface VimeoThumbnail {
 
 interface VimeoThumbnailSelectorProps {
     vimeoId: string;
+    vimeoHash?: string | null;
     onSelect: (url: string) => void;
     currentThumbnailUrl?: string;
 }
 
 export const VimeoThumbnailSelector: React.FC<VimeoThumbnailSelectorProps> = ({
     vimeoId,
+    vimeoHash,
     onSelect,
     currentThumbnailUrl
 }) => {
@@ -27,13 +30,38 @@ export const VimeoThumbnailSelector: React.FC<VimeoThumbnailSelectorProps> = ({
         setLoading(true);
         setError(null);
         try {
+            // 1. Try backend API first (better quality, multiple options)
             const result = await getVimeoThumbnails(vimeoId);
-            if (result.error) {
-                setError(result.error);
-            } else if (result.thumbnails) {
+
+            if (!result.error && result.thumbnails && result.thumbnails.length > 0) {
                 setThumbnails(result.thumbnails);
+                return;
+            }
+
+            console.warn('Backend thumbnail fetch failed, trying fallback:', result.error);
+
+            // 2. Fallback to oEmbed (client-side) if backend fails
+            // Construct URL based on ID and Hash for private videos
+            const fallbackUrl = vimeoHash
+                ? `https://vimeo.com/${vimeoId}/${vimeoHash}`
+                : vimeoId;
+
+            const info = await getVimeoVideoInfo(fallbackUrl);
+
+            if (info && info.thumbnail) {
+                setThumbnails([{
+                    id: 'default',
+                    url: info.thumbnail,
+                    active: true
+                }]);
+                // Clear any backend error since we have a fallback
+                setError(null);
+            } else {
+                // If both failed, show backend error or generic error
+                setError(result.error || '썸네일을 불러오는데 실패했습니다.');
             }
         } catch (err) {
+            console.error(err);
             setError('썸네일을 불러오는데 실패했습니다.');
         } finally {
             setLoading(false);
@@ -44,7 +72,7 @@ export const VimeoThumbnailSelector: React.FC<VimeoThumbnailSelectorProps> = ({
         if (vimeoId) {
             fetchThumbnails();
         }
-    }, [vimeoId]);
+    }, [vimeoId, vimeoHash]);
 
     if (loading) {
         return (
@@ -94,8 +122,8 @@ export const VimeoThumbnailSelector: React.FC<VimeoThumbnailSelectorProps> = ({
                             type="button"
                             onClick={() => onSelect(thumb.url)}
                             className={`relative aspect-video rounded-lg overflow-hidden border-2 transition-all group ${isSelected
-                                    ? 'border-violet-500 ring-2 ring-violet-500/20'
-                                    : 'border-zinc-800 hover:border-zinc-600'
+                                ? 'border-violet-500 ring-2 ring-violet-500/20'
+                                : 'border-zinc-800 hover:border-zinc-600'
                                 }`}
                         >
                             <img

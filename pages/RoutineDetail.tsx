@@ -44,7 +44,6 @@ export const RoutineDetail: React.FC = () => {
     const [shareModalData2, setShareModalData2] = useState<{ title: string; text: string; url: string } | null>(null);
     const [completedDrills, setCompletedDrills] = useState<Set<string>>(new Set());
     const [streak, setStreak] = useState(0);
-    const [xpEarned, setXpEarned] = useState(0);
     const [bonusReward, setBonusReward] = useState<{ type: 'xp_boost' | 'badge' | 'unlock'; value: string } | undefined>(undefined);
 
     // Timer State
@@ -61,7 +60,6 @@ export const RoutineDetail: React.FC = () => {
     const [isFollowing, setIsFollowing] = useState(false);
     const [showMobileList, setShowMobileList] = useState(false);
     const [viewMode, setViewMode] = useState<'landing' | 'player'>('landing');
-    const [currentTime, setCurrentTime] = useState(0);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const [debugInfo, setDebugInfo] = useState<any>(null);
     const [hasRetriedAccess, setHasRetriedAccess] = useState(false);
@@ -198,8 +196,7 @@ export const RoutineDetail: React.FC = () => {
     const lastTickRef = useRef<number>(0);
     const accumulatedTimeRef = useRef<number>(0);
 
-    const handleProgress = async (seconds: number) => {
-        setCurrentTime(seconds);
+    const handleProgress = async (_seconds: number) => {
         if (!user || owns || !isSubscribed || !currentDrill) return;
         const now = Date.now();
         if (lastTickRef.current === 0) { lastTickRef.current = now; return; }
@@ -322,6 +319,18 @@ export const RoutineDetail: React.FC = () => {
             loadRoutineAndPermissions();
         }
     }, [id, authLoading, user?.id]);
+    // Handle deep linking to specific drill via query param
+    useEffect(() => {
+        const drillId = searchParams.get('drill');
+        if (drillId && routine?.drills?.length) {
+            const index = routine.drills.findIndex(d => (typeof d === 'string' ? d : d.id) === drillId);
+            if (index !== -1) {
+                setCurrentDrillIndex(index);
+                setViewMode('player');
+            }
+        }
+    }, [searchParams, routine]);
+
 
     useEffect(() => {
         const loadUserInteractions = async () => {
@@ -371,7 +380,7 @@ export const RoutineDetail: React.FC = () => {
     // Record history for Recent Activity
     useEffect(() => {
         if (user && currentDrill && currentDrill.id) {
-            recordDrillView(user.id, currentDrill.id).catch(console.error);
+            recordDrillView(currentDrill.id).catch(console.error);
         }
     }, [user?.id, currentDrill?.id]);
 
@@ -409,7 +418,7 @@ export const RoutineDetail: React.FC = () => {
     }, [routine]);
 
     const handlePurchase = () => {
-        if (!user) { navigate('/login'); return; }
+        if (!user) { setIsLoginModalOpen(true); return; }
         if (routine) navigate(`/checkout/routine/${routine.id}`);
     };
 
@@ -438,12 +447,12 @@ export const RoutineDetail: React.FC = () => {
     const handleFinishTraining = async () => {
         setIsTrainingMode(false);
         const durationMinutes = Math.ceil(elapsedSeconds / 60);
-        let xpEarnedToday = 0; let currentStreak = 0; let bonusXp = 0;
+        let currentStreak = 0; let bonusXp = 0;
         if (user) {
             await createTrainingLog({ userId: user.id, userName: user.user_metadata?.name || 'Unknown', date: new Date().toISOString().split('T')[0], durationMinutes, notes: `[Routine Completed] ${routine?.title}`, techniques: routine?.drills?.map(d => typeof d === 'string' ? '' : d.title).filter(Boolean) || [], isPublic: true, location: 'Gym', metadata: { routineId: routine?.id, durationSeconds: elapsedSeconds }, sparringRounds: 0, type: 'routine' });
             const xpResult = await awardTrainingXP(user.id, 'routine_complete', 50);
-            if (xpResult.data) { xpEarnedToday = xpResult.data.xpEarned; currentStreak = xpResult.data.streak; bonusXp = xpResult.data.bonusXP; }
-            setStreak(currentStreak); setXpEarned(xpEarnedToday);
+            if (xpResult.data) { currentStreak = xpResult.data.streak; bonusXp = xpResult.data.bonusXP; }
+            setStreak(currentStreak);
             if (bonusXp > 0) setBonusReward({ type: 'xp_boost', value: `${currentStreak}일 연속 보너스 +${bonusXp} XP` });
         }
         setShowQuestComplete(true);
@@ -515,29 +524,13 @@ export const RoutineDetail: React.FC = () => {
         }
     };
 
-    if (loading) return <div className="flex items-center justify-center min-h-screen bg-black"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" /></div>;
-
-    // If routine exists but currentDrill is not yet set (and routine has drills), show loading
-    if (routine && !currentDrill && routine.drills && routine.drills.length > 0) {
-        return <div className="flex items-center justify-center min-h-screen bg-black"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" /></div>;
-    }
-
-    if (!routine || !currentDrill) return <div className="text-white text-center pt-20">Routine not found</div>;
-
-    const progressPercent = (completedDrills.size / (routine?.drills?.length || 1)) * 100;
-
-
-
-    const effectiveUrl = videoType === 'main' ? (currentDrill.videoUrl || currentDrill.vimeoUrl) : (currentDrill.descriptionVideoUrl || currentDrill.videoUrl || currentDrill.vimeoUrl);
-
-
     const isCustomRoutine = String(routine?.id || '').startsWith('custom-');
     const isActionVideo = videoType === 'main';
 
     // Description videos require subscription or ownership (or daily free drill)
     const isDailyFreeDrill = currentDrill?.id === dailyFreeDrillId;
     const routinePrice = Number(routine?.price || 0);
-    const drillPriceInObject = Number((currentDrill as any).price || 0);
+    const drillPriceInObject = Number((currentDrill as any)?.price || 0);
 
     const hasDescriptionAccess =
         isSubscribed ||
@@ -564,6 +557,21 @@ export const RoutineDetail: React.FC = () => {
             refreshUser();
         }
     }, [hasAccess, loading, user, hasRetriedAccess, refreshUser]);
+
+    if (loading) return <div className="flex items-center justify-center min-h-screen bg-black"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" /></div>;
+
+    // If routine exists but currentDrill is not yet set (and routine has drills), show loading
+    if (routine && !currentDrill && routine.drills && routine.drills.length > 0) {
+        return <div className="flex items-center justify-center min-h-screen bg-black"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" /></div>;
+    }
+
+    if (!routine || !currentDrill) return <div className="text-white text-center pt-20">Routine not found</div>;
+
+    const progressPercent = (completedDrills.size / (routine?.drills?.length || 1)) * 100;
+
+
+
+    const effectiveUrl = videoType === 'main' ? (currentDrill.videoUrl || currentDrill.vimeoUrl) : (currentDrill.descriptionVideoUrl || currentDrill.videoUrl || currentDrill.vimeoUrl);
 
 
     const formatTime = (seconds: number) => {

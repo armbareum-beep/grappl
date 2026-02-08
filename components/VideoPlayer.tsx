@@ -1,10 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import Player from '@vimeo/player';
 import { Lock, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { parseVimeoId } from '../lib/api';
+
+export interface VideoPlayerRef {
+    seekTo: (seconds: number) => void;
+}
 
 interface VideoPlayerProps {
     vimeoId: string;
@@ -30,12 +34,13 @@ interface VideoPlayerProps {
     onAspectRatioChange?: (ratio: number) => void;
     onAutoplayBlocked?: () => void;
     hideInternalOverlay?: boolean;
+    thumbnailUrl?: string; // New prop for loading placeholder
 }
 
-export const VideoPlayer: React.FC<VideoPlayerProps> = ({
+export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     vimeoId,
     startTime,
-    playing = false,
+    playing = false, // Default to false
     maxPreviewDuration,
     isPreviewMode = false,
     onEnded,
@@ -52,11 +57,28 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     muted = false, // Default to false
     onAspectRatioChange,
     onAutoplayBlocked,
-    hideInternalOverlay = false
-}) => {
+    hideInternalOverlay = false,
+}, ref) => {
     const [isPlaying, setIsPlaying] = useState(false);
     useWakeLock(isPlaying);
     const [aspectRatio, setAspectRatio] = useState(16 / 9); // Default to 16:9
+
+    // Expose seekTo method via ref
+    useImperativeHandle(ref, () => ({
+        seekTo: (seconds: number) => {
+            if (playerRef.current) {
+                playerRef.current.setCurrentTime(seconds).catch(err => {
+                    console.warn('[VideoPlayer] Seek failed:', err);
+                });
+            } else {
+                // For direct video fallback
+                const videoElement = containerRef.current?.querySelector('video');
+                if (videoElement) {
+                    videoElement.currentTime = seconds;
+                }
+            }
+        }
+    }));
 
     useEffect(() => {
         onPlayingChange?.(isPlaying);
@@ -65,14 +87,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const playerRef = useRef<Player | null>(null);
     const [playerError, setPlayerError] = useState<any>(null);
     const [showUpgradeOverlay, setShowUpgradeOverlay] = useState(false);
-    const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
     const [showLikeAnimation, setShowLikeAnimation] = useState(false);
     const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // timeRemaining state removed - handled by parent via onProgress
 
     const onProgressRef = useRef(onProgress);
     const maxPreviewDurationRef = useRef(maxPreviewDuration);
     const isPreviewModeRef = useRef(isPreviewMode);
     const hasReachedRef = useRef(false); // To track limit inside event listener
+    const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     const onReadyRef = useRef(onReady);
 
@@ -112,7 +136,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 badge: false,
                 muted: muted,
                 playsinline: true, // Support mobile autoplay
-                background: !showControls && autoplay && muted, // Only use background mode if autoplay is intentional AND muted
+                // Background mode suppresses timeupdate events. We disable it to ensure the progress bar works.
+                background: false,
                 dnt: true, // Prevent tracking and hide some personal buttons
                 // Custom params to try and hide the share/embed button
                 // Note: These often require a Plus/Pro account setting to fully take effect,
@@ -152,9 +177,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 params.append('autoplay', autoplay ? '1' : '0');
                 params.append('muted', muted ? '1' : '0');
 
-                // If controls are hidden (Reel mode), background=1 is often required for smooth autoplay/loop
-                if (!showControls) {
-                    params.append('background', '1');
+                // If controls are hidden (Reel mode) or we are in background pre-play
+                if (!showControls || !playing) {
+                    params.append('background', '0');
                     params.append('controls', '0');
                     if (autoplay) {
                         params.append('loop', '1');
@@ -165,6 +190,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 params.append('app_id', '122963');
                 params.append('dnt', '1');
                 params.append('share', '0');
+                params.append('color', 'ffffff');
                 if (showControls) params.append('controls', '1');
 
                 iframe.src = `https://player.vimeo.com/video/${numericId}?${params.toString()}`;
@@ -214,13 +240,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             const currentPlayer = player; // Capture for closure safety
             let hasNotifiedReady = false;
 
-            const notifyReady = () => {
+            const notifyParentReady = () => {
                 if (!hasNotifiedReady) {
                     hasNotifiedReady = true;
-                    console.log('[VideoPlayer] Notifying ready (playback started)');
+                    // console.log('[VideoPlayer] Notifying parent ready (safe to navigate)');
                     onReadyRef.current?.();
                 }
             };
+
+
 
             if (currentPlayer) {
                 currentPlayer.on('error', (data) => {
@@ -248,17 +276,24 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     setPlayerError(data);
 
                     // Still notify ready so swipe navigation isn't blocked
-                    notifyReady();
+                    notifyParentReady();
                 });
 
                 currentPlayer.on('play', () => {
                     setIsPlaying(true);
-                    // Notify ready when video actually starts playing
-                    notifyReady();
+
+                    notifyParentReady();
                 });
                 currentPlayer.on('pause', () => setIsPlaying(false));
-                currentPlayer.on('bufferstart', () => setIsPlaying(false));
-                currentPlayer.on('bufferend', () => setIsPlaying(true));
+                currentPlayer.on('bufferstart', () => {
+                    // console.log('Buffer start');
+                    // Optional: show loading spinner here if needed
+                });
+                currentPlayer.on('bufferend', () => {
+                    setIsPlaying(true);
+
+                    notifyParentReady();
+                });
 
                 currentPlayer.on('ended', () => {
                     if (onEnded) onEnded();
@@ -270,7 +305,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
                     if (isPreview && max) {
                         if (seconds >= max) {
-                            player?.pause().catch(console.warn);
+                            // Safety: set isPlaying to false immediately
+                            setIsPlaying(false);
+                            if (player) {
+                                player.pause().catch(console.warn);
+                            }
                             if (!hasReachedRef.current) {
                                 hasReachedRef.current = true;
                                 if (containerRef.current) {
@@ -285,18 +324,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     }
                 };
 
-                player?.on('seeked', (data) => {
+                currentPlayer.on('seeked', (data) => {
                     checkTimeLimit(data.seconds);
                 });
 
-                player?.on('timeupdate', (data) => {
+                currentPlayer.on('timeupdate', (data) => {
                     const seconds = data.seconds;
                     const max = maxPreviewDurationRef.current;
                     const isPreview = isPreviewModeRef.current;
 
                     // Notify ready when we have actual playback progress
                     if (seconds > 0.1) {
-                        notifyReady();
+                        notifyParentReady();
                     }
 
                     let reportPercent = data.percent;
@@ -304,17 +343,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                         reportPercent = Math.min(1, seconds / max);
                     }
 
-                    if (onProgressRef.current) {
-                        onProgressRef.current(seconds, data.duration, reportPercent);
-                    }
+                    onProgressRef.current?.(seconds, data.duration, reportPercent);
+
                     checkTimeLimit(seconds);
 
-                    if (isPreview && max) {
-                        const remaining = max - seconds;
-                        if (containerRef.current) {
-                            setTimeRemaining(Math.max(0, Math.ceil(remaining)));
-                        }
-                    }
+                    // timeRemaining update removed - handled by parent via onProgress
                 });
 
                 currentPlayer.on('loaded', () => {
@@ -338,21 +371,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                         .catch(err => console.warn('[VideoPlayer] Failed to get dimensions:', err));
 
                     // For non-playing videos (neighbors), notify ready on load
-                    // For active videos, wait for actual playback start
+                    // But DO NOT hide thumbnail yet (wait for actual play)
                     if (!playingRef.current) {
-                        console.log('[VideoPlayer] Not playing (neighbor), notifying ready on load');
-                        notifyReady();
+                        notifyParentReady();
                     }
                 });
             }
 
-            // ... (catch block)
-
         } catch (err: any) {
-            // ... existing catch logic ...
-            // Ignore AbortError occurring during initialization
-            if (err?.name === 'AbortError' || err?.message?.includes('aborted')) return;
-
             console.error('Failed to initialize Vimeo player:', err);
             if (containerRef.current) {
                 setPlayerError(err);
@@ -430,6 +456,69 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
         syncPlayback();
     }, [playing, muted]); // Add muted to dependency to retry if props change matches logic
+
+    // Polling fallback for progress updates (Vimeo background mode often suppresses timeupdate)
+    useEffect(() => {
+        const startPolling = () => {
+            if (pollingIntervalRef.current) return;
+            pollingIntervalRef.current = setInterval(async () => {
+                if (!playerRef.current || !playing) return;
+                try {
+                    const [seconds, duration] = await Promise.all([
+                        playerRef.current.getCurrentTime(),
+                        playerRef.current.getDuration()
+                    ]);
+
+                    const max = maxPreviewDurationRef.current;
+                    const isPreview = isPreviewModeRef.current;
+
+                    let reportPercent = seconds / duration;
+                    if (isPreview && max) {
+                        reportPercent = Math.min(1, seconds / max);
+                    }
+
+                    // Only report if playback is actually moving
+                    if (seconds > 0) {
+                        onProgressRef.current?.(seconds, duration, reportPercent);
+                    }
+
+                    // CRITICAL: Also check preview time limit in polling fallback
+                    // This ensures preview limits work even when timeupdate events are suppressed
+                    if (isPreview && max && seconds >= max) {
+                        if (!hasReachedRef.current) {
+                            hasReachedRef.current = true;
+                            setIsPlaying(false);
+                            if (playerRef.current) {
+                                playerRef.current.pause().catch(console.warn);
+                            }
+                            if (containerRef.current) {
+                                setShowUpgradeOverlay(true);
+                            }
+                            onPreviewLimitReached?.();
+                            onPreviewEnded?.();
+                        }
+                    } else if (max && seconds < max) {
+                        hasReachedRef.current = false;
+                    }
+                } catch (e) { /* ignore */ }
+            }, 500); // 500ms polling is enough for UI and session tracking
+        };
+
+        const stopPolling = () => {
+            if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+                pollingIntervalRef.current = null;
+            }
+        };
+
+        if (playing) {
+            startPolling();
+        } else {
+            stopPolling();
+        }
+
+        return stopPolling;
+    }, [playing]);
 
     // Sync muted state - and resume playback immediately after unmuting
     useEffect(() => {
@@ -534,12 +623,43 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     onPause={() => setIsPlaying(false)}
                     onEnded={() => onEnded?.()}
                     onLoadedData={() => onReady?.()}
+                    onTimeUpdate={(e) => {
+                        const video = e.currentTarget;
+                        const seconds = video.currentTime;
+                        const duration = video.duration;
+
+                        const max = maxPreviewDurationRef.current;
+                        const isPreview = isPreviewModeRef.current;
+
+                        // Notify ready when we have actual playback progress
+                        if (seconds > 0.1) {
+                            onReadyRef.current?.();
+                        }
+
+                        let reportPercent = seconds / duration;
+                        if (isPreview && max) {
+                            reportPercent = Math.min(1, seconds / max);
+                        }
+
+                        onProgressRef.current?.(seconds, duration, reportPercent);
+
+                        // Direct Video Time Limit Check
+                        if (isPreview && max && seconds >= max) {
+                            if (!showUpgradeOverlay) {
+                                video.pause();
+                                setIsPlaying(false);
+                                setShowUpgradeOverlay(true);
+                                onPreviewLimitReached?.();
+                            }
+                        }
+                    }}
                 />
             )}
 
             {/* Error Overlay */}
             {playerError && (
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-zinc-900/90 p-6 text-center backdrop-blur-sm">
+                    {/* ... error UI ... */}
                     <div className="max-w-xs">
                         <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4 border border-red-500/20">
                             <span className="text-xl">⚠️</span>
@@ -547,21 +667,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                         <p className="text-red-400 font-bold mb-2">영상 재생 오류</p>
                         <p className="text-zinc-400 text-xs mb-4 leading-relaxed font-mono bg-black/50 p-2 rounded border border-zinc-800">
                             {playerError.message || (typeof playerError === 'string' ? playerError : 'Unknown Error')}
-                            {playerError.name && ` (${playerError.name})`}
                         </p>
                         <p className="text-zinc-600 text-[10px]">ID: {vimeoId}</p>
                     </div>
                 </div>
             )}
 
-            {/* 프리뷰 타이머 (재생 중 표시) */}
-            {isPreviewMode && !showUpgradeOverlay && timeRemaining !== null && timeRemaining > 0 && showControls && (
-                <div className="absolute top-4 right-4 z-20 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-md border border-violet-500/30">
-                    <span className="text-xs font-bold text-violet-300">
-                        프리뷰: {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')} 남음
-                    </span>
-                </div>
-            )}
+            {/* 프리뷰 타이머 내부 UI 삭제 (부모에서 관리) */}
 
             {/* Like Animation */}
             {showLikeAnimation && (
@@ -572,6 +684,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     />
                 </div>
             )}
+
+            {/* 프리뷰 프로그레스 바 내부 UI 삭제 (부모에서 관리) */}
 
             {/* 업그레이드 오버레이 (프리뷰 종료 시 표시) */}
             {showUpgradeOverlay && !hideInternalOverlay && (
@@ -599,6 +713,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     </div>
                 </div>
             )}
+
         </div>
     );
-};
+});
+
+VideoPlayer.displayName = 'VideoPlayer';

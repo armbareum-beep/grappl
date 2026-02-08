@@ -6,37 +6,29 @@ import {
     Play
 } from 'lucide-react';
 import useEmblaCarousel from 'embla-carousel-react';
-import {
-    getRecentActivity, getDailyFreeDrill, getDailyFreeLesson,
-    getPublicSparringVideos, getFeaturedRoutines, getNewCourses,
-    fetchRoutines, getTrendingCourses,
-    getDailyFreeSparring, getTrendingSparring
-} from '../lib/api';
-import { Lesson, DrillRoutine, SparringVideo, Course } from '../types';
-import { LoadingScreen } from '../components/LoadingScreen';
+import { Lesson, SparringVideo } from '../types';
 import { UserDashboard } from '../components/home/UserDashboard';
 import { ContentRow } from '../components/home/ContentRow';
+import { useHomeQueries } from '../hooks/use-home-queries';
 
 export const Home: React.FC = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const [loading, setLoading] = useState(true);
 
-    // Data states
-    const [dailyDrill, setDailyDrill] = useState<any | null>(null);
-    const [dailyLesson, setDailyLesson] = useState<Lesson | null>(null);
-    const [dailySparring, setDailySparring] = useState<SparringVideo | null>(null);
-
-    // New Layout States
-    const [continueItems, setContinueItems] = useState<any[]>([]);
-    const [trendingSparring, setTrendingSparring] = useState<SparringVideo[]>([]);
-    const [featuredRoutines, setFeaturedRoutines] = useState<DrillRoutine[]>([]);
-    const [trendingCourses, setTrendingCourses] = useState<Course[]>([]);
-
-    // Tab Section Data
-    const [newCourses, setNewCourses] = useState<Course[]>([]);
-    const [newRoutines, setNewRoutines] = useState<DrillRoutine[]>([]);
-    const [newSparring, setNewSparring] = useState<SparringVideo[]>([]);
+    // Data fetching using React Query hook
+    const {
+        dailyDrill,
+        dailyLesson,
+        dailySparring,
+        continueItems,
+        trendingSparring,
+        featuredRoutines,
+        trendingCourses,
+        newCourses,
+        newRoutines,
+        newSparring,
+        isLoading: loading // Aliased to loading to match existing code
+    } = useHomeQueries(user?.id);
 
     const [currentSlide, setCurrentSlide] = useState(0);
 
@@ -54,75 +46,6 @@ export const Home: React.FC = () => {
         emblaApi.on('select', onSelect);
         return () => { emblaApi.off('select', onSelect); };
     }, [emblaApi]);
-
-    useEffect(() => {
-        const fetchData = async () => {
-            // Only show full loading if we have no content at all
-            const hasExistingContent = slides.length > 0 || trendingCourses.length > 0;
-            if (!hasExistingContent) {
-                setLoading(true);
-            }
-
-            try {
-                // Fetch all global and user-specific data in parallel
-                const promises: Promise<any>[] = [
-                    getDailyFreeDrill(),
-                    getDailyFreeLesson(),
-                    getDailyFreeSparring(),
-                    getTrendingSparring(10),
-                    getFeaturedRoutines(20),
-                    getTrendingCourses(10),
-                    getNewCourses(10),
-                    fetchRoutines(20),
-                    getPublicSparringVideos(20)
-                ];
-
-                // If user is logged in, also fetch user-specific activity
-                let activityPromiseIndex = -1;
-                if (user) {
-                    activityPromiseIndex = promises.length;
-                    promises.push(getRecentActivity(user.id));
-                }
-
-                const results = await Promise.all(promises.map(p => p.catch(e => {
-                    console.error("Data fetch error:", e);
-                    return null;
-                })));
-
-                // Map results back to states
-                const [
-                    drillRes, lessonRes, sparringRes,
-                    trendingSparringRes, featuredRoutinesRes, trendingCoursesRes,
-                    newCoursesRes, newRoutinesRes, newSparringRes
-                ] = results;
-
-                if (drillRes) setDailyDrill(drillRes.data);
-                if (lessonRes) setDailyLesson(lessonRes.data);
-                if (sparringRes) setDailySparring(sparringRes.data);
-
-                if (user && activityPromiseIndex !== -1) {
-                    const activity = results[activityPromiseIndex];
-                    if (activity && Array.isArray(activity)) {
-                        setContinueItems(activity);
-                    }
-                }
-
-                if (trendingSparringRes) setTrendingSparring(trendingSparringRes);
-                if (featuredRoutinesRes) setFeaturedRoutines(featuredRoutinesRes);
-                if (trendingCoursesRes) setTrendingCourses(trendingCoursesRes);
-                if (newCoursesRes) setNewCourses(newCoursesRes);
-                if (newRoutinesRes && newRoutinesRes.data) setNewRoutines(newRoutinesRes.data);
-                if (newSparringRes) setNewSparring(newSparringRes);
-
-            } catch (error) {
-                console.error("Critical error loading home data:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
-    }, [user?.id]);
 
     const getDisplayName = () => {
         if (!user) return '친구';
@@ -145,7 +68,32 @@ export const Home: React.FC = () => {
     ].filter(Boolean), [dailyLesson, dailyDrill, dailySparring]);
 
     // Only show loading screen if we are loading AND have no content yet
-    if (loading && slides.length === 0 && trendingCourses.length === 0) return <LoadingScreen />;
+    if (loading && slides.length === 0 && trendingCourses.length === 0) {
+        return (
+            <div className="min-h-screen bg-black text-white p-4 md:p-12 animate-pulse">
+                {/* Header Skeleton */}
+                <div className="flex justify-between items-center mb-12">
+                    <div className="h-12 w-64 bg-zinc-800 rounded-lg" />
+                    <div className="w-12 h-12 rounded-full bg-zinc-800" />
+                </div>
+
+                {/* Hero Carousel Skeleton */}
+                <div className="w-full aspect-[3/4] md:aspect-square lg:aspect-[4/3] max-w-6xl mx-auto bg-zinc-900 rounded-[32px] mb-16 border border-zinc-800/50" />
+
+                {/* Rows Skeleton */}
+                {[1, 2, 3].map((i) => (
+                    <div key={i} className="mb-12">
+                        <div className="h-8 w-48 bg-zinc-800 rounded mb-6" />
+                        <div className="flex gap-4 overflow-hidden">
+                            {[1, 2, 3, 4].map((j) => (
+                                <div key={j} className="h-40 w-72 bg-zinc-900 rounded-xl flex-shrink-0" />
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-black text-white selection:bg-violet-500/30">
@@ -209,7 +157,7 @@ export const Home: React.FC = () => {
                                                                 <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
                                                             </div>
 
-                                                            <h2 className="text-white text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] drop-shadow-2xl uppercase italic">
+                                                            <h2 className="text-white text-3xl md:text-5xl lg:text-6xl font-black tracking-tight leading-[1.1] drop-shadow-2xl uppercase italic break-words">
                                                                 {drill.title}
                                                             </h2>
 
@@ -228,7 +176,7 @@ export const Home: React.FC = () => {
                                                             </div>
                                                         </div>
 
-                                                        <button onClick={() => navigate(`/watch?tab=drill&id=${drill.id}`)} className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
+                                                        <button onClick={() => navigate(`/drills?id=${drill.id}`)} className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
                                                             <Play className="w-6 h-6 fill-current" /> 훈련 시작 <span className="opacity-0 group-hover/btn:opacity-100 -translate-x-2 group-hover/btn:translate-x-0 transition-all">🥋</span>
                                                         </button>
                                                     </div>
@@ -260,7 +208,7 @@ export const Home: React.FC = () => {
                                                                 <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
                                                             </div>
 
-                                                            <h2 className="text-white text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] drop-shadow-2xl uppercase italic">
+                                                            <h2 className="text-white text-3xl md:text-5xl lg:text-6xl font-black tracking-tight leading-[1.1] drop-shadow-2xl uppercase italic break-words">
                                                                 {lesson.title}
                                                             </h2>
 
@@ -279,7 +227,7 @@ export const Home: React.FC = () => {
                                                             </div>
                                                         </div>
 
-                                                        <button onClick={() => navigate(`/watch?tab=lesson&id=${lesson.id}`)} className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
+                                                        <button onClick={() => navigate(`/lessons/${lesson.id}`)} className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
                                                             <Play className="w-6 h-6 fill-current" /> 레슨 보기 <span className="opacity-0 group-hover/btn:opacity-100 -translate-x-2 group-hover/btn:translate-x-0 transition-all">🥋</span>
                                                         </button>
                                                     </div>
@@ -311,7 +259,7 @@ export const Home: React.FC = () => {
                                                                 <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
                                                             </div>
 
-                                                            <h2 className="text-white text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] drop-shadow-2xl uppercase italic">
+                                                            <h2 className="text-white text-3xl md:text-5xl lg:text-6xl font-black tracking-tight leading-[1.1] drop-shadow-2xl uppercase italic break-words">
                                                                 {sparring.title}
                                                             </h2>
 
@@ -334,7 +282,7 @@ export const Home: React.FC = () => {
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 if (sparring.id && sparring.id !== 'undefined') {
-                                                                    navigate(`/watch?tab=sparring&id=${sparring.id}`);
+                                                                    navigate(`/sparring/${sparring.id}`);
                                                                 }
                                                             }}
                                                             className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
@@ -367,88 +315,116 @@ export const Home: React.FC = () => {
                         </div>
                     </>
                 ) : (
-                    <div className="bg-zinc-900/40 border border-zinc-800 p-12 rounded-[32px] text-center">
-                        <p className="text-zinc-500 font-medium">오늘의 추천 콘텐츠를 불러오는 중입니다...</p>
+                    <div className="bg-zinc-900/40 border border-zinc-800 p-12 rounded-[32px] text-center flex flex-col items-center gap-4">
+                        {loading ? (
+                            <>
+                                <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+                                <p className="text-zinc-500 font-medium">오늘의 추천 콘텐츠를 불러오는 중입니다...</p>
+                            </>
+                        ) : (
+                            <>
+                                <p className="text-zinc-400 font-bold text-lg">추천 콘텐츠가 없습니다.</p>
+                                <p className="text-zinc-500 text-sm">잠시 후 다시 시도해보세요.</p>
+                                <button
+                                    onClick={() => window.location.reload()}
+                                    className="mt-2 px-6 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-full text-sm font-bold transition-colors"
+                                >
+                                    새로고침
+                                </button>
+                            </>
+                        )}
                     </div>
                 )}
             </section>
 
             {/* 2. User Dashboard (Consolidated) */}
-            <UserDashboard
+            < UserDashboard
                 continueItems={continueItems}
             />
 
             {/* 5-10. Netflix Style Content Rows (6 Rows) */}
-            <div className="pb-20">
+            < div className="pb-20" >
 
                 {/* 1. Popular Courses (Standard - No Numbers) */}
-                {trendingCourses.length > 0 && (
-                    <ContentRow
-                        title="오늘의 TOP 10 클래스"
-                        items={trendingCourses}
-                        type="course"
-                        variant="standard"
-                        basePath="/courses"
-                    />
-                )}
+                {
+                    trendingCourses.length > 0 && (
+                        <ContentRow
+                            title="오늘의 TOP 10 클래스"
+                            items={trendingCourses}
+                            type="course"
+                            variant="standard"
+                            basePath="/courses"
+                        />
+                    )
+                }
 
                 {/* 2. New Courses (Standard) */}
-                {newCourses.length > 0 && (
-                    <ContentRow
-                        title="새로 올라온 클래스"
-                        items={newCourses}
-                        type="course"
-                        variant="standard"
-                        basePath="/courses"
-                    />
-                )}
+                {
+                    newCourses.length > 0 && (
+                        <ContentRow
+                            title="새로 올라온 클래스"
+                            items={newCourses}
+                            type="course"
+                            variant="standard"
+                            basePath="/courses"
+                        />
+                    )
+                }
 
                 {/* 3. Popular Routines (Ranking - Keep Numbers, 9:16) */}
-                {featuredRoutines.length > 0 && (
-                    <ContentRow
-                        title="인기 급상승 루틴"
-                        items={featuredRoutines}
-                        type="routine"
-                        variant="ranking"
-                        basePath="/routines"
-                    />
-                )}
+                {
+                    featuredRoutines.length > 0 && (
+                        <ContentRow
+                            title="인기 급상승 루틴"
+                            items={featuredRoutines}
+                            type="routine"
+                            variant="ranking"
+                            basePath="/routines"
+                        />
+                    )
+                }
 
                 {/* 4. New Routines (Standard - 9:16) */}
-                {newRoutines.length > 0 && (
-                    <ContentRow
-                        title="따끈따끈한 신규 루틴"
-                        items={newRoutines}
-                        type="routine"
-                        variant="standard"
-                        basePath="/routines"
-                    />
-                )}
+                {
+                    newRoutines.length > 0 && (
+                        <ContentRow
+                            title="따끈따끈한 신규 루틴"
+                            items={newRoutines}
+                            type="routine"
+                            variant="standard"
+                            basePath="/routines"
+                        />
+                    )
+                }
 
                 {/* 5. Popular Sparring (Standard - No Numbers, 1:1) */}
-                {trendingSparring.length > 0 && (
-                    <ContentRow
-                        title="많이 보는 스파링"
-                        items={trendingSparring}
-                        type="sparring"
-                        variant="standard"
-                        basePath="/watch?tab=sparring"
-                    />
-                )}
+                {
+                    trendingSparring.length > 0 && (
+                        <ContentRow
+                            title="많이 보는 스파링"
+                            items={trendingSparring}
+                            type="sparring"
+                            variant="standard"
+                            basePath="/sparring"
+                        />
+                    )
+                }
 
                 {/* 6. New Sparring (Standard) */}
-                {newSparring.length > 0 && (
-                    <ContentRow
-                        title="최신 스파링 영상"
-                        items={newSparring}
-                        type="sparring"
-                        variant="standard"
-                        basePath="/watch?tab=sparring"
-                    />
-                )}
+                {
+                    newSparring.length > 0 && (
+                        <ContentRow
+                            title="최신 스파링 영상"
+                            items={newSparring}
+                            type="sparring"
+                            variant="standard"
+                            basePath="/sparring"
+                        />
+                    )
+                }
 
-            </div>
+            </div >
 
-        </div>
+        </div >
     );
 };

@@ -81,8 +81,8 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
         const origin = window.location.origin;
         if (type === 'course') return `${origin}/courses/${item.courseId || item.id}`;
         if (type === 'routine') return `${origin}/routines/${item.id}`;
-        if (type === 'sparring') return `${origin}/watch?id=${item.id}&type=sparring`;
-        if (type === 'lesson') return `${origin}/watch?lessonId=${item.id}`;
+        if (type === 'sparring') return `${origin}/sparring/${item.id}`;
+        if (type === 'lesson') return `${origin}/lessons/${item.id}`;
         return origin;
     };
 
@@ -274,8 +274,8 @@ export const ContentRow: React.FC<ContentRowProps> = ({
     const handleClick = (item: any) => {
         if (type === 'course') navigate(`/courses/${item.courseId || item.id}`);
         else if (type === 'routine') navigate(`/routines/${item.id}`);
-        else if (type === 'sparring') navigate(`/watch?id=${item.id}&tab=sparring`);
-        else if (type === 'lesson') navigate(`/watch?lessonId=${item.id}`);
+        else if (type === 'sparring') navigate(`/sparring/${item.id}`);
+        else if (type === 'lesson') navigate(`/lessons/${item.id}`);
         else if (type === 'chain') navigate(`/skill-tree?id=${item.id}`);
     };
 

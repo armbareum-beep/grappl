@@ -74,24 +74,77 @@ export default defineConfig({
     build: {
         rollupOptions: {
             output: {
-                manualChunks: {
+                manualChunks: (id) => {
                     // React 관련 라이브러리
-                    'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+                    if (id.includes('node_modules/react') ||
+                        id.includes('node_modules/react-dom') ||
+                        id.includes('node_modules/react-router')) {
+                        return 'react-vendor';
+                    }
+
                     // Supabase 클라이언트
-                    'supabase': ['@supabase/supabase-js'],
+                    if (id.includes('@supabase/supabase-js')) {
+                        return 'supabase';
+                    }
+
+                    // React Query
+                    if (id.includes('@tanstack/react-query')) {
+                        return 'react-query';
+                    }
+
                     // 비디오 관련
-                    'video': ['@vimeo/player', 'tus-js-client'],
+                    if (id.includes('@vimeo/player') || id.includes('tus-js-client')) {
+                        return 'video';
+                    }
+
+                    // 무거운 라이브러리들 - 별도 청크로 분리
+                    if (id.includes('framer-motion')) {
+                        return 'framer-motion';
+                    }
+
+                    if (id.includes('reactflow')) {
+                        return 'reactflow';
+                    }
+
+                    if (id.includes('recharts')) {
+                        return 'recharts';
+                    }
+
+                    // DnD Kit
+                    if (id.includes('@dnd-kit')) {
+                        return 'dnd-kit';
+                    }
+
                     // UI 라이브러리
-                    'ui': ['lucide-react', 'date-fns'],
-                    // 차트 및 시각화
-                    'charts': ['recharts'],
+                    if (id.includes('lucide-react') || id.includes('date-fns')) {
+                        return 'ui';
+                    }
+
+                    // Admin 페이지들 - 별도 청크
+                    if (id.includes('/pages/admin/')) {
+                        return 'admin-pages';
+                    }
+
+                    // Creator 페이지들 - 별도 청크
+                    if (id.includes('/pages/creator/')) {
+                        return 'creator-pages';
+                    }
                 }
             }
         },
         chunkSizeWarningLimit: 1000, // 경고 임계값 상향 (1MB)
+        minify: 'terser', // 더 강력한 압축
+        terserOptions: {
+            compress: {
+                drop_console: true, // 프로덕션에서 console.log 제거
+                drop_debugger: true,
+                pure_funcs: ['console.log', 'console.info', 'console.debug']
+            }
+        },
+        sourcemap: false, // 프로덕션 빌드에서 소스맵 제거 (크기 절약)
     },
     esbuild: {
-        drop: ['console', 'debugger'],
+        drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
     },
     server: {
         // port: 8080, // Removed to allow default (5173) or flexible port

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useLandingPageData } from '../hooks/use-landing-queries';
 
-import { Star, Search, Award, Quote, Play, Zap } from 'lucide-react';
-import useEmblaCarousel from 'embla-carousel-react';
+import { Star, Search, Award, Quote, Zap } from 'lucide-react';
 import { InstructorCarousel } from '../components/InstructorCarousel';
 
 import { RandomSparringShowcase } from '../components/RandomSparringShowcase';
@@ -11,53 +11,37 @@ import { ClassShowcase } from '../components/ClassShowcase';
 import { DrillReelsSection } from '../components/DrillReelsSection';
 import { RoutinePromotionSection } from '../components/landing/RoutinePromotionSection';
 import { CapsuleRoadmapSection } from '../components/landing/CapsuleRoadmapSection';
+import { DailyFreePassCarousel } from '../components/landing/DailyFreePassCarousel';
 import { HighlightedText } from '../components/common/HighlightedText';
 
-import {
-    getTestimonials, getRoutines, getPublicSparringVideos,
-    getSparringVideos, getDailyFreeDrill, getDailyFreeLesson,
-    getDailyFreeSparring
-} from '../lib/api';
-import { Testimonial, Lesson, SparringVideo } from '../types';
 import { cn } from '../lib/utils';
 
 export const LandingPage: React.FC = () => {
-    // Force redeploy check
     const navigate = useNavigate();
     const { user, loading } = useAuth();
 
-    // 로그인한 사용자는 /browse로 리다이렉트
+    // Use consolidated React Query hook
+    const {
+        dailyDrill,
+        dailyLesson,
+        dailySparring,
+        testimonials,
+        siteSettings,
+        prefetchData
+    } = useLandingPageData();
+
+    // UI state
+    const [isScrolled, setIsScrolled] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+
+    // 로그인한 사용자는 /home으로 리다이렉트
     useEffect(() => {
         if (!loading && user) {
             navigate('/home');
         }
     }, [user, loading, navigate]);
 
-    const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
-    const [siteSettings, setSiteSettings] = useState<any>(null);
-    const [isScrolled, setIsScrolled] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
 
-    // Carousel Data States
-    const [dailyDrill, setDailyDrill] = useState<any | null>(null);
-    const [dailyLesson, setDailyLesson] = useState<Lesson | null>(null);
-    const [dailySparring, setDailySparring] = useState<SparringVideo | null>(null);
-    const [currentSlide, setCurrentSlide] = useState(0);
-
-    const [emblaRef, emblaApi] = useEmblaCarousel({
-        loop: true,
-        align: 'center',
-        containScroll: 'trimSnaps'
-    });
-
-    useEffect(() => {
-        if (!emblaApi) return;
-        const onSelect = () => {
-            setCurrentSlide(emblaApi.selectedScrollSnap());
-        };
-        emblaApi.on('select', onSelect);
-        return () => { emblaApi.off('select', onSelect); };
-    }, [emblaApi]);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -67,135 +51,10 @@ export const LandingPage: React.FC = () => {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
+    // Prefetch data on mount
     useEffect(() => {
-        loadTestimonials();
-        loadSettings();
-        fetchCarouselData();
-        // Prefetch data for faster page loads
         prefetchData();
-    }, []);
-
-    const fetchCarouselData = async () => {
-        try {
-            const [drillRes, lessonRes, sparringRes] = await Promise.all([
-                getDailyFreeDrill(),
-                getDailyFreeLesson(),
-                getDailyFreeSparring()
-            ]);
-
-            console.log('Daily Content Fetch Result:', {
-                drill: drillRes,
-                lesson: lessonRes,
-                sparring: sparringRes
-            });
-
-            if (lessonRes.error) {
-                console.error('Error fetching daily lesson:', lessonRes.error);
-            }
-
-            setDailyDrill(drillRes.data);
-            setDailyLesson(lessonRes.data);
-            setDailySparring(sparringRes.data);
-        } catch (error) {
-            console.error("Error loading carousel data:", error);
-        }
-    };
-
-    const loadSettings = async () => {
-        try {
-            const { data } = await import('../lib/api-admin').then(m => m.getSiteSettings());
-            if (data) setSiteSettings(data);
-        } catch (e) {
-            console.warn('Failed to load site settings', e);
-        }
-    };
-
-    const prefetchData = async () => {
-        // Prefetch minimal data for instant page loads
-        // Landing page only needs 1 sparring video for showcase
-        // Prefetch 3 routines and 3 sparring videos for their respective pages
-        try {
-            const [, routinesData, sparringFeedResult] = await Promise.all([
-                getPublicSparringVideos(1),  // Landing page showcase - only 1 needed
-                getRoutines().then(routines => routines.slice(0, 3)),  // Routines page - first 3
-                getSparringVideos(3)  // Sparring feed - first 3
-            ]);
-
-            const sparringFeedData = sparringFeedResult.data || [];
-
-            // Preload actual video files for instant playback
-            const videosToPreload: string[] = [];
-
-            // Add routine videos
-            routinesData.forEach(routine => {
-                if (routine.drills && routine.drills.length > 0) {
-                    const firstDrill = routine.drills[0];
-                    if (typeof firstDrill !== 'string' && firstDrill.videoUrl) {
-                        videosToPreload.push(firstDrill.videoUrl);
-                    }
-                }
-            });
-
-            // Add sparring videos
-            sparringFeedData.forEach((video: any) => {
-                if (video.video_url) {
-                    videosToPreload.push(video.video_url);
-                }
-            });
-
-            // Create hidden video elements to trigger browser cache
-            videosToPreload.slice(0, 6).forEach(videoUrl => {
-                const video = document.createElement('video');
-                video.src = videoUrl;
-                video.preload = 'auto';
-                video.style.display = 'none';
-                document.body.appendChild(video);
-
-                // Remove after 30 seconds to free memory
-                setTimeout(() => {
-                    document.body.removeChild(video);
-                }, 30000);
-            });
-        } catch (error) {
-            // Silent fail - prefetching is optional
-
-        }
-    };
-
-    const loadTestimonials = async () => {
-        const { data } = await getTestimonials();
-        if (data && data.length > 0) {
-            setTestimonials(data);
-        } else {
-            // Fallback to default testimonials
-            setTestimonials([
-                {
-                    id: '1',
-                    name: '김민수',
-                    belt: 'Blue Belt',
-                    comment: '가드 패스 강의 덕분에 시합에서 우승할 수 있었습니다. 챔피언한테 직접 배우는 느낌이 정말 좋아요!',
-                    rating: 5,
-                    createdAt: new Date().toISOString()
-                },
-                {
-                    id: '2',
-                    name: '박지영',
-                    belt: 'Purple Belt',
-                    comment: '스파이더 가드 시리즈가 최고입니다. 실전에서 바로 써먹을 수 있는 디테일이 가득해요.',
-                    rating: 5,
-                    createdAt: new Date().toISOString()
-                },
-                {
-                    id: '3',
-                    name: '이준호',
-                    belt: 'White Belt',
-                    comment: '초보자도 쉽게 따라할 수 있어요. 무료 강의로 시작했는데 바로 1년 구독했습니다. 2달무료 혜택도 좋았어요!',
-                    rating: 5,
-                    createdAt: new Date().toISOString()
-                }
-            ]);
-        }
-    };
+    }, [prefetchData]);
 
 
     if (loading) {
@@ -320,177 +179,11 @@ export const LandingPage: React.FC = () => {
                         </p>
                     </div>
 
-                    {(() => {
-                        const getCarouselAspect = () => 'aspect-[4/5] md:aspect-square lg:aspect-[16/9] w-full max-w-6xl';
-                        const slides = [
-                            dailyLesson && { type: 'lesson', data: dailyLesson },
-                            dailyDrill && { type: 'drill', data: dailyDrill },
-                            dailySparring && { type: 'sparring', data: dailySparring }
-                        ].filter(Boolean);
-
-                        if (slides.length === 0) return (
-                            <div className="bg-zinc-900/40 border border-zinc-800 p-12 rounded-[32px] text-center w-full max-w-6xl">
-                                <p className="text-zinc-500 font-medium tracking-widest uppercase">Initializing Daily Pass Items...</p>
-                            </div>
-                        );
-
-                        return (
-                            <div className="w-full relative">
-                                <div className={`relative group overflow-hidden rounded-[24px] md:rounded-[32px] shadow-2xl shadow-black/50 border border-white/5 transition-all duration-700 ease-in-out md:max-h-[600px] mx-auto w-full cursor-grab active:cursor-grabbing ${getCarouselAspect()}`} ref={emblaRef}>
-                                    <div className="flex h-full">
-                                        {slides.map((slide, idx) => {
-                                            if (!slide || !slide.data) return null;
-
-                                            if (slide.type === 'drill') {
-                                                const drill = slide.data;
-                                                return (
-                                                    <div key={`slide-drill-${idx}`} className="relative flex-[0_0_100%] min-w-0 h-full">
-                                                        <div className="relative w-full h-full overflow-hidden">
-                                                            {drill.thumbnailUrl ? (
-                                                                <img src={drill.thumbnailUrl} className="absolute object-cover object-center" style={{ width: '145%', height: '145%', maxWidth: 'none', left: '-22.5%', top: '-22.5%' }} alt={drill.title} />
-                                                            ) : (
-                                                                <div className="absolute inset-0 bg-zinc-900" />
-                                                            )}
-                                                            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                                                            <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent hidden md:block" />
-                                                            <div className={`absolute inset-x-0 bottom-0 pb-12 px-8 md:px-16 flex flex-col items-start gap-8 z-10 transition-all duration-1000 ${idx === currentSlide ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-12'}`}>
-                                                                <div className="flex flex-col items-start gap-6 max-w-3xl">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className="px-3 py-1 bg-violet-600 text-white text-[10px] md:text-xs font-black rounded-sm uppercase tracking-widest italic shadow-lg shadow-violet-900/40">데일리 드릴</span>
-                                                                        <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
-                                                                    </div>
-                                                                    <h2 className="text-white text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] drop-shadow-2xl uppercase italic overflow-visible">
-                                                                        {drill.title}
-                                                                    </h2>
-                                                                    <div className="flex flex-wrap items-center gap-4 text-xs md:text-sm text-zinc-300 font-bold uppercase tracking-wider backdrop-blur-md bg-white/5 p-2 rounded-lg border border-white/5">
-                                                                        <div className="flex items-center gap-2 pr-4 border-r border-white/10">
-                                                                            <div className="w-7 h-7 md:w-9 md:h-9 rounded-full overflow-hidden bg-zinc-800 border-2 border-white/10 flex-shrink-0 shadow-xl">
-                                                                                {drill.creatorProfileImage ? (
-                                                                                    <img src={drill.creatorProfileImage} className="w-full h-full object-cover" alt={`${drill.creatorName || '크리에이터'} 프로필`} />
-                                                                                ) : (
-                                                                                    <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">{drill.creatorName?.charAt(0) || 'U'}</div>
-                                                                                )}
-                                                                            </div>
-                                                                            <span className="text-white">{drill.creatorName || 'Grapplay Team'}</span>
-                                                                        </div>
-                                                                        <span className="text-zinc-400">{drill.category || 'Fundamentals'}</span>
-                                                                    </div>
-                                                                </div>
-                                                                <button onClick={() => navigate(`/watch?tab=drill&id=${drill.id}`)} className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
-                                                                    <Play className="w-6 h-6 fill-current" /> 훈련 시작 <span className="opacity-0 group-hover/btn:opacity-100 -translate-x-2 group-hover/btn:translate-x-0 transition-all">🥋</span>
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            } else if (slide.type === 'lesson') {
-                                                const lesson = slide.data;
-                                                return (
-                                                    <div key={`slide-lesson-${idx}`} className="relative flex-[0_0_100%] min-w-0 h-full">
-                                                        <div className="relative w-full h-full overflow-hidden">
-                                                            {lesson.thumbnailUrl ? (
-                                                                <img src={lesson.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover object-center" alt={lesson.title} />
-                                                            ) : (
-                                                                <div className="absolute inset-0 bg-zinc-900" />
-                                                            )}
-                                                            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                                                            <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent hidden md:block" />
-                                                            <div className={`absolute inset-x-0 bottom-0 pb-12 px-8 md:px-16 flex flex-col items-start gap-8 z-10 transition-all duration-1000 ${idx === currentSlide ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-12'}`}>
-                                                                <div className="flex flex-col items-start gap-6 max-w-4xl">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className="px-3 py-1 bg-violet-600 text-white text-[10px] md:text-xs font-black rounded-sm uppercase tracking-widest italic shadow-lg shadow-violet-900/40">데일리 레슨</span>
-                                                                        <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
-                                                                    </div>
-                                                                    <h2 className="text-white text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] drop-shadow-2xl uppercase italic overflow-visible">
-                                                                        {lesson.title}
-                                                                    </h2>
-                                                                    <div className="flex flex-wrap items-center gap-4 text-xs md:text-sm text-zinc-300 font-bold uppercase tracking-wider backdrop-blur-md bg-white/5 p-2 rounded-lg border border-white/5">
-                                                                        <div className="flex items-center gap-2 pr-4 border-r border-white/10">
-                                                                            <div className="w-7 h-7 md:w-9 md:h-9 rounded-full overflow-hidden bg-zinc-800 border-2 border-white/10 flex-shrink-0 shadow-xl">
-                                                                                {lesson.creatorProfileImage ? (
-                                                                                    <img src={lesson.creatorProfileImage} className="w-full h-full object-cover" alt={`${lesson.creatorName || '크리에이터'} 프로필`} />
-                                                                                ) : (
-                                                                                    <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">{lesson.creatorName?.charAt(0) || 'U'}</div>
-                                                                                )}
-                                                                            </div>
-                                                                            <span className="text-white">{lesson.creatorName || 'Grapplay Team'}</span>
-                                                                        </div>
-                                                                        <span className="text-zinc-400">{lesson.courseTitle || 'Exclusive Course'}</span>
-                                                                    </div>
-                                                                </div>
-                                                                <button onClick={() => navigate(`/watch?tab=lesson&id=${lesson.id}`)} className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
-                                                                    <Play className="w-6 h-6 fill-current" /> 레슨 보기 <span className="opacity-0 group-hover/btn:opacity-100 -translate-x-2 group-hover/btn:translate-x-0 transition-all">🥋</span>
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            } else if (slide.type === 'sparring') {
-                                                const sparring = slide.data;
-                                                return (
-                                                    <div key={`slide-sparring-${idx}`} className="relative flex-[0_0_100%] min-w-0 h-full">
-                                                        <div className="relative w-full h-full overflow-hidden">
-                                                            {sparring.thumbnailUrl ? (
-                                                                <img src={sparring.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover object-center" alt={sparring.title} />
-                                                            ) : (
-                                                                <div className="absolute inset-0 bg-zinc-900" />
-                                                            )}
-                                                            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                                                            <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent hidden md:block" />
-                                                            <div className={`absolute inset-x-0 bottom-0 pb-12 px-8 md:px-16 flex flex-col items-start gap-8 z-10 transition-all duration-1000 ${idx === currentSlide ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-12'}`}>
-                                                                <div className="flex flex-col items-start gap-6 max-w-4xl">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className="px-3 py-1 bg-violet-600 text-white text-[10px] md:text-xs font-black rounded-sm uppercase tracking-widest italic shadow-lg shadow-violet-900/40">데일리 스파링</span>
-                                                                        <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
-                                                                    </div>
-                                                                    <h2 className="text-white text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] drop-shadow-2xl uppercase italic overflow-visible">
-                                                                        {sparring.title}
-                                                                    </h2>
-                                                                    <div className="flex flex-wrap items-center gap-4 text-xs md:text-sm text-zinc-300 font-bold uppercase tracking-wider backdrop-blur-md bg-white/5 p-2 rounded-lg border border-white/5">
-                                                                        <div className="flex items-center gap-2 pr-4 border-r border-white/10">
-                                                                            <div className="w-7 h-7 md:w-9 md:h-9 rounded-full overflow-hidden bg-zinc-800 border-2 border-white/10 flex-shrink-0 shadow-xl">
-                                                                                {(sparring.creator as any)?.profileImage || (sparring.creator as any)?.avatar_url ? (
-                                                                                    <img src={(sparring.creator as any)?.profileImage || (sparring.creator as any)?.avatar_url} className="w-full h-full object-cover" alt={`${typeof sparring.creator?.name === 'string' ? sparring.creator.name : '크리에이터'} 프로필`} />
-                                                                                ) : (
-                                                                                    <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">{(sparring.creator?.name as string)?.charAt(0) || 'U'}</div>
-                                                                                )}
-                                                                            </div>
-                                                                            <span className="text-white">{typeof sparring.creator?.name === 'string' ? sparring.creator.name : 'Unknown Grappler'}</span>
-                                                                        </div>
-                                                                        <span className="text-zinc-400">{sparring.category || 'Sparring Session'}</span>
-                                                                    </div>
-                                                                </div>
-                                                                <button onClick={() => navigate(`/watch?tab=sparring&id=${sparring.id}`)} className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">
-                                                                    <Play className="w-6 h-6 fill-current" /> 스파링 보기 <span className="opacity-0 group-hover/btn:opacity-100 -translate-x-2 group-hover/btn:translate-x-0 transition-all">🥋</span>
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            }
-                                            return null;
-                                        })}
-                                    </div>
-
-                                    {/* Navigation Indicators */}
-                                    <div className="absolute bottom-6 right-12 z-20 flex gap-2">
-                                        {slides.map((_, idx) => (
-                                            <button
-                                                key={idx}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    emblaApi?.scrollTo(idx);
-                                                }}
-                                                className={`group relative flex items-center gap-2 transition-all duration-300 outline-none ${idx === currentSlide ? 'opacity-100' : 'opacity-40 hover:opacity-70'}`}
-                                            >
-                                                <div className={`h-1.5 rounded-full shadow-sm transition-all duration-500 ease-out ${idx === currentSlide ? 'w-8 bg-white' : 'w-2 bg-white/70'}`} />
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })()}
+                    <DailyFreePassCarousel
+                        dailyDrill={dailyDrill}
+                        dailyLesson={dailyLesson}
+                        dailySparring={dailySparring}
+                    />
                 </div>
             </section >
 

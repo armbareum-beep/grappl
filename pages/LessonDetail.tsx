@@ -24,6 +24,7 @@ import { ConfirmModal } from '../components/common/ConfirmModal';
 import { ReelLoginModal } from '../components/auth/ReelLoginModal';
 
 
+
 export const LessonDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -36,8 +37,9 @@ export const LessonDetail: React.FC = () => {
     const [isLiked, setIsLiked] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isPaywallOpen, setIsPaywallOpen] = useState(false);
-    const [isDailyFree, setIsDailyFree] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
+
+
 
 
     const lastTickRef = React.useRef<number>(0);
@@ -67,7 +69,9 @@ export const LessonDetail: React.FC = () => {
     const handleProgress = React.useCallback(async (seconds: number, _duration?: number, percent?: number) => {
         setCurrentTime(seconds);
 
-        if (!user || !lesson) return;
+        if (!user || !lesson) {
+            return;
+        }
 
         // Save progress to DB periodically (every 5 seconds of video time change)
         if (Math.abs(seconds - lastSavedProgressRef.current) >= 5) {
@@ -103,6 +107,8 @@ export const LessonDetail: React.FC = () => {
             accumulatedTimeRef.current += elapsed;
         }
 
+
+
         // Record platform watch time (every 10 seconds of active viewing)
         if (accumulatedTimeRef.current >= 10) {
             const timeToSend = Math.floor(accumulatedTimeRef.current);
@@ -112,7 +118,7 @@ export const LessonDetail: React.FC = () => {
                 recordWatchTime(user.id, timeToSend, undefined, lesson.id);
             }
         }
-    }, [user?.id, user?.isSubscriber, lesson, owns]);
+    }, [user, lesson, owns]);
 
     // Update VideoPlayer component to use initialStartTime
 
@@ -120,6 +126,7 @@ export const LessonDetail: React.FC = () => {
         async function fetchData() {
             if (!id) return;
             setLoading(true);
+            setLesson(null);
             setOwns(false);
 
             try {
@@ -157,12 +164,10 @@ export const LessonDetail: React.FC = () => {
                             .maybeSingle();
 
                         if (directUserData) {
-                            dbIsAdmin = !!(directUserData.is_admin === true || directUserData.is_admin === 1);
+                            dbIsAdmin = !!directUserData.is_admin;
                             dbIsSubscribed = !!(
-                                directUserData.is_subscriber === true ||
-                                directUserData.is_subscriber === 1 ||
-                                directUserData.is_complimentary_subscription === true ||
-                                directUserData.is_complimentary_subscription === 1 ||
+                                directUserData.is_subscriber ||
+                                directUserData.is_complimentary_subscription ||
                                 dbIsAdmin
                             );
                         }
@@ -202,25 +207,14 @@ export const LessonDetail: React.FC = () => {
                         }
                     }
 
-                    // 1. Check if first lesson of its course OR course is free (Free Preview/Access)
-                    if (!hasAccess && (courseData && Number(courseData.price || 0) === 0)) {
+                    // 1. Check if course is free (Free Preview/Access)
+                    if (!hasAccess && (courseData && courseData.price === 0)) {
                         hasAccess = true;
                     }
 
                     setOwns(hasAccess || false);
 
-                    // 2. Check for daily free lesson (logged-in users get full access)
-                    try {
-                        const { getDailyFreeLesson } = await import('../lib/api');
-                        const { data: dailyLesson } = await getDailyFreeLesson();
-                        if (dailyLesson && dailyLesson.id === id) {
-                            setIsDailyFree(true);
-                            // Allow guest access for daily free lesson
-                            setOwns(true);
-                        }
-                    } catch (e) {
-                        console.warn('Failed to check daily free lesson access:', e);
-                    }
+
                 }
             } catch (error) {
                 console.error('Error fetching lesson details:', error);
@@ -292,7 +286,8 @@ export const LessonDetail: React.FC = () => {
 
     // Allow non-logged-in users to view daily free lessons (with potential preview limit)
     // For other lessons, require login
-    if (!user && !lesson) {
+    // Require login to view any individual lesson page
+    if (!user) {
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
@@ -327,22 +322,14 @@ export const LessonDetail: React.FC = () => {
                             <div className="absolute -inset-1 bg-violet-500/20 blur-3xl opacity-20 pointer-events-none group-hover:opacity-30 transition-opacity duration-1000"></div>
 
                             <div className="relative h-full z-10">
-                                {(lesson.videoUrl || lesson.vimeoUrl) ? (
-                                    (owns || lesson.lessonNumber === 1) ? (
+                                {owns ? (
+                                    (lesson.videoUrl || lesson.vimeoUrl) ? (
                                         <VideoPlayer
                                             key={lesson.id}
                                             vimeoId={lesson.videoUrl || lesson.vimeoUrl || ''}
                                             title={lesson.title}
                                             playing={true}
-                                            isPreviewMode={!owns}
                                             muted={false} // Default sound on
-                                            maxPreviewDuration={
-                                                owns ? (isDailyFree && !user ? 30 : undefined) : // If it's daily free and guest, limit to 30s
-                                                    (user && isDailyFree) ? undefined : // Logged-in + daily free: full access
-                                                        60 // Other previews: 1min
-                                            }
-                                            onPreviewLimitReached={() => setIsPaywallOpen(true)}
-                                            isPaused={isPaywallOpen}
                                             onEnded={() => {
                                                 if (user && lesson) {
                                                     updateMasteryFromWatch(user.id, lesson.id, 1, true).catch(console.error);
@@ -354,63 +341,38 @@ export const LessonDetail: React.FC = () => {
                                             startTime={initialStartTime}
                                         />
                                     ) : (
-                                        <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900/90 text-zinc-400 p-4 md:p-6 text-center backdrop-blur-sm">
-                                            <div className="w-14 h-14 md:w-20 md:h-20 bg-zinc-800 rounded-full flex items-center justify-center mb-4 md:mb-8 ring-1 ring-zinc-700 shadow-xl">
-                                                <Lock className="w-7 h-7 md:w-10 md:h-10 text-zinc-500" />
-                                            </div>
-                                            <h3 className="text-xl md:text-2xl font-bold text-white mb-2 md:mb-3">잠긴 레슨입니다</h3>
-                                            <p className="text-sm md:text-base text-zinc-500 mb-6 md:mb-10 max-w-sm break-keep">
-                                                이 레슨을 시청하려면 클래스를 구매하거나<br className="hidden md:block" />구독이 필요합니다.
-                                            </p>
-                                            <Button
-                                                onClick={() => navigate(user ? '/pricing' : '/login')}
-                                                className="bg-violet-600 hover:bg-violet-500 text-white rounded-full px-6 py-2 md:px-8 md:py-3 text-sm md:text-base font-bold shadow-lg shadow-violet-900/20"
+                                        <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-zinc-400">
+                                            <div className="w-16 h-16 border-4 border-zinc-700 border-t-violet-500 rounded-full animate-spin mb-4"></div>
+                                            <p className="text-xl font-medium text-white mb-2">비디오 처리 중입니다</p>
+                                            <p className="text-sm text-zinc-500">업로드된 영상을 처리하고 있습니다. 잠시만 기다려주세요.</p>
+                                            <button
+                                                onClick={() => window.location.reload()}
+                                                className="mt-6 px-6 py-2 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-full transition-all shadow-[0_0_20px_rgba(124,58,237,0.3)]"
                                             >
-                                                {user ? '구독하고 전체 보기' : '로그인하여 보기'}
-                                            </Button>
+                                                새로고침
+                                            </button>
                                         </div>
                                     )
                                 ) : (
-                                    <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-zinc-400">
-                                        <div className="w-16 h-16 border-4 border-zinc-700 border-t-violet-500 rounded-full animate-spin mb-4"></div>
-                                        <p className="text-xl font-medium text-white mb-2">비디오 처리 중입니다</p>
-                                        <p className="text-sm text-zinc-500">업로드된 영상을 처리하고 있습니다. 잠시만 기다려주세요.</p>
-                                        <button
-                                            onClick={() => window.location.reload()}
-                                            className="mt-6 px-6 py-2 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-full transition-all shadow-[0_0_20px_rgba(124,58,237,0.3)]"
+                                    <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900/90 text-zinc-400 p-4 md:p-6 text-center backdrop-blur-sm">
+                                        <div className="w-14 h-14 md:w-20 md:h-20 bg-zinc-800 rounded-full flex items-center justify-center mb-4 md:mb-8 ring-1 ring-zinc-700 shadow-xl">
+                                            <Lock className="w-7 h-7 md:w-10 md:h-10 text-zinc-500" />
+                                        </div>
+                                        <h3 className="text-xl md:text-2xl font-bold text-white mb-2 md:mb-3">잠긴 레슨입니다</h3>
+                                        <p className="text-sm md:text-base text-zinc-500 mb-6 md:mb-10 max-w-sm break-keep">
+                                            이 레슨을 시청하려면 클래스를 구매하거나<br className="hidden md:block" />구독이 필요합니다.
+                                        </p>
+                                        <Button
+                                            onClick={() => navigate(user ? '/pricing' : '/login')}
+                                            className="bg-violet-600 hover:bg-violet-500 text-white rounded-full px-6 py-2 md:px-8 md:py-3 text-sm md:text-base font-bold shadow-lg shadow-violet-900/20"
                                         >
-                                            새로고침
-                                        </button>
+                                            {user ? '구독하고 전체 보기' : '로그인하여 보기'}
+                                        </Button>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Preview Time Limit Bar - Only for Previewable Lessons */}
-                            {(!owns && lesson.lessonNumber === 1) && (
-                                <div className="absolute bottom-0 left-0 right-0 z-50 h-1.5 bg-violet-900/30">
-                                    <div
-                                        className="h-full bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,1)] transition-all ease-linear"
-                                        style={{
-                                            width: `${(currentTime / (user ? (isDailyFree ? 1 : 60) : (isDailyFree ? 30 : 60))) * 100}%`,
-                                            transitionDuration: '1000ms'
-                                        }}
-                                    />
-                                </div>
-                            )}
 
-                            {/* Time Limit Warning Text - Only for Previewable Lessons */}
-                            {(!owns && lesson.lessonNumber === 1 && currentTime > 0) && (
-                                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-violet-600/90 backdrop-blur-sm rounded-full border border-violet-400/30 shadow-lg">
-                                    <p className="text-white text-xs font-bold">
-                                        {user
-                                            ? `1분 후 구독 필요 (${Math.max(0, 60 - Math.floor(currentTime))}초 남음)`
-                                            : isDailyFree
-                                                ? `로그인하면 전체 시청 가능 (${Math.max(0, 30 - Math.floor(currentTime))}초 남음)`
-                                                : `1분 후 로그인 필요 (${Math.max(0, 60 - Math.floor(currentTime))}초 남음)`
-                                        }
-                                    </p>
-                                </div>
-                            )}
                         </div>
 
                         {/* Title & Stats */}

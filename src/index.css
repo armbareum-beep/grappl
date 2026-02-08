@@ -57,7 +57,9 @@
     -ms-user-select: none;
   }
 
-  input, textarea, [contenteditable="true"] {
+  input,
+  textarea,
+  [contenteditable="true"] {
     user-select: text;
     -webkit-user-select: text;
     -moz-user-select: text;
@@ -337,34 +339,30 @@
   display: none !important;
 }
 
-/* Wide interaction area for easier clicking/selection/deletion */
-.react-flow__edge-interaction {
-  stroke-width: 50 !important;
-  opacity: 0 !important;
-  pointer-events: all !important;
-  cursor: pointer !important;
+
+/* Premium Progress Bar Utility */
+.premium-progress-bar-container {
+  @apply fixed left-0 right-0 bottom-0 z-[2147483647] h-1 bg-white/10 backdrop-blur-sm pointer-events-none;
 }
 
-/* Group Node Overrides - Remove Rectangular Box completely */
-.react-flow__node-group {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
+.premium-progress-bar-fill {
+  @apply h-full bg-gradient-to-r from-violet-600 via-indigo-400 to-fuchsia-400;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.6);
+  transition: width 0.1s linear;
 }
 
-.react-flow__node-group.selected,
-.react-flow__node-group:focus,
-.react-flow__node-group:focus-within,
-.react-flow__node-group:active {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  outline: none !important;
+@keyframes progress-glow {
+
+  0%,
+  100% {
+    filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.6));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 15px rgba(139, 92, 246, 0.9));
+  }
 }
 
-/* Remove resize handles visual if present */
-.react-flow__resize-control {
-  background: transparent !important;
-  border: none !important;
+.animate-progress-glow {
+  animation: progress-glow 2s ease-in-out infinite;
 }

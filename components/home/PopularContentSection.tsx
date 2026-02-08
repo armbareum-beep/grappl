@@ -26,7 +26,7 @@ export const PopularContentSection: React.FC<PopularContentSectionProps> = ({
     const handleClick = (item: any) => {
         if (type === 'course') navigate(`/courses/${item.id}`);
         else if (type === 'routine') navigate(`/routines/${item.id}`);
-        else if (type === 'sparring') navigate(`/watch?id=${item.id}&type=sparring`);
+        else if (type === 'sparring') navigate(`/sparring/${item.id}`);
     };
 
     const getThumbnail = (item: any) => {

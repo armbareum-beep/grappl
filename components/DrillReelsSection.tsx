@@ -282,7 +282,7 @@ export const DrillReelsSection: React.FC<DrillReelsSectionProps> = ({ title, sub
                                         <div
                                             key={drill.id}
                                             className="h-full w-full flex-none"
-                                            onClick={() => navigate(`/watch?id=${drill.id}`)}
+                                            onClick={() => navigate(`/drills?id=${drill.id}`)}
                                         >
                                             <div className="h-full w-full">
                                                 <DrillCard drill={drill} />

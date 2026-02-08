@@ -86,9 +86,14 @@ export const AdminSupportList: React.FC = () => {
                                     </div>
                                     <h3 className="font-bold text-sm mb-1 truncate">{ticket.subject}</h3>
                                     <p className="text-xs text-zinc-500 mb-3 truncate">{ticket.message}</p>
-                                    <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
-                                        <div className="w-4 h-4 rounded-full bg-zinc-800 flex items-center justify-center text-[8px]">{ticket.name?.charAt(0)}</div>
-                                        {ticket.name}
+                                    <div className="flex flex-col gap-1 mt-auto">
+                                        <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
+                                            <div className="w-4 h-4 rounded-full bg-zinc-800 flex items-center justify-center text-[8px]">{ticket.name?.charAt(0)}</div>
+                                            {ticket.name}
+                                        </div>
+                                        <div className="text-[10px] text-zinc-500 ml-6 truncate font-mono">
+                                            {ticket.email}
+                                        </div>
                                     </div>
                                 </div>
                             ))

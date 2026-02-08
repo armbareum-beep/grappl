@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase';
 import { PlayCircle, Eye, ArrowLeft, Clock, Share2 } from 'lucide-react';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
+import { ReelLoginModal } from '../components/auth/ReelLoginModal';
 
 const ShareModal = React.lazy(() => import('../components/social/ShareModal'));
 
@@ -20,6 +21,7 @@ export const DrillRoutineDetail: React.FC = () => {
     const [isSubscriber, setIsSubscriber] = useState(false);
     const [user, setUser] = useState<any>(null);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
     useEffect(() => {
         if (id) {
@@ -93,7 +95,7 @@ export const DrillRoutineDetail: React.FC = () => {
 
     const handlePurchase = () => {
         if (!user) {
-            navigate('/login');
+            setIsLoginModalOpen(true);
             return;
         }
 
@@ -267,7 +269,14 @@ export const DrillRoutineDetail: React.FC = () => {
                             {routine.drills.map((drill, index) => (
                                 <div
                                     key={drill.id}
-                                    className="flex items-center gap-4 p-4 rounded-lg border border-slate-200 hover:border-blue-500 hover:shadow-md transition-all"
+                                    onClick={() => {
+                                        if (owns || isSubscriber || routine.price === 0) {
+                                            navigate(`/routines/${routine.id}?drill=${drill.id}`);
+                                        } else {
+                                            handlePurchase();
+                                        }
+                                    }}
+                                    className="flex items-center gap-4 p-4 rounded-lg border border-slate-200 hover:border-blue-500 hover:shadow-md transition-all cursor-pointer group"
                                 >
                                     {/* Order Number */}
                                     <div className="flex-shrink-0 w-10 h-10 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold">
@@ -326,6 +335,12 @@ export const DrillRoutineDetail: React.FC = () => {
                     />
                 )}
             </React.Suspense>
+
+            <ReelLoginModal
+                isOpen={isLoginModalOpen}
+                onClose={() => setIsLoginModalOpen(false)}
+                redirectUrl={`/routines/${id}`}
+            />
         </div>
     );
 };

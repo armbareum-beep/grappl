@@ -905,9 +905,36 @@ export const DrillDetail: React.FC = () => {
                             {currentVideoType === 'description' && <span className="text-[13px] font-medium text-white/60 ml-2 uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded">설명</span>}
                         </h3>
 
+                        {/* Related Items Section */}
+                        {drill.relatedItems && drill.relatedItems.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-3 pointer-events-auto">
+                                {drill.relatedItems.map((item, idx) => (
+                                    <button
+                                        key={`${item.type}-${item.id}`}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (item.type === 'lesson') navigate(`/lessons/${item.id}`);
+                                            else if (item.type === 'sparring') navigate(`/sparring/${item.id}`);
+                                            else if (item.type === 'drill') navigate(`/drills/${item.id}`);
+                                            else if (item.type === 'course') navigate(`/courses/${item.id}`);
+                                        }}
+                                        className="flex items-center gap-1.5 px-2.5 py-1 bg-white/10 backdrop-blur-md rounded-full border border-white/10 hover:bg-white/20 transition-all active:scale-95"
+                                    >
+                                        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded leading-none ${item.type === 'lesson' ? 'bg-violet-500 text-white' : 'bg-blue-500 text-white'
+                                            }`}>
+                                            {item.type.toUpperCase()}
+                                        </span>
+                                        <span className="text-[11px] font-bold text-white/90 truncate max-w-[120px]">
+                                            {item.title}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
                         {/* Tags */}
                         {drill.tags && drill.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-2 mt-3">
                                 {drill.tags.slice(0, 3).map((tag: string, idx: number) => (
                                     <span key={idx} className="text-white/80 text-xs drop-shadow-md font-medium">
                                         #{tag}

@@ -26,7 +26,6 @@ const ResetPassword = React.lazy(() => import('./pages/ResetPassword').then(m =>
 const Settings = React.lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 const CourseDetail = React.lazy(() => import('./pages/CourseDetail').then(m => ({ default: m.CourseDetail })));
 const CreatorProfile = React.lazy(() => import('./pages/CreatorProfile').then(m => ({ default: m.CreatorProfile })));
-const Watch = React.lazy(() => import('./pages/Watch').then(m => ({ default: m.Watch })));
 const Routines = React.lazy(() => import('./pages/Routines').then(m => ({ default: m.Routines })));
 const Library = React.lazy(() => import('./pages/Library').then(m => ({ default: m.Library })));
 const MyRoutines = React.lazy(() => import('./pages/MyRoutines').then(m => ({ default: m.MyRoutines })));
@@ -38,10 +37,10 @@ const LessonDetail = React.lazy(() => import('./pages/LessonDetail').then(m => (
 const Instructors = React.lazy(() => import('./pages/Instructors').then(m => ({ default: m.Instructors })));
 const Bundles = React.lazy(() => import('./pages/Bundles').then(m => ({ default: m.Bundles })));
 const SparringDetail = React.lazy(() => import('./pages/SparringDetail').then(m => ({ default: m.SparringDetail })));
+const SparringFeed = React.lazy(() => import('./pages/SparringFeed'));
 const UserProfile = React.lazy(() => import('./pages/UserProfile'));
 const MyRoutineSchedule = React.lazy(() => import('./pages/MyRoutineSchedule'));
 const DrillReels = React.lazy(() => import('./pages/DrillReels').then(m => ({ default: m.DrillReels })));
-const LessonReels = React.lazy(() => import('./pages/LessonReels').then(m => ({ default: m.LessonReels })));
 const AllCompletedRoutines = React.lazy(() => import('./pages/AllCompletedRoutines').then(m => ({ default: m.AllCompletedRoutines })));
 
 // Admin pages - lazy loaded
@@ -64,25 +63,27 @@ const AdminNotifications = React.lazy(() => import('./pages/admin/AdminNotificat
 const AdminVimeoManagement = React.lazy(() => import('./pages/admin/AdminVimeoManagement').then(m => ({ default: m.AdminVimeoManagement })));
 const AdminDurationSync = React.lazy(() => import('./pages/admin/AdminDurationSync').then(m => ({ default: m.AdminDurationSync })));
 
-// Non-lazy components (small footprint or critical for above-the-fold)
-import { CreatorDashboard } from './pages/creator/CreatorDashboard';
-import { UnifiedUploadModal } from './pages/creator/UnifiedUploadModal';
-import { CreateRoutine } from './pages/creator/CreateRoutine';
-import { CreatorCourses } from './pages/creator/CreatorCourses';
-import { CourseEditor } from './pages/creator/CourseEditor';
-import { BecomeCreator } from './pages/BecomeCreator';
-import { NotFound } from './pages/NotFound';
-import { PaymentComplete } from './pages/PaymentComplete';
-import { Checkout } from './pages/Checkout';
-import { Agora } from './pages/Agora';
-import { LandingPage } from './pages/LandingPage';
-import { LandingPageV2 } from './pages/LandingPageV2';
-import { AICoach } from './pages/AICoach';
-import { TechniqueSkillTree } from './components/technique/TechniqueSkillTree';
-import { Terms } from './pages/Terms';
-import { Privacy } from './pages/Privacy';
-import { Contact } from './pages/Contact';
-import DebugAccess from './pages/DebugAccess';
+// Creator pages - lazy loaded
+const CreatorDashboard = React.lazy(() => import('./pages/creator/CreatorDashboard').then(m => ({ default: m.CreatorDashboard })));
+const UnifiedUploadModal = React.lazy(() => import('./pages/creator/UnifiedUploadModal').then(m => ({ default: m.UnifiedUploadModal })));
+const CreateRoutine = React.lazy(() => import('./pages/creator/CreateRoutine').then(m => ({ default: m.CreateRoutine })));
+const CreatorCourses = React.lazy(() => import('./pages/creator/CreatorCourses').then(m => ({ default: m.CreatorCourses })));
+const CourseEditor = React.lazy(() => import('./pages/creator/CourseEditor').then(m => ({ default: m.CourseEditor })));
+
+// Other pages - lazy loaded
+const BecomeCreator = React.lazy(() => import('./pages/BecomeCreator').then(m => ({ default: m.BecomeCreator })));
+const NotFound = React.lazy(() => import('./pages/NotFound').then(m => ({ default: m.NotFound })));
+const PaymentComplete = React.lazy(() => import('./pages/PaymentComplete').then(m => ({ default: m.PaymentComplete })));
+const Checkout = React.lazy(() => import('./pages/Checkout').then(m => ({ default: m.Checkout })));
+const Agora = React.lazy(() => import('./pages/Agora').then(m => ({ default: m.Agora })));
+const LandingPage = React.lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })));
+const LandingPageV2 = React.lazy(() => import('./pages/LandingPageV2').then(m => ({ default: m.LandingPageV2 })));
+const AICoach = React.lazy(() => import('./pages/AICoach').then(m => ({ default: m.AICoach })));
+const TechniqueSkillTree = React.lazy(() => import('./components/technique/TechniqueSkillTree').then(m => ({ default: m.TechniqueSkillTree })));
+const Terms = React.lazy(() => import('./pages/Terms').then(m => ({ default: m.Terms })));
+const Privacy = React.lazy(() => import('./pages/Privacy').then(m => ({ default: m.Privacy })));
+const Contact = React.lazy(() => import('./pages/Contact').then(m => ({ default: m.Contact })));
+const DebugAccess = React.lazy(() => import('./pages/DebugAccess'));
 
 const RootRedirect: React.FC = () => {
   const { user, loading } = useAuth();
@@ -264,10 +265,10 @@ const App: React.FC = () => {
                   <Route path="/saved" element={<MyLibrary />} />
                   <Route path="/saved/:type" element={<SavedListView />} />
                   <Route path="/my-library" element={<Navigate to="/saved" replace />} />
-                  <Route path="/watch" element={<Watch />} />
+                  <Route path="/watch" element={<Navigate to="/drills" replace />} />
                   <Route path="/training-routines" element={<MyRoutines />} />
                   <Route path="/drills" element={<DrillReels />} />
-                  <Route path="/lessons" element={<LessonReels />} />
+                  <Route path="/lessons" element={<Navigate to="/library?tab=classes" replace />} />
                   <Route path="/drills/:id" element={<DrillDetail />} />
                   <Route path="/routines" element={<Routines />} />
                   <Route path="/routines/:id" element={<RoutineDetail />} />
@@ -276,7 +277,7 @@ const App: React.FC = () => {
                   <Route path="/drill-routines/:id" element={<DrillRoutineDetail />} />
                   <Route path="/completed-routines" element={<AllCompletedRoutines />} />
                   <Route path="/sparring/:id" element={<SparringDetail />} />
-                  <Route path="/sparring" element={<Navigate to={`/watch${window.location.search}`} replace />} />
+                  <Route path="/sparring" element={<SparringFeed />} />
                   <Route path="/ai-coach" element={
                     <ProtectedRoute>
                       <AICoach />

@@ -17,29 +17,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { Line } from 'react-chartjs-2';
-import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    Title,
-    Tooltip,
-    Legend,
-    Filler
-} from 'chart.js';
-
-ChartJS.register(
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    Title,
-    Tooltip,
-    Legend,
-    Filler
-);
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 export const TechniqueDetailPage: React.FC = () => {
     const { techniqueId } = useParams<{ techniqueId: string }>();
@@ -92,49 +70,11 @@ export const TechniqueDetailPage: React.FC = () => {
 
     const { mastery, technique, relatedCourses, relatedDrills, relatedRoutines, xpHistory, weeklyXpTrend, successRate } = data;
 
-    // Chart data
-    const chartData = {
-        labels: weeklyXpTrend.map(w => format(new Date(w.week), 'M/d', { locale: ko })),
-        datasets: [
-            {
-                label: 'Weekly XP',
-                data: weeklyXpTrend.map(w => w.xp),
-                borderColor: 'rgb(59, 130, 246)',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                fill: true,
-                tension: 0.4
-            }
-        ]
-    };
-
-    const chartOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                display: false
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                grid: {
-                    color: 'rgba(148, 163, 184, 0.1)'
-                },
-                ticks: {
-                    color: 'rgba(148, 163, 184, 0.5)'
-                }
-            },
-            x: {
-                grid: {
-                    display: false
-                },
-                ticks: {
-                    color: 'rgba(148, 163, 184, 0.5)'
-                }
-            }
-        }
-    };
+    // Chart data for recharts
+    const chartData = weeklyXpTrend.map(w => ({
+        date: format(new Date(w.week), 'M/d', { locale: ko }),
+        xp: w.xp
+    }));
 
     return (
         <div className="min-h-screen bg-slate-950 py-8 px-4">
@@ -217,7 +157,36 @@ export const TechniqueDetailPage: React.FC = () => {
 
                     {/* Weekly XP Trend Chart */}
                     <div className="h-64">
-                        <Line data={chartData} options={chartOptions} />
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={chartData}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.1)" />
+                                <XAxis
+                                    dataKey="date"
+                                    stroke="rgba(148, 163, 184, 0.5)"
+                                    style={{ fontSize: '12px' }}
+                                />
+                                <YAxis
+                                    stroke="rgba(148, 163, 184, 0.5)"
+                                    style={{ fontSize: '12px' }}
+                                />
+                                <Tooltip
+                                    contentStyle={{
+                                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                                        border: '1px solid rgba(148, 163, 184, 0.2)',
+                                        borderRadius: '8px'
+                                    }}
+                                    labelStyle={{ color: 'rgba(148, 163, 184, 0.8)' }}
+                                />
+                                <Line
+                                    type="monotone"
+                                    dataKey="xp"
+                                    stroke="rgb(59, 130, 246)"
+                                    strokeWidth={2}
+                                    dot={{ fill: 'rgb(59, 130, 246)', r: 4 }}
+                                    activeDot={{ r: 6 }}
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
 

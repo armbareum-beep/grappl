@@ -15,7 +15,7 @@ import {
     getCreators
 } from '../../lib/api';
 import { VimeoThumbnailSelector } from '../../components/VimeoThumbnailSelector';
-import { extractVimeoId } from '../../lib/vimeo';
+import { extractVimeoId, extractVimeoHash } from '../../lib/vimeo';
 import { Button } from '../../components/Button';
 import { ArrowLeft, Upload, Trash2, Loader, Camera } from 'lucide-react';
 import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
@@ -88,6 +88,14 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
     const [thumbnailUrl, setThumbnailUrl] = useState<string>('');
     const [createdContentId, setCreatedContentId] = useState<string | null>(null);
 
+    // Related items (lessons, sparrings) for Drills and other types
+    const [relatedItems, setRelatedItems] = useState<{ type: 'drill' | 'lesson' | 'course' | 'sparring'; id: string; title: string }[]>([]);
+    const [availableLessons, setAvailableLessons] = useState<any[]>([]);
+    const [availableSparrings, setAvailableSparrings] = useState<any[]>([]);
+    const [showRelatedModal, setShowRelatedModal] = useState(false);
+    const [relatedSearchQuery, setRelatedSearchQuery] = useState('');
+    const [activeContentTab, setActiveContentTab] = useState<'lesson' | 'sparring'>('lesson');
+
     const [mainVideo, setMainVideo] = useState<ProcessingState>(initialProcessingState);
     const [descVideo, setDescVideo] = useState<ProcessingState>(initialProcessingState);
 
@@ -110,32 +118,71 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         }
     }, [isAdmin, isEditMode, user?.id]);
 
+    // Load available lessons and sparrings for related content selection
+    useEffect(() => {
+        const loadSelectionData = async () => {
+            const targetCreatorId = selectedCreatorId || user?.id;
+            if (!targetCreatorId) return;
+
+            try {
+                const api = await import('../../lib/api');
+                const [lessonsRes, sparringsRes] = await Promise.all([
+                    api.getCreatorLessons(targetCreatorId),
+                    api.getSparringVideos(100, targetCreatorId)
+                ]);
+
+                if (lessonsRes.data) setAvailableLessons(lessonsRes.data);
+                if (sparringsRes.data) setAvailableSparrings(sparringsRes.data);
+            } catch (err) {
+                console.error('Failed to load selection data:', err);
+            }
+        };
+        loadSelectionData();
+    }, [selectedCreatorId, user?.id]);
+
     useEffect(() => {
         async function fetchInitialData() {
             if (!isEditMode || !id) return;
 
             try {
-                let result: any;
+                let result: any = null;
+                let fetchError: any = null;
+
                 if (contentType === 'drill') {
-                    result = await getDrillById(id);
+                    const res = await getDrillById(id);
+                    if ((res as any).error) {
+                        fetchError = (res as any).error;
+                    } else {
+                        result = res;
+                    }
                 } else if (contentType === 'lesson') {
-                    result = await getLessonById(id);
+                    const { data, error } = await getLessonById(id);
+                    if (error) fetchError = error;
+                    else result = data;
                 } else if (contentType === 'sparring') {
-                    const sparringRes = await getSparringVideoById(id);
-                    result = sparringRes.data;
+                    const { data, error } = await getSparringVideoById(id);
+                    if (error) fetchError = error;
+                    else result = data;
                 }
 
-                if (result && !result.error) {
+                if (fetchError) {
+                    throw fetchError;
+                }
+
+                if (result) {
+                    // Normalize data since API returns might be raw DB objects (snake_case) or transformed (camelCase)
                     const data = result;
+                    console.log('Fetched Data:', data);
+
                     setFormData({
                         title: data.title || '',
                         description: data.description || '',
                         category: (data.category as QuantentPosition) || QuantentPosition.Standing,
                         level: (data.difficulty as ContentLevel) || ContentLevel.Beginner,
-                        uniformType: (data.uniformType as UniformType) || UniformType.Gi,
+                        uniformType: (data.uniformType || data.uniform_type as UniformType) || UniformType.Gi,
                         sparringType: contentType === 'sparring' ? (data.category as any) || 'Sparring' : 'Sparring',
                         price: data.price || 0,
-                        durationMinutes: data.durationMinutes || 0,
+                        durationMinutes: data.durationMinutes || data.duration_minutes || 0,
                         length: data.length || '0:00',
                     });
 
@@ -143,29 +190,59 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                         setThumbnailUrl(data.thumbnailUrl || data.thumbnail_url);
                     }
 
-                    if (data.vimeoUrl || data.vimeo_url) {
-                        const vUrl = data.vimeoUrl || data.vimeo_url;
-                        const vId = extractVimeoId(vUrl) || vUrl;
+                    // Handle Vimeo URL (CamelCase or SnakeCase)
+                    const vUrl = data.vimeoUrl || data.vimeo_url;
+                    if (vUrl) {
+                        const vId = extractVimeoId(vUrl);
+                        const vHash = extractVimeoHash(vUrl);
+                        let previewUrl = vId ? `https://player.vimeo.com/video/${vId}` : null;
+                        if (previewUrl && vHash) previewUrl += `?h=${vHash}`;
+
                         setMainVideo(prev => ({
                             ...prev,
                             status: 'complete',
                             vimeoUrl: vUrl,
-                            previewUrl: `https://player.vimeo.com/video/${vId}`
-                        }));
-                    }
-                    if (contentType === 'drill' && (data.description_vimeo_url || data.description_vimeo_url)) {
-                        const vUrl = data.description_vimeo_url;
-                        const vId = extractVimeoId(vUrl) || vUrl;
-                        setDescVideo(prev => ({
-                            ...prev,
-                            status: 'complete',
-                            vimeoUrl: vUrl,
-                            previewUrl: `https://player.vimeo.com/video/${vId}`
+                            previewUrl: previewUrl
                         }));
                     }
 
-                    if (data.creatorId || data.creator_id) {
-                        setSelectedCreatorId(data.creatorId || data.creator_id);
+                    // Handle Description Video (Drill specific)
+                    const dUrl = data.descriptionVideoUrl || data.description_video_url || data.descriptionVimeoUrl || data.description_vimeo_url;
+                    if (contentType === 'drill' && dUrl) {
+                        const vId = extractVimeoId(dUrl);
+                        const vHash = extractVimeoHash(dUrl);
+                        let previewUrl = vId ? `https://player.vimeo.com/video/${vId}` : null;
+                        if (previewUrl && vHash) previewUrl += `?h=${vHash}`;
+
+                        setDescVideo(prev => ({
+                            ...prev,
+                            status: 'complete',
+                            vimeoUrl: dUrl,
+                            previewUrl: previewUrl
+                        }));
+                    }
+
+                    // Handle Related Items (Drill specific)
+                    if (contentType === 'drill' || contentType === 'sparring') {
+                        const items = data.relatedItems || data.related_items;
+                        if (items && Array.isArray(items)) {
+                            setRelatedItems(items);
+                        } else if (data.relatedLessonId || data.related_lesson_id) {
+                            // Fallback for old single ID
+                            const oldId = data.relatedLessonId || data.related_lesson_id;
+                            const lesson = availableLessons.find(l => l.id === oldId);
+                            setRelatedItems([{
+                                type: 'lesson',
+                                id: oldId,
+                                title: lesson?.title || 'Related Lesson'
+                            }]);
+                        }
+                    }
+
+                    // Handle Creator ID
+                    const cId = data.creatorId || data.creator_id;
+                    if (cId) {
+                        setSelectedCreatorId(cId);
                     }
                 }
             } catch (err) {
@@ -175,7 +252,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
             }
         }
         fetchInitialData();
-    }, [id, isEditMode, contentType, navigate, isAdmin, user?.id]);
+    }, [id, isEditMode, contentType, navigate, isAdmin, user?.id, toastError]);
 
     useEffect(() => {
         setMainVideo(initialProcessingState);
@@ -206,8 +283,36 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         });
     }, [tasks, mainVideo.videoId, descVideo.videoId]);
 
+    const MAX_VIDEO_DURATION_SECONDS = 60; // 1분 제한
+
     const handleFileUpload = async (file: File, setter: React.Dispatch<React.SetStateAction<ProcessingState>>) => {
         const objectUrl = URL.createObjectURL(file);
+
+        // 드릴 영상 길이 검증 (1분 제한)
+        if (contentType === 'drill') {
+            const video = document.createElement('video');
+            video.preload = 'metadata';
+            video.src = objectUrl;
+
+            await new Promise<void>((resolve, reject) => {
+                video.onloadedmetadata = () => {
+                    if (video.duration > MAX_VIDEO_DURATION_SECONDS) {
+                        URL.revokeObjectURL(objectUrl);
+                        toastError(`영상 길이가 1분을 초과합니다. (${Math.floor(video.duration)}초) 1분 이하의 영상만 업로드할 수 있습니다.`);
+                        reject(new Error('Video too long'));
+                    } else {
+                        resolve();
+                    }
+                };
+                video.onerror = () => {
+                    resolve(); // 메타데이터 로드 실패 시 일단 업로드 허용
+                };
+            }).catch(() => {
+                setter(prev => ({ ...prev, error: '영상 길이가 1분을 초과합니다.' }));
+                return;
+            });
+        }
+
         setter(prev => ({
             ...prev,
             file,
@@ -320,6 +425,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                 length: formData.length,
                 vimeoUrl: mainVideo.vimeoUrl || undefined,
                 descriptionVideoUrl: contentType === 'drill' ? (descVideo.vimeoUrl || undefined) : undefined,
+                relatedItems: (contentType === 'drill' || contentType === 'sparring') ? relatedItems : undefined,
             };
 
             if (contentType === 'drill') await updateDrill(contentId, commonData);
@@ -432,30 +538,14 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                         value={state.vimeoUrl || ''}
                         onChange={(e) => {
                             const val = e.target.value;
-
-                            // Smart parse for ID:HASH format or standard URLs
-                            let vid = '';
-                            let hash = '';
-
-                            if (val.includes(':') && !val.includes('http')) {
-                                // Handle "123456:abcdef" format
-                                const parts = val.split(':');
-                                vid = parts[0];
-                                hash = parts[1];
-                            } else if (val.includes('vimeo.com/') && val.split('/').length > 4) {
-                                // Handle "vimeo.com/123456/abcdef" format
-                                const parts = val.split('vimeo.com/')[1].split('/');
-                                vid = parts[0];
-                                hash = parts[1];
-                            } else {
-                                vid = extractVimeoId(val) || val;
-                            }
+                            const vId = extractVimeoId(val);
+                            const vHash = extractVimeoHash(val);
 
                             // Construct proper embed URL
                             let embedUrl = '';
-                            if (vid) {
-                                embedUrl = `https://player.vimeo.com/video/${vid}`;
-                                if (hash) embedUrl += `?h=${hash}`;
+                            if (vId) {
+                                embedUrl = `https://player.vimeo.com/video/${vId}`;
+                                if (vHash) embedUrl += `?h=${vHash}`;
                             }
 
                             setter(prev => ({
@@ -495,6 +585,9 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                         </div>
                         <p className="font-bold text-white text-lg mb-2">{label} 업로드</p>
                         <p className="text-sm text-zinc-500">탭하여 동영상 선택</p>
+                        {contentType === 'drill' && (
+                            <p className="text-xs text-amber-500 mt-2 font-medium">⏱ 최대 1분 이하 영상만 가능</p>
+                        )}
                     </div>
                 ) : (
                     <div className="flex-1 min-h-[250px] border-2 border-zinc-700 bg-zinc-800/50 rounded-xl overflow-hidden relative group flex flex-col">
@@ -626,11 +719,60 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                             <textarea rows={3} value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none focus:border-violet-500 resize-none" placeholder="상세 설명을 입력하세요" />
                         </div>
 
+                        {/* Related Content Section */}
+                        {(contentType === 'drill' || contentType === 'sparring') && (
+                            <div className="pt-6 border-t border-zinc-800/50">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div>
+                                        <h3 className="text-lg font-bold text-white">관련 콘텐츠</h3>
+                                        <p className="text-sm text-zinc-500">드릴과 관련된 레슨이나 스파링을 연결하세요</p>
+                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setShowRelatedModal(true)}
+                                        className="gap-2 border-zinc-700 text-zinc-300"
+                                    >
+                                        <Upload className="w-4 h-4" /> 콘텐츠 선택 ({relatedItems.length})
+                                    </Button>
+                                </div>
+
+                                <div className="space-y-2">
+                                    {relatedItems.map((item, index) => (
+                                        <div key={`${item.type}-${item.id}`} className="flex items-center justify-between p-3 bg-zinc-950 border border-zinc-800/50 rounded-xl hover:bg-zinc-900/50 transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded leading-none ${item.type === 'lesson' ? 'bg-violet-500/20 text-violet-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                                                    {item.type.toUpperCase()}
+                                                </span>
+                                                <span className="text-sm text-zinc-200 font-medium truncate max-w-[200px] sm:max-w-[400px]">{item.title}</span>
+                                            </div>
+                                            <button
+                                                onClick={() => setRelatedItems(prev => prev.filter((_, i) => i !== index))}
+                                                className="p-1.5 hover:bg-rose-500/10 rounded-lg text-zinc-500 hover:text-rose-400 transition-all"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {relatedItems.length === 0 && (
+                                        <div className="text-center py-6 bg-zinc-950/30 border border-dashed border-zinc-800 rounded-xl">
+                                            <p className="text-xs text-zinc-500">선택된 관련 콘텐츠가 없습니다</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="pt-4 border-t border-zinc-800/50">
                             <label className="block text-sm font-semibold text-zinc-400 mb-3">썸네일</label>
                             {mainVideo.vimeoUrl && (
                                 <div className="mb-8 p-6 bg-violet-500/5 rounded-2xl border border-violet-500/20">
-                                    <VimeoThumbnailSelector vimeoId={extractVimeoId(mainVideo.vimeoUrl) || mainVideo.vimeoUrl} onSelect={(url) => setThumbnailUrl(url)} currentThumbnailUrl={thumbnailUrl} />
+                                    <VimeoThumbnailSelector
+                                        vimeoId={extractVimeoId(mainVideo.vimeoUrl) || mainVideo.vimeoUrl}
+                                        vimeoHash={extractVimeoHash(mainVideo.vimeoUrl)}
+                                        onSelect={(url) => setThumbnailUrl(url)}
+                                        currentThumbnailUrl={thumbnailUrl}
+                                    />
                                 </div>
                             )}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
@@ -675,6 +817,141 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                     </div>
                 </div>
             </div>
+            {/* Related Content Selection Modal */}
+            {showRelatedModal && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowRelatedModal(false)} />
+                    <div className="relative w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[80vh]">
+                        <div className="p-6 border-b border-zinc-800">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-xl font-bold text-white">관련 콘텐츠 선택</h3>
+                                <button onClick={() => setShowRelatedModal(false)} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-400">
+                                    <Trash2 className="w-5 h-5" />
+                                </button>
+                            </div>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder={`${activeContentTab === 'lesson' ? '레슨' : '스파링'} 제목으로 검색...`}
+                                    value={relatedSearchQuery}
+                                    onChange={(e) => setRelatedSearchQuery(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white text-sm outline-none focus:border-violet-500"
+                                />
+                                <Upload className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                            </div>
+                        </div>
+
+                        {/* Tabs */}
+                        <div className="flex px-6 border-b border-zinc-800">
+                            <button
+                                onClick={() => setActiveContentTab('lesson')}
+                                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-all ${activeContentTab === 'lesson' ? 'text-violet-400 border-violet-400' : 'text-zinc-500 border-transparent hover:text-zinc-300'}`}
+                            >
+                                레슨 ({availableLessons.length})
+                            </button>
+                            <button
+                                onClick={() => setActiveContentTab('sparring')}
+                                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-all ${activeContentTab === 'sparring' ? 'text-blue-400 border-blue-400' : 'text-zinc-500 border-transparent hover:text-zinc-300'}`}
+                            >
+                                스파링 ({availableSparrings.length})
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                            <div className="space-y-6">
+                                {/* Lessons List */}
+                                {activeContentTab === 'lesson' && (
+                                    <div className="space-y-1">
+                                        {availableLessons
+                                            .filter(l => l.title.toLowerCase().includes(relatedSearchQuery.toLowerCase()))
+                                            .map(lesson => {
+                                                const isSelected = relatedItems.some(ri => ri.id === lesson.id && ri.type === 'lesson');
+                                                return (
+                                                    <button
+                                                        key={lesson.id}
+                                                        onClick={() => {
+                                                            if (isSelected) {
+                                                                setRelatedItems(prev => prev.filter(ri => !(ri.id === lesson.id && ri.type === 'lesson')));
+                                                            } else {
+                                                                setRelatedItems(prev => [...prev, { type: 'lesson', id: lesson.id, title: lesson.title }]);
+                                                            }
+                                                        }}
+                                                        className={`w-full flex items-center gap-3 p-2 rounded-xl transition-all ${isSelected ? 'bg-violet-500/10 border border-violet-500/30' : 'hover:bg-zinc-800 border border-transparent'}`}
+                                                    >
+                                                        <div className="w-16 aspect-video rounded-lg bg-zinc-800 overflow-hidden flex-shrink-0">
+                                                            {lesson.thumbnailUrl && <img src={lesson.thumbnailUrl} alt="" className="w-full h-full object-cover" />}
+                                                        </div>
+                                                        <div className="flex-1 text-left min-w-0">
+                                                            <p className="text-sm font-bold text-white truncate">{lesson.title}</p>
+                                                            {lesson.courseTitle && <p className="text-[10px] text-zinc-500 truncate">{lesson.courseTitle}</p>}
+                                                        </div>
+                                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${isSelected ? 'bg-violet-500 border-violet-500' : 'border-zinc-700'}`}>
+                                                            {isSelected && <Upload className="w-3 h-3 text-white" />}
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
+                                        {availableLessons.length === 0 && (
+                                            <div className="text-center py-12">
+                                                <p className="text-zinc-500 text-sm">등록된 레슨이 없습니다.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Sparrings List */}
+                                {activeContentTab === 'sparring' && (
+                                    <div className="space-y-1">
+                                        {availableSparrings
+                                            .filter(s => s.title.toLowerCase().includes(relatedSearchQuery.toLowerCase()))
+                                            .map(sparring => {
+                                                const isSelected = relatedItems.some(ri => ri.id === sparring.id && ri.type === 'sparring');
+                                                return (
+                                                    <button
+                                                        key={sparring.id}
+                                                        onClick={() => {
+                                                            if (isSelected) {
+                                                                setRelatedItems(prev => prev.filter(ri => !(ri.id === sparring.id && ri.type === 'sparring')));
+                                                            } else {
+                                                                setRelatedItems(prev => [...prev, { type: 'sparring', id: sparring.id, title: sparring.title }]);
+                                                            }
+                                                        }}
+                                                        className={`w-full flex items-center gap-3 p-2 rounded-xl transition-all ${isSelected ? 'bg-blue-500/10 border border-blue-500/30' : 'hover:bg-zinc-800 border border-transparent'}`}
+                                                    >
+                                                        <div className="w-16 aspect-video rounded-lg bg-zinc-800 overflow-hidden flex-shrink-0">
+                                                            {sparring.thumbnailUrl && <img src={sparring.thumbnailUrl} alt="" className="w-full h-full object-cover" />}
+                                                        </div>
+                                                        <div className="flex-1 text-left min-w-0">
+                                                            <p className="text-sm font-bold text-white truncate">{sparring.title}</p>
+                                                            <p className="text-[10px] text-zinc-500 truncate">{sparring.creatorName}</p>
+                                                        </div>
+                                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-zinc-700'}`}>
+                                                            {isSelected && <Upload className="w-3 h-3 text-white" />}
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
+                                        {availableSparrings.length === 0 && (
+                                            <div className="text-center py-12">
+                                                <p className="text-zinc-500 text-sm">등록된 스파링 영상이 없습니다.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-zinc-950 border-t border-zinc-800">
+                            <Button
+                                onClick={() => setShowRelatedModal(false)}
+                                className="w-full bg-violet-600 hover:bg-violet-500 h-12 rounded-xl font-bold"
+                            >
+                                {relatedItems.length}개 항목 선택됨
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

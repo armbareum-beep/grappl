@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Course } from '../types';
-import { getCourses, getDailyFreeLesson } from '../lib/api';
+import { getCourses, getDailyFreeLesson } from '../lib/api'; // Maintain api imports just in case types depend on it, or better remove if unused.
+import { useCourses, useDailyFreeLesson } from '../hooks/use-queries';
 import { Search, ChevronDown } from 'lucide-react';
 import { CourseCard } from '../components/CourseCard';
 import { LoadingScreen } from '../components/LoadingScreen';
@@ -14,13 +15,13 @@ export const Browse: React.FC<{
   activeTab?: LibraryTabType;
   onTabChange?: (tab: LibraryTabType) => void;
 }> = ({ isEmbedded, activeTab, onTabChange }) => {
-  const { user } = useAuth();
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth(); // Restore user context
+
+  // -- Filter & Sort States --
   const [internalSearchTerm, setInternalSearchTerm] = useState('');
   const searchTerm = internalSearchTerm;
   const setSearchTerm = setInternalSearchTerm;
+
   const [selectedCategory, setCategory] = useState('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState('All');
   const [selectedUniform, setSelectedUniform] = useState('All');
@@ -31,66 +32,88 @@ export const Browse: React.FC<{
   const categories = ['All', 'Standing', 'Guard', 'Passing', 'Side', 'Mount', 'Back', 'Submission'];
   const ownershipOptions = ['All', 'My Classes', 'Not Purchased'];
 
-  const fetchCourses = async () => {
-    try {
-      // Only show full loading if we have no courses at all
-      if (courses.length === 0) {
-        setLoading(true);
-      }
-      setError(null);
-      const [data, freeLessonRes] = await Promise.all([
-        getCourses(),
-        getDailyFreeLesson()
-      ]);
+  /* React Query Integration */
+  const {
+    data: coursesData,
+    isLoading: coursesLoading,
+    error: coursesError,
+    refetch: refetchCourses
+  } = useCourses(100, 0); // Fetch up to 100 courses for browse page
 
-      if (!data) {
-        console.warn('No courses received, utilizing empty array');
-      }
+  const {
+    data: freeLessonRes
+  } = useDailyFreeLesson();
 
-      const freeCourseId = freeLessonRes.data?.courseId;
+  const [processedCourses, setProcessedCourses] = useState<Course[]>([]);
 
-      // Process data with ranks and free status
-      const process = (items: Course[]) => {
-        const now = Date.now();
-        const getHotScore = (item: any) => {
-          const views = item.views || 0;
-          const createdDate = item.createdAt ? new Date(item.createdAt).getTime() : now;
-          const hoursSinceCreation = Math.max(0, (now - createdDate) / (1000 * 60 * 60));
-          return views / Math.pow(hoursSinceCreation + 2, 1.5);
-        };
+  // Effect to process courses when data arrives
+  useEffect(() => {
+    if (coursesData) {
+      const freeCourseId = freeLessonRes?.data?.courseId;
+      const now = Date.now();
 
-        const hotCourses = [...items]
-          .filter(c => (c.views || 0) >= 5)
-          .sort((a, b) => getHotScore(b) - getHotScore(a));
-
-        const coursesWithRank = items.map(course => {
-          const hotIndex = hotCourses.findIndex(hc => hc.id === course.id);
-          return {
-            ...course,
-            rank: (hotIndex >= 0 && hotIndex < 3) ? hotIndex + 1 : undefined,
-            isDailyFree: course.id === freeCourseId
-          };
-        });
-        return coursesWithRank;
+      const getHotScore = (item: any) => {
+        const views = item.views || 0;
+        const createdDate = item.createdAt ? new Date(item.createdAt).getTime() : now;
+        const hoursSinceCreation = Math.max(0, (now - createdDate) / (1000 * 60 * 60));
+        return views / Math.pow(hoursSinceCreation + 2, 1.5);
       };
 
-      const processed = process(data);
+      const hotCourses = [...coursesData]
+        .filter(c => (c.views || 0) >= 5)
+        .sort((a, b) => getHotScore(b) - getHotScore(a));
+
+      const coursesWithRank = coursesData.map(course => {
+        const hotIndex = hotCourses.findIndex(hc => hc.id === course.id);
+        return {
+          ...course,
+          rank: (hotIndex >= 0 && hotIndex < 3) ? hotIndex + 1 : undefined,
+          isDailyFree: course.id === freeCourseId
+        };
+      });
+
       // Shuffle by default for browse fresh feel
-      const shuffled = [...processed].sort(() => Math.random() - 0.5);
-      setCourses(shuffled);
-    } catch (error) {
-      console.error('Failed to fetch courses:', error);
-      setError('서버와 연결할 수 없습니다.');
-    } finally {
-      setLoading(false);
+      const shuffled = [...coursesWithRank].sort(() => Math.random() - 0.5);
+      setProcessedCourses(shuffled);
     }
+  }, [coursesData, freeLessonRes]);
+
+  // Loading state
+  const loading = coursesLoading && processedCourses.length === 0;
+
+  // Handlers for retry
+  const handleRetry = () => {
+    refetchCourses();
   };
 
-  useEffect(() => {
-    fetchCourses();
-  }, []);
+  if (loading) {
+    return (
+      <LoadingScreen message="클래스 목록을 불러오고 있습니다..." />
+    );
+  }
 
-  const filteredCourses = courses.filter(course => {
+  if (coursesError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-950 text-white p-6">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-8 max-w-md text-center">
+          <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-3xl">⚠️</span>
+          </div>
+          <h2 className="text-xl font-bold mb-2 text-red-200">데이터를 불러올 수 없습니다</h2>
+          <p className="text-zinc-400 mb-6 text-sm">{(coursesError as Error).message}</p>
+          <button
+            onClick={handleRetry}
+            className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition-colors"
+          >
+            다시 시도하기
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Filter logic uses processedCourses instead of courses state
+  const filteredCourses = processedCourses.filter(course => {
     const matchesSearch = course.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (course.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (course.creatorName || '').toLowerCase().includes(searchTerm.toLowerCase());
@@ -166,28 +189,7 @@ export const Browse: React.FC<{
     );
   }
 
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-950 text-white p-6">
-        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-8 max-w-md text-center">
-          <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-3xl">⚠️</span>
-          </div>
-          <h2 className="text-xl font-bold mb-2 text-red-200">데이터를 불러올 수 없습니다</h2>
-          <p className="text-zinc-400 mb-6 text-sm">{error}</p>
-          <button
-            onClick={() => {
-              setLoading(true);
-              fetchCourses();
-            }}
-            className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition-colors"
-          >
-            다시 시도하기
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // (Removed redundant error block)
 
   return (
     <div className={cn(

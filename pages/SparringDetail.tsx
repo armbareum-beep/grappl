@@ -467,7 +467,7 @@ export const SparringDetail: React.FC = () => {
                                 <div className="w-full flex gap-3 overflow-x-auto no-scrollbar pointer-events-auto pb-2 -mx-2 px-2">
                                     {relatedDrills.map((item: any) => {
                                         const isDrill = item._type === 'drill';
-                                        const targetUrl = isDrill ? `/drills/${item.id}` : `/watch?tab=lesson&id=${item.id}`;
+                                        const targetUrl = isDrill ? `/drills/${item.id}` : `/lessons/${item.id}`;
 
                                         return (
                                             <div

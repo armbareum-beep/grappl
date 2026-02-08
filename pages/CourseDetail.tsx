@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
-import { getCourseById, getLessonsByCourse, getCreatorById, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, getCourseDrillBundles, getCourseSparringVideos, getRelatedCourses, toggleCourseLike, checkCourseLiked, getCourseLikeCount, incrementCourseViews, toggleCreatorFollow, checkCreatorFollowStatus, toggleCourseSave, checkCourseSaved } from '../lib/api';
-import { Course, Lesson, Creator, Drill, SparringVideo } from '../types';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCourse, useCourseLessons, useCourseDrills, useCourseSparring, useRelatedCourses } from '../hooks/use-queries';
+import { getCreatorById, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, toggleCourseLike, checkCourseLiked, getCourseLikeCount, incrementCourseViews, toggleCreatorFollow, checkCreatorFollowStatus, toggleCourseSave, checkCourseSaved } from '../lib/api';
+import { Course, Lesson, Creator } from '../types';
 import { Button } from '../components/Button';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { ArrowLeft, Clock, Eye, BookOpen, CheckCircle, Heart, Share2, Lock, Play, Zap, ChevronLeft, Bookmark } from 'lucide-react';
@@ -24,19 +26,39 @@ export const CourseDetail: React.FC = () => {
     const location = useLocation();
     const { user, isSubscribed, isAdmin } = useAuth();
     const { success, error: toastError } = useToast();
-    const [course, setCourse] = useState<Course | null>(null);
+    const queryClient = useQueryClient();
+
+    // React Query hooks with placeholder data
+    const { data: course, isLoading: courseLoading, error: courseError } = useCourse(id, {
+        placeholderData: () => {
+            // Try to find course in cached lists (from Browse/Home pages)
+            const cachedCourses = queryClient.getQueryData<Course[]>(['courses']) || [];
+            const cachedTrending = queryClient.getQueryData<Course[]>(['trending', 'courses']) || [];
+            const cachedNew = queryClient.getQueryData<Course[]>(['new', 'courses']) || [];
+
+            return [...cachedCourses, ...cachedTrending, ...cachedNew].find(c => c.id === id);
+        }
+    }) as { data: Course | null | undefined; isLoading: boolean; error: any };
+
+    const { data: lessonsResponse, isLoading: lessonsLoading } = useCourseLessons(id);
+    const { data: drillsResponse } = useCourseDrills(id);
+    const { data: sparringResponse } = useCourseSparring(id);
+    const { data: relatedCoursesData } = useRelatedCourses(id || '', course?.category || '');
+
+    const lessons = lessonsResponse?.data || [];
+    const bundledDrills = drillsResponse?.data || [];
+    const bundledSparringVideos = sparringResponse?.data || [];
+    const relatedCourses = relatedCoursesData || [];
+
+    const loading = courseLoading || lessonsLoading;
+    const error = courseError ? '클래스 정보를 불러오는 중 오류가 발생했습니다.' : null;
+
     const [creator, setCreator] = useState<Creator | null>(null);
-    const [lessons, setLessons] = useState<Lesson[]>([]);
     const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [ownsCourse, setOwnsCourse] = useState(false);
     const [purchasing, setPurchasing] = useState(false);
     const [dailyFreeLessonId, setDailyFreeLessonId] = useState<string | null>(null);
     const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
-    const [bundledDrills, setBundledDrills] = useState<Drill[]>([]);
-    const [bundledSparringVideos, setBundledSparringVideos] = useState<SparringVideo[]>([]);
-    const [relatedCourses, setRelatedCourses] = useState<Course[]>([]);
     // activeTab state removed as tabs are no longer used
     const [isLiked, setIsLiked] = useState(false);
     const [likeCount, setLikeCount] = useState(0);
@@ -48,7 +70,9 @@ export const CourseDetail: React.FC = () => {
     const [actualIsAdmin, setActualIsAdmin] = useState<boolean | null>(null); // Direct DB check to bypass AuthContext
 
     const [initialStartTime, setInitialStartTime] = useState<number>(0);
-    const [_currentTime, setCurrentTime] = useState<number>(0);
+    const [currentTime, setCurrentTime] = useState<number>(0);
+
+    const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
     const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
 
     // Responsive listener to prevent double-mounting VideoPlayer
@@ -96,141 +120,115 @@ export const CourseDetail: React.FC = () => {
         };
     }, []);
 
-    // Load Course & Initial Data - Only when ID or User changes
+    // Fetch creator and handle ownership/permissions when course data is available
     useEffect(() => {
-        async function fetchData() {
-            if (!id) {
-                setLoading(false);
-                return;
-            }
-            setLoading(true);
-            setError(null);
+        async function handleCourseData() {
+            if (!course || !id) return;
 
             try {
-                const [courseData, lessonsResponse] = await Promise.all([
-                    getCourseById(id),
-                    getLessonsByCourse(id),
-                ]);
+                // Fetch creator
+                const creatorData = await getCreatorById(course.creatorId);
+                setCreator(creatorData);
 
-                setCourse(courseData);
-                setLessons(lessonsResponse.data || []);
+                if (user) {
+                    // DIRECT DB CHECK - Bypass AuthContext potential inconsistencies
+                    const { data: directUserData, error: userQueryError } = await supabase
+                        .from('users')
+                        .select('is_subscriber, is_complimentary_subscription, is_admin')
+                        .eq('id', user.id)
+                        .maybeSingle();
 
-                // Fetch bundled drills
-                try {
-                    const { data: drillsData } = await getCourseDrillBundles(id);
-                    if (drillsData) setBundledDrills(drillsData);
-                } catch (e) { /* ignore */ }
+                    // Only set actual values if query succeeded - otherwise keep null to fall back to AuthContext
+                    if (directUserData && !userQueryError) {
+                        const dbIsAdmin = !!(directUserData.is_admin);
+                        const dbIsSubscribed = !!(
+                            directUserData.is_subscriber ||
+                            directUserData.is_complimentary_subscription ||
+                            dbIsAdmin
+                        );
+                        setActualIsSubscribed(dbIsSubscribed);
+                        setActualIsAdmin(dbIsAdmin);
+                    }
 
-                // Fetch bundled sparring videos
-                try {
-                    const { data: sparringData } = await getCourseSparringVideos(id);
-                    if (sparringData) setBundledSparringVideos(sparringData);
-                } catch (e) { /* ignore */ }
+                    let owns = await checkCourseOwnership(user.id, id);
 
-                // Fetch related courses
-                if (courseData?.category) {
-                    getRelatedCourses(id, courseData.category).then(({ data }) => {
-                        if (data) setRelatedCourses(data);
-                    });
-                }
+                    // Check ownership via user.ownedVideoIds from AuthContext
+                    if (!owns && user.ownedVideoIds) {
+                        const normalizedOwnedIds = user.ownedVideoIds.map((oid: any) => String(oid).trim().toLowerCase());
+                        const courseIdLower = String(id).trim().toLowerCase();
 
-                if (courseData) {
-                    const creatorData = await getCreatorById(courseData.creatorId);
-                    setCreator(creatorData);
-
-                    if (user) {
-                        // DIRECT DB CHECK - Bypass AuthContext potential inconsistencies
-                        const { data: directUserData, error: userQueryError } = await supabase
-                            .from('users')
-                            .select('is_subscriber, is_complimentary_subscription, is_admin')
-                            .eq('id', user.id)
-                            .maybeSingle();
-
-                        // Only set actual values if query succeeded - otherwise keep null to fall back to AuthContext
-                        if (directUserData && !userQueryError) {
-                            const dbIsAdmin = !!(directUserData.is_admin);
-                            const dbIsSubscribed = !!(
-                                directUserData.is_subscriber ||
-                                directUserData.is_complimentary_subscription ||
-                                dbIsAdmin
-                            );
-                            setActualIsSubscribed(dbIsSubscribed);
-                            setActualIsAdmin(dbIsAdmin);
+                        if (normalizedOwnedIds.includes(courseIdLower)) {
+                            owns = true;
                         }
 
-                        let owns = await checkCourseOwnership(user.id, id);
+                        if (!owns) {
+                            const courseVimeoIds = [
+                                (course as any).vimeoUrl,
+                                (course as any).vimeo_url,
+                                course.previewVimeoId,
+                                (course as any).preview_vimeo_id
+                            ].filter(Boolean).map(v => String(v).trim().toLowerCase());
 
-                        // Check ownership via user.ownedVideoIds from AuthContext
-                        if (!owns && user.ownedVideoIds) {
-                            const normalizedOwnedIds = user.ownedVideoIds.map((oid: any) => String(oid).trim().toLowerCase());
-                            const courseIdLower = String(id).trim().toLowerCase();
+                            owns = courseVimeoIds.some(vid => normalizedOwnedIds.includes(vid));
+                        }
 
-                            if (normalizedOwnedIds.includes(courseIdLower)) {
-                                owns = true;
-                            }
-
-                            if (!owns) {
-                                const courseVimeoIds = [
-                                    (courseData as any).vimeoUrl,
-                                    (courseData as any).vimeo_url,
-                                    courseData.previewVimeoId,
-                                    (courseData as any).preview_vimeo_id
-                                ].filter(Boolean).map(v => String(v).trim().toLowerCase());
-
-                                owns = courseVimeoIds.some(vid => normalizedOwnedIds.includes(vid));
-                            }
-
-                            if (!owns && lessonsResponse.data && lessonsResponse.data.length > 0) {
-                                for (const lesson of lessonsResponse.data) {
-                                    const lessonVimeoIds = [lesson.vimeoUrl, (lesson as any).vimeo_url, lesson.videoUrl]
-                                        .filter(Boolean).map(v => String(v).trim().toLowerCase());
-                                    if (lessonVimeoIds.some(vid => normalizedOwnedIds.includes(vid))) {
-                                        owns = true;
-                                        break;
-                                    }
+                        if (!owns && lessons && lessons.length > 0) {
+                            for (const lesson of lessons) {
+                                const lessonVimeoIds = [lesson.vimeoUrl, (lesson as any).vimeo_url, lesson.videoUrl]
+                                    .filter(Boolean).map(v => String(v).trim().toLowerCase());
+                                if (lessonVimeoIds.some(vid => normalizedOwnedIds.includes(vid))) {
+                                    owns = true;
+                                    break;
                                 }
                             }
                         }
-
-                        setOwnsCourse(owns);
-
-                        // Progress and Interactions
-                        const completed = new Set<string>();
-                        if (lessonsResponse.data) {
-                            for (const lesson of lessonsResponse.data) {
-                                const prog = await getLessonProgress(user.id, lesson.id);
-                                if (prog?.completed) completed.add(lesson.id);
-                            }
-                        }
-                        setCompletedLessons(completed);
-                        checkCourseLiked(user.id, id).then(setIsLiked);
-                        checkCourseSaved(user.id, id).then(setIsSaved);
-
-                        if (courseData.creatorId) {
-                            checkCreatorFollowStatus(user.id, courseData.creatorId).then(setIsFollowed);
-                        }
                     }
 
-                    // Check for daily free lesson
-                    try {
-                        const { getDailyFreeLesson } = await import('../lib/api');
-                        const { data: dailyLesson } = await getDailyFreeLesson();
-                        if (dailyLesson) setDailyFreeLessonId(dailyLesson.id);
-                    } catch (e) { /* ignore */ }
+                    setOwnsCourse(owns);
 
-                    // Increment views & like count
-                    getCourseLikeCount(id).then(setLikeCount);
-                    incrementCourseViews(id);
+                    // Progress and Interactions
+                    const completed = new Set<string>();
+                    if (lessons) {
+                        for (const lesson of lessons) {
+                            const prog = await getLessonProgress(user.id, lesson.id);
+                            if (prog?.completed) completed.add(lesson.id);
+                        }
+                    }
+                    setCompletedLessons(completed);
+                    checkCourseLiked(user.id, id).then(setIsLiked);
+                    checkCourseSaved(user.id, id).then(setIsSaved);
+
+                    if (course.creatorId) {
+                        checkCreatorFollowStatus(user.id, course.creatorId).then(setIsFollowed);
+                    }
+                } else {
+                    // Reset states when user is null (logged out)
+                    setOwnsCourse(false);
+                    setActualIsSubscribed(false);
+                    setActualIsAdmin(false);
+                    setCompletedLessons(new Set());
+                    setIsLiked(false);
+                    setIsSaved(false);
+                    setIsFollowed(false);
                 }
+
+                // Check for daily free lesson
+                try {
+                    const { getDailyFreeLesson } = await import('../lib/api');
+                    const { data: dailyLesson } = await getDailyFreeLesson();
+                    if (dailyLesson) setDailyFreeLessonId(dailyLesson.id);
+                } catch (e) { /* ignore */ }
+
+                // Increment views & like count
+                getCourseLikeCount(id).then(setLikeCount);
+                incrementCourseViews(id);
             } catch (error: any) {
-                setError(error.message || '클래스 정보를 불러오는 중 오류가 발생했습니다.');
-            } finally {
-                setLoading(false);
+                console.error('Error handling course data:', error);
             }
         }
 
-        fetchData();
-    }, [id, user?.id, isSubscribed, isAdmin]);
+        handleCourseData();
+    }, [course, id, user?.id, lessons]);
 
     // Handle Lesson Selection & Progress Sync based on URL
     useEffect(() => {
@@ -348,29 +346,48 @@ export const CourseDetail: React.FC = () => {
             }
         }
 
-        if (Number(course?.price || 0) === 0) return true;
+        if (course && course.price === 0) return true;
 
         if (lesson.id === dailyFreeLessonId) {
-            return true; // Allow guests so they can see the 30s preview
+            return true;
         }
 
-        if (lesson.isPreview) return true;
+        if (lesson.isPreview || lesson.lessonNumber === 1) return true;
 
         return false;
     };
+
+    const isPreviewOnly = React.useCallback((lesson: Lesson) => {
+        if (!user || !user.id) return true;
+        if (ownsCourse || isAdmin || isSubscribed) return false;
+        return !!(lesson.isPreview || lesson.lessonNumber === 1 || lesson.id === dailyFreeLessonId);
+    }, [user, ownsCourse, isAdmin, isSubscribed, dailyFreeLessonId]);
+
+    // Initialize timeRemaining when lesson changes
+    useEffect(() => {
+        if (selectedLesson && isPreviewOnly(selectedLesson)) {
+            setTimeRemaining(60);
+        } else {
+            setTimeRemaining(null);
+        }
+    }, [selectedLesson, isPreviewOnly]);
 
     const isPreviewMode = React.useCallback((lesson: Lesson) => {
         return !!lesson.isPreview;
     }, []);
 
     const handleProgress = React.useCallback(async (seconds: number) => {
-        if (!user || !selectedLesson) {
-            setCurrentTime(seconds);
-            return;
-        }
-
         setCurrentTime(seconds);
         currentTimeRef.current = seconds;
+
+        // Update timeRemaining for preview (even for guests)
+        if (selectedLesson && isPreviewOnly(selectedLesson)) {
+            setTimeRemaining(Math.max(0, 60 - Math.ceil(seconds)));
+        }
+
+        if (!user || !selectedLesson) {
+            return;
+        }
 
         const now = Date.now();
         if (lastTickRef.current === 0) {
@@ -402,7 +419,12 @@ export const CourseDetail: React.FC = () => {
             lastSavedTimeRef.current = seconds;
             updateLastWatched(user.id, selectedLesson.id, Math.floor(seconds));
         }
-    }, [user?.id, selectedLesson, ownsCourse, isPreviewMode]);
+
+        // Update timeRemaining for preview
+        if (isPreviewOnly(selectedLesson)) {
+            setTimeRemaining(Math.max(0, 60 - Math.ceil(seconds)));
+        }
+    }, [user, selectedLesson, ownsCourse, isPreviewOnly]);
 
     const handleLessonSelect = async (lesson: Lesson) => {
         if (selectedLesson?.id === lesson.id) return;
@@ -447,8 +469,9 @@ export const CourseDetail: React.FC = () => {
         // Check for course completion
         if (course) {
             const { data } = await checkCourseCompletion(user.id, course.id);
-            if (data && data.newly_awarded) {
-                success(`🎉 클래스 완강 축하합니다!\n\n전투력 증가: ${data.category} +${data.stat_gained}\nXP 획득: +${data.xp_gained}`);
+            const completionData = data as any;
+            if (completionData && completionData.newly_awarded) {
+                success(`🎉 클래스 완강 축하합니다!\n\n전투력 증가: ${completionData.category} +${completionData.stat_gained}\nXP 획득: +${completionData.xp_gained}`);
             }
         }
     };
@@ -612,19 +635,26 @@ export const CourseDetail: React.FC = () => {
                                 key={vimeoIdToSend}
                                 vimeoId={vimeoIdToSend}
                                 title={selectedLesson!.title}
-                                playing={true}
+                                playing={!isPaywallOpen}
                                 startTime={initialStartTime}
                                 onEnded={handleVideoEnded}
                                 onProgress={handleProgress}
-                                maxPreviewDuration={
-                                    !user && selectedLesson?.id === dailyFreeLessonId ? 60 :
-                                        isPreviewMode(selectedLesson!) ? 60 : undefined
-                                }
+                                maxPreviewDuration={isPreviewOnly(selectedLesson!) ? 60 : undefined}
+                                isPreviewMode={isPreviewOnly(selectedLesson!)}
                                 onPreviewLimitReached={() => setIsPaywallOpen(true)}
                                 isPaused={isPaywallOpen}
                                 onDoubleTap={handleLike}
                                 muted={false}
                             />
+
+                            {/* 프리뷰 카운트다운 (부모 관리) */}
+                            {isPreviewOnly(selectedLesson!) && !isPaywallOpen && timeRemaining !== null && timeRemaining > 0 && (
+                                <div className="absolute top-4 right-4 z-20 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-md border border-violet-500/30 pointer-events-none">
+                                    <span className="text-xs font-bold text-violet-300">
+                                        프리뷰: {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')} 남음
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     ) : !hasAccess && hasPreview ? (
                         <div className="relative h-full">

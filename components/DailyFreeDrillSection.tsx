@@ -115,7 +115,7 @@ export const DailyFreeDrillSection: React.FC<DailyFreeDrillSectionProps> = ({ ti
             data: drill,
             img: drill.thumbnailUrl,
             activeRatio: '3/4', // Narrow & Tall
-            link: `/watch?tab=drill&id=${drill.id}`
+            link: `/drills?id=${drill.id}`
         },
         {
             id: 'lesson',
@@ -123,7 +123,7 @@ export const DailyFreeDrillSection: React.FC<DailyFreeDrillSectionProps> = ({ ti
             data: lesson,
             img: lesson.thumbnailUrl,
             activeRatio: '4/3', // Wide & Short
-            link: `/watch?tab=lesson&id=${lesson.id}`
+            link: `/lessons/${lesson.id}`
         },
         {
             id: 'sparring',
@@ -131,7 +131,7 @@ export const DailyFreeDrillSection: React.FC<DailyFreeDrillSectionProps> = ({ ti
             data: sparring,
             img: sparring.thumbnailUrl,
             activeRatio: '1/1', // Square
-            link: `/watch?tab=sparring&id=${sparring.id}`
+            link: `/sparring/${sparring.id}`
         },
     ];
 

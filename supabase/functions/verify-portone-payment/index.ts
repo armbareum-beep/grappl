@@ -26,6 +26,62 @@ async function getPortoneAccessToken() {
     return data.accessToken
 }
 
+// Schedule next month's payment using PortOne V2 API
+async function scheduleNextPayment(
+    billingKey: string,
+    amount: number,
+    userId: string
+): Promise<{ scheduleId: string; scheduledPaymentId: string } | null> {
+    try {
+        const accessToken = await getPortoneAccessToken();
+
+        // Calculate next payment date (1 month from now)
+        const nextPaymentDate = new Date();
+        nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+
+        const scheduledPaymentId = `scheduled_${crypto.randomUUID()}`;
+
+        const response = await fetch(`https://api.portone.io/payments/${scheduledPaymentId}/schedule`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                payment: {
+                    billingKey: billingKey,
+                    orderName: 'Grapplay Monthly Subscription',
+                    amount: {
+                        total: amount,
+                        currency: 'KRW'
+                    },
+                    customer: {
+                        id: userId
+                    }
+                },
+                timeToPay: nextPaymentDate.toISOString()
+            })
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            console.error(`Failed to schedule next payment: ${errText}`);
+            return null;
+        }
+
+        const scheduleData = await response.json();
+        console.log(`Scheduled next payment: ${scheduledPaymentId} for ${nextPaymentDate.toISOString()}`);
+
+        return {
+            scheduleId: scheduleData.schedule?.id || scheduledPaymentId,
+            scheduledPaymentId: scheduledPaymentId
+        };
+    } catch (error) {
+        console.error('Error scheduling next payment:', error);
+        return null;
+    }
+}
+
 async function verifyPortonePayment(paymentId: string) {
     const accessToken = await getPortoneAccessToken()
 
@@ -203,7 +259,7 @@ Deno.serve(async (req) => {
                     current_period_start: new Date().toISOString(),
                     current_period_end: endDate.toISOString(),
                     portone_payment_id: effectivePaymentId,
-                    billing_key: billingKey || null // Store billing key if present
+                    billing_key: billingKey || null
                 })
                 .select()
                 .single()
@@ -222,12 +278,35 @@ Deno.serve(async (req) => {
                     await supabaseClient.from('revenue_ledger').insert({
                         subscription_id: subData.id,
                         amount: monthlyAmount,
-                        platform_fee: monthlyAmount, // Initially platform fee until creator split implemented
+                        platform_fee: monthlyAmount,
                         creator_revenue: 0,
                         product_type: 'subscription',
                         status: 'pending',
                         recognition_date: recognitionDate.toISOString().split('T')[0]
                     })
+                }
+
+                // Schedule next month's payment for monthly subscriptions
+                if (!isYearly && billingKey) {
+                    const scheduleResult = await scheduleNextPayment(
+                        billingKey,
+                        amountValue,
+                        userId
+                    );
+
+                    if (scheduleResult) {
+                        // Store scheduled payment info
+                        await supabaseClient
+                            .from('subscriptions')
+                            .update({
+                                scheduled_payment_id: scheduleResult.scheduledPaymentId
+                            })
+                            .eq('id', subData.id);
+
+                        console.log(`Next payment scheduled for subscription ${subData.id}`);
+                    } else {
+                        console.warn(`Failed to schedule next payment for subscription ${subData.id}`);
+                    }
                 }
             }
         } else if (mode === 'feedback') {

@@ -1,6 +1,7 @@
 import { createNotification as createNotify } from './api-notifications';
 export * from './api-user-interactions';
 export * from './api-lessons';
+import { transformLesson } from './api-lessons';
 import { supabase } from './supabase';
 
 import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, SparringReview, Testimonial, SparringVideo, CompletedRoutineRecord, SiteSettings } from '../types';
@@ -14,41 +15,8 @@ export const SUBSCRIPTION_CREATOR_SHARE = 0.8; // 80% to creator for subscriptio
 export const SUBSCRIPTION_PLATFORM_SHARE = 0.2;
 
 
-// ==================== CACHING SYSTEM ====================
-interface CacheItem<T> {
-    data: T;
-    timestamp: number;
-}
 
-const GLOBAL_CACHE: Record<string, CacheItem<any>> = {};
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes default
-
-function getFromCache<T>(key: string): T | null {
-    const item = GLOBAL_CACHE[key];
-    if (item && Date.now() - item.timestamp < CACHE_TTL) {
-        return item.data as T;
-    }
-    return null;
-}
-
-function setToCache<T>(key: string, data: T): void {
-    GLOBAL_CACHE[key] = {
-        data,
-        timestamp: Date.now()
-    };
-}
-
-export function clearApiCache(path?: string) {
-    if (path) {
-        delete GLOBAL_CACHE[path];
-    } else {
-        Object.keys(GLOBAL_CACHE).forEach(key => delete GLOBAL_CACHE[key]);
-    }
-}
-
-
-
-
+// (Manual caching system removed - migrated to React Query)
 
 // Helper to safely wrap promises with a timeout
 export async function withTimeout<T>(
@@ -189,7 +157,7 @@ function transformCourse(data: CourseData): Course {
         category: data.category as any,
         difficulty: data.difficulty as any,
         thumbnailUrl: data.thumbnail_url || '',
-        price: data.price || 0,
+        price: data.price,
         views: data.views || 0,
         lessonCount: data.lesson_count || 0,
         createdAt: data.created_at || '',
@@ -235,10 +203,6 @@ export async function getPlatformStats() {
 
 // Creators API
 export async function getCreators(): Promise<Creator[]> {
-    const cacheKey = 'creators_approved';
-    const cached = getFromCache<Creator[]>(cacheKey);
-    if (cached) return cached;
-
     try {
         const { data, error } = await withTimeout(
             supabase
@@ -255,7 +219,6 @@ export async function getCreators(): Promise<Creator[]> {
         }
 
         const transformed = (data || []).map(transformCreator);
-        setToCache(cacheKey, transformed);
         return transformed;
     } catch (e) {
         console.error('getCreators timeout/fail:', e);
@@ -334,15 +297,7 @@ export async function fetchCreatorsByIds(creatorIds: string[]): Promise<Record<s
 
 // Courses API
 export async function getCourses(limit: number = 50, offset: number = 0): Promise<Course[]> {
-    const cacheKey = `courses_l${limit}_o${offset}`;
-    const cached = getFromCache<Course[]>(cacheKey);
-    if (cached) {
-        console.log(`📦 Serving getCourses from cache: ${cacheKey}`);
-        return cached;
-    }
-
     try {
-        console.log('🔍 getCourses: Starting fetch...');
         // First, try to get courses with creator info (for authenticated users)
         let { data, error } = await withTimeout(
             supabase
@@ -383,8 +338,6 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
             }
         }
 
-        console.log('✅ getCourses: Raw data received:', data?.length, 'courses');
-
         const transformed = (data || []).map((d: any) => {
             const sortedLessons = (d.lessons || []).sort((a: any, b: any) => a.lesson_number - b.lesson_number);
             const firstLesson = sortedLessons[0];
@@ -406,8 +359,6 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
             };
         });
 
-        console.log('✅ getCourses: Transformed data:', transformed.length, 'courses');
-        setToCache(cacheKey, transformed);
         return transformed;
     } catch (e) {
         console.error('❌ getCourses timeout/fail:', e);
@@ -615,7 +566,7 @@ export async function getCourseById(id: string): Promise<Course | null> {
             .select(`
       *,
       creator:creators(name, profile_image),
-      lessons:lessons(vimeo_url, lesson_number)
+      lessons:lessons(vimeo_url, lesson_number, is_preview, id)
     `)
             .eq('id', id)
             .maybeSingle(), 10000);
@@ -4778,7 +4729,8 @@ export async function getDrills(creatorId?: string, limit: number = 50, forceRef
             durationMinutes: drill.duration_minutes || 0,
             views: drill.views || 0,
             likes: drill.likes || 0,
-            createdAt: drill.created_at
+            createdAt: drill.created_at,
+            relatedItems: drill.related_items || []
         };
     });
 }
@@ -4797,6 +4749,8 @@ export async function createDrill(drillData: Partial<Drill>) {
         duration_minutes: drillData.durationMinutes,
         uniform_type: drillData.uniformType,
         length: drillData.length,
+        related_items: drillData.relatedItems || [],
+        related_lesson_id: drillData.relatedLessonId,
     };
 
     // Auto-fetch Vimeo info if vimeo_url exists
@@ -4857,6 +4811,8 @@ export async function updateDrill(drillId: string, drillData: Partial<Drill>) {
     if (drillData.durationMinutes !== undefined) dbData.duration_minutes = drillData.durationMinutes;
     if (drillData.uniformType) dbData.uniform_type = drillData.uniformType;
     if (drillData.length) dbData.length = drillData.length;
+    if (drillData.relatedItems !== undefined) dbData.related_items = drillData.relatedItems;
+    if (drillData.relatedLessonId !== undefined) dbData.related_lesson_id = drillData.relatedLessonId || null;
 
     // If vimeoUrl changed, fetch info
     if (drillData.vimeoUrl) {
@@ -5019,32 +4975,138 @@ export async function getSparringVideos(limit = 10, creatorId?: string, publicOn
 
         if (!videos || videos.length === 0) return { data: [], error: null };
 
-        // Extract creator IDs for manual fetch
-        const creatorIds = Array.from(new Set(videos.map(v => v.creator_id).filter(Boolean)));
+        // 1. Extract IDs for hydration
+        const creatorIds = new Set<string>();
+        const lessonIds = new Set<string>();
+        const drillIds = new Set<string>();
+        const courseIds = new Set<string>();
 
-        // Fetch creator details from 'users' table
-        let userMap: Record<string, any> = {};
-        if (creatorIds.length > 0) {
-            const { data: users } = await supabase
-                .from('users')
-                .select('id, name, avatar_url, profile_image_url')
-                .in('id', creatorIds);
+        videos.forEach(v => {
+            if (v.creator_id) creatorIds.add(v.creator_id);
 
-            if (users) {
-                users.forEach(u => {
-                    userMap[u.id] = u;
+            // Extract related items IDs
+            const related = v.related_items || [];
+            if (Array.isArray(related)) {
+                related.forEach((item: any) => {
+                    if (item.type === 'lesson' && item.id) lessonIds.add(item.id);
+                    else if (item.type === 'drill' && item.id) drillIds.add(item.id);
+                    else if (item.type === 'course' && item.id) courseIds.add(item.id);
                 });
             }
+        });
+
+        // 2. Fetch all necessary data in parallel
+        const promises: Promise<any>[] = [];
+
+        // Creators
+        if (creatorIds.size > 0) {
+            promises.push(
+                supabase
+                    .from('users')
+                    .select('id, name, avatar_url, profile_image_url')
+                    .in('id', Array.from(creatorIds))
+                    .then(({ data }) => ({ type: 'creators', data }))
+            );
         }
 
+        // Lessons (Need video_url/vimeo_url)
+        if (lessonIds.size > 0) {
+            promises.push(
+                supabase
+                    .from('lessons')
+                    .select('id, vimeo_url, video_url')
+                    .in('id', Array.from(lessonIds))
+                    .then(({ data }) => ({ type: 'lessons', data }))
+            );
+        }
+
+        // Drills (Need video_url/vimeo_url)
+        if (drillIds.size > 0) {
+            promises.push(
+                supabase
+                    .from('drills')
+                    .select('id, vimeo_url, video_url')
+                    .in('id', Array.from(drillIds))
+                    .then(({ data }) => ({ type: 'drills', data }))
+            );
+        }
+
+        // Courses (Need items for context? mostly just verification it exists)
+        if (courseIds.size > 0) {
+            promises.push(
+                supabase
+                    .from('courses')
+                    .select('id') // Courses don't have a single video usually, but we check existence
+                    .in('id', Array.from(courseIds))
+                    .then(({ data }) => ({ type: 'courses', data }))
+            );
+        }
+
+        const results = await Promise.all(promises);
+
+        // 3. Create Lookup Maps
+        const maps: Record<string, Record<string, any>> = {
+            creators: {},
+            lessons: {},
+            drills: {},
+            courses: {}
+        };
+
+        results.forEach(res => {
+            if (res && res.data) {
+                res.data.forEach((item: any) => {
+                    maps[res.type][item.id] = item;
+                });
+            }
+        });
+
+        // 4. Transform and Hydrate
         return {
-            data: videos.map(v => transformSparringVideo({
-                ...v,
-                creator: userMap[v.creator_id] ? {
-                    ...userMap[v.creator_id],
-                    profileImage: userMap[v.creator_id].profile_image_url || userMap[v.creator_id].avatar_url
-                } : undefined
-            })),
+            data: videos.map(v => {
+                // Hydrate Creator
+                let creator = undefined;
+                if (v.creator_id && maps.creators[v.creator_id]) {
+                    const u = maps.creators[v.creator_id];
+                    creator = {
+                        ...u,
+                        profileImage: u.profile_image_url || u.avatar_url
+                    };
+                }
+
+                // Hydrate Related Items
+                let hydratedRelatedItems = [];
+                if (Array.isArray(v.related_items)) {
+                    hydratedRelatedItems = v.related_items.map((item: any) => {
+                        let videoUrl = undefined;
+                        let vimeoUrl = undefined;
+
+                        if (item.type === 'lesson' && maps.lessons[item.id]) {
+                            videoUrl = maps.lessons[item.id].video_url;
+                            vimeoUrl = maps.lessons[item.id].vimeo_url;
+                        } else if (item.type === 'drill' && maps.drills[item.id]) {
+                            videoUrl = maps.drills[item.id].video_url;
+                            vimeoUrl = maps.drills[item.id].vimeo_url;
+                        }
+
+                        // Only return if we found the item (filter out deleted/invalid)
+                        // Or if it's a course (which we checked for existence)
+                        if (item.type === 'course' && !maps.courses[item.id]) return null;
+                        if ((item.type === 'lesson' || item.type === 'drill') && !maps[item.type + 's'][item.id]) return null;
+
+                        return {
+                            ...item,
+                            videoUrl,
+                            vimeoUrl
+                        };
+                    }).filter(Boolean); // Remove nulls
+                }
+
+                return {
+                    ...transformSparringVideo(v),
+                    creator,
+                    relatedItems: hydratedRelatedItems
+                };
+            }),
             error: null
         };
     } catch (e) {
@@ -5495,11 +5557,12 @@ export async function getDailyFreeLesson() {
 
         // 2. Fallback to deterministic random if no featured or not found
         if (!selectedLesson) {
+            // Only select lessons that are part of courses (similar to drills in routines)
             const { data: lessons, error } = await withTimeout(
                 supabase
                     .from('lessons')
-                    .select('*, courses!inner(*)')
-                    .eq('courses.published', true)
+                    .select('*, courses!inner(id, title, creator_id, published)')
+                    .not('course_id', 'is', null)
                     .neq('vimeo_url', '')
                     .not('vimeo_url', 'like', 'ERROR%')
                     .limit(50),
@@ -5525,40 +5588,49 @@ export async function getDailyFreeLesson() {
         // 3. Fetch creator info
         let creatorName = 'Grapplay Team';
         let creatorProfileImage = undefined;
-        const creatorId = selectedLesson.courses?.creator_id || selectedLesson.creator_id;
+        let courseTitle = undefined;
 
-        if (creatorId) {
-            const { data: creatorData } = await supabase
-                .from('creators')
-                .select('name, profile_image')
-                .eq('id', creatorId)
-                .maybeSingle();
+        // Get course info from joined data
+        if (selectedLesson.courses) {
+            courseTitle = selectedLesson.courses.title;
+            const creatorId = selectedLesson.courses.creator_id;
 
-            if (creatorData) {
-                creatorName = creatorData.name || creatorName;
-                creatorProfileImage = creatorData.profile_image || undefined;
-            } else {
-                const { data: userData } = await supabase
-                    .from('users')
-                    .select('name, avatar_url')
+            if (creatorId) {
+                const { data: creatorData } = await supabase
+                    .from('creators')
+                    .select('name, profile_image')
                     .eq('id', creatorId)
                     .maybeSingle();
 
-                if (userData) {
-                    creatorName = userData.name || creatorName;
-                    creatorProfileImage = userData.avatar_url || undefined;
+                if (creatorData) {
+                    creatorName = creatorData.name || creatorName;
+                    creatorProfileImage = creatorData.profile_image || undefined;
+                } else {
+                    const { data: userData } = await supabase
+                        .from('users')
+                        .select('name, avatar_url')
+                        .eq('id', creatorId)
+                        .maybeSingle();
+
+                    if (userData) {
+                        creatorName = userData.name || creatorName;
+                        creatorProfileImage = userData.avatar_url || undefined;
+                    }
                 }
             }
         }
 
-        const transformed = transformLesson({
+        // Create a temporary object with 'course' property for transformLesson
+        const lessonForTransform = {
             ...selectedLesson,
             course: selectedLesson.courses
-        });
+        };
+        const transformed = transformLesson(lessonForTransform);
 
         return {
             data: {
                 ...transformed,
+                courseTitle,
                 creatorName,
                 creatorProfileImage
             },
@@ -8190,12 +8262,19 @@ export async function getVimeoThumbnails(vimeoId: string): Promise<{ thumbnails?
             })
         });
 
+        const text = await response.text();
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error('Failed to parse Vimeo thumbnails response:', text);
+            return { error: `Server Error (${response.status})` };
+        }
+
         if (!response.ok) {
-            const data = await response.json();
             return { error: data.error || 'Failed to fetch Vimeo thumbnails' };
         }
 
-        const data = await response.json();
         return { thumbnails: data.thumbnails };
     } catch (error: any) {
         console.error('Error fetching Vimeo thumbnails:', error);

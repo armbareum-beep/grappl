@@ -566,8 +566,10 @@ export const CourseEditor: React.FC = () => {
             }
 
 
-            const updatedLessons = await getLessonsByCourse(id);
-            setLessons(updatedLessons);
+            const { data: updatedLessons } = await getLessonsByCourse(id);
+            if (updatedLessons) {
+                setLessons(updatedLessons);
+            }
             setEditingLesson(null);
         } catch (error) {
             console.error('Error saving lesson:', error);

@@ -1,9 +1,54 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getLessonsAdmin, deleteLessonAdmin } from '../../lib/api-admin';
+import { getLessonsAdmin, deleteLessonAdmin, updateLessonAdmin } from '../../lib/api-admin';
 import { Lesson } from '../../types';
 import { Trash2, Eye, Search, Plus, ArrowLeft, PlayCircle, Edit } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
+
+const EditableCell = ({ value, onSave }: { value: string, onSave: (val: string) => void }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [localValue, setLocalValue] = useState(value);
+
+    useEffect(() => {
+        setLocalValue(value);
+    }, [value]);
+
+    const handleSave = () => {
+        setIsEditing(false);
+        if (localValue !== value) {
+            onSave(localValue);
+        }
+    };
+
+    if (isEditing) {
+        return (
+            <input
+                autoFocus
+                value={localValue}
+                onChange={(e) => setLocalValue(e.target.value)}
+                onBlur={handleSave}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSave();
+                    if (e.key === 'Escape') {
+                        setLocalValue(value);
+                        setIsEditing(false);
+                    }
+                }}
+                className="bg-zinc-800 text-white px-2 py-1 rounded border border-zinc-700 w-full"
+            />
+        );
+    }
+
+    return (
+        <div
+            onClick={() => setIsEditing(true)}
+            className="cursor-pointer hover:bg-zinc-800/50 px-2 py-1 -mx-2 rounded transition-colors group-hover/row:bg-zinc-800/50"
+            title="클릭하여 수정"
+        >
+            {value}
+        </div>
+    );
+};
 
 export const AdminLessonList = () => {
     const { success, error: toastError } = useToast();
@@ -24,6 +69,19 @@ export const AdminLessonList = () => {
             toastError('레슨 목록을 불러오는데 실패했습니다.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleUpdateTitle = async (id: string, newTitle: string) => {
+        try {
+            const { error } = await updateLessonAdmin(id, { title: newTitle });
+            if (error) throw error;
+
+            setLessons(prev => prev.map(l => l.id === id ? { ...l, title: newTitle } : l));
+            success('제목이 수정되었습니다.');
+        } catch (error) {
+            console.error('Failed to update lesson title:', error);
+            toastError('제목 수정에 실패했습니다.');
         }
     };
 
@@ -119,8 +177,11 @@ export const AdminLessonList = () => {
                                             </div>
                                         </td>
                                         <td className="p-4">
-                                            <div className="font-medium text-white group-hover:text-violet-400 transition-colors">
-                                                {lesson.title}
+                                            <div className="font-medium text-white transition-colors">
+                                                <EditableCell
+                                                    value={lesson.title}
+                                                    onSave={(newTitle) => handleUpdateTitle(lesson.id, newTitle)}
+                                                />
                                             </div>
                                         </td>
                                         <td className="p-4">

@@ -243,7 +243,7 @@ export interface SparringVideo {
   videoUrl: string; // Vimeo ID or full URL
   thumbnailUrl: string;
   relatedItems: {
-    type: 'drill' | 'lesson' | 'course';
+    type: 'drill' | 'lesson' | 'course' | 'sparring';
     id: string;
     title: string;
     description?: string;
@@ -456,6 +456,21 @@ export interface Drill {
   views: number;
   creatorProfileImage?: string;
   createdAt: string;
+  // Related lesson for Instagram-style thumbnail link
+  relatedLessonId?: string;
+  relatedLesson?: {
+    id: string;
+    title: string;
+    thumbnailUrl?: string;
+    courseId?: string;
+  };
+  relatedItems?: {
+    type: 'drill' | 'lesson' | 'course' | 'sparring';
+    id: string;
+    title: string;
+    description?: string;
+    difficulty?: string;
+  }[];
 }
 
 export interface DrillRoutine {

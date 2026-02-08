@@ -23,7 +23,7 @@ export function transformLesson(data: any): Lesson {
         difficulty: data.difficulty,
         createdAt: data.created_at,
         isSubscriptionExcluded: data.is_subscription_excluded ?? data.course?.is_subscription_excluded ?? false,
-        isPreview: data.is_preview,
+        isPreview: !!data.is_preview,
         uniformType: data.uniform_type,
         price: data.price ?? data.course?.price ?? 0,
         likes: data.likes || 0,
@@ -117,13 +117,31 @@ export async function deleteLesson(id: string) {
 }
 
 export async function getLessonById(id: string) {
-    const { data, error } = await supabase
+    // First try with creator info
+    const { data: dataWithCreator, error: errorWithCreator } = await supabase
         .from('lessons')
+        .select('*,Creators:creators(name, profile_image)') // Use Creators alias if needed, or check supabase types. Using implicit join syntax first
+        // If 'creators' is the table name, it usually works. Note: supabase JS client returns object structure mirroring query.
         .select('*, creators(name, profile_image)')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
-    return { data, error };
+    if (!errorWithCreator && dataWithCreator) {
+        return { data: transformLesson(dataWithCreator), error: null };
+    }
+
+    // If that fails (e.g., missing FK), try fetching just the lesson
+    if (errorWithCreator) {
+        console.warn('Fetching lesson with creator info failed, falling back to simple fetch:', errorWithCreator);
+    }
+
+    const { data, error } = await supabase
+        .from('lessons')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+    return { data: data ? transformLesson(data) : null, error };
 }
 
 export async function getLessons(limit: number = 200) {

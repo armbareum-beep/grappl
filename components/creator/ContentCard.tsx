@@ -134,11 +134,11 @@ export const ContentCard: React.FC<ContentCardProps> = ({
             {/* Content Body */}
             <div className="p-4 flex flex-col flex-1">
                 <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-white group-hover:text-violet-400 transition-colors line-clamp-1 mb-1" title={title}>
+                    <h3 className="font-bold text-white group-hover:text-violet-400 transition-colors mb-1" title={title}>
                         {title}
                     </h3>
                     {description && (
-                        <p className="text-xs text-zinc-500 line-clamp-2 mb-3 h-8">
+                        <p className="text-xs text-zinc-500 mb-3">
                             {description}
                         </p>
                     )}

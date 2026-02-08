@@ -155,6 +155,14 @@ export async function deleteLessonAdmin(lessonId: string) {
     return { error };
 }
 
+export async function updateLessonAdmin(lessonId: string, updates: any) {
+    const { error } = await supabase
+        .from('lessons')
+        .update(updates)
+        .eq('id', lessonId);
+    return { error };
+}
+
 export async function getSparringVideosAdmin(): Promise<any[]> {
     const { data, error } = await supabase
         .from('sparring_videos')
@@ -259,7 +267,37 @@ export async function getSupportTickets() {
         console.error('Error fetching tickets:', error);
         return [];
     }
-    return data || [];
+
+    const tickets = data || [];
+    if (tickets.length === 0) return [];
+
+    // Extract unique user IDs
+    const userIds = Array.from(new Set(tickets.map((t: any) => t.user_id).filter(Boolean)));
+
+    // Fetch user details
+    let userMap: Record<string, any> = {};
+    if (userIds.length > 0) {
+        const { data: users } = await supabase
+            .from('users')
+            .select('id, name, email, avatar_url')
+            .in('id', userIds);
+
+        if (users) {
+            users.forEach((u: any) => {
+                userMap[u.id] = u;
+            });
+        }
+    }
+
+    return tickets.map((ticket: any) => {
+        const user = ticket.user_id ? userMap[ticket.user_id] : null;
+        return {
+            ...ticket,
+            name: ticket.user_name || user?.name || 'Unknown',
+            email: ticket.user_email || user?.email || '',
+            avatarUrl: user?.avatar_url
+        };
+    });
 }
 
 export async function respondToTicket(ticketId: string, response: string, status: 'resolved' | 'in_progress') {

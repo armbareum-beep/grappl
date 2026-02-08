@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { VideoCategory, Difficulty, Drill, UniformType } from '../../types';
-import { createDrill, getDrillById, updateDrill, uploadThumbnail } from '../../lib/api';
+import { VideoCategory, Difficulty, Drill, UniformType, Lesson, SparringVideo } from '../../types';
+import { createDrill, getDrillById, updateDrill, uploadThumbnail, getPublicLessons, getSparringVideos } from '../../lib/api';
 import { formatDuration } from '../../lib/vimeo';
 import { Button } from '../../components/Button';
-import { ArrowLeft, Upload, FileVideo, Trash2, Loader, Camera } from 'lucide-react';
+import { ArrowLeft, Upload, FileVideo, Trash2, Loader, Camera, Plus, X, Search } from 'lucide-react';
 import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 import { useToast } from '../../contexts/ToastContext';
 import { ThumbnailCropper } from '../../components/ThumbnailCropper';
@@ -52,6 +52,11 @@ export const UploadDrill: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [thumbnailUrl, setThumbnailUrl] = useState<string>('');
     const [activeTab, setActiveTab] = useState<'action' | 'desc'>('action');
+    const [relatedItems, setRelatedItems] = useState<{ type: 'lesson' | 'sparring'; id: string; title: string }[]>([]);
+    const [availableLessons, setAvailableLessons] = useState<any[]>([]);
+    const [availableSparrings, setAvailableSparrings] = useState<any[]>([]);
+    const [showRelatedModal, setShowRelatedModal] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const actionVideoRef = React.useRef<HTMLVideoElement>(null);
     const descVideoRef = React.useRef<HTMLVideoElement>(null);
@@ -87,6 +92,7 @@ export const UploadDrill: React.FC = () => {
                         }));
                     }
                     if (drill.thumbnailUrl) setThumbnailUrl(drill.thumbnailUrl);
+                    if (drill.relatedItems) setRelatedItems(drill.relatedItems as any);
                 }
             } catch (err) {
                 console.error('Failed to fetch drill:', err);
@@ -96,6 +102,22 @@ export const UploadDrill: React.FC = () => {
         }
         fetchDrill();
     }, [id, isEditMode, navigate]);
+
+    useEffect(() => {
+        const loadSelectionData = async () => {
+            try {
+                const [lessonsRes, sparringsRes] = await Promise.all([
+                    getPublicLessons(100),
+                    getSparringVideos(100)
+                ]);
+                if (lessonsRes.data) setAvailableLessons(lessonsRes.data);
+                if (sparringsRes.data) setAvailableSparrings(sparringsRes.data);
+            } catch (err) {
+                console.error('Failed to load selection data:', err);
+            }
+        };
+        loadSelectionData();
+    }, []);
 
     useEffect(() => {
         if (tasks.length === 0) return;
@@ -179,7 +201,8 @@ export const UploadDrill: React.FC = () => {
                 uniformType: formData.uniformType,
                 thumbnailUrl: thumbnailUrl || 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...',
                 durationMinutes: 0,
-                length: '0:00'
+                length: '0:00',
+                relatedItems: relatedItems
             };
 
             if (isEditMode && drillId) {
@@ -386,6 +409,48 @@ export const UploadDrill: React.FC = () => {
                         </div>
                     )}
 
+                    {/* Related Content Section */}
+                    <div className="pt-8 border-t border-zinc-800/50">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 className="text-lg font-bold text-white">관련 콘텐츠</h3>
+                                <p className="text-sm text-zinc-500">드릴과 관련된 레슨이나 스파링을 연결하세요</p>
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShowRelatedModal(true)}
+                                className="gap-2"
+                            >
+                                <Plus className="w-4 h-4" /> 콘텐츠 선택
+                            </Button>
+                        </div>
+
+                        <div className="space-y-2">
+                            {relatedItems.map((item, index) => (
+                                <div key={`${item.type}-${item.id}`} className="flex items-center justify-between p-3 bg-zinc-950 border border-zinc-800 rounded-xl">
+                                    <div className="flex items-center gap-3">
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${item.type === 'lesson' ? 'bg-violet-500/20 text-violet-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                                            {item.type === 'lesson' ? 'LESSON' : 'SPARRING'}
+                                        </span>
+                                        <span className="text-sm text-zinc-200 font-medium truncate max-w-[300px]">{item.title}</span>
+                                    </div>
+                                    <button
+                                        onClick={() => setRelatedItems(prev => prev.filter((_, i) => i !== index))}
+                                        className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-rose-400 transition-colors"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                            {relatedItems.length === 0 && (
+                                <div className="text-center py-8 bg-zinc-950/30 border border-dashed border-zinc-800 rounded-xl">
+                                    <p className="text-sm text-zinc-500">선택된 관련 콘텐츠가 없습니다</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     <div className="pt-8 border-t border-zinc-800/50 flex gap-3">
                         <button onClick={() => navigate('/creator')} className="flex-1 px-6 py-3.5 bg-zinc-800 text-zinc-300 rounded-xl font-bold">취소</button>
                         <button
@@ -398,6 +463,126 @@ export const UploadDrill: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Selection Modal */}
+            {showRelatedModal && (
+                <div className="fixed inset-0 z-[70000] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200">
+                    <div className="bg-zinc-900 w-full max-w-2xl max-h-[80vh] flex flex-col rounded-2xl border border-zinc-800 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-zinc-800 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-xl font-bold text-white">콘텐츠 선택</h2>
+                                <p className="text-sm text-zinc-500 mt-1">연결할 레슨이나 스파링을 선택하세요</p>
+                            </div>
+                            <button onClick={() => setShowRelatedModal(false)} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-500 hover:text-white">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <div className="p-4 border-b border-zinc-800">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                                <input
+                                    type="text"
+                                    placeholder="제목 검색..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none focus:border-violet-500 text-sm"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                            {/* Lessons Section */}
+                            <div>
+                                <h3 className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-3 px-2">레슨 (Lessons)</h3>
+                                <div className="grid gap-2">
+                                    {availableLessons
+                                        .filter(l => l.title.toLowerCase().includes(searchQuery.toLowerCase()))
+                                        .map(lesson => {
+                                            const isSelected = relatedItems.some(i => i.id === lesson.id && i.type === 'lesson');
+                                            return (
+                                                <button
+                                                    key={lesson.id}
+                                                    onClick={() => {
+                                                        if (isSelected) {
+                                                            setRelatedItems(prev => prev.filter(i => !(i.id === lesson.id && i.type === 'lesson')));
+                                                        } else {
+                                                            setRelatedItems(prev => [...prev, { type: 'lesson', id: lesson.id, title: lesson.title }]);
+                                                        }
+                                                    }}
+                                                    className={`flex items-center gap-4 p-3 rounded-xl border transition-all text-left ${isSelected
+                                                            ? 'bg-violet-500/10 border-violet-500 text-white'
+                                                            : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+                                                        }`}
+                                                >
+                                                    <div className="w-12 aspect-video bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0">
+                                                        {lesson.thumbnailUrl && <img src={lesson.thumbnailUrl} className="w-full h-full object-cover" alt="" />}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-bold text-sm truncate">{lesson.title}</p>
+                                                        {lesson.courseTitle && <p className="text-[10px] text-zinc-500 truncate">{lesson.courseTitle}</p>}
+                                                    </div>
+                                                    {isSelected && <div className="w-5 h-5 bg-violet-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                                        <Plus className="w-3 h-3 text-white rotate-45" />
+                                                    </div>}
+                                                </button>
+                                            );
+                                        })}
+                                </div>
+                            </div>
+
+                            {/* Sparrings Section */}
+                            <div>
+                                <h3 className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-3 px-2">스파링 (Sparrings)</h3>
+                                <div className="grid gap-2">
+                                    {availableSparrings
+                                        .filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase()))
+                                        .map(sparring => {
+                                            const isSelected = relatedItems.some(i => i.id === sparring.id && i.type === 'sparring');
+                                            return (
+                                                <button
+                                                    key={sparring.id}
+                                                    onClick={() => {
+                                                        if (isSelected) {
+                                                            setRelatedItems(prev => prev.filter(i => !(i.id === sparring.id && i.type === 'sparring')));
+                                                        } else {
+                                                            setRelatedItems(prev => [...prev, { type: 'sparring', id: sparring.id, title: sparring.title }]);
+                                                        }
+                                                    }}
+                                                    className={`flex items-center gap-4 p-3 rounded-xl border transition-all text-left ${isSelected
+                                                            ? 'bg-blue-500/10 border-blue-500 text-white'
+                                                            : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+                                                        }`}
+                                                >
+                                                    <div className="w-12 aspect-video bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0">
+                                                        {sparring.thumbnailUrl && <img src={sparring.thumbnailUrl} className="w-full h-full object-cover" alt="" />}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-bold text-sm truncate">{sparring.title}</p>
+                                                        <p className="text-[10px] text-zinc-500">Instructor: {sparring.creatorName}</p>
+                                                    </div>
+                                                    {isSelected && <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                                        <Plus className="w-3 h-3 text-white rotate-45" />
+                                                    </div>}
+                                                </button>
+                                            );
+                                        })}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-6 border-t border-zinc-800 bg-zinc-900/50">
+                            <Button
+                                className="w-full py-4 text-lg"
+                                onClick={() => setShowRelatedModal(false)}
+                            >
+                                {relatedItems.length}개 선택 완료
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
+

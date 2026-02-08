@@ -7,7 +7,7 @@ import { toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrill
 import { DrillReelItem } from './DrillReelItem';
 
 // Lazy load Modal to avoid circular dependency or bundle issues if needed
-import ShareModal from '../social/ShareModal';
+// import ShareModal from '../social/ShareModal';
 
 interface DrillReelsFeedProps {
     drills: Drill[];
@@ -19,18 +19,46 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
     const { user } = useAuth();
     const navigate = useNavigate();
     const [currentIndex, setCurrentIndex] = useState(initialIndex);
+    const [sessionSeconds, setSessionSeconds] = useState(0);
+    const [isSessionExpired, setIsSessionExpired] = useState(false);
     const [liked, setLiked] = useState<Set<string>>(new Set());
     const [saved, setSaved] = useState<Set<string>>(new Set());
     const [following, setFollowing] = useState<Set<string>>(new Set());
-    const [isMuted, setIsMuted] = useState(true);
-    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-    const [currentDrill, setCurrentDrill] = useState<Drill | null>(null);
+    const [isMuted, setIsMuted] = useState(false);
     const [userPermissions, setUserPermissions] = useState({
         isSubscriber: false,
         purchasedItemIds: [] as string[]
     });
     // Local override for like counts to handle optimistic updates accurately without double-counting
     const [overrideCounts, setOverrideCounts] = useState<Record<string, number>>({});
+
+    // Cache: 이전에 본 드릴 인덱스를 유지하여 재방문 시 빠른 로딩
+    const [cachedIndices, setCachedIndices] = useState<number[]>([]);
+    const MAX_CACHE_SIZE = 100; // 세션 내 시청한 모든 영상 캐시 (사실상 무제한)
+
+    // currentIndex 변경 시 이전 인덱스를 캐시에 추가 (윈도우 범위 밖으로 나갈 때만)
+    const prevIndexRef = useRef(initialIndex);
+    useEffect(() => {
+        const prevIndex = prevIndexRef.current;
+        if (prevIndex !== currentIndex && prevIndex >= 0 && prevIndex < drills.length) {
+            setCachedIndices(prev => {
+                // 현재 윈도우에 포함된 인덱스는 캐시에서 제외 (윈도우: -2, -1, 0, 1, 2)
+                const windowIndices = new Set([currentIndex - 2, currentIndex - 1, currentIndex, currentIndex + 1, currentIndex + 2]);
+                const filtered = prev.filter(i => !windowIndices.has(i) && i !== prevIndex);
+                // 이전 인덱스를 캐시 앞에 추가 (현재 윈도우에 없는 경우만 - 2칸 이상 이동했을 때)
+                if (!windowIndices.has(prevIndex)) {
+                    return [prevIndex, ...filtered].slice(0, MAX_CACHE_SIZE);
+                }
+                return filtered.slice(0, MAX_CACHE_SIZE);
+            });
+        }
+        prevIndexRef.current = currentIndex;
+    }, [currentIndex, drills.length]);
+
+    const handleProgressUpdate = useCallback((percent: number, seconds: number, hasAccess: boolean) => {
+        // Parent progress handling if needed (currently session-based timer handles global UI)
+        console.log('[DrillReelsFeed] Progress:', { percent, seconds, hasAccess });
+    }, []);
 
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -69,7 +97,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
                     getUserSavedDrills(user.id),
                     getUserFollowedCreators(user.id),
                     supabase.from('users').select('is_subscriber, is_complimentary_subscription, is_admin').eq('id', user.id).maybeSingle(),
-                    supabase.from('purchases').select('item_id').eq('user_id', user.id)
+                    (supabase.from('purchases' as any)).select('item_id').eq('user_id', user.id)
                 ]);
                 setLiked(new Set(likedDrills.map(d => d.id)));
                 setSaved(new Set(savedDrills.map(d => d.id)));
@@ -80,7 +108,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
                         userRes.data?.is_complimentary_subscription === true ||
                         userRes.data?.is_admin === true
                     ),
-                    purchasedItemIds: purchasesRes.data?.map(p => p.item_id) || []
+                    purchasedItemIds: (purchasesRes.data as any[])?.map((p: any) => p.item_id) || []
                 });
             } catch (error) {
                 console.error('Error fetching user data:', error);
@@ -118,8 +146,8 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
 
                     if (hasUpdates) {
                         // Map updated data back to Drill format
-                        const refreshedDrills = drills.map(originalDrill => {
-                            const updated = updatedDrills.find(d => d.id === originalDrill.id);
+                        const refreshedDrills: Drill[] = drills.map(originalDrill => {
+                            const updated = (updatedDrills as any[]).find(d => d.id === originalDrill.id);
                             if (!updated) return originalDrill;
 
                             return {
@@ -129,7 +157,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
                                 descriptionVideoUrl: updated.description_video_url || originalDrill.descriptionVideoUrl,
                                 thumbnailUrl: updated.thumbnail_url || originalDrill.thumbnailUrl,
                                 durationMinutes: updated.duration_minutes || originalDrill.durationMinutes,
-                                length: updated.length || originalDrill.length,
+                                length: updated.length?.toString() || originalDrill.length,
                             };
                         });
 
@@ -148,17 +176,45 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
     // Navigation handlers — block swipe if the target item hasn't loaded yet
     const goToNext = () => {
         const next = currentIndex + 1;
-        if (next < drills.length && readyItems.has(next)) {
+        if (next < drills.length) {
             setCurrentIndex(next);
         }
     };
 
     const goToPrevious = () => {
         const prev = currentIndex - 1;
-        if (prev >= 0 && readyItems.has(prev)) {
+        if (prev >= 0) {
             setCurrentIndex(prev);
         }
     };
+
+    // Session Timer Logic (20s limit)
+    useEffect(() => {
+        if (isSessionExpired) return;
+
+        const interval = setInterval(() => {
+            setSessionSeconds(prev => {
+                const next = prev + 0.1;
+                if (next >= 20) {
+                    setIsSessionExpired(true);
+                    clearInterval(interval);
+                    return 20;
+                }
+                return next;
+            });
+        }, 100);
+
+        return () => clearInterval(interval);
+    }, [isSessionExpired]);
+
+    useEffect(() => {
+        // setCurrentProgress({ seconds: 0, percent: 0, hasAccess: true });
+    }, [currentIndex]);
+
+    // Debug: log currentIndex changes
+    useEffect(() => {
+        console.log('[DrillReelsFeed] currentIndex updated:', currentIndex);
+    }, [currentIndex]);
 
     // Keyboard navigation
     useEffect(() => {
@@ -246,11 +302,6 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
         }
     };
 
-    const _handleShare = async (drill: Drill) => {
-        setCurrentDrill(drill);
-        setIsShareModalOpen(true);
-    };
-
     const handleViewRoutine = async (drill: Drill) => {
         const { getRoutineByDrillId } = await import('../../lib/api');
         const { data: routine } = await getRoutineByDrillId(drill.id);
@@ -308,57 +359,64 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
     return (
         <div
             ref={containerRef}
-            className="fixed inset-0 z-50 w-full bg-black overflow-hidden overscroll-y-none touch-none"
+            className="fixed inset-0 z-[200000] bg-black overflow-hidden touch-none"
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
         >
             {/* Top Bar Navigation (Removed - Back button moved inside DrillReelItem) */}
 
-            {/* Sliding Window Rendering - Expanded for better prefetch */}
-            {[-2, -1, 0, 1, 2].map(offset => {
-                const index = currentIndex + offset;
-                if (index < 0 || index >= drills.length) return null;
+            {/* Sliding Window: 이전 2개 + 현재 + 다음 2개 로드, 캐시된 드릴도 유지 */}
+            {(() => {
+                const windowOffsets = [-3, -2, -1, 0, 1, 2, 3];
+                const renderIndices = windowOffsets
+                    .map(o => currentIndex + o)
+                    .filter(i => i >= 0 && i < drills.length);
 
-                const drill = drills[index];
-                const isActive = offset === 0;
+                return renderIndices.map(index => {
+                    const drill = drills[index];
+                    const offset = index - currentIndex;
+                    const isActive = index === currentIndex;
+                    const isCached = cachedIndices.includes(index);
 
-                return (
-                    <DrillReelItem
-                        key={drill.id}
-                        drill={drill}
-                        isActive={isActive}
-                        isMuted={isMuted}
-                        onToggleMute={() => setIsMuted(!isMuted)}
-                        isLiked={liked.has(drill.id)}
-                        onLike={() => handleLike(drill)}
-                        likeCount={overrideCounts[drill.id] ?? (drill.likes || 0)}
-                        isSaved={saved.has(drill.id)}
-                        onSave={() => handleSave(drill)}
-                        isFollowed={following.has(drill.creatorId)}
-                        onFollow={() => handleFollow(drill)}
-                        onViewRoutine={() => handleViewRoutine(drill)}
-                        offset={offset}
-                        isSubscriber={userPermissions.isSubscriber}
-                        purchasedItemIds={userPermissions.purchasedItemIds}
-                        isLoggedIn={!!user}
-                        onVideoReady={() => markReady(index)}
+                    return (
+                        <DrillReelItem
+                            key={drill.id}
+                            drill={drill}
+                            isActive={isActive}
+                            isMuted={isMuted}
+                            onToggleMute={() => setIsMuted(!isMuted)}
+                            isLiked={liked.has(drill.id)}
+                            onLike={() => handleLike(drill)}
+                            likeCount={overrideCounts[drill.id] ?? (drill.likes || 0)}
+                            isSaved={saved.has(drill.id)}
+                            onSave={() => handleSave(drill)}
+                            isFollowed={following.has(drill.creatorId)}
+                            onFollow={() => handleFollow(drill)}
+                            onViewRoutine={() => handleViewRoutine(drill)}
+                            offset={isCached ? -100 : offset}
+                            isSubscriber={userPermissions.isSubscriber}
+                            purchasedItemIds={userPermissions.purchasedItemIds}
+                            isLoggedIn={!!user}
+                            onVideoReady={() => markReady(index)}
+                            onProgressUpdate={handleProgressUpdate}
+                            isSessionExpired={isSessionExpired}
+                            isCached={isCached}
+                        />
+                    );
+                });
+            })()}
+
+
+            {/* Session Progress Bar */}
+            {!userPermissions.isSubscriber && (
+                <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-zinc-800/80 backdrop-blur-sm z-[200001]">
+                    <div
+                        className="h-full bg-gradient-to-r from-violet-600 to-indigo-500 transition-all duration-100 ease-linear shadow-[0_0_15px_rgba(139,92,246,0.6)]"
+                        style={{
+                            width: `${(sessionSeconds / 20) * 100}%`
+                        }}
                     />
-                );
-            })}
-
-            {/* Share Modal Portal - Removed Suspense as we now import directly */}
-            {isShareModalOpen && currentDrill && (
-                <ShareModal
-                    isOpen={isShareModalOpen}
-                    onClose={() => {
-                        setIsShareModalOpen(false);
-                        setCurrentDrill(null);
-                    }}
-                    title={currentDrill.title}
-                    text={currentDrill.description || `Check out this drill: ${currentDrill.title}`}
-                    url={`${window.location.origin}/drills/${currentDrill.id}`}
-                    imageUrl={currentDrill.thumbnailUrl}
-                />
+                </div>
             )}
         </div>
     );

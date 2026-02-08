@@ -4,7 +4,7 @@ import { X, BookOpen, Layers, Clapperboard, CheckCircle, Clock, DollarSign, Play
 import { Button } from '../Button';
 import { cn } from '../../lib/utils';
 import {
-    getCourseDrillBundles, getCourseSparringVideos, getCreators
+    getCourseDrillBundles, getCourseSparringVideos, getCreators, getLessonsByCourse
 } from '../../lib/api';
 import {
     Course, Lesson, Drill, SparringVideo, DrillRoutine,
@@ -155,11 +155,18 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
             // Load selected items based on content type
             if (contentType === 'course') {
                 // Initialize selected lessons from available lessons that belong to this course
-                const courseLessonIds = lessons
-                    .filter(l => l.courseId === editingItem.id)
-                    .sort((a, b) => (a.lessonNumber || 0) - (b.lessonNumber || 0))
-                    .map(l => l.id);
-                setSelectedLessonIds(courseLessonIds);
+                // Initialize selected lessons from DB to ensure accuracy
+                const loadCourseLessons = async () => {
+                    try {
+                        const { data } = await getLessonsByCourse(editingItem.id);
+                        if (data) {
+                            setSelectedLessonIds(data.map(l => l.id));
+                        }
+                    } catch (err) {
+                        console.error('Failed to load course lessons:', err);
+                    }
+                };
+                loadCourseLessons();
 
                 // Initialize related items (bundles) for courses
                 const loadCourseBundles = async () => {
@@ -192,7 +199,7 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                 setSelectedSparringIds(prev => [...new Set([...prev, ...related.filter(r => r.type === 'sparring').map(r => r.id)])]);
             }
         }
-    }, [editingItem, contentType, lessons]);
+    }, [editingItem, contentType]);
 
     // Reset on close
     useEffect(() => {

@@ -31,12 +31,14 @@ export const Library: React.FC = () => {
             <div className="max-w-[1600px] mx-auto mt-8">
                 {activeTab === 'all' && (
                     <AllContentFeed
+                        key="all-content"
                         activeTab={activeTab}
                         onTabChange={handleTabChange}
                     />
                 )}
                 {activeTab === 'classes' && (
                     <Browse
+                        key="classes-feed"
                         isEmbedded={true}
                         activeTab={activeTab}
                         onTabChange={handleTabChange}
@@ -44,6 +46,7 @@ export const Library: React.FC = () => {
                 )}
                 {activeTab === 'routines' && (
                     <Routines
+                        key="routines-feed"
                         isEmbedded={true}
                         activeTab={activeTab}
                         onTabChange={handleTabChange}
@@ -51,6 +54,7 @@ export const Library: React.FC = () => {
                 )}
                 {activeTab === 'sparring' && (
                     <SparringFeed
+                        key="sparring-feed"
                         isEmbedded={true}
                         activeTab={activeTab}
                         onTabChange={handleTabChange}
