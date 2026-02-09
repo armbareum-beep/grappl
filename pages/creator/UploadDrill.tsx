@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { VideoCategory, Difficulty, Drill, UniformType, Lesson, SparringVideo } from '../../types';
 import { createDrill, getDrillById, updateDrill, uploadThumbnail, getPublicLessons, getSparringVideos } from '../../lib/api';
-import { formatDuration } from '../../lib/vimeo';
+import { formatDuration, extractVimeoId, extractVimeoHash } from '../../lib/vimeo';
 import { Button } from '../../components/Button';
 import { ArrowLeft, Upload, FileVideo, Trash2, Loader, Camera, Plus, X, Search } from 'lucide-react';
 import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
@@ -13,6 +13,7 @@ import { ThumbnailCropper } from '../../components/ThumbnailCropper';
 type ProcessingState = {
     file: File | null;
     videoId: string | null;
+    vimeoUrl: string | null;
     filename: string | null;
     previewUrl: string | null;
     status: 'idle' | 'uploading' | 'previewing' | 'ready' | 'processing' | 'completed' | 'complete' | 'error';
@@ -24,6 +25,7 @@ type ProcessingState = {
 const initialProcessingState: ProcessingState = {
     file: null,
     videoId: null,
+    vimeoUrl: null,
     filename: null,
     previewUrl: null,
     status: 'idle',
@@ -78,16 +80,24 @@ export const UploadDrill: React.FC = () => {
                         uniformType: (drill.uniformType as UniformType) || UniformType.Gi,
                     });
                     if (drill.vimeoUrl || drill.videoUrl) {
+                        const targetUrl = (drill.vimeoUrl || drill.videoUrl) as string;
+                        const vId = extractVimeoId(targetUrl);
+                        const vHash = extractVimeoHash(targetUrl);
+                        let previewUrl = vId ? `https://player.vimeo.com/video/${vId}` : null;
+                        if (previewUrl && vHash) previewUrl += `?h=${vHash}`;
+
                         setActionVideo(prev => ({
                             ...prev,
                             status: 'complete',
-                            previewUrl: drill.videoUrl || (drill.vimeoUrl ? `https://player.vimeo.com/video/${drill.vimeoUrl.split('/').pop()}` : null)
+                            vimeoUrl: drill.vimeoUrl || null,
+                            previewUrl: previewUrl || drill.videoUrl || null
                         }));
                     }
                     if (drill.descriptionVideoUrl) {
                         setDescVideo(prev => ({
                             ...prev,
                             status: 'complete',
+                            vimeoUrl: drill.descriptionVideoUrl || null,
                             previewUrl: drill.descriptionVideoUrl || null
                         }));
                     }
@@ -141,8 +151,37 @@ export const UploadDrill: React.FC = () => {
     }, [tasks, actionVideo.videoId, descVideo.videoId]);
 
     const handleFileUpload = async (file: File, type: 'action' | 'desc', setter: React.Dispatch<React.SetStateAction<ProcessingState>>) => {
+        // 최대 길이 검증 (90초 = 1분 30초)
+        const MAX_DRILL_DURATION_SECONDS = 90;
+
         const objectUrl = URL.createObjectURL(file);
-        setter(prev => ({ ...prev, file, previewUrl: objectUrl, status: 'ready', isBackgroundUploading: false, videoId: null, error: null }));
+
+        // 비디오 요소를 생성하여 길이 확인
+        const video = document.createElement('video');
+        video.src = objectUrl;
+
+        video.onloadedmetadata = () => {
+            const durationSeconds = Math.round(video.duration);
+            const maxMinutes = Math.floor(MAX_DRILL_DURATION_SECONDS / 60);
+            const maxSeconds = MAX_DRILL_DURATION_SECONDS % 60;
+            const maxDurationText = `${maxMinutes}분 ${maxSeconds}초`;
+
+            if (durationSeconds > MAX_DRILL_DURATION_SECONDS) {
+                const minutes = Math.floor(durationSeconds / 60);
+                const seconds = durationSeconds % 60;
+                toastError(`드릴은 최대 ${maxDurationText}까지만 업로드할 수 있습니다. (현재: ${minutes}분 ${seconds}초)`);
+                setter(prev => ({ ...prev, error: `최대 ${maxDurationText}까지만 업로드 가능합니다.`, status: 'error' }));
+            } else {
+                setter(prev => ({ ...prev, file, previewUrl: objectUrl, status: 'ready', isBackgroundUploading: false, videoId: null, error: null }));
+            }
+            URL.revokeObjectURL(objectUrl);
+        };
+
+        video.onerror = () => {
+            toastError('영상 파일을 읽을 수 없습니다.');
+            setter(prev => ({ ...prev, error: '영상 파일 읽기 실패', status: 'error' }));
+            URL.revokeObjectURL(objectUrl);
+        };
     };
 
     const captureFromVideo = (type: 'action' | 'desc') => {
@@ -187,8 +226,10 @@ export const UploadDrill: React.FC = () => {
         const isActionValid = actionVideo.status === 'complete' || actionVideo.status === 'completed' || !!actionVideo.videoId || !!actionVideo.file;
         const isDescValid = descVideo.status === 'complete' || descVideo.status === 'completed' || !!descVideo.videoId || !!descVideo.file;
 
-        if (!isActionValid) { toastError('동작 영상을 업로드해주세요.'); setActiveTab('action'); return; }
-        if (!isDescValid) { toastError('설명 영상을 업로드해주세요.'); setActiveTab('desc'); return; }
+        if (!isActionValid && !isDescValid) {
+            toastError('동작 영상 또는 설명 영상 중 최소 하나는 업로드해야 합니다.');
+            return;
+        }
 
         setIsSubmitting(true);
         try {
@@ -199,9 +240,12 @@ export const UploadDrill: React.FC = () => {
                 category: formData.category,
                 difficulty: formData.difficulty,
                 uniformType: formData.uniformType,
-                thumbnailUrl: thumbnailUrl || 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...',
+                // Don't use placeholder thumbnail if Vimeo URL exists - let API fetch it
+                thumbnailUrl: thumbnailUrl || (actionVideo.vimeoUrl || descVideo.vimeoUrl ? undefined : 'https://placehold.co/600x800/1e293b/ffffff?text=Drill'),
                 durationMinutes: 0,
                 length: '0:00',
+                vimeoUrl: actionVideo.vimeoUrl || undefined,
+                descriptionVideoUrl: descVideo.vimeoUrl || undefined,
                 relatedItems: relatedItems
             };
 
@@ -210,9 +254,7 @@ export const UploadDrill: React.FC = () => {
             } else {
                 const { data: drill, error: dbError } = await createDrill({
                     ...payload,
-                    creatorId: user.id,
-                    vimeoUrl: '',
-                    descriptionVideoUrl: ''
+                    creatorId: user.id
                 });
                 if (dbError || !drill) throw dbError;
                 drillId = drill.id;
@@ -264,7 +306,35 @@ export const UploadDrill: React.FC = () => {
         const ref = isAction ? actionVideoRef : descVideoRef;
 
         return (
-            <div className="h-full flex flex-col">
+            <div className="h-full flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-zinc-400">Vimeo URL (선택)</label>
+                    <input
+                        type="text"
+                        value={state.vimeoUrl || ''}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            const vId = extractVimeoId(val);
+                            const vHash = extractVimeoHash(val);
+
+                            let embedUrl = '';
+                            if (vId) {
+                                embedUrl = `https://player.vimeo.com/video/${vId}`;
+                                if (vHash) embedUrl += `?h=${vHash}`;
+                            }
+
+                            setter(prev => ({
+                                ...prev,
+                                vimeoUrl: val ? val : null,
+                                status: val ? 'complete' : (prev.file ? 'ready' : 'idle'),
+                                previewUrl: val ? embedUrl : (prev.file ? prev.previewUrl : null)
+                            }));
+                        }}
+                        placeholder="Vimeo URL 또는 ID를 입력하세요"
+                        className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-zinc-300 focus:border-violet-500 outline-none"
+                    />
+                </div>
+
                 {state.status === 'idle' || state.status === 'error' ? (
                     <div className="border-2 border-dashed border-zinc-800 rounded-xl p-16 text-center hover:border-violet-500 hover:bg-zinc-900/50 transition-all cursor-pointer relative min-h-[300px] flex flex-col items-center justify-center group">
                         <input
@@ -279,29 +349,37 @@ export const UploadDrill: React.FC = () => {
                 ) : (
                     <div className="space-y-4">
                         <div className="aspect-[9/16] max-h-[500px] mx-auto rounded-xl overflow-hidden bg-black relative border border-zinc-800">
-                            <video
-                                ref={ref}
-                                src={state.previewUrl!}
-                                className="w-full h-full object-contain"
-                                controls
-                                autoPlay
-                                muted
-                                loop
-                                playsInline
-                            />
+                            {state.vimeoUrl ? (
+                                <iframe src={state.previewUrl!} className="w-full h-full" frameBorder="0" allow="autoplay; fullscreen" allowFullScreen />
+                            ) : (
+                                <video
+                                    ref={ref}
+                                    src={state.previewUrl!}
+                                    className="w-full h-full object-contain"
+                                    controls
+                                    autoPlay
+                                    muted
+                                    loop
+                                    playsInline
+                                />
+                            )}
                             <div className="absolute top-4 right-4 flex gap-2">
-                                <button onClick={() => captureFromVideo(type)} className="px-4 py-2 bg-black/60 backdrop-blur rounded-xl text-white flex items-center gap-2 border border-white/10 hover:bg-white/10">
-                                    <Camera className="w-4 h-4" /> 화면 캡처
-                                </button>
+                                {!state.vimeoUrl && (
+                                    <button onClick={() => captureFromVideo(type)} className="px-4 py-2 bg-black/60 backdrop-blur rounded-xl text-white flex items-center gap-2 border border-white/10 hover:bg-white/10">
+                                        <Camera className="w-4 h-4" /> 화면 캡처
+                                    </button>
+                                )}
                                 <button onClick={() => setter(initialProcessingState)} className="p-2 bg-black/60 backdrop-blur rounded-xl text-rose-400 border border-white/10 hover:bg-rose-500/10">
                                     <Trash2 className="w-5 h-5" />
                                 </button>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3 p-4 bg-zinc-950/50 border border-zinc-800 rounded-xl">
-                            <FileVideo className="w-5 h-5 text-violet-400" />
-                            <span className="text-zinc-400 truncate">{state.file?.name || 'Uploaded Video'}</span>
-                        </div>
+                        {!state.vimeoUrl && (
+                            <div className="flex items-center gap-3 p-4 bg-zinc-950/50 border border-zinc-800 rounded-xl">
+                                <FileVideo className="w-5 h-5 text-violet-400" />
+                                <span className="text-zinc-400 truncate">{state.file?.name || 'Uploaded Video'}</span>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -455,7 +533,7 @@ export const UploadDrill: React.FC = () => {
                         <button onClick={() => navigate('/creator')} className="flex-1 px-6 py-3.5 bg-zinc-800 text-zinc-300 rounded-xl font-bold">취소</button>
                         <button
                             onClick={handleSubmit}
-                            disabled={isSubmitting || !formData.title || (!isEditMode && (!actionVideo.file || !descVideo.file))}
+                            disabled={isSubmitting || !formData.title || (!isEditMode && !actionVideo.file && !descVideo.file)}
                             className="flex-[2] px-8 py-3.5 bg-violet-600 text-white rounded-xl font-bold disabled:opacity-50"
                         >
                             {isSubmitting ? <Loader className="w-5 h-5 animate-spin mx-auto" /> : (isEditMode ? '수정사항 저장' : '업로드 시작')}
@@ -511,8 +589,8 @@ export const UploadDrill: React.FC = () => {
                                                         }
                                                     }}
                                                     className={`flex items-center gap-4 p-3 rounded-xl border transition-all text-left ${isSelected
-                                                            ? 'bg-violet-500/10 border-violet-500 text-white'
-                                                            : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+                                                        ? 'bg-violet-500/10 border-violet-500 text-white'
+                                                        : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700'
                                                         }`}
                                                 >
                                                     <div className="w-12 aspect-video bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0">
@@ -550,8 +628,8 @@ export const UploadDrill: React.FC = () => {
                                                         }
                                                     }}
                                                     className={`flex items-center gap-4 p-3 rounded-xl border transition-all text-left ${isSelected
-                                                            ? 'bg-blue-500/10 border-blue-500 text-white'
-                                                            : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+                                                        ? 'bg-blue-500/10 border-blue-500 text-white'
+                                                        : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700'
                                                         }`}
                                                 >
                                                     <div className="w-12 aspect-video bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0">

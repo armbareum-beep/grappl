@@ -119,6 +119,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             let vimeoUrlWithHash = vimeoId;
             let durationSeconds = 0;
 
+            // Maximum duration for drills: 90 seconds (1 minute 30 seconds)
+            const MAX_DRILL_DURATION_SECONDS = 90;
+
             // Retry logic: Vimeo processing might take time to report duration
             // Transcoding can take time, so we retry up to 20 times (approx 100s)
             for (let attempt = 1; attempt <= 20; attempt++) {
@@ -160,6 +163,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     }
                     await new Promise(resolve => setTimeout(resolve, 5000));
                 }
+            }
+
+            // Check if drill duration exceeds maximum (only for drills)
+            if (contentType === 'drill' && durationSeconds > MAX_DRILL_DURATION_SECONDS) {
+                console.error(`[Vercel] Drill duration ${durationSeconds}s exceeds maximum ${MAX_DRILL_DURATION_SECONDS}s`);
+
+                // Delete the video from Vimeo
+                try {
+                    await fetch(`https://api.vimeo.com/videos/${vimeoId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${VIMEO_TOKEN}`,
+                            'Accept': 'application/vnd.vimeo.*+json;version=3.4'
+                        }
+                    });
+                } catch (deleteErr) {
+                    console.warn('[Vercel] Failed to delete oversized video from Vimeo:', deleteErr);
+                }
+
+                // Mark as error in database
+                const tableName = 'drills';
+                const errorMessage = `ERROR: 드릴은 최대 1분 30초(90초)까지만 업로드할 수 있습니다. (실제: ${Math.floor(durationSeconds / 60)}분 ${durationSeconds % 60}초)`;
+                await supabase
+                    .from(tableName)
+                    .update({ vimeo_url: errorMessage })
+                    .eq('id', contentId);
+
+                return res.status(400).json({
+                    error: `드릴 영상이 너무 깁니다. 최대 1분 30초(90초)까지만 업로드할 수 있습니다. (현재: ${Math.floor(durationSeconds / 60)}분 ${durationSeconds % 60}초)`
+                });
             }
 
             // Helper to format duration
