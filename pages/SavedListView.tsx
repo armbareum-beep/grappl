@@ -16,7 +16,7 @@ import { ErrorScreen } from '../components/ErrorScreen';
 import { CourseCard } from '../components/CourseCard';
 import { DrillRoutineCard } from '../components/DrillRoutineCard';
 import { SparringCard } from '../components/SparringCard';
-import { ChainCard, FeedbackDetailModal } from './MyLibrary';
+import { ChainCard } from './MyLibrary';
 import { MessageSquare, Clock, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -25,7 +25,6 @@ export const SavedListView: React.FC = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const [items, setItems] = useState<any[]>([]);
-    const [selectedFeedback, setSelectedFeedback] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -184,7 +183,7 @@ export const SavedListView: React.FC = () => {
                             if (type === 'feedbacks') return (
                                 <button
                                     key={item.id}
-                                    onClick={() => setSelectedFeedback(item)}
+                                    onClick={() => navigate('/feedback-center')}
                                     className="flex flex-col bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-violet-500/50 transition-all text-left"
                                 >
                                     <div className="flex items-center justify-between mb-4">
@@ -213,12 +212,6 @@ export const SavedListView: React.FC = () => {
                 )}
             </div>
 
-            {selectedFeedback && (
-                <FeedbackDetailModal
-                    feedback={selectedFeedback}
-                    onClose={() => setSelectedFeedback(null)}
-                />
-            )}
         </div>
     );
 };
