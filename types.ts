@@ -49,6 +49,9 @@ export interface Creator {
   subscriberCount: number;
   stripeAccountId?: string;
   email?: string;
+  courseCount?: number;
+  routineCount?: number;
+  sparringCount?: number;
   payoutSettings?: {
     type: 'individual' | 'business';
     wiseAccountNumber?: string;
@@ -317,9 +320,14 @@ export interface Bundle {
   drillIds?: string[];
   drill_ids?: string[]; // Database field name compatibility
   drills?: Drill[];
+  routineIds?: string[];
+  routine_ids?: string[];
+  routines?: any[]; // Using any for now to avoid circular dependency if Routine type is complex
   sparringIds?: string[];
   sparring_ids?: string[];
   sparringVideos?: SparringVideo[];
+  originalPrice?: number;
+  discountPercent?: number;
   createdAt: string;
 }
 
@@ -362,6 +370,7 @@ export interface FeedbackRequest {
   status: FeedbackStatus;
   price: number;
   feedbackContent?: string;
+  responseVideoUrl?: string;
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
@@ -933,6 +942,7 @@ export interface AdminTopPerformers {
   courses: Array<{
     id: string;
     title: string;
+    views: number;
     salesCount: number;
     revenue: number;
     instructor: string;

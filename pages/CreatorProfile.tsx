@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { BookOpen, MessageSquare, Clock, DollarSign, Shield, Zap, PlayCircle, ArrowLeft } from 'lucide-react';
+import { BookOpen, MessageSquare, Clock, DollarSign, Shield, Zap, PlayCircle, ArrowLeft, Upload, Video, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { getCreatorById, getCoursesByCreator, getRoutines, getSparringVideos, getFeedbackSettings, createFeedbackRequest, toggleCreatorFollow, checkCreatorFollowStatus } from '../lib/api';
+import { getCreatorById, getCoursesByCreator, getRoutines, getSparringVideos, getFeedbackSettings, createFeedbackRequest, toggleCreatorFollow, checkCreatorFollowStatus, uploadFeedbackVideo, getFeedbackRequests, deleteFeedbackRequest } from '../lib/api';
 import { Creator, Course, FeedbackSettings, DrillRoutine, SparringVideo } from '../types';
 import { CourseCard } from '../components/CourseCard';
-import { DrillRoutineCard } from '../components/DrillRoutineCard';
+import { UnifiedContentCard } from '../components/library/UnifiedContentCard';
 import { Button } from '../components/Button';
 
 export const CreatorProfile: React.FC = () => {
@@ -20,9 +20,10 @@ export const CreatorProfile: React.FC = () => {
     const [feedbackSettings, setFeedbackSettings] = useState<FeedbackSettings | null>(null);
     const [loading, setLoading] = useState(true);
     const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-    const [videoUrl, setVideoUrl] = useState('');
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [description, setDescription] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
     const [isSubscribed, setIsSubscribed] = useState(false);
     const [subscribeLoading, setSubscribeLoading] = useState(false);
 
@@ -62,21 +63,36 @@ export const CreatorProfile: React.FC = () => {
     }, [id]);
 
     const handleSubmitFeedbackRequest = async () => {
-        if (!user || !id || !videoUrl.trim() || !feedbackSettings) return;
-
-        // Validate YouTube URL
-        const isValidYouTubeUrl = videoUrl.includes('youtube.com/watch') || videoUrl.includes('youtu.be/');
-        if (!isValidYouTubeUrl) {
-            alert('올바른 YouTube URL을 입력해주세요.');
-            return;
-        }
+        if (!user || !id || !selectedFile || !feedbackSettings) return;
 
         setSubmitting(true);
+        setUploadProgress(0);
         try {
+            // Self-Cleaning: Delete any existing pending requests for this student
+            // This prevents orphaned storage files if they didn't complete previous checkout
+            const { data: existingRequests } = await getFeedbackRequests(user.id, 'student');
+            if (existingRequests) {
+                const pendingRequests = existingRequests.filter(req => req.status === 'pending');
+                for (const req of pendingRequests) {
+                    await deleteFeedbackRequest(req.id);
+                }
+            }
+
+            // 1. Upload video to storage
+            const { url, error: uploadError } = await uploadFeedbackVideo(
+                user.id,
+                selectedFile,
+                (progress) => setUploadProgress(progress)
+            );
+
+            if (uploadError) throw uploadError;
+            if (!url) throw new Error('파일 업로드 후 URL을 받지 못했습니다.');
+
+            // 2. Create feedback request with the storage URL
             const { data, error } = await createFeedbackRequest({
                 studentId: user.id,
                 instructorId: id,
-                videoUrl: videoUrl.trim(),
+                videoUrl: url,
                 description: description.trim(),
                 price: feedbackSettings.price
             });
@@ -89,7 +105,9 @@ export const CreatorProfile: React.FC = () => {
         } catch (error: any) {
             console.error('Feedback request failed:', error);
             alert(`요청 중 오류가 발생했습니다: ${error.message || error.details || JSON.stringify(error) || '알 수 없는 오류'}`);
+        } finally {
             setSubmitting(false);
+            setUploadProgress(0);
         }
     };
 
@@ -366,7 +384,21 @@ export const CreatorProfile: React.FC = () => {
                         {routines.length > 0 ? (
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {routines.map((routine) => (
-                                    <DrillRoutineCard key={routine.id} routine={routine} />
+                                    <UnifiedContentCard
+                                        key={routine.id}
+                                        item={{
+                                            id: routine.id,
+                                            type: 'routine',
+                                            title: routine.title,
+                                            thumbnailUrl: routine.thumbnailUrl,
+                                            creatorName: creator.name,
+                                            creatorProfileImage: creator.profileImage,
+                                            creatorId: creator.id,
+                                            createdAt: routine.createdAt,
+                                            views: routine.views,
+                                            originalData: routine
+                                        }}
+                                    />
                                 ))}
                             </div>
                         ) : (
@@ -386,34 +418,21 @@ export const CreatorProfile: React.FC = () => {
                         {sparringVideos.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
                                 {sparringVideos.map((video) => (
-                                    <div key={video.id} className="group flex flex-col gap-3 transition-transform duration-300 hover:-translate-y-1">
-                                        <Link to={`/sparring?id=${video.id}`} className="relative aspect-square bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 transition-all">
-                                            <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100" />
-                                            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-
-                                            {/* Play Icon Overlay */}
-                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-[2px]">
-                                                <div className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20">
-                                                    <PlayCircle className="w-8 h-8 text-white fill-white/20" />
-                                                </div>
-                                            </div>
-                                        </Link>
-
-                                        <div className="px-1">
-                                            <Link to={`/sparring?id=${video.id}`}>
-                                                <h4 className="font-bold text-zinc-100 text-sm md:text-base line-clamp-1 leading-tight mb-1 group-hover:text-violet-400 transition-colors">{video.title}</h4>
-                                            </Link>
-                                            <div className="flex items-center justify-between gap-4 mt-1.5">
-                                                <p className="text-zinc-500 text-[11px] md:text-xs font-medium truncate">
-                                                    {creator.name}
-                                                </p>
-                                                <div className="flex items-center gap-1 text-[10px] md:text-xs text-zinc-500 shrink-0 font-bold">
-                                                    <PlayCircle className="w-3 h-3" />
-                                                    <span>{(video.views || 0).toLocaleString()} 조회수</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <UnifiedContentCard
+                                        key={video.id}
+                                        item={{
+                                            id: video.id,
+                                            type: 'sparring',
+                                            title: video.title,
+                                            thumbnailUrl: video.thumbnailUrl,
+                                            creatorName: creator.name,
+                                            creatorProfileImage: creator.profileImage,
+                                            creatorId: creator.id,
+                                            createdAt: video.createdAt,
+                                            views: video.views,
+                                            originalData: video
+                                        }}
+                                    />
                                 ))}
                             </div>
                         ) : (
@@ -437,18 +456,63 @@ export const CreatorProfile: React.FC = () => {
                         <div className="space-y-4 mb-6">
                             <div>
                                 <label className="block text-sm font-medium text-zinc-400 mb-2">
-                                    YouTube 영상 URL *
+                                    영문/숫자 파일명의 영상 업로드 (MP4, MOV 등) *
                                 </label>
-                                <input
-                                    type="url"
-                                    value={videoUrl}
-                                    onChange={(e) => setVideoUrl(e.target.value)}
-                                    placeholder="https://youtube.com/watch?v=..."
-                                    className="w-full px-4 py-3 bg-black border border-zinc-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent placeholder-zinc-600"
-                                />
-                                <p className="text-xs text-zinc-500 mt-2">
-                                    YouTube에 업로드한 10분 이내의 영상 링크를 입력해주세요 (비공개/unlisted 가능)
-                                </p>
+                                <div
+                                    className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all ${selectedFile
+                                        ? 'border-violet-500/50 bg-violet-500/5'
+                                        : 'border-zinc-700 hover:border-zinc-600 bg-black/50'
+                                        }`}
+                                >
+                                    <input
+                                        type="file"
+                                        accept="video/*"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                if (file.size > 500 * 1024 * 1024) { // 500MB limit for now
+                                                    alert('파일 크기는 500MB 이하의 영상만 가능합니다.');
+                                                    return;
+                                                }
+                                                setSelectedFile(file);
+                                            }
+                                        }}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                    />
+
+                                    {selectedFile ? (
+                                        <div className="flex flex-col items-center">
+                                            <div className="w-12 h-12 bg-violet-500/20 rounded-full flex items-center justify-center mb-3">
+                                                <Video className="w-6 h-6 text-violet-400" />
+                                            </div>
+                                            <p className="text-white font-medium mb-1 truncate max-w-xs">{selectedFile.name}</p>
+                                            <p className="text-xs text-zinc-500">{(selectedFile.size / (1024 * 1024)).toFixed(1)} MB</p>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedFile(null);
+                                                }}
+                                                className="mt-4 text-xs text-zinc-500 hover:text-white transition-colors"
+                                            >
+                                                파일 변경하기
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center">
+                                            <div className="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center mb-3">
+                                                <Upload className="w-6 h-6 text-zinc-400" />
+                                            </div>
+                                            <p className="text-zinc-300 font-medium mb-1">클릭하거나 영상을 드래그하세요</p>
+                                            <p className="text-xs text-zinc-500">MP4, MOV (최대 500MB)</p>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="mt-3 flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                                    <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                                    <p className="text-xs text-amber-200/80 leading-relaxed">
+                                        한글 파일명은 업로드가 실패할 수 있습니다. <strong>영문이나 숫자</strong>로 된 파일명으로 변경 후 업로드해주세요.
+                                    </p>
+                                </div>
                             </div>
 
                             <div>
@@ -481,7 +545,7 @@ export const CreatorProfile: React.FC = () => {
                             <button
                                 onClick={() => {
                                     setShowFeedbackModal(false);
-                                    setVideoUrl('');
+                                    setSelectedFile(null);
                                     setDescription('');
                                 }}
                                 className="flex-1 px-4 py-3 border border-zinc-700 text-zinc-300 rounded-xl hover:bg-zinc-800 transition-colors font-bold"
@@ -490,10 +554,23 @@ export const CreatorProfile: React.FC = () => {
                             </button>
                             <button
                                 onClick={handleSubmitFeedbackRequest}
-                                disabled={!videoUrl.trim() || submitting}
+                                disabled={!selectedFile || submitting}
                                 className="flex-1 px-4 py-3 bg-violet-600 text-white rounded-xl hover:bg-violet-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-bold shadow-lg shadow-violet-900/20"
                             >
-                                {submitting ? '요청 중...' : '결제 및 요청하기'}
+                                {submitting ? (
+                                    <div className="w-full flex flex-col items-center gap-2">
+                                        <div className="flex items-center justify-center gap-2">
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            <span>업로드 중... {uploadProgress}%</span>
+                                        </div>
+                                        <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-violet-500 transition-all duration-300 ease-out"
+                                                style={{ width: `${uploadProgress}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                ) : '결제 및 요청하기'}
                             </button>
                         </div>
                     </div>

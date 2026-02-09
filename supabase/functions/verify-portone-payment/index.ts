@@ -228,18 +228,40 @@ Deno.serve(async (req) => {
                 bundle_id: id,
                 price_paid: amountValue
             }, { onConflict: 'user_id,bundle_id' })
-        } else if (mode === 'subscription') {
-            const isPro = id?.includes('price_1SYHx') || id?.includes('price_1SYI2')
-            const isYearly = id?.includes('price_1SYHw') || id?.includes('price_1SYI2')
-            const tier = isPro ? 'premium' : 'basic'
+        } else if (mode === 'subscription' || mode === 'subscription_upgrade') {
+            const isUpgrade = mode === 'subscription_upgrade'
 
-            const endDate = new Date()
-            if (isYearly) {
+            let tier: string
+            let endDate: Date
+
+            if (isUpgrade) {
+                // For upgrades, tier is determined from the old subscription
+                const { data: oldSub } = await supabaseClient
+                    .from('subscriptions')
+                    .select('subscription_tier')
+                    .eq('id', id)
+                    .single()
+
+                tier = oldSub?.subscription_tier || 'basic'
+
+                // Upgrade to yearly
+                endDate = new Date()
                 endDate.setFullYear(endDate.getFullYear() + 1)
             } else {
-                endDate.setMonth(endDate.getMonth() + 1)
+                // New subscription
+                const isPro = id?.includes('price_1SYHx') || id?.includes('price_1SYI2')
+                const isYearly = id?.includes('price_1SYHw') || id?.includes('price_1SYI2')
+                tier = isPro ? 'premium' : 'basic'
+
+                endDate = new Date()
+                if (isYearly) {
+                    endDate.setFullYear(endDate.getFullYear() + 1)
+                } else {
+                    endDate.setMonth(endDate.getMonth() + 1)
+                }
             }
 
+            // Update user subscription status
             await supabaseClient
                 .from('users')
                 .update({
@@ -249,17 +271,19 @@ Deno.serve(async (req) => {
                 })
                 .eq('id', userId)
 
+            // Create new subscription (upgrades always create yearly)
             const { data: subData, error: subError } = await supabaseClient
                 .from('subscriptions')
                 .insert({
                     user_id: userId,
                     status: 'active',
                     subscription_tier: tier,
-                    plan_interval: isYearly ? 'year' : 'month',
+                    plan_interval: 'year', // Upgrades are always yearly
                     current_period_start: new Date().toISOString(),
                     current_period_end: endDate.toISOString(),
                     portone_payment_id: effectivePaymentId,
-                    billing_key: billingKey || null
+                    billing_key: null, // No billing key for yearly
+                    amount: amountValue
                 })
                 .select()
                 .single()
@@ -268,7 +292,7 @@ Deno.serve(async (req) => {
                 // For annual subscriptions, recognition is split into 12 months in revenue_ledger
                 // Note: Subscription revenue split among creators is usually handled by a separate monthly job.
                 // For now, we record the platform-level revenue.
-                const months = isYearly ? 12 : 1
+                const months = 12
                 const monthlyAmount = Math.floor(amountValue / months)
 
                 for (let i = 0; i < months; i++) {
@@ -280,34 +304,14 @@ Deno.serve(async (req) => {
                         amount: monthlyAmount,
                         platform_fee: monthlyAmount,
                         creator_revenue: 0,
-                        product_type: 'subscription',
+                        product_type: isUpgrade ? 'subscription_upgrade' : 'subscription',
                         status: 'pending',
                         recognition_date: recognitionDate.toISOString().split('T')[0]
                     })
                 }
 
-                // Schedule next month's payment for monthly subscriptions
-                if (!isYearly && billingKey) {
-                    const scheduleResult = await scheduleNextPayment(
-                        billingKey,
-                        amountValue,
-                        userId
-                    );
-
-                    if (scheduleResult) {
-                        // Store scheduled payment info
-                        await supabaseClient
-                            .from('subscriptions')
-                            .update({
-                                scheduled_payment_id: scheduleResult.scheduledPaymentId
-                            })
-                            .eq('id', subData.id);
-
-                        console.log(`Next payment scheduled for subscription ${subData.id}`);
-                    } else {
-                        console.warn(`Failed to schedule next payment for subscription ${subData.id}`);
-                    }
-                }
+                // No scheduled payment for yearly subscriptions
+                // (billing_key is null, scheduled_payment_id is null)
             }
         } else if (mode === 'feedback') {
             // 1. Update request status

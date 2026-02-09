@@ -10,7 +10,7 @@ import {
 } from '../../lib/api-admin';
 import { useToast } from '../../contexts/ToastContext';
 import { Button } from '../../components/Button';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 type TabKey = 'lessons' | 'drills' | 'sparring';
 
@@ -28,6 +28,7 @@ const TABS: { key: TabKey; label: string; icon: React.ElementType; table: 'lesso
 const BATCH_SIZE = 10;
 
 export const AdminDurationSync: React.FC = () => {
+    const navigate = useNavigate();
     const [scanning, setScanning] = useState(false);
     const [syncing, setSyncing] = useState(false);
     const [activeTab, setActiveTab] = useState<TabKey>('lessons');
@@ -178,9 +179,9 @@ export const AdminDurationSync: React.FC = () => {
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
                     <div className="space-y-2">
-                        <Link to="/admin" className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors mb-4">
-                            <ArrowLeft className="w-3.5 h-3.5" /> 관리자 대시보드
-                        </Link>
+                        <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors mb-4">
+                            <ArrowLeft className="w-3.5 h-3.5" /> 뒤로가기
+                        </button>
                         <div className="flex items-center gap-3">
                             <h1 className="text-4xl font-extrabold tracking-tight text-white bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-500">
                                 Vimeo 영상 동기화

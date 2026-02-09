@@ -7,10 +7,12 @@ import { LoadingScreen } from './components/LoadingScreen';
 import { useAuth } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { BackgroundUploadProvider } from './contexts/BackgroundUploadContext';
+import { VideoPreloadProvider } from './contexts/VideoPreloadContext';
 import { GlobalUploadProgress } from './components/GlobalUploadProgress';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminRoute } from './components/AdminRoute';
 import { VersionChecker } from './components/VersionChecker';
+import { initCacheMonitoring } from './lib/cache-monitor';
 
 // Lazy load essential pages
 const Home = React.lazy(() => import('./pages/Home').then(m => ({ default: m.Home })));
@@ -42,6 +44,7 @@ const UserProfile = React.lazy(() => import('./pages/UserProfile'));
 const MyRoutineSchedule = React.lazy(() => import('./pages/MyRoutineSchedule'));
 const DrillReels = React.lazy(() => import('./pages/DrillReels').then(m => ({ default: m.DrillReels })));
 const AllCompletedRoutines = React.lazy(() => import('./pages/AllCompletedRoutines').then(m => ({ default: m.AllCompletedRoutines })));
+const FeedbackCenter = React.lazy(() => import('./pages/FeedbackCenter').then(m => ({ default: m.FeedbackCenter })));
 
 // Admin pages - lazy loaded
 const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
@@ -59,6 +62,7 @@ const AdminCreatorList = React.lazy(() => import('./pages/admin/AdminCreatorList
 const AdminSupportList = React.lazy(() => import('./pages/admin/AdminSupportList').then(m => ({ default: m.AdminSupportList })));
 const AdminContentApproval = React.lazy(() => import('./pages/admin/AdminContentApproval').then(m => ({ default: m.AdminContentApproval })));
 const AdminSystemLogs = React.lazy(() => import('./pages/admin/AdminSystemLogs').then(m => ({ default: m.AdminSystemLogs })));
+const AdminActivityFeed = React.lazy(() => import('./pages/admin/AdminActivityFeed').then(m => ({ default: m.AdminActivityFeed })));
 const AdminNotifications = React.lazy(() => import('./pages/admin/AdminNotifications').then(m => ({ default: m.AdminNotifications })));
 const AdminVimeoManagement = React.lazy(() => import('./pages/admin/AdminVimeoManagement').then(m => ({ default: m.AdminVimeoManagement })));
 const AdminDurationSync = React.lazy(() => import('./pages/admin/AdminDurationSync').then(m => ({ default: m.AdminDurationSync })));
@@ -160,8 +164,17 @@ const ScrollToRestore: React.FC = () => {
       } catch (e) { }
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    let scrollTimeout: NodeJS.Timeout;
+    const throttledScroll = () => {
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(handleScroll, 150); // Throttle scroll saving
+    };
+
+    window.addEventListener('scroll', throttledScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', throttledScroll);
+      clearTimeout(scrollTimeout);
+    };
   }, [key]);
 
   React.useEffect(() => {
@@ -173,27 +186,32 @@ const ScrollToRestore: React.FC = () => {
 
     if (targetPos > 0) {
       isRestoring.current = true;
-      window.scrollTo(0, targetPos);
+
+      // Use requestAnimationFrame for smoother initial scroll
+      requestAnimationFrame(() => {
+        window.scrollTo(0, targetPos);
+      });
 
       let attempts = 0;
       const checkAndScroll = setInterval(() => {
         const currentHeight = document.documentElement.scrollHeight;
         const viewportHeight = window.innerHeight;
 
+        // Only scroll if content is long enough
         if (currentHeight >= targetPos + (viewportHeight / 2)) {
           window.scrollTo(0, targetPos);
-          if (attempts > 3) {
+          if (attempts > 2) { // Reduced attempts
             clearInterval(checkAndScroll);
             isRestoring.current = false;
           }
         }
 
-        if (attempts > 15) {
+        if (attempts > 10) { // Reduced max attempts
           clearInterval(checkAndScroll);
           isRestoring.current = false;
         }
         attempts++;
-      }, 200);
+      }, 300); // Increased interval to 300ms for less CPU pressure
 
       return () => {
         clearInterval(checkAndScroll);
@@ -214,119 +232,133 @@ const CourseRedirect: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  // ✅ 캐시 모니터링 초기화 (프로덕션 로깅 활성화)
+  React.useEffect(() => {
+    const cleanup = initCacheMonitoring();
+    return cleanup;
+  }, []);
+
   return (
     <ErrorBoundary>
       <VersionChecker />
       <ToastProvider>
         <BackgroundUploadProvider>
           <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-            <OAuthRedirectHandler />
-            <ScrollToRestore />
-            <Layout>
-              <React.Suspense fallback={<LoadingScreen />}>
-                <Routes>
-                  <Route path="/" element={<RootRedirect />} />
-                  <Route path="/v2" element={<LandingPageV2 />} />
-                  <Route path="/home" element={
-                    <ProtectedRoute guestRedirect="/">
-                      <Home />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/history" element={
-                    <ProtectedRoute>
-                      <History />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/browse" element={<Browse />} />
-                  <Route path="/bundles" element={<Bundles />} />
-                  <Route path="/courses" element={<Browse />} />
-                  <Route path="/courses/:id" element={<CourseDetail />} />
-                  <Route path="/course/:id" element={<CourseRedirect />} />
-                  <Route path="/videos/:id" element={<VideoDetail />} />
-                  <Route path="/pricing" element={<Pricing />} />
-                  <Route path="/subscription" element={<Navigate to="/pricing" replace />} />
-                  <Route path="/creator" element={<CreatorDashboard />} />
-                  <Route path="/creator-dashboard" element={<CreatorDashboard />} />
-                  <Route path="/creator/dashboard" element={<CreatorDashboard />} />
-                  <Route path="/creator/courses" element={<CreatorCourses />} />
-                  <Route path="/creator/courses/new" element={<CourseEditor />} />
-                  <Route path="/creator/courses/:id/edit" element={<CourseEditor />} />
-                  <Route path="/creator/upload" element={<UnifiedUploadModal />} />
-                  <Route path="/creator/drills/new" element={<UnifiedUploadModal initialContentType="drill" />} />
-                  <Route path="/creator/drills/:id/edit" element={<UnifiedUploadModal initialContentType="drill" />} />
-                  <Route path="/creator/lessons/new" element={<UnifiedUploadModal initialContentType="lesson" />} />
-                  <Route path="/creator/lessons/:id/edit" element={<UnifiedUploadModal initialContentType="lesson" />} />
-                  <Route path="/creator/create-routine" element={<CreateRoutine />} />
-                  <Route path="/creator/routines/:id/edit" element={<CreateRoutine />} />
-                  <Route path="/become-creator" element={<BecomeCreator />} />
-                  <Route path="/creator/:id" element={<CreatorProfile />} />
-                  <Route path="/library" element={<Library />} />
-                  <Route path="/agora" element={<Agora />} />
-                  <Route path="/saved" element={<MyLibrary />} />
-                  <Route path="/saved/:type" element={<SavedListView />} />
-                  <Route path="/my-library" element={<Navigate to="/saved" replace />} />
-                  <Route path="/watch" element={<Navigate to="/drills" replace />} />
-                  <Route path="/training-routines" element={<MyRoutines />} />
-                  <Route path="/drills" element={<DrillReels />} />
-                  <Route path="/lessons" element={<Navigate to="/library?tab=classes" replace />} />
-                  <Route path="/drills/:id" element={<DrillDetail />} />
-                  <Route path="/routines" element={<Routines />} />
-                  <Route path="/routines/:id" element={<RoutineDetail />} />
-                  <Route path="/my-routines/:id" element={<RoutineDetail />} />
-                  <Route path="/my-schedule" element={<MyRoutineSchedule />} />
-                  <Route path="/drill-routines/:id" element={<DrillRoutineDetail />} />
-                  <Route path="/completed-routines" element={<AllCompletedRoutines />} />
-                  <Route path="/sparring/:id" element={<SparringDetail />} />
-                  <Route path="/sparring" element={<SparringFeed />} />
-                  <Route path="/ai-coach" element={
-                    <ProtectedRoute>
-                      <AICoach />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/skill-tree" element={<TechniqueSkillTree />} />
-                  <Route path="/creator/sparring/new" element={<UnifiedUploadModal initialContentType="sparring" />} />
-                  <Route path="/creator/sparring/:id/edit" element={<UnifiedUploadModal initialContentType="sparring" />} />
-                  <Route path="/technique/:techniqueId" element={<TechniqueDetailPage />} />
-                  <Route path="/lessons/:id" element={<LessonDetail />} />
-                  <Route path="/instructors" element={<Instructors />} />
-                  <Route path="/profile/:userId" element={<UserProfile />} />
-                  <Route path="/settings" element={
-                    <ProtectedRoute>
-                      <Settings />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/terms" element={<Terms />} />
-                  <Route path="/privacy" element={<Privacy />} />
-                  <Route path="/contact" element={<Contact />} />
-                  <Route path="/debug-access" element={<DebugAccess />} />
-                  <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-                  <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-                  <Route path="/admin/courses" element={<AdminRoute><AdminCourseList /></AdminRoute>} />
-                  <Route path="/admin/drills" element={<AdminRoute><AdminDrillList /></AdminRoute>} />
-                  <Route path="/admin/routines" element={<AdminRoute><AdminRoutineList /></AdminRoute>} />
-                  <Route path="/admin/lessons" element={<AdminRoute><AdminLessonList /></AdminRoute>} />
-                  <Route path="/admin/sparring" element={<AdminRoute><AdminSparringList /></AdminRoute>} />
-                  <Route path="/admin/settings" element={<AdminRoute><AdminSiteSettings /></AdminRoute>} />
-                  <Route path="/admin/support" element={<AdminRoute><AdminSupportList /></AdminRoute>} />
-                  <Route path="/admin/approval" element={<AdminRoute><AdminContentApproval /></AdminRoute>} />
-                  <Route path="/admin/creators" element={<AdminRoute><AdminCreatorList /></AdminRoute>} />
-                  <Route path="/admin/marketing" element={<AdminRoute><AdminMarketing /></AdminRoute>} />
-                  <Route path="/admin/payouts" element={<AdminRoute><AdminPayouts /></AdminRoute>} />
-                  <Route path="/admin/users" element={<AdminRoute><AdminUserList /></AdminRoute>} />
-                  <Route path="/admin/users/:id" element={<AdminRoute><AdminUserDetail /></AdminRoute>} />
-                  <Route path="/admin/logs" element={<AdminRoute><AdminSystemLogs /></AdminRoute>} />
-                  <Route path="/admin/notifications" element={<AdminRoute><AdminNotifications /></AdminRoute>} />
-                  <Route path="/admin/vimeo" element={<AdminRoute><AdminVimeoManagement /></AdminRoute>} />
-                  <Route path="/admin/vimeo-sync" element={<AdminRoute><AdminDurationSync /></AdminRoute>} />
-                  <Route path="/payment/complete" element={<PaymentComplete />} />
-                  <Route path="/checkout/:type/:id" element={<Checkout />} />
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/forgot-password" element={<ForgotPassword />} />
-                  <Route path="/reset-password" element={<ResetPassword />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </React.Suspense>
-            </Layout>
+            <VideoPreloadProvider>
+              <OAuthRedirectHandler />
+              <ScrollToRestore />
+              <Layout>
+                <React.Suspense fallback={<LoadingScreen />}>
+                  <Routes>
+                    <Route path="/" element={<RootRedirect />} />
+                    <Route path="/v2" element={<LandingPageV2 />} />
+                    <Route path="/home" element={
+                      <ProtectedRoute guestRedirect="/">
+                        <Home />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/history" element={
+                      <ProtectedRoute>
+                        <History />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/browse" element={<Browse />} />
+                    <Route path="/bundles" element={<Bundles />} />
+                    <Route path="/courses" element={<Browse />} />
+                    <Route path="/courses/:id" element={<CourseDetail />} />
+                    <Route path="/course/:id" element={<CourseRedirect />} />
+                    <Route path="/videos/:id" element={<VideoDetail />} />
+                    <Route path="/pricing" element={<Pricing />} />
+                    <Route path="/subscription" element={<Navigate to="/pricing" replace />} />
+                    <Route path="/creator" element={<CreatorDashboard />} />
+                    <Route path="/creator-dashboard" element={<CreatorDashboard />} />
+                    <Route path="/creator/dashboard" element={<CreatorDashboard />} />
+                    <Route path="/creator/courses" element={<CreatorCourses />} />
+                    <Route path="/creator/courses/new" element={<CourseEditor />} />
+                    <Route path="/creator/courses/:id/edit" element={<CourseEditor />} />
+                    <Route path="/creator/upload" element={<UnifiedUploadModal />} />
+                    <Route path="/creator/drills/new" element={<UnifiedUploadModal initialContentType="drill" />} />
+                    <Route path="/creator/drills/:id/edit" element={<UnifiedUploadModal initialContentType="drill" />} />
+                    <Route path="/creator/lessons/new" element={<UnifiedUploadModal initialContentType="lesson" />} />
+                    <Route path="/creator/lessons/:id/edit" element={<UnifiedUploadModal initialContentType="lesson" />} />
+                    <Route path="/creator/create-routine" element={<CreateRoutine />} />
+                    <Route path="/creator/routines/:id/edit" element={<CreateRoutine />} />
+                    <Route path="/become-creator" element={<BecomeCreator />} />
+                    <Route path="/creator/:id" element={<CreatorProfile />} />
+                    <Route path="/library" element={<Library />} />
+                    <Route path="/agora" element={<Agora />} />
+                    <Route path="/saved" element={<MyLibrary />} />
+                    <Route path="/saved/:type" element={<SavedListView />} />
+                    <Route path="/feedback" element={
+                      <ProtectedRoute>
+                        <FeedbackCenter />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/my-library" element={<Navigate to="/saved" replace />} />
+                    <Route path="/watch" element={<Navigate to="/drills" replace />} />
+                    <Route path="/training-routines" element={<MyRoutines />} />
+                    <Route path="/drills" element={<DrillReels />} />
+                    <Route path="/lessons" element={<Navigate to="/library?tab=classes" replace />} />
+                    <Route path="/drills/:id" element={<DrillDetail />} />
+                    <Route path="/routines" element={<Routines />} />
+                    <Route path="/routines/:id" element={<RoutineDetail />} />
+                    <Route path="/my-routines/:id" element={<RoutineDetail />} />
+                    <Route path="/my-schedule" element={<MyRoutineSchedule />} />
+                    <Route path="/drill-routines/:id" element={<DrillRoutineDetail />} />
+                    <Route path="/completed-routines" element={<AllCompletedRoutines />} />
+                    <Route path="/sparring/:id" element={<SparringDetail />} />
+                    <Route path="/sparring" element={<SparringFeed />} />
+                    <Route path="/ai-coach" element={
+                      <ProtectedRoute>
+                        <AICoach />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/skill-tree" element={<TechniqueSkillTree />} />
+                    <Route path="/creator/sparring/new" element={<UnifiedUploadModal initialContentType="sparring" />} />
+                    <Route path="/creator/sparring/:id/edit" element={<UnifiedUploadModal initialContentType="sparring" />} />
+                    <Route path="/technique/:techniqueId" element={<TechniqueDetailPage />} />
+                    <Route path="/lessons/:id" element={<LessonDetail />} />
+                    <Route path="/instructors" element={<Instructors />} />
+                    <Route path="/profile/:userId" element={<UserProfile />} />
+                    <Route path="/settings" element={
+                      <ProtectedRoute>
+                        <Settings />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/terms" element={<Terms />} />
+                    <Route path="/privacy" element={<Privacy />} />
+                    <Route path="/contact" element={<Contact />} />
+                    <Route path="/debug-access" element={<DebugAccess />} />
+                    <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+                    <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+                    <Route path="/admin/courses" element={<AdminRoute><AdminCourseList /></AdminRoute>} />
+                    <Route path="/admin/drills" element={<AdminRoute><AdminDrillList /></AdminRoute>} />
+                    <Route path="/admin/routines" element={<AdminRoute><AdminRoutineList /></AdminRoute>} />
+                    <Route path="/admin/lessons" element={<AdminRoute><AdminLessonList /></AdminRoute>} />
+                    <Route path="/admin/sparring" element={<AdminRoute><AdminSparringList /></AdminRoute>} />
+                    <Route path="/admin/settings" element={<AdminRoute><AdminSiteSettings /></AdminRoute>} />
+                    <Route path="/admin/support" element={<AdminRoute><AdminSupportList /></AdminRoute>} />
+                    <Route path="/admin/approval" element={<AdminRoute><AdminContentApproval /></AdminRoute>} />
+                    <Route path="/admin/creators" element={<AdminRoute><AdminCreatorList /></AdminRoute>} />
+                    <Route path="/admin/marketing" element={<AdminRoute><AdminMarketing /></AdminRoute>} />
+                    <Route path="/admin/payouts" element={<AdminRoute><AdminPayouts /></AdminRoute>} />
+                    <Route path="/admin/users" element={<AdminRoute><AdminUserList /></AdminRoute>} />
+                    <Route path="/admin/users/:id" element={<AdminRoute><AdminUserDetail /></AdminRoute>} />
+                    <Route path="/admin/logs" element={<AdminRoute><AdminSystemLogs /></AdminRoute>} />
+                    <Route path="/admin/activity" element={<AdminRoute><AdminActivityFeed /></AdminRoute>} />
+                    <Route path="/admin/notifications" element={<AdminRoute><AdminNotifications /></AdminRoute>} />
+                    <Route path="/admin/vimeo" element={<AdminRoute><AdminVimeoManagement /></AdminRoute>} />
+                    <Route path="/admin/vimeo-sync" element={<AdminRoute><AdminDurationSync /></AdminRoute>} />
+                    <Route path="/payment/complete" element={<PaymentComplete />} />
+                    <Route path="/checkout/:type/:id" element={<Checkout />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </React.Suspense>
+              </Layout>
+            </VideoPreloadProvider>
           </Router>
           <GlobalUploadProgress />
         </BackgroundUploadProvider>

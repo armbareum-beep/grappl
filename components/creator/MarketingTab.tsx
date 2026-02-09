@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getBundles, createBundle, updateBundle, createCoupon, updateCoupon, getCreatorCourses, getCoupons, deleteBundle, deleteCoupon, getDrills, getCreatorSparringVideos } from '../../lib/api';
-import { Bundle, Coupon, Course, Drill, SparringVideo } from '../../types';
+import { getBundles, createBundle, updateBundle, createCoupon, updateCoupon, getCreatorCourses, getCoupons, deleteBundle, deleteCoupon, getUserCreatedRoutines, getCreatorSparringVideos } from '../../lib/api';
+import { Bundle, Coupon, Course, DrillRoutine, SparringVideo } from '../../types';
 import { Package, Tag, Plus, X, Pencil, AlertCircle } from 'lucide-react';
 // cn utility imported for potential future use
 
@@ -10,7 +10,7 @@ export const MarketingTab: React.FC = () => {
     const [bundles, setBundles] = useState<Bundle[]>([]);
     const [coupons, setCoupons] = useState<Coupon[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
-    const [drills, setDrills] = useState<Drill[]>([]);
+    const [routines, setRoutines] = useState<DrillRoutine[]>([]);
     const [sparringVideos, setSparringVideos] = useState<SparringVideo[]>([]);
     const [showBundleForm, setShowBundleForm] = useState(false);
     const [showCouponForm, setShowCouponForm] = useState(false);
@@ -21,7 +21,7 @@ export const MarketingTab: React.FC = () => {
     const [bundleDescription, setBundleDescription] = useState('');
     const [bundlePrice, setBundlePrice] = useState('');
     const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
-    const [selectedDrills, setSelectedDrills] = useState<string[]>([]);
+    const [selectedRoutines, setSelectedRoutines] = useState<string[]>([]);
     const [selectedSparring, setSelectedSparring] = useState<string[]>([]);
 
     // Coupon form state
@@ -45,11 +45,11 @@ export const MarketingTab: React.FC = () => {
         if (!user) return;
         setLoading(true);
         console.log('Loading Marketing data for user:', user.id);
-        const [bundlesRes, couponsRes, coursesData, drillsRes, sparringData] = await Promise.all([
+        const [bundlesRes, couponsRes, coursesData, routinesRes, sparringData] = await Promise.all([
             getBundles(),
             getCoupons(),
             getCreatorCourses(user.id),
-            getDrills(user.id),
+            getUserCreatedRoutines(user.id),
             getCreatorSparringVideos(user.id)
         ]);
 
@@ -67,8 +67,8 @@ export const MarketingTab: React.FC = () => {
         }
 
         setCourses(coursesData);
-        if (drillsRes && Array.isArray(drillsRes)) {
-            setDrills(drillsRes);
+        if (routinesRes && routinesRes.data && Array.isArray(routinesRes.data)) {
+            setRoutines(routinesRes.data);
         }
         if (sparringData && Array.isArray(sparringData)) {
             setSparringVideos(sparringData);
@@ -103,7 +103,7 @@ export const MarketingTab: React.FC = () => {
         setBundleDescription('');
         setBundlePrice('');
         setSelectedCourses([]);
-        setSelectedDrills([]);
+        setSelectedRoutines([]);
         setShowBundleForm(false);
     };
 
@@ -121,7 +121,7 @@ export const MarketingTab: React.FC = () => {
         setBundleDescription(bundle.description);
         setBundlePrice(bundle.price.toString());
         setSelectedCourses(bundle.courseIds || []);
-        setSelectedDrills(bundle.drillIds || []);
+        setSelectedRoutines(bundle.routineIds || []);
         setSelectedSparring(bundle.sparringIds || []);
         setShowBundleForm(true);
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -147,7 +147,7 @@ export const MarketingTab: React.FC = () => {
             description: bundleDescription,
             price: parseFloat(bundlePrice),
             courseIds: selectedCourses,
-            drillIds: selectedDrills,
+            routineIds: selectedRoutines,
             sparringIds: selectedSparring
         });
 
@@ -185,7 +185,7 @@ export const MarketingTab: React.FC = () => {
 
     const handleCreateBundle = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!user || (selectedCourses.length === 0 && selectedDrills.length === 0 && selectedSparring.length === 0)) return;
+        if (!user || (selectedCourses.length === 0 && selectedRoutines.length === 0 && selectedSparring.length === 0)) return;
 
         const { error } = await createBundle({
             creatorId: user.id,
@@ -193,7 +193,7 @@ export const MarketingTab: React.FC = () => {
             description: bundleDescription,
             price: parseFloat(bundlePrice),
             courseIds: selectedCourses,
-            drillIds: selectedDrills
+            routineIds: selectedRoutines
         });
 
         if (error) {
@@ -206,7 +206,7 @@ export const MarketingTab: React.FC = () => {
         setBundleDescription('');
         setBundlePrice('');
         setSelectedCourses([]);
-        setSelectedDrills([]);
+        setSelectedRoutines([]);
         setShowBundleForm(false);
         await loadData();
         alert('번들이 생성되었습니다!');
@@ -253,11 +253,11 @@ export const MarketingTab: React.FC = () => {
         );
     };
 
-    const toggleDrillSelection = (drillId: string) => {
-        setSelectedDrills(prev =>
-            prev.includes(drillId)
-                ? prev.filter(id => id !== drillId)
-                : [...prev, drillId]
+    const toggleRoutineSelection = (routineId: string) => {
+        setSelectedRoutines(prev =>
+            prev.includes(routineId)
+                ? prev.filter(id => id !== routineId)
+                : [...prev, routineId]
         );
     };
 
@@ -379,26 +379,26 @@ export const MarketingTab: React.FC = () => {
 
                             <div>
                                 <label className="block text-sm font-medium text-zinc-300 mb-2">
-                                    포함할 드릴 선택 (선택사항)
+                                    포함할 루틴 선택 (선택사항)
                                 </label>
                                 <div className="space-y-2 max-h-64 overflow-y-auto border border-zinc-700 rounded-lg p-4 bg-zinc-950">
-                                    {drills.map((drill) => (
+                                    {routines.map((routine) => (
                                         <label
-                                            key={drill.id}
+                                            key={routine.id}
                                             className="flex items-center gap-3 p-2 hover:bg-zinc-900 rounded cursor-pointer transition-colors"
                                         >
                                             <input
                                                 type="checkbox"
-                                                checked={selectedDrills.includes(drill.id)}
-                                                onChange={() => toggleDrillSelection(drill.id)}
+                                                checked={selectedRoutines.includes(routine.id)}
+                                                onChange={() => toggleRoutineSelection(routine.id)}
                                                 className="w-4 h-4 text-violet-600 bg-zinc-900 border-zinc-700 rounded focus:ring-violet-500"
                                             />
-                                            <span className="text-sm text-zinc-300">{drill.title}</span>
+                                            <span className="text-sm text-zinc-300">{routine.title}</span>
                                         </label>
                                     ))}
                                 </div>
                                 <p className="text-xs text-zinc-500 mt-2">
-                                    {selectedDrills.length}개 드릴 선택됨
+                                    {selectedRoutines.length}개 루틴 선택됨
                                 </p>
                             </div>
 
@@ -433,7 +433,7 @@ export const MarketingTab: React.FC = () => {
                                 <button
                                     type="submit"
                                     className="flex-1 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors font-medium"
-                                    disabled={selectedCourses.length === 0 && selectedDrills.length === 0 && selectedSparring.length === 0}
+                                    disabled={selectedCourses.length === 0 && selectedRoutines.length === 0 && selectedSparring.length === 0}
                                 >
                                     {editingBundle ? '수정 완료' : '번들 생성'}
                                 </button>
@@ -496,9 +496,9 @@ export const MarketingTab: React.FC = () => {
                                                 {bundle.courseIds?.length || 0}개 강좌
                                             </span>
                                         )}
-                                        {(bundle.drillIds?.length || 0) > 0 && (
+                                        {(bundle.routineIds?.length || 0) > 0 && (
                                             <span className="text-xs text-zinc-400 bg-zinc-800/80 px-2 py-1 rounded border border-zinc-700/50">
-                                                {bundle.drillIds?.length || 0}개 드릴
+                                                {bundle.routineIds?.length || 0}개 루틴
                                             </span>
                                         )}
                                         {(bundle.sparringIds?.length || 0) > 0 && (

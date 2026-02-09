@@ -10,11 +10,13 @@ import {
     recordLessonView,
     getLessonProgress,
     toggleLessonLike,
-    checkLessonLiked
+    checkLessonLiked,
+    toggleLessonSave,
+    checkLessonSaved
 } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { updateMasteryFromWatch } from '../lib/api-technique-mastery';
-import { Heart, ArrowLeft, Calendar, Eye, Clock, BookOpen, Share2, ExternalLink, Lock } from 'lucide-react';
+import { Heart, ArrowLeft, Calendar, Eye, Clock, BookOpen, Share2, ExternalLink, Lock, Bookmark } from 'lucide-react';
 import { Lesson, Course } from '../types';
 import { Button } from '../components/Button';
 import { VideoPlayer } from '../components/VideoPlayer';
@@ -35,6 +37,7 @@ export const LessonDetail: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [owns, setOwns] = useState(false);
     const [isLiked, setIsLiked] = useState(false);
+    const [isSaved, setIsSaved] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isPaywallOpen, setIsPaywallOpen] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
@@ -135,9 +138,10 @@ export const LessonDetail: React.FC = () => {
                 setLesson(lessonData);
 
                 if (lessonData) {
-                    // Check like status
+                    // Check like & save status
                     if (user) {
                         checkLessonLiked(user.id, lessonData.id).then((liked) => setIsLiked(liked));
+                        checkLessonSaved(user.id, lessonData.id).then((saved) => setIsSaved(saved));
                     }
 
                     let courseData = null;
@@ -225,13 +229,13 @@ export const LessonDetail: React.FC = () => {
         fetchData();
     }, [id, user?.id, user?.ownedVideoIds?.length, isSubscribed, isAdmin]);
 
-    // Increment view count after 5 seconds of watching (only for authorized users)
+    // Increment view count after 10 seconds of watching (only for authorized users)
     useEffect(() => {
         if (!lesson || !owns || !id) return;
 
         const timer = setTimeout(() => {
             recordLessonView(id).catch(console.error);
-        }, 5000); // 5 seconds
+        }, 10000); // 10 seconds
 
         return () => clearTimeout(timer);
     }, [lesson?.id, owns, id]);
@@ -300,7 +304,10 @@ export const LessonDetail: React.FC = () => {
     }
 
     return (
-        <div className="bg-zinc-950 min-h-screen text-zinc-100 selection:bg-violet-500/30 relative">
+        <div
+            className="bg-zinc-950 min-h-screen text-zinc-100 selection:bg-violet-500/30 relative"
+            onContextMenu={(e) => e.preventDefault()}
+        >
             {/* Floating Back Button */}
             <button
                 onClick={() => navigate(-1)}
@@ -415,6 +422,17 @@ export const LessonDetail: React.FC = () => {
                                 >
                                     <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
                                     좋아요
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        if (!user || !lesson) return navigate('/login');
+                                        const { saved } = await toggleLessonSave(user.id, lesson.id);
+                                        setIsSaved(saved);
+                                    }}
+                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-full border transition-all text-sm font-bold ${isSaved ? 'bg-zinc-900 border-violet-500/50 text-violet-500' : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
+                                >
+                                    <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
+                                    저장하기
                                 </button>
                                 {lesson.courseId && course && (
                                     <button

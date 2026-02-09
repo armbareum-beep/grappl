@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PlaySquare, Clock, Dumbbell, Check, MousePointerClick, Trash2, X, ChevronDown, ChevronUp, Zap, Calendar, Share2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { getUserSavedDrills, toggleDrillSave, getUserSavedRoutines } from '../../lib/api';
@@ -19,8 +19,17 @@ const ShareModal = React.lazy(() => import('../social/ShareModal'));
 export const TrainingRoutinesTab: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [routines, setRoutines] = useState<DrillRoutine[]>([]);
     const [loading, setLoading] = useState(true);
+
+    const plannerRef = React.useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (searchParams.get('id') && !loading) {
+            plannerRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [searchParams, loading]);
     const [error, setError] = useState<string | null>(null);
     const [savedDrills, setSavedDrills] = useState<Drill[]>([]);
 
@@ -69,8 +78,11 @@ export const TrainingRoutinesTab: React.FC = () => {
                 try {
                     const drills = await getUserSavedDrills(user.id);
                     if (drills && drills.length > 0) {
-                        setSavedDrills(drills);
-                        localStorage.setItem('saved_drills', JSON.stringify(drills));
+                        // Only update if different
+                        if (JSON.stringify(drills) !== JSON.stringify(localSaved)) {
+                            setSavedDrills(drills);
+                            localStorage.setItem('saved_drills', JSON.stringify(drills));
+                        }
                     } else if (localSaved.length === 0) {
                         setSavedDrills([]);
                     }
@@ -104,16 +116,13 @@ export const TrainingRoutinesTab: React.FC = () => {
         const handleStorageChange = (e: StorageEvent) => {
             if (e.key === 'saved_drills') loadSavedDrills();
         };
-        const handleCustomStorage = () => loadSavedDrills();
 
         window.addEventListener('focus', handleFocus);
         window.addEventListener('storage', handleStorageChange);
-        window.addEventListener('storage', handleCustomStorage);
 
         return () => {
             window.removeEventListener('focus', handleFocus);
             window.removeEventListener('storage', handleStorageChange);
-            window.removeEventListener('storage', handleCustomStorage);
         };
     }, [user?.id]);
 
@@ -862,18 +871,14 @@ export const TrainingRoutinesTab: React.FC = () => {
             {/* Weekly Planner */}
             <div className="relative">
                 <div>
-                    <WeeklyRoutinePlanner
-                        selectedRoutine={selectedRoutineForPlacement}
-                        onAddToDay={handleRoutineAdded}
-                        selectedDay={selectedDayForPlacement}
-                        isGuest={!user}
-                        guestRoutines={routines}
-                        onSelectDay={(day) => {
-                            if (!selectedRoutineForPlacement) {
-                                setSelectedDayForPlacement(day);
-                            }
-                        }}
-                    />
+                    <div ref={plannerRef}>
+                        <WeeklyRoutinePlanner
+                            selectedRoutine={selectedRoutineForPlacement}
+                            onAddToDay={handleRoutineAdded}
+                            selectedDay={selectedDayForPlacement}
+                            onSelectDay={setSelectedDayForPlacement}
+                        />
+                    </div>
                 </div>
 
                 {/* Social Proof Caption */}

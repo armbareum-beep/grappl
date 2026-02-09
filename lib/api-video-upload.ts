@@ -49,6 +49,7 @@ export async function uploadVideo(
                 length: metadata.length,
                 creator_id: metadata.creatorId,
                 views: 0,
+                status: 'draft',
                 created_at: new Date().toISOString()
             })
             .select()

@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Drill } from '../../types';
 import { useNavigate } from 'react-router-dom';
 import { toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, getUserFollowedCreators, toggleCreatorFollow } from '../../lib/api';
 import { DrillReelItem } from './DrillReelItem';
+import { useVideoPreloadSafe } from '../../contexts/VideoPreloadContext';
+import { ReelLoginModal } from '../auth/ReelLoginModal';
 
 // Lazy load Modal to avoid circular dependency or bundle issues if needed
 // import ShareModal from '../social/ShareModal';
@@ -15,16 +17,58 @@ interface DrillReelsFeedProps {
     onDrillsUpdate?: (drills: Drill[]) => void; // Callback to update parent with refreshed drills
 }
 
+// --- Optimized Session Timer: 분리하여 부모 리렌더링 방지 ---
+const SessionProgressBar = memo(({ onExpired, isSubscriber }: { onExpired: () => void, isSubscriber: boolean }) => {
+    const [progress, setProgress] = useState(0);
+    const onExpiredRef = useRef(onExpired);
+
+    useEffect(() => {
+        onExpiredRef.current = onExpired;
+    }, [onExpired]);
+
+    useEffect(() => {
+        if (isSubscriber) {
+            return;
+        }
+        const startTime = Date.now();
+        const interval = setInterval(() => {
+            const elapsed = (Date.now() - startTime) / 1000;
+            if (elapsed >= 30) {
+                setProgress(100);
+                onExpiredRef.current();
+                clearInterval(interval);
+            } else {
+                setProgress((elapsed / 30) * 100);
+            }
+        }, 100);
+        return () => {
+            clearInterval(interval);
+        };
+    }, [isSubscriber]);
+
+    if (isSubscriber) return null;
+
+    return (
+        <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-zinc-800/80 backdrop-blur-sm z-[200001]">
+            <div
+                className="h-full bg-gradient-to-r from-violet-600 to-indigo-500 transition-all duration-100 ease-linear shadow-[0_0_15px_rgba(139,92,246,0.6)]"
+                style={{ width: `${progress}%` }}
+            />
+        </div>
+    );
+});
+
 export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialIndex = 0, onDrillsUpdate }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [currentIndex, setCurrentIndex] = useState(initialIndex);
-    const [sessionSeconds, setSessionSeconds] = useState(0);
     const [isSessionExpired, setIsSessionExpired] = useState(false);
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const [liked, setLiked] = useState<Set<string>>(new Set());
     const [saved, setSaved] = useState<Set<string>>(new Set());
     const [following, setFollowing] = useState<Set<string>>(new Set());
     const [isMuted, setIsMuted] = useState(false);
+    const handleToggleMute = useCallback(() => setIsMuted(prev => !prev), []);
     const [userPermissions, setUserPermissions] = useState({
         isSubscriber: false,
         purchasedItemIds: [] as string[]
@@ -55,12 +99,12 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
         prevIndexRef.current = currentIndex;
     }, [currentIndex, drills.length]);
 
-    const handleProgressUpdate = useCallback((percent: number, seconds: number, hasAccess: boolean) => {
+    const handleProgressUpdate = useCallback((_percent: number, _seconds: number, _hasAccess: boolean) => {
         // Parent progress handling if needed (currently session-based timer handles global UI)
-        console.log('[DrillReelsFeed] Progress:', { percent, seconds, hasAccess });
     }, []);
 
     const containerRef = useRef<HTMLDivElement>(null);
+    const previewLimitReachedRef = useRef(false); // 세션 전체에서 유지되는 플래그
 
     // Track which items have their video ready (for blocking swipe to unloaded items)
     const [readyItems, setReadyItems] = useState<Set<number>>(() => new Set());
@@ -117,7 +161,54 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
         fetchUserData();
     }, [user?.id]);
 
+    // Initial Preload: Load first 3 videos on mount for instant first play
+    const videoPreload = useVideoPreloadSafe();
+
+
+    useEffect(() => {
+        if (!videoPreload || drills.length === 0) return;
+
+        // Preload first video immediately (highest priority)
+        const firstDrill = drills[0];
+        if (firstDrill) {
+            console.log('[DrillReelsFeed] Preloading first video:', firstDrill.id);
+            videoPreload.startPreload({
+                id: firstDrill.id,
+                vimeoUrl: firstDrill.vimeoUrl,
+                videoUrl: firstDrill.videoUrl,
+            });
+        }
+
+        // Preload next 2 videos with minimal delays to beat DrillReelItem mount timing
+        if (drills.length > 1) {
+            setTimeout(() => {
+                if (!videoPreload.isPreloadedFor(drills[1].id)) {
+                    console.log('[DrillReelsFeed] Preloading second video:', drills[1].id);
+                    videoPreload.startPreload({
+                        id: drills[1].id,
+                        vimeoUrl: drills[1].vimeoUrl,
+                        videoUrl: drills[1].videoUrl,
+                    });
+                }
+            }, 50);
+        }
+
+        if (drills.length > 2) {
+            setTimeout(() => {
+                if (!videoPreload.isPreloadedFor(drills[2].id)) {
+                    console.log('[DrillReelsFeed] Preloading third video:', drills[2].id);
+                    videoPreload.startPreload({
+                        id: drills[2].id,
+                        vimeoUrl: drills[2].vimeoUrl,
+                        videoUrl: drills[2].videoUrl,
+                    });
+                }
+            }, 100);
+        }
+    }, [drills, videoPreload]);
+
     // Auto-poll for processing status changes (Vimeo encoding completion)
+    // Uses exponential backoff: 3s -> 4.5s -> 6.75s -> ... max 30s, max 20 attempts
     useEffect(() => {
         const hasProcessing = drills.some(d =>
             !d.vimeoUrl && (!d.videoUrl || d.videoUrl.includes('placeholder') || d.videoUrl.includes('placehold.co'))
@@ -125,7 +216,16 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
 
         if (!hasProcessing || !onDrillsUpdate) return; // No processing items or no callback, skip polling
 
-        const pollInterval = setInterval(async () => {
+        let pollCount = 0;
+        let currentDelay = 3000;
+        const MAX_DELAY = 30000;
+        const MAX_POLLS = 20;
+        let timeoutId: ReturnType<typeof setTimeout>;
+        let cancelled = false;
+
+        const poll = async () => {
+            if (cancelled || pollCount >= MAX_POLLS) return;
+
             try {
                 // Re-fetch drill list to check for processing completion
                 const drillIds = drills.map(d => d.id);
@@ -163,49 +263,50 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
 
                         console.log('[DrillReelsFeed] Detected processing completion, updating drills...');
                         onDrillsUpdate(refreshedDrills);
+                        return; // Stop polling on success
                     }
                 }
             } catch (err) {
                 console.error('[DrillReelsFeed] Polling error:', err);
             }
-        }, 3000); // Poll every 3 seconds
 
-        return () => clearInterval(pollInterval);
+            // Schedule next poll with exponential backoff
+            pollCount++;
+            currentDelay = Math.min(currentDelay * 1.5, MAX_DELAY);
+            if (!cancelled && pollCount < MAX_POLLS) {
+                timeoutId = setTimeout(poll, currentDelay);
+            }
+        };
+
+        // Start first poll
+        timeoutId = setTimeout(poll, currentDelay);
+
+        return () => {
+            cancelled = true;
+            clearTimeout(timeoutId);
+        };
     }, [drills, onDrillsUpdate]);
 
-    // Navigation handlers — block swipe if the target item hasn't loaded yet
-    const goToNext = () => {
-        const next = currentIndex + 1;
-        if (next < drills.length) {
-            setCurrentIndex(next);
+    // Navigation handlers — allow swipe but block during loading
+    const goToNext = useCallback(() => {
+        const nextIdx = currentIndex + 1;
+        if (nextIdx < drills.length) {
+            setCurrentIndex(nextIdx);
         }
-    };
+    }, [currentIndex, drills.length]);
 
-    const goToPrevious = () => {
-        const prev = currentIndex - 1;
-        if (prev >= 0) {
-            setCurrentIndex(prev);
+    const goToPrevious = useCallback(() => {
+        const prevIdx = currentIndex - 1;
+        if (prevIdx >= 0) {
+            setCurrentIndex(prevIdx);
         }
-    };
+    }, [currentIndex]);
 
-    // Session Timer Logic (20s limit)
-    useEffect(() => {
-        if (isSessionExpired) return;
-
-        const interval = setInterval(() => {
-            setSessionSeconds(prev => {
-                const next = prev + 0.1;
-                if (next >= 20) {
-                    setIsSessionExpired(true);
-                    clearInterval(interval);
-                    return 20;
-                }
-                return next;
-            });
-        }, 100);
-
-        return () => clearInterval(interval);
-    }, [isSessionExpired]);
+    // Session Timer Logic (30s limit) - Now handled by SessionProgressBar
+    const handleSessionExpired = useCallback(() => {
+        setIsSessionExpired(true);
+        setIsLoginModalOpen(true);
+    }, []);
 
     useEffect(() => {
         // setCurrentProgress({ seconds: 0, percent: 0, hasAccess: true });
@@ -215,6 +316,50 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
     useEffect(() => {
         console.log('[DrillReelsFeed] currentIndex updated:', currentIndex);
     }, [currentIndex]);
+
+    // Proactive Preloading: Trigger preload for next/prev videos when currentIndex changes
+    useEffect(() => {
+        if (!videoPreload || drills.length === 0) return;
+
+        const preloadTargets: { index: number; drill: any }[] = [];
+
+        // Next videos (priority: +1, +2)
+        if (currentIndex + 1 < drills.length) {
+            preloadTargets.push({ index: currentIndex + 1, drill: drills[currentIndex + 1] });
+        }
+        if (currentIndex + 2 < drills.length) {
+            preloadTargets.push({ index: currentIndex + 2, drill: drills[currentIndex + 2] });
+        }
+
+        // Previous videos (for backward swipe support: -1, -2)
+        if (currentIndex - 1 >= 0) {
+            preloadTargets.push({ index: currentIndex - 1, drill: drills[currentIndex - 1] });
+        }
+        if (currentIndex - 2 >= 0) {
+            preloadTargets.push({ index: currentIndex - 2, drill: drills[currentIndex - 2] });
+        }
+
+        // Stagger preloads to avoid network congestion
+        preloadTargets.forEach((target, idx) => {
+            const delay = idx * 100; // 100ms between each preload for faster responsiveness
+
+            setTimeout(() => {
+                // Check if already preloaded
+                if (videoPreload.isPreloadedFor(target.drill.id)) {
+                    console.log('[DrillReelsFeed] Already preloaded:', target.drill.id);
+                    return;
+                }
+
+                const offset = target.index - currentIndex;
+                console.log(`[DrillReelsFeed] Preloading drill at offset ${offset}:`, target.drill.id);
+                videoPreload.startPreload({
+                    id: target.drill.id,
+                    vimeoUrl: target.drill.vimeoUrl,
+                    videoUrl: target.drill.videoUrl,
+                });
+            }, delay);
+        });
+    }, [currentIndex, drills, videoPreload]);
 
     // Keyboard navigation
     useEffect(() => {
@@ -256,77 +401,89 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
     }, [currentIndex, readyItems, drills.length]); // Added readyItems dependency since goToNext uses it
 
     // Interaction Handlers
-    const handleLike = async (drill: Drill) => {
+    const handleLike = useCallback(async (drill: Drill) => {
         if (!user) { navigate('/login'); return; }
 
-        const isLiked = liked.has(drill.id);
-        const newLiked = new Set(liked);
-        if (isLiked) newLiked.delete(drill.id);
-        else newLiked.add(drill.id);
-        setLiked(newLiked);
+        let currentIsLiked = false;
+        setLiked(prev => {
+            currentIsLiked = prev.has(drill.id);
+            const next = new Set(prev);
+            if (currentIsLiked) next.delete(drill.id);
+            else next.add(drill.id);
+            return next;
+        });
 
-        // Update count optimistically using overrideCounts
-        const currentCount = overrideCounts[drill.id] ?? drill.likes ?? 0;
-        // If we are LIKING (isLiked=false), add 1. If UNLIKING, subtract 1 but floor at 0.
-        // NOTE: We track based on "previous applied state".
-        // If isLiked was true -> Unliking -> count - 1
-        // If isLiked was false -> Liking -> count + 1
-        const newCount = !isLiked ? currentCount + 1 : Math.max(0, currentCount - 1);
-
-        setOverrideCounts(prev => ({ ...prev, [drill.id]: newCount }));
+        // Update count optimistically
+        setOverrideCounts(prev => {
+            const currentCount = prev[drill.id] ?? drill.likes ?? 0;
+            const newCount = !currentIsLiked ? currentCount + 1 : Math.max(0, currentCount - 1);
+            return { ...prev, [drill.id]: newCount };
+        });
 
         try {
             await toggleDrillLike(user.id, drill.id);
         } catch (error) {
             console.error('Like failed, rolling back:', error);
-            setLiked(liked); // Revert liked set
+            setLiked(prev => {
+                const next = new Set(prev);
+                if (currentIsLiked) next.add(drill.id);
+                else next.delete(drill.id);
+                return next;
+            });
             setOverrideCounts(prev => {
                 const { [drill.id]: _, ...rest } = prev;
-                return rest; // Revert to original prop value
+                return rest;
             });
         }
-    };
+    }, [user, navigate]);
 
-    const handleSave = async (drill: Drill) => {
+    const handleSave = useCallback(async (drill: Drill) => {
         if (!user) { navigate('/login'); return; }
 
-        const isSaved = saved.has(drill.id);
-        const newSaved = new Set(saved);
-        if (isSaved) newSaved.delete(drill.id);
-        else newSaved.add(drill.id);
-        setSaved(newSaved);
+        setSaved(prev => {
+            const next = new Set(prev);
+            if (prev.has(drill.id)) next.delete(drill.id);
+            else next.add(drill.id);
+            return next;
+        });
 
         const { saved: savedState } = await toggleDrillSave(user.id, drill.id);
         if (savedState) {
             alert('보관함에 저장되었습니다.');
         }
-    };
+    }, [user, navigate]);
 
-    const handleViewRoutine = async (drill: Drill) => {
+    const handleViewRoutine = useCallback(async (drill: Drill) => {
         const { getRoutineByDrillId } = await import('../../lib/api');
         const { data: routine } = await getRoutineByDrillId(drill.id);
         if (routine) navigate(`/routines/${routine.id}`);
         else alert('이 드릴은 아직 루틴에 포함되지 않았습니다.');
-    };
+    }, [navigate]);
 
-
-    const handleFollow = async (drill: Drill) => {
+    const handleFollow = useCallback(async (drill: Drill) => {
         if (!user) { navigate('/login'); return; }
 
-        const isFollowed = following.has(drill.creatorId);
-        const newFollowing = new Set(following);
-        if (isFollowed) newFollowing.delete(drill.creatorId);
-        else newFollowing.add(drill.creatorId);
-        setFollowing(newFollowing);
+        let currentIsFollowing = false;
+        setFollowing(prev => {
+            currentIsFollowing = prev.has(drill.creatorId);
+            const next = new Set(prev);
+            if (currentIsFollowing) next.delete(drill.creatorId);
+            else next.add(drill.creatorId);
+            return next;
+        });
 
         try {
             await toggleCreatorFollow(user.id, drill.creatorId);
         } catch (error) {
             console.error('Error toggling follow:', error);
-            // Rollback on error
-            setFollowing(following);
+            setFollowing(prev => {
+                const next = new Set(prev);
+                if (currentIsFollowing) next.add(drill.creatorId);
+                else next.delete(drill.creatorId);
+                return next;
+            });
         }
-    };
+    }, [user, navigate]);
 
     // Touch handling for Vertical Swipe (Feed Navigation) & Horizontal (Like)
     const [touchStart, setTouchStart] = useState<{ x: number, y: number } | null>(null);
@@ -365,9 +522,9 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
         >
             {/* Top Bar Navigation (Removed - Back button moved inside DrillReelItem) */}
 
-            {/* Sliding Window: 이전 2개 + 현재 + 다음 2개 로드, 캐시된 드릴도 유지 */}
+            {/* Sliding Window: 이전 1개 + 현재 + 다음 2개 로드 (최적화: 7개 → 4개) */}
             {(() => {
-                const windowOffsets = [-3, -2, -1, 0, 1, 2, 3];
+                const windowOffsets = [-1, 0, 1, 2];
                 const renderIndices = windowOffsets
                     .map(o => currentIndex + o)
                     .filter(i => i >= 0 && i < drills.length);
@@ -382,42 +539,45 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
                         <DrillReelItem
                             key={drill.id}
                             drill={drill}
+                            index={index} // Pass index to let item call back with it
                             isActive={isActive}
                             isMuted={isMuted}
-                            onToggleMute={() => setIsMuted(!isMuted)}
+                            onToggleMute={handleToggleMute}
                             isLiked={liked.has(drill.id)}
-                            onLike={() => handleLike(drill)}
+                            onLike={handleLike}
                             likeCount={overrideCounts[drill.id] ?? (drill.likes || 0)}
                             isSaved={saved.has(drill.id)}
-                            onSave={() => handleSave(drill)}
+                            onSave={handleSave}
                             isFollowed={following.has(drill.creatorId)}
-                            onFollow={() => handleFollow(drill)}
-                            onViewRoutine={() => handleViewRoutine(drill)}
+                            onFollow={handleFollow}
+                            onViewRoutine={handleViewRoutine}
                             offset={isCached ? -100 : offset}
                             isSubscriber={userPermissions.isSubscriber}
                             purchasedItemIds={userPermissions.purchasedItemIds}
                             isLoggedIn={!!user}
-                            onVideoReady={() => markReady(index)}
+                            onVideoReady={markReady}
                             onProgressUpdate={handleProgressUpdate}
                             isSessionExpired={isSessionExpired}
                             isCached={isCached}
+                            previewLimitReachedRef={previewLimitReachedRef}
                         />
                     );
                 });
             })()}
 
 
-            {/* Session Progress Bar */}
-            {!userPermissions.isSubscriber && (
-                <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-zinc-800/80 backdrop-blur-sm z-[200001]">
-                    <div
-                        className="h-full bg-gradient-to-r from-violet-600 to-indigo-500 transition-all duration-100 ease-linear shadow-[0_0_15px_rgba(139,92,246,0.6)]"
-                        style={{
-                            width: `${(sessionSeconds / 20) * 100}%`
-                        }}
-                    />
-                </div>
-            )}
+            {/* Session Progress Bar: 별도 컴포넌트로 분리하여 리렌더링 최소화 */}
+            <SessionProgressBar
+                onExpired={handleSessionExpired}
+                isSubscriber={userPermissions.isSubscriber}
+            />
+
+            {/* Login Modal: 30초 후 자동 표시 */}
+            <ReelLoginModal
+                isOpen={isLoginModalOpen}
+                onClose={() => setIsLoginModalOpen(false)}
+                redirectUrl="/drills"
+            />
         </div>
     );
 };

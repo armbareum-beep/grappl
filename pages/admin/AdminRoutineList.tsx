@@ -1,11 +1,60 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getRoutines, deleteRoutine } from '../../lib/api-admin';
+import { updateRoutine } from '../../lib/api';
 import { DrillRoutine, Difficulty } from '../../types';
 import { Trash2, Eye, Search, Plus, ArrowLeft, Activity, Edit } from 'lucide-react';
+import { useToast } from '../../contexts/ToastContext';
+
+const EditableCell = ({ value, onSave, type = 'text' }: { value: string | number, onSave: (val: string) => void, type?: 'text' | 'number' }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [localValue, setLocalValue] = useState(String(value));
+
+    useEffect(() => {
+        setLocalValue(String(value));
+    }, [value]);
+
+    const handleSave = () => {
+        setIsEditing(false);
+        if (localValue !== String(value)) {
+            onSave(localValue);
+        }
+    };
+
+    if (isEditing) {
+        return (
+            <input
+                autoFocus
+                type={type}
+                value={localValue}
+                onChange={(e) => setLocalValue(e.target.value)}
+                onBlur={handleSave}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSave();
+                    if (e.key === 'Escape') {
+                        setLocalValue(String(value));
+                        setIsEditing(false);
+                    }
+                }}
+                className="bg-zinc-800 text-white px-2 py-1 rounded border border-zinc-700 w-full max-w-[200px]"
+            />
+        );
+    }
+
+    return (
+        <div
+            onClick={() => setIsEditing(true)}
+            className="cursor-pointer hover:bg-zinc-800/50 px-2 py-1 -mx-2 rounded transition-colors"
+            title="클릭하여 수정"
+        >
+            {type === 'number' ? (Number(value) > 0 ? `₩${Number(value).toLocaleString()}` : 'Free Access') : value}
+        </div>
+    );
+};
 
 export const AdminRoutineList: React.FC = () => {
     const navigate = useNavigate();
+    const { success, error: toastError } = useToast();
     const [routines, setRoutines] = useState<DrillRoutine[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -25,6 +74,19 @@ export const AdminRoutineList: React.FC = () => {
         }
     }
 
+    const handleUpdateField = async (routineId: string, field: string, value: string | number) => {
+        try {
+            const { error } = await updateRoutine(routineId, { [field]: value });
+            if (error) throw error;
+
+            setRoutines(routines.map(r => r.id === routineId ? { ...r, [field]: value } : r));
+            success(`${field === 'title' ? '제목' : '가격'}이 수정되었습니다.`);
+        } catch (error) {
+            console.error('Error updating routine:', error);
+            toastError('수정 중 오류가 발생했습니다.');
+        }
+    };
+
     const handleDelete = async (routineId: string) => {
         if (!window.confirm('정말로 이 루틴을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
 
@@ -33,10 +95,10 @@ export const AdminRoutineList: React.FC = () => {
             if (error) throw error;
 
             setRoutines(routines.filter(r => r.id !== routineId));
-            alert('루틴이 삭제되었습니다.');
+            success('루틴이 삭제되었습니다.');
         } catch (error) {
             console.error('Error deleting routine:', error);
-            alert('삭제 중 오류가 발생했습니다.');
+            toastError('삭제 중 오류가 발생했습니다.');
         }
     };
 
@@ -64,11 +126,11 @@ export const AdminRoutineList: React.FC = () => {
 
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
                     <button
-                        onClick={() => navigate('/admin')}
+                        onClick={() => navigate(-1)}
                         className="flex items-center gap-2 text-zinc-500 hover:text-white mb-6 transition-all group"
                     >
                         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                        <span className="text-sm font-medium">대시보드로 돌아가기</span>
+                        <span className="text-sm font-medium">뒤로가기</span>
                     </button>
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
                         <div className="space-y-2">
@@ -138,9 +200,17 @@ export const AdminRoutineList: React.FC = () => {
                                                     )}
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <div className="text-base font-extrabold text-white group-hover:text-violet-300 transition-colors truncate max-w-[300px]">
-                                                        {routine.title}
+                                                    <div className="text-base font-extrabold text-white transition-colors max-w-[300px]">
+                                                        <EditableCell
+                                                            value={routine.title}
+                                                            onSave={(val) => handleUpdateField(routine.id, 'title', val)}
+                                                        />
                                                     </div>
+                                                    {(routine as any).creatorName && (
+                                                        <div className="text-xs text-violet-400 font-bold mb-1">
+                                                            {(routine as any).creatorName}
+                                                        </div>
+                                                    )}
                                                     <div className="text-sm text-zinc-500 font-medium truncate max-w-[300px]">
                                                         {routine.description || 'No detailed description provided.'}
                                                     </div>
@@ -149,7 +219,7 @@ export const AdminRoutineList: React.FC = () => {
                                         </td>
                                         <td className="px-8 py-6 whitespace-nowrap">
                                             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-zinc-800/50 border border-zinc-800 text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                                                {routine.drills?.length || 0} Drills Included
+                                                {(routine as any).drillCount || (routine as any).drill_count || 0} Drills Included
                                             </div>
                                         </td>
                                         <td className="px-8 py-6 whitespace-nowrap">
@@ -161,15 +231,13 @@ export const AdminRoutineList: React.FC = () => {
                                             </span>
                                         </td>
                                         <td className="px-8 py-6 whitespace-nowrap">
-                                            {routine.price === 0 ? (
-                                                <div className="text-sm font-black text-emerald-400 uppercase tracking-widest">
-                                                    Free Access
-                                                </div>
-                                            ) : (
-                                                <div className="text-sm font-extrabold text-white">
-                                                    ₩{routine.price?.toLocaleString() || 0}
-                                                </div>
-                                            )}
+                                            <div className="text-sm font-extrabold text-white">
+                                                <EditableCell
+                                                    value={routine.price || 0}
+                                                    type="number"
+                                                    onSave={(val) => handleUpdateField(routine.id, 'price', parseInt(val) || 0)}
+                                                />
+                                            </div>
                                         </td>
                                         <td className="px-8 py-6 whitespace-nowrap text-right">
                                             <div className="flex justify-end gap-2">
@@ -226,6 +294,11 @@ export const AdminRoutineList: React.FC = () => {
                                     </div>
                                     <div className="min-w-0 flex-1">
                                         <div className="text-lg font-extrabold text-white mb-1 truncate">{routine.title}</div>
+                                        {(routine as any).creatorName && (
+                                            <div className="text-xs text-violet-400 font-bold mb-1">
+                                                {(routine as any).creatorName}
+                                            </div>
+                                        )}
                                         <div className="text-xs text-zinc-500 font-medium line-clamp-2">
                                             {routine.description || 'No detailed description provided.'}
                                         </div>
@@ -234,7 +307,7 @@ export const AdminRoutineList: React.FC = () => {
 
                                 <div className="flex flex-wrap gap-2 mb-4">
                                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-800/50 border border-zinc-800 text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                                        {routine.drills?.length || 0} Drills
+                                        {(routine as any).drillCount || (routine as any).drill_count || 0} Drills
                                     </div>
                                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm
                                         ${routine.difficulty === Difficulty.Beginner ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :

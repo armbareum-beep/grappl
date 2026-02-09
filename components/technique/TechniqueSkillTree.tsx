@@ -630,7 +630,10 @@ export const TechniqueSkillTree: React.FC = () => {
             // 1. Fetch Public Data
             const [lessons, drills] = await Promise.all([
                 getLessons(300).then(res => res),
-                getDrills(undefined, 100).then(res => (res as any).data || (res as any) || [])
+                getDrills(undefined, 100).then(res => {
+                    const data = (res as any)?.data || res;
+                    return Array.isArray(data) ? data : [];
+                })
             ]);
 
             setAllLessons(lessons);
@@ -2455,6 +2458,29 @@ export const TechniqueSkillTree: React.FC = () => {
 
         setSaving(true);
         try {
+            // Re-capture thumbnail if missing to ensure we always have one
+            let currentThumbnail = thumbnailPreview;
+            if (!currentThumbnail && reactFlowWrapper.current) {
+                try {
+                    currentThumbnail = await toPng(reactFlowWrapper.current, {
+                        cacheBust: true,
+                        filter: (node) => !node.classList?.contains('react-flow__controls') && !node.classList?.contains('react-flow__minimap'),
+                        backgroundColor: '#18181b',
+                        width: reactFlowWrapper.current.offsetWidth,
+                        height: reactFlowWrapper.current.offsetHeight,
+                        skipFonts: true,
+                        fontEmbedCSS: '',
+                        style: {
+                            width: `${reactFlowWrapper.current.offsetWidth}px`,
+                            height: `${reactFlowWrapper.current.offsetHeight}px`,
+                        }
+                    });
+                    setThumbnailPreview(currentThumbnail);
+                } catch (snapErr) {
+                    console.error('Final fallback snapshot failed', snapErr);
+                }
+            }
+
             const skillTreeNodes: SkillTreeNode[] = nodes
                 .map(node => ({
                     id: node.id,
@@ -2477,11 +2503,11 @@ export const TechniqueSkillTree: React.FC = () => {
 
             // Thumbnail Upload
             let uploadedThumbnailUrl = data.thumbnailUrl;
-            // Upload if: it's public AND we have a preview AND (it's not already an uploaded URL OR we want to update it)
-            if (data.isPublic && thumbnailPreview && thumbnailPreview.startsWith('data:image') && supabase) {
+            // Upload if: it's not already an uploaded URL AND we have a preview
+            if (currentThumbnail && currentThumbnail.startsWith('data:image') && supabase) {
                 try {
                     // Convert base64 to blob robustly
-                    const fetchResponse = await fetch(thumbnailPreview);
+                    const fetchResponse = await fetch(currentThumbnail);
                     const blob = await fetchResponse.blob();
 
                     const fileName = `${user?.id}_${Date.now()}.png`;
@@ -2526,8 +2552,8 @@ export const TechniqueSkillTree: React.FC = () => {
                     updatePayload.description = data.description;
                     updatePayload.tags = data.tags;
                     updatePayload.difficulty = data.difficulty;
-                    updatePayload.thumbnail_url = uploadedThumbnailUrl;
                 }
+                updatePayload.thumbnail_url = uploadedThumbnailUrl;
 
                 const { data: updatedData, error } = await supabase
                     .from('user_skill_trees')
@@ -2550,8 +2576,8 @@ export const TechniqueSkillTree: React.FC = () => {
                     insertPayload.description = data.description;
                     insertPayload.tags = data.tags;
                     insertPayload.difficulty = data.difficulty;
-                    insertPayload.thumbnail_url = uploadedThumbnailUrl;
                 }
+                insertPayload.thumbnail_url = uploadedThumbnailUrl;
 
                 const { data: newData, error } = await supabase
                     .from('user_skill_trees')

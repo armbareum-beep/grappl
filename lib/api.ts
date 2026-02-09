@@ -101,9 +101,12 @@ type CreatorData = {
     email?: string; // From RPC or join
     user?: { avatar_url?: string | null }; // From join
     avatar_url?: string | null; // From RPC or join
+    courses?: { count: number }[];
+    routines?: { count: number }[];
+    sparring_videos?: { count: number }[];
 };
 
-function transformCreator(data: CreatorData): Creator {
+function transformCreator(data: any, counts?: { courseCount?: number; routineCount?: number; sparringCount?: number }): Creator {
     return {
         id: data.id,
         name: data.name,
@@ -112,6 +115,9 @@ function transformCreator(data: CreatorData): Creator {
         profileImage: data.profile_image || data.user?.avatar_url || data.avatar_url || '',
         subscriberCount: data.subscriber_count || 0,
         email: data.email,
+        courseCount: counts?.courseCount ?? data.courseCount ?? 0,
+        routineCount: counts?.routineCount ?? data.routineCount ?? 0,
+        sparringCount: counts?.sparringCount ?? data.sparringCount ?? 0,
     };
 }
 
@@ -204,13 +210,12 @@ export async function getPlatformStats() {
 // Creators API
 export async function getCreators(): Promise<Creator[]> {
     try {
-        const { data, error } = await withTimeout(
+        const { data: creatorsData, error } = await withTimeout(
             supabase
                 .from('creators')
-                .select('*')
-                .eq('approved', true)
-                .order('subscriber_count', { ascending: false }),
-            5000 // 5s timeout
+                .select('id, name, bio, profile_image, subscriber_count')
+                .eq('approved', true),
+            10000 // 10s
         );
 
         if (error) {
@@ -218,11 +223,34 @@ export async function getCreators(): Promise<Creator[]> {
             throw error;
         }
 
-        const transformed = (data || []).map(transformCreator);
-        return transformed;
+        if (!creatorsData || creatorsData.length === 0) return [];
+
+        // Fetch counts for all instructors concurrently
+        const creatorsWithCounts = await Promise.all(
+            creatorsData.map(async (creator) => {
+                try {
+                    const [coursesResult, routinesResult, sparringResult] = await Promise.all([
+                        supabase.from('courses').select('id', { count: 'exact', head: true }).eq('creator_id', creator.id),
+                        supabase.from('routines').select('id', { count: 'exact', head: true }).eq('creator_id', creator.id),
+                        supabase.from('sparring_videos').select('id', { count: 'exact', head: true }).eq('creator_id', creator.id)
+                    ]);
+
+                    return transformCreator(creator, {
+                        courseCount: coursesResult.count || 0,
+                        routineCount: routinesResult.count || 0,
+                        sparringCount: sparringResult.count || 0
+                    });
+                } catch (e) {
+                    console.error(`Error fetching counts for creator ${creator.id}:`, e);
+                    return transformCreator(creator);
+                }
+            })
+        );
+
+        return creatorsWithCounts;
     } catch (e) {
-        console.error('getCreators timeout/fail:', e);
-        return []; // Return empty array on failure to prevent infinite loading
+        console.error('getCreators failure:', e);
+        return [];
     }
 }
 
@@ -244,26 +272,37 @@ export async function getAdminCreators(): Promise<Creator[]> {
 
 export async function getCreatorById(id: string): Promise<Creator | null> {
     try {
-        const { data, error } = await withTimeout(
+        const { data: creatorData, error } = await withTimeout(
             supabase
                 .from('creators')
-                .select('*')
+                .select('id, name, bio, profile_image, subscriber_count')
                 .eq('id', id)
                 .maybeSingle(),
-            5000
+            10000
         );
 
         if (error) {
-            // 406/PGRST106: Table missing or RLS issue
             if (error.code === 'PGRST106' || error.code === '406') {
                 return null;
             }
             throw error;
         }
 
-        return data ? transformCreator(data) : null;
+        if (!creatorData) return null;
+
+        const [coursesResult, routinesResult, sparringResult] = await Promise.all([
+            supabase.from('courses').select('id', { count: 'exact', head: true }).eq('creator_id', creatorData.id),
+            supabase.from('routines').select('id', { count: 'exact', head: true }).eq('creator_id', creatorData.id),
+            supabase.from('sparring_videos').select('id', { count: 'exact', head: true }).eq('creator_id', creatorData.id)
+        ]);
+
+        return transformCreator(creatorData, {
+            courseCount: coursesResult.count || 0,
+            routineCount: routinesResult.count || 0,
+            sparringCount: sparringResult.count || 0
+        });
     } catch (e) {
-        console.error('getCreatorById timeout/fail:', e);
+        console.error('getCreatorById failure:', e);
         return null;
     }
 }
@@ -1274,9 +1313,9 @@ export async function createCourse(courseData: Partial<Course>) {
         thumbnail_url: courseData.thumbnailUrl,
         price: courseData.price,
         is_subscription_excluded: courseData.isSubscriptionExcluded,
-        published: courseData.published,
         uniform_type: courseData.uniformType,
         preview_vimeo_id: courseData.previewVimeoId,
+        status: 'draft',
     };
 
     const { data, error } = await supabase
@@ -1299,7 +1338,6 @@ export async function updateCourse(courseId: string, courseData: Partial<Course>
     if (courseData.thumbnailUrl) dbData.thumbnail_url = courseData.thumbnailUrl;
     if (courseData.price !== undefined) dbData.price = courseData.price;
     if (courseData.isSubscriptionExcluded !== undefined) dbData.is_subscription_excluded = courseData.isSubscriptionExcluded;
-    if (courseData.published !== undefined) dbData.published = courseData.published;
     if (courseData.uniformType) dbData.uniform_type = courseData.uniformType;
     if (courseData.previewVimeoId) dbData.preview_vimeo_id = courseData.previewVimeoId;
 
@@ -1711,6 +1749,53 @@ export async function uploadThumbnail(blob: Blob, bucketName: string = 'thumbnai
 
     return { url: null, error: lastError || new Error('All thumbnail upload attempts failed') };
 }
+
+/**
+ * Upload feedback video to Supabase Storage
+ */
+export async function uploadFeedbackVideo(
+    userId: string,
+    file: File,
+    onProgress?: (progress: number) => void
+): Promise<{ url: string | null; error: any }> {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userId}/${Date.now()}.${fileExt}`;
+    const filePath = fileName;
+
+    try {
+        const { error: uploadError } = await withTimeout(
+            supabase.storage
+                .from('feedback-videos')
+                .upload(filePath, file, {
+                    cacheControl: '3600',
+                    upsert: false,
+                    // Handle progress if callback provided
+                    onUploadProgress: (progress) => {
+                        if (onProgress) {
+                            const percent = (progress.loaded / progress.total) * 100;
+                            onProgress(Math.round(percent));
+                        }
+                    }
+                }),
+            300000 // 5 minutes for video upload
+        ) as any;
+
+        if (uploadError) {
+            console.error('Error uploading feedback video:', uploadError);
+            return { url: null, error: uploadError };
+        }
+
+        const { data } = supabase.storage
+            .from('feedback-videos')
+            .getPublicUrl(filePath);
+
+        return { url: data.publicUrl, error: null };
+    } catch (e) {
+        console.error('Exception in uploadFeedbackVideo:', e);
+        return { url: null, error: e };
+    }
+}
+
 
 /**
  * Update creator profile image
@@ -3284,57 +3369,95 @@ export async function getUserBeltLevel(userId: string): Promise<BeltLevel> {
  */
 export async function getBundles() {
     try {
-        const { data, error } = await withTimeout(
+        // 1. Fetch base bundle data
+        const { data: bundlesBase, error: bundleError } = await withTimeout(
             supabase
                 .from('bundles')
-                .select(`
-                    *,
-                    creator:creators(name),
-                    bundle_courses(course_id),
-                    bundle_drills(drill_id)
-                `)
+                .select('*, creator:creators(name)')
                 .order('created_at', { ascending: false }),
             5000
         );
 
-        if (error) {
-            console.error('getBundles error:', error);
-            return { data: [], error };
-        }
+        if (bundleError) throw bundleError;
+        if (!bundlesBase || bundlesBase.length === 0) return { data: [], error: null };
 
-        // Fetch bundle_sparring separately to avoid PostgREST relationship issues
-        const bundleIds = (data || []).map((b: any) => b.id);
-        let sparringMap: Record<string, string[]> = {};
+        const bundleIds = bundlesBase.map(b => b.id);
 
-        if (bundleIds.length > 0) {
-            const { data: sparringData } = await supabase
-                .from('bundle_sparring')
-                .select('bundle_id, sparring_id')
-                .in('bundle_id', bundleIds);
+        // 2. Fetch all relationship data in parallel
+        const [coursesRes, routinesRes, sparringRes] = await Promise.all([
+            supabase.from('bundle_courses').select('bundle_id, course_id').in('bundle_id', bundleIds),
+            supabase.from('bundle_routines').select('bundle_id, routine_id').in('bundle_id', bundleIds),
+            supabase.from('bundle_sparring').select('bundle_id, sparring_id').in('bundle_id', bundleIds)
+        ]);
 
-            if (sparringData) {
-                sparringData.forEach((bs: any) => {
-                    if (!sparringMap[bs.bundle_id]) {
-                        sparringMap[bs.bundle_id] = [];
-                    }
-                    sparringMap[bs.bundle_id].push(bs.sparring_id);
-                });
-            }
-        }
+        // 3. Collect all unique content IDs to fetch prices
+        const allCourseIds = Array.from(new Set(coursesRes.data?.map(c => c.course_id) || []));
+        const allRoutineIds = Array.from(new Set(routinesRes.data?.map(r => r.routine_id) || []));
+        const allSparringIds = Array.from(new Set(sparringRes.data?.map(s => s.sparring_id) || []));
 
-        const bundles: Bundle[] = (data || []).map((bundle: any) => ({
-            id: bundle.id,
-            creatorId: bundle.creator_id,
-            creatorName: bundle.creator?.name || 'Unknown Creator',
-            title: bundle.title,
-            description: bundle.description,
-            price: bundle.price,
-            thumbnailUrl: bundle.thumbnail_url,
-            courseIds: bundle.bundle_courses?.map((bc: any) => bc.course_id) || [],
-            drillIds: bundle.bundle_drills?.map((bd: any) => bd.drill_id) || [],
-            sparringIds: sparringMap[bundle.id] || [],
-            createdAt: bundle.created_at
-        }));
+        // 4. Fetch all prices in parallel
+        const [coursePrices, routinePrices, sparringPrices] = await Promise.all([
+            allCourseIds.length > 0 ? supabase.from('courses').select('id, price').in('id', allCourseIds) : Promise.resolve({ data: [] }),
+            allRoutineIds.length > 0 ? supabase.from('routines').select('id, price').in('id', allRoutineIds) : Promise.resolve({ data: [] }),
+            allSparringIds.length > 0 ? supabase.from('sparring_videos').select('id, price').in('id', allSparringIds) : Promise.resolve({ data: [] })
+        ]);
+
+        // 5. Create helper maps
+        const priceMap: Record<string, number> = {};
+        [...(coursePrices.data || []), ...(routinePrices.data || []), ...(sparringPrices.data || [])].forEach(item => {
+            priceMap[item.id] = Number(item.price) || 0;
+        });
+
+        const coursesMap: Record<string, string[]> = {};
+        coursesRes.data?.forEach(bc => {
+            if (!coursesMap[bc.bundle_id]) coursesMap[bc.bundle_id] = [];
+            coursesMap[bc.bundle_id].push(bc.course_id);
+        });
+
+        const routinesMap: Record<string, string[]> = {};
+        routinesRes.data?.forEach(br => {
+            if (!routinesMap[br.bundle_id]) routinesMap[br.bundle_id] = [];
+            routinesMap[br.bundle_id].push(br.routine_id);
+        });
+
+        const sparringMap: Record<string, string[]> = {};
+        sparringRes.data?.forEach(bs => {
+            if (!sparringMap[bs.bundle_id]) sparringMap[bs.bundle_id] = [];
+            sparringMap[bs.bundle_id].push(bs.sparring_id);
+        });
+
+        // 6. Map everything together
+        const bundles: Bundle[] = bundlesBase.map(bundle => {
+            const courseIds = coursesMap[bundle.id] || [];
+            const routineIds = routinesMap[bundle.id] || [];
+            const sparringIds = sparringMap[bundle.id] || [];
+
+            const originalPrice = [...courseIds, ...routineIds, ...sparringIds].reduce((sum, id) => sum + (priceMap[id] || 0), 0);
+            const bundlePrice = Number(bundle.price);
+            const discountPercent = originalPrice > bundlePrice ? Math.round(((originalPrice - bundlePrice) / originalPrice) * 100) : 0;
+
+            return {
+                id: bundle.id,
+                creatorId: bundle.creator_id,
+                creatorName: bundle.creator?.name || 'Unknown Creator',
+                title: bundle.title,
+                name: bundle.title,
+                description: bundle.description,
+                price: bundlePrice,
+                originalPrice,
+                discountPercent,
+                thumbnailUrl: bundle.thumbnail_url,
+                courseIds,
+                course_ids: courseIds,
+                routineIds,
+                routine_ids: routineIds,
+                drillIds: [], // Keep empty or remove as per user request (교체해줘)
+                drill_ids: [],
+                sparringIds,
+                sparring_ids: sparringIds,
+                createdAt: bundle.created_at
+            };
+        });
 
         return { data: bundles, error: null };
     } catch (e) {
@@ -3353,7 +3476,7 @@ export async function createBundle(bundle: {
     price: number;
     thumbnailUrl?: string;
     courseIds?: string[];
-    drillIds?: string[];
+    routineIds?: string[];
     sparringIds?: string[];
 }) {
     // 1. Create bundle
@@ -3385,18 +3508,18 @@ export async function createBundle(bundle: {
         if (coursesError) return { error: coursesError };
     }
 
-    // 3. Add drills to bundle
-    if (bundle.drillIds && bundle.drillIds.length > 0) {
-        const bundleDrills = bundle.drillIds.map(drillId => ({
+    // 3. Add routines to bundle
+    if (bundle.routineIds && bundle.routineIds.length > 0) {
+        const bundleRoutines = bundle.routineIds.map(routineId => ({
             bundle_id: newBundle.id,
-            drill_id: drillId
+            routine_id: routineId
         }));
 
-        const { error: drillsError } = await supabase
-            .from('bundle_drills')
-            .insert(bundleDrills);
+        const { error: routinesError } = await supabase
+            .from('bundle_routines')
+            .insert(bundleRoutines);
 
-        if (drillsError) return { error: drillsError };
+        if (routinesError) return { error: routinesError };
     }
 
     // 4. Add sparring videos to bundle
@@ -3456,18 +3579,18 @@ export async function updateBundle(id: string, bundle: Partial<Bundle>) {
         }
     }
 
-    // Update bundle drills if provided
-    if (bundle.drillIds !== undefined) {
-        // Delete existing drills
-        await supabase.from('bundle_drills').delete().eq('bundle_id', id);
+    // Update bundle routines if provided
+    if (bundle.routineIds !== undefined) {
+        // Delete existing routines
+        await supabase.from('bundle_routines').delete().eq('bundle_id', id);
         // Insert new ones if any
-        if (bundle.drillIds.length > 0) {
-            const bundleDrills = bundle.drillIds.map(drill_id => ({
+        if (bundle.routineIds.length > 0) {
+            const bundleRoutines = bundle.routineIds.map(routine_id => ({
                 bundle_id: id,
-                drill_id
+                routine_id
             }));
-            const { error: drillsError } = await supabase.from('bundle_drills').insert(bundleDrills);
-            if (drillsError) return { error: drillsError };
+            const { error: routinesError } = await supabase.from('bundle_routines').insert(bundleRoutines);
+            if (routinesError) return { error: routinesError };
         }
     }
 
@@ -3699,6 +3822,67 @@ export async function updateFeedbackSettings(instructorId: string, settings: Par
 }
 
 /**
+ * Get instructors available for feedback
+ */
+export async function getAvailableInstructorsForFeedback() {
+    try {
+        // Step 1: Get enabled feedback settings
+        const { data: feedbackSettings, error: settingsError } = await supabase
+            .from('feedback_settings')
+            .select('id, instructor_id, enabled, price, turnaround_days, max_active_requests')
+            .eq('enabled', true);
+
+        console.log('Step 1 - Feedback Settings:', { feedbackSettings, settingsError });
+
+        if (settingsError) {
+            console.error('Step 1 Error:', settingsError);
+            return { data: null, error: settingsError };
+        }
+        if (!feedbackSettings || feedbackSettings.length === 0) {
+            console.log('No feedback settings found');
+            return { data: [], error: null };
+        }
+
+        // Step 2: Get instructor details for each feedback setting
+        const instructorIds = feedbackSettings.map((fs: any) => fs.instructor_id);
+        console.log('Step 2 - Instructor IDs:', instructorIds);
+
+        const { data: instructors, error: instructorError } = await supabase
+            .from('creators')
+            .select('id, name, profile_image, bio')
+            .in('id', instructorIds);
+
+        console.log('Step 2 - Instructors:', { instructors, instructorError });
+
+        if (instructorError) {
+            console.error('Step 2 Error:', instructorError);
+            return { data: null, error: instructorError };
+        }
+
+        // Step 3: Merge the data
+        const result = feedbackSettings.map((setting: any) => {
+            const instructor = instructors?.find((i: any) => i.id === setting.instructor_id);
+            return {
+                ...instructor,
+                feedbackSettings: {
+                    id: setting.id,
+                    enabled: setting.enabled,
+                    price: setting.price,
+                    turnaroundDays: setting.turnaround_days,
+                    maxActiveRequests: setting.max_active_requests
+                }
+            };
+        });
+
+        console.log('Step 3 - Final Result:', result);
+        return { data: result, error: null };
+    } catch (err) {
+        console.error('getAvailableInstructorsForFeedback error:', err);
+        return { data: null, error: err };
+    }
+}
+
+/**
  * Create a feedback request
  */
 export async function createFeedbackRequest(request: {
@@ -3753,6 +3937,7 @@ export async function getFeedbackRequests(userId: string, role: 'student' | 'ins
         status: req.status,
         price: req.price,
         feedbackContent: req.feedback_content,
+        responseVideoUrl: req.response_video_url,
         createdAt: req.created_at,
         updatedAt: req.updated_at,
         completedAt: req.completed_at
@@ -3815,11 +4000,12 @@ export async function updateFeedbackStatus(requestId: string, status: 'pending' 
 /**
  * Submit feedback response
  */
-export async function submitFeedbackResponse(requestId: string, content: string) {
+export async function submitFeedbackResponse(requestId: string, content: string, responseVideoUrl?: string) {
     const { error } = await supabase
         .from('feedback_requests')
         .update({
             feedback_content: content,
+            response_video_url: responseVideoUrl,
             status: 'completed',
             completed_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
@@ -3827,6 +4013,57 @@ export async function submitFeedbackResponse(requestId: string, content: string)
         .eq('id', requestId);
 
     return { error };
+}
+
+/**
+ * Delete a feedback request and its associated storage files
+ */
+export async function deleteFeedbackRequest(requestId: string) {
+    try {
+        // 1. Get the request to find video URLs
+        const { data: request, error: fetchError } = await supabase
+            .from('feedback_requests')
+            .select('student_id, video_url, response_video_url')
+            .eq('id', requestId)
+            .single();
+
+        if (fetchError) throw fetchError;
+        if (!request) return { error: new Error('Request not found') };
+
+        // 2. Delete files from storage if they are in our bucket
+        const pathsToDelete: string[] = [];
+
+        // Helper to extract path from public URL
+        const getPathFromUrl = (url: string) => {
+            if (!url.includes('feedback-videos/')) return null;
+            return url.split('feedback-videos/').pop();
+        };
+
+        const studentPath = getPathFromUrl(request.video_url);
+        if (studentPath) pathsToDelete.push(studentPath);
+
+        if (request.response_video_url) {
+            const instructorPath = getPathFromUrl(request.response_video_url);
+            if (instructorPath) pathsToDelete.push(instructorPath);
+        }
+
+        if (pathsToDelete.length > 0) {
+            await supabase.storage
+                .from('feedback-videos')
+                .remove(pathsToDelete);
+        }
+
+        // 3. Delete DB record
+        const { error: deleteError } = await supabase
+            .from('feedback_requests')
+            .delete()
+            .eq('id', requestId);
+
+        return { error: deleteError };
+    } catch (e: any) {
+        console.error('Error in deleteFeedbackRequest:', e);
+        return { error: e };
+    }
 }
 
 
@@ -4687,10 +4924,7 @@ export async function getDrills(creatorId?: string, limit: number = 50, forceRef
     }
 
     // Force cache bypass when explicitly requested (e.g., polling for updates)
-    if (forceRefresh) {
-        query = query.abortSignal(new AbortController().signal);
-    }
-
+    // No-op for now as supabase-js handles this via fetch options if needed
     const { data: drills, error } = await query;
     if (error) {
         console.error('Error fetching drills:', error);
@@ -4719,19 +4953,11 @@ export async function getDrills(creatorId?: string, limit: number = 50, forceRef
 
     return drills.map((drill: any) => {
         const creator = userMap[drill.creator_id];
-        return {
+        return transformDrill({
             ...drill,
-            thumbnailUrl: drill.thumbnail_url, // Ensure field is mapped for frontend
-            vimeoUrl: drill.vimeo_url,
-            descriptionVideoUrl: drill.description_video_url,
-            creatorName: creator?.name || 'Unknown',
-            creatorProfileImage: creator?.avatar_url,
-            durationMinutes: drill.duration_minutes || 0,
-            views: drill.views || 0,
-            likes: drill.likes || 0,
-            createdAt: drill.created_at,
-            relatedItems: drill.related_items || []
-        };
+            creator_name: creator?.name,
+            creator: creator // transformDrill expects creator object for some fields
+        });
     });
 }
 
@@ -4748,22 +4974,24 @@ export async function createDrill(drillData: Partial<Drill>) {
         description_video_url: drillData.descriptionVideoUrl,
         duration_minutes: drillData.durationMinutes,
         uniform_type: drillData.uniformType,
-        length: drillData.length,
+        // duration: drillData.length || drillData.duration, // Column doesn't exist in DB
         related_items: drillData.relatedItems || [],
         related_lesson_id: drillData.relatedLessonId,
     };
 
-    // Auto-fetch Vimeo info if vimeo_url exists
-    if (dbData.vimeo_url) {
+    // Auto-fetch Vimeo info if vimeo_url exists and thumbnail is missing
+    // Only fetch if we actually need the info (thumbnail or duration is missing)
+    if (dbData.vimeo_url && (!dbData.thumbnail_url || !dbData.duration_minutes)) {
         try {
             const videoInfo = await getVimeoVideoInfo(dbData.vimeo_url);
             if (videoInfo) {
                 if (!dbData.thumbnail_url) dbData.thumbnail_url = videoInfo.thumbnail;
                 if (!dbData.duration_minutes) dbData.duration_minutes = Math.floor(videoInfo.duration / 60);
-                if (!dbData.length) dbData.length = formatDuration(videoInfo.duration);
+                // if (!dbData.duration) dbData.duration = formatDuration(videoInfo.duration); // Column doesn't exist
             }
         } catch (err) {
             console.warn('Failed to auto-fetch Vimeo info for drill:', err);
+            // Don't fail the entire operation if Vimeo API fails
         }
     }
 
@@ -4810,21 +5038,23 @@ export async function updateDrill(drillId: string, drillData: Partial<Drill>) {
     if (drillData.descriptionVideoUrl) dbData.description_video_url = drillData.descriptionVideoUrl;
     if (drillData.durationMinutes !== undefined) dbData.duration_minutes = drillData.durationMinutes;
     if (drillData.uniformType) dbData.uniform_type = drillData.uniformType;
-    if (drillData.length) dbData.length = drillData.length;
+    // if (drillData.length || drillData.duration) dbData.duration = drillData.length || drillData.duration; // Column doesn't exist
     if (drillData.relatedItems !== undefined) dbData.related_items = drillData.relatedItems;
     if (drillData.relatedLessonId !== undefined) dbData.related_lesson_id = drillData.relatedLessonId || null;
 
-    // If vimeoUrl changed, fetch info
-    if (drillData.vimeoUrl) {
+    // If vimeoUrl changed and we need video info, fetch it
+    // Only fetch if we actually need the info (thumbnail or duration is missing)
+    if (drillData.vimeoUrl && (!drillData.thumbnailUrl || !drillData.durationMinutes)) {
         try {
             const videoInfo = await getVimeoVideoInfo(drillData.vimeoUrl);
             if (videoInfo) {
                 if (!drillData.thumbnailUrl) dbData.thumbnail_url = videoInfo.thumbnail;
                 if (!drillData.durationMinutes) dbData.duration_minutes = Math.floor(videoInfo.duration / 60);
-                if (!drillData.length) dbData.length = formatDuration(videoInfo.duration);
+                // if (!drillData.length && !drillData.duration) dbData.duration = formatDuration(videoInfo.duration); // Column doesn't exist
             }
         } catch (err) {
             console.warn('Failed to auto-fetch updated drill Vimeo info:', err);
+            // Don't fail the entire operation if Vimeo API fails
         }
     }
 
@@ -4914,6 +5144,7 @@ export async function createSparringVideo(videoData: Partial<SparringVideo>) {
         is_published: false,
         duration_minutes: videoData.durationMinutes,
         length: videoData.length,
+        status: 'draft',
     };
 
     // Auto-fetch Vimeo info
@@ -5921,7 +6152,8 @@ export async function createRoutine(routineData: Partial<DrillRoutine>, drillIds
         total_duration_minutes: routineData.totalDurationMinutes || 0,
         related_items: routineData.relatedItems || [],
         uniform_type: routineData.uniformType,
-        drill_count: drillIds.length
+        drill_count: drillIds.length,
+        status: 'draft',
     };
 
     const { data: routine, error: routineError } = await withTimeout(
@@ -6165,7 +6397,14 @@ export async function getUserRoutines(userId: string) {
 export async function getUserCreatedRoutines(userId: string) {
     const { data, error } = await supabase
         .from('routines')
-        .select('*')
+        .select(`
+            *,
+            creators (
+                id,
+                name,
+                profile_image
+            )
+        `)
         .eq('creator_id', userId);
 
     if (error) {
@@ -6173,22 +6412,16 @@ export async function getUserCreatedRoutines(userId: string) {
         return { data: [], error };
     }
 
-    // Fetch user details
-    const { data: userData } = await supabase
-        .from('users')
-        .select('name, avatar_url')
-        .eq('id', userId)
-        .maybeSingle();
-
     const routines = data.map((routine: any) => ({
         ...transformDrillRoutine(routine),
-        creatorName: userData?.name || 'Me',
-        creatorProfileImage: userData?.avatar_url,
+        creatorName: routine.creators?.name || 'Unknown',
+        creatorProfileImage: routine.creators?.profile_image,
         isOwned: true
     }));
 
     return { data: routines as DrillRoutine[], error: null };
 }
+
 
 // Get random sample routines for non-logged-in users
 export async function getRandomSampleRoutines(limit: number = 1) {
@@ -7875,6 +8108,23 @@ export async function cancelSubscription(subscriptionId: string) {
 }
 
 /**
+ * Calculate upgrade proration and prepare subscription upgrade
+ * Handles monthly to yearly upgrade with credit calculation
+ */
+export async function calculateUpgradeProration(subscriptionId: string) {
+    const { data, error } = await supabase.functions.invoke('upgrade-subscription', {
+        body: { currentSubscriptionId: subscriptionId }
+    });
+
+    if (error) {
+        console.error('Error calculating upgrade proration:', error);
+        throw error;
+    }
+
+    return data;
+}
+
+/**
  * Get user's active subscription
  */
 export async function getUserSubscription(userId: string) {
@@ -8340,6 +8590,43 @@ export async function getLessonHistory(userId: string) {
     }
 }
 
+
+// ============================================================================
+// Content Publishing Request
+// ============================================================================
+
+export async function requestCoursePublishing(courseId: string) {
+    const { data, error } = await supabase
+        .from('courses')
+        .update({ status: 'pending' })
+        .eq('id', courseId)
+        .select()
+        .single();
+
+    return { data, error };
+}
+
+export async function requestSparringPublishing(sparringId: string) {
+    const { data, error } = await supabase
+        .from('sparring_videos')
+        .update({ status: 'pending' })
+        .eq('id', sparringId)
+        .select()
+        .single();
+
+    return { data, error };
+}
+
+export async function requestRoutinePublishing(routineId: string) {
+    const { data, error } = await supabase
+        .from('routines')
+        .update({ status: 'pending' })
+        .eq('id', routineId)
+        .select()
+        .single();
+
+    return { data, error };
+}
 
 // ============================================================================
 // User Interactions (Save/Like/View) - New Unified System

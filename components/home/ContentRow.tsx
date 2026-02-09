@@ -16,7 +16,7 @@ const ShareModal = lazy(() => import('../social/ShareModal'));
 
 interface ContentRowItemProps {
     item: any;
-    type: 'course' | 'routine' | 'sparring' | 'lesson' | 'chain';
+    type: 'course' | 'routine' | 'sparring' | 'lesson' | 'chain' | 'weekly-routine';
     variant: 'ranking' | 'standard';
     idx: number;
     cardClass: string;
@@ -99,7 +99,7 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
 
 
             {/* Save — top-right */}
-            {type !== 'chain' && (
+            {(type !== 'chain' && type !== 'weekly-routine') && (
                 <button
                     className={cn(
                         "absolute top-2 right-2 z-30 p-1.5 rounded-full bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all duration-200 hover:bg-white",
@@ -250,7 +250,7 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
 
 interface ContentRowProps {
     items: any[];
-    type: 'course' | 'routine' | 'sparring' | 'lesson' | 'chain';
+    type: 'course' | 'routine' | 'sparring' | 'lesson' | 'chain' | 'weekly-routine';
     title: string;
     subtitle?: string;
     variant?: 'ranking' | 'standard';
@@ -277,6 +277,7 @@ export const ContentRow: React.FC<ContentRowProps> = ({
         else if (type === 'sparring') navigate(`/sparring/${item.id}`);
         else if (type === 'lesson') navigate(`/lessons/${item.id}`);
         else if (type === 'chain') navigate(`/skill-tree?id=${item.id}`);
+        else if (type === 'weekly-routine') navigate(`/training-routines?id=${item.id}`);
     };
 
     const getThumbnail = (item: any) => {
@@ -289,7 +290,7 @@ export const ContentRow: React.FC<ContentRowProps> = ({
 
     const getSubtitle = (item: any) => {
         if (type === 'course') return item.creatorName;
-        if (type === 'routine') return item.creatorName || (item.creator ? (item.creator as any).name : 'Grapplay Team');
+        if (type === 'routine' || type === 'weekly-routine') return item.creatorName || (item.creator ? (item.creator as any).name : 'Grapplay Team');
         if (type === 'sparring') return (item.creator as any)?.name || item.creatorName || 'Sparring Video';
         return '';
     };
@@ -297,7 +298,7 @@ export const ContentRow: React.FC<ContentRowProps> = ({
     const getCardStyle = () => {
         if (type === 'course' || type === 'lesson') return 'w-[280px] md:w-[320px] aspect-video mr-0';
         if (type === 'routine') return 'w-[160px] md:w-[170px] aspect-[2/3] mr-0';
-        if (type === 'sparring' || type === 'chain') return 'w-[158px] md:w-[180px] aspect-square mr-0';
+        if (type === 'sparring' || type === 'chain' || type === 'weekly-routine') return 'w-[158px] md:w-[180px] aspect-square mr-0';
         return 'w-[260px] md:w-[320px] aspect-video';
     };
 

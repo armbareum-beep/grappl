@@ -15,9 +15,10 @@ import { LoadingScreen } from '../components/LoadingScreen';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { listUserSkillTrees } from '../lib/api-skill-tree';
-import { Course, DrillRoutine, SparringVideo, UserSkillTree, Lesson } from '../types';
+import { listUserWeeklyRoutinePlans } from '../lib/api-weekly-routine';
+import { Course, DrillRoutine, SparringVideo, UserSkillTree, Lesson, WeeklyRoutinePlan } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { Bookmark, Network } from 'lucide-react';
+import { Bookmark, Network, Video, Clock } from 'lucide-react';
 import { Button } from '../components/Button';
 import { ContentRow } from '../components/home/ContentRow';
 
@@ -37,6 +38,7 @@ export const MyLibrary: React.FC = () => {
   const [chains, setChains] = useState<UserSkillTree[]>([]);
   const [mySparring, setMySparring] = useState<SparringVideo[]>([]);
   const [weeklySchedule, setWeeklySchedule] = useState<Record<string, DrillRoutine[]>>({});
+  const [weeklyRoutines, setWeeklyRoutines] = useState<WeeklyRoutinePlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,15 +53,26 @@ export const MyLibrary: React.FC = () => {
         setError(null);
         setLoading(true);
 
-        const [ownedCoursesData, savedCoursesData, savedLessonsData, savedRoutinesData, personalRoutinesData, savedSparringData, purchasedSparringData, chainsData] = await Promise.all([
+        const [
+          ownedCoursesData,
+          savedCoursesData,
+          personalRoutinesData,
+          savedRoutinesData,
+          savedLessonsData,
+          savedSparringData,
+          purchasedSparringData,
+          chainsData,
+          weeklyRoutinesData
+        ] = await Promise.all([
           getUserCourses(user.id),
           getUserSavedCourses(user.id),
-          getUserSavedLessons(user.id),
-          getUserSavedRoutines(user.id),
           getUserRoutines(user.id),
+          getUserSavedRoutines(user.id),
+          getUserSavedLessons(user.id),
           getSavedSparringVideos(user.id),
           getPurchasedSparringVideos(user.id),
-          listUserSkillTrees(user.id)
+          listUserSkillTrees(user.id),
+          listUserWeeklyRoutinePlans(user.id)
         ]);
 
         // Process Courses with progress
@@ -105,6 +118,7 @@ export const MyLibrary: React.FC = () => {
         setMySparring(sparring);
 
         setChains((chainsData as any).data || []);
+        setWeeklyRoutines((weeklyRoutinesData as any).data || []);
 
         // Weekly Schedule
         const schedule: Record<string, DrillRoutine[]> = {};
@@ -117,7 +131,6 @@ export const MyLibrary: React.FC = () => {
           }
         });
         setWeeklySchedule(schedule);
-
       } catch (err) {
         console.error('Error fetching library:', err);
         setError('데이터를 불러오는 중 오류가 발생했습니다.');
@@ -206,6 +219,17 @@ export const MyLibrary: React.FC = () => {
             items={chains}
             type="chain"
             basePath="/saved/roadmaps"
+          />
+        )}
+
+        {/* Row 5: Weekly Routines */}
+        {weeklyRoutines.length > 0 && (
+          <ContentRow
+            title="Weekly Routine"
+            subtitle="내가 계획한 주간 훈련 일정"
+            items={weeklyRoutines}
+            type="weekly-routine"
+            basePath="/arena"
           />
         )}
 

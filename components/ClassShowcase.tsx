@@ -201,13 +201,13 @@ export const ClassShowcase: React.FC<ClassShowcaseProps> = ({ title, subtitle })
                                             </div>
 
                                             {/* Overlay Content (Desktop Only) - fade out when playing */}
-                                            <div className={`hidden md:block absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none transition-opacity duration-500 opacity-100`}></div>
+                                            <div className={`hidden md:block absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none transition-opacity duration-500 ${isPlaying ? 'opacity-0' : 'opacity-100'}`}></div>
 
                                             {/* Info - Bottom Left (Responsive) - fade out when playing */}
-                                            <div className={`relative p-6 md:absolute md:bottom-0 md:left-0 md:right-0 md:p-12 z-20 pointer-events-none transition-opacity duration-500 opacity-100`}>
+                                            <div className={`relative p-6 md:absolute md:bottom-0 md:left-0 md:right-0 md:p-12 z-20 pointer-events-none transition-opacity duration-500 ${isPlaying ? 'opacity-0' : 'opacity-100'}`}>
                                                 <div className="max-w-3xl text-left">
                                                     <h3
-                                                        className="text-xl md:text-5xl font-black text-white mb-2 md:mb-4 line-clamp-2 drop-shadow-2xl break-keep cursor-pointer hover:text-violet-400 transition-colors pointer-events-auto"
+                                                        className="text-xl md:text-3xl font-black text-white mb-2 md:mb-4 line-clamp-2 drop-shadow-2xl break-keep cursor-pointer hover:text-violet-400 transition-colors pointer-events-auto"
                                                         onClick={() => navigate(`/courses/${course.id}`)}
                                                     >
                                                         {course.title}

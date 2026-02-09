@@ -183,7 +183,7 @@ export const Browse: React.FC<{
   const difficulties = ['All', 'Beginner', 'Intermediate', 'Advanced'];
   const uniforms = ['All', 'Gi', 'No-Gi'];
 
-  if (loading && courses.length === 0) {
+  if (loading && processedCourses.length === 0) {
     return (
       <LoadingScreen message="클래스 목록을 불러오고 있습니다..." />
     );

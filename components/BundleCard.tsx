@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bundle } from '../types';
-import { Package, BookOpen, ArrowRight, Zap } from 'lucide-react';
+import { Package, BookOpen, ArrowRight, List } from 'lucide-react';
 import { BundleDetailModal } from './BundleDetailModal';
 
 interface BundleCardProps {
@@ -12,9 +12,10 @@ export const BundleCard: React.FC<BundleCardProps> = ({ bundle }) => {
     const navigate = useNavigate();
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    const courseCount = bundle.course_ids?.length || 0;
-    const drillCount = bundle.drill_ids?.length || 0;
-    const totalItems = courseCount + drillCount;
+    const courseCount = bundle.course_ids?.length || bundle.courseIds?.length || 0;
+    const routineCount = bundle.routine_ids?.length || bundle.routineIds?.length || 0;
+    const sparringCount = bundle.sparring_ids?.length || bundle.sparringIds?.length || 0;
+    const totalItems = courseCount + routineCount + sparringCount;
 
     const handlePurchase = () => {
         setIsModalOpen(false);
@@ -42,7 +43,7 @@ export const BundleCard: React.FC<BundleCardProps> = ({ bundle }) => {
 
                     {/* Title */}
                     <h3 className="text-xl font-bold text-white mb-3 group-hover:text-violet-400 transition-colors line-clamp-2">
-                        {bundle.name}
+                        {bundle.title || bundle.name}
                     </h3>
 
                     {/* Description */}
@@ -58,10 +59,16 @@ export const BundleCard: React.FC<BundleCardProps> = ({ bundle }) => {
                                 <span>강좌 {courseCount}개</span>
                             </div>
                         )}
-                        {drillCount > 0 && (
+                        {routineCount > 0 && (
                             <div className="flex items-center gap-1">
-                                <Zap className="w-3 h-3" />
-                                <span>드릴 {drillCount}개</span>
+                                <List className="w-3 h-3" />
+                                <span>루틴 {routineCount}개</span>
+                            </div>
+                        )}
+                        {sparringCount > 0 && (
+                            <div className="flex items-center gap-1">
+                                <Package className="w-3 h-3" />
+                                <span>스파링 {sparringCount}개</span>
                             </div>
                         )}
                     </div>
@@ -70,9 +77,21 @@ export const BundleCard: React.FC<BundleCardProps> = ({ bundle }) => {
                     <div className="pt-4 border-t border-zinc-800/50 flex items-center justify-between">
                         <div>
                             <p className="text-xs text-zinc-500 mb-1">번들 할인가</p>
-                            <p className="text-2xl font-black text-white">
-                                ₩{bundle.price.toLocaleString()}
-                            </p>
+                            <div className="flex items-baseline gap-2">
+                                <p className="text-2xl font-black text-white">
+                                    ₩{bundle.price.toLocaleString()}
+                                </p>
+                                {bundle.originalPrice && bundle.originalPrice > bundle.price && (
+                                    <div className="flex flex-col">
+                                        <p className="text-xs text-zinc-500 line-through">
+                                            ₩{bundle.originalPrice.toLocaleString()}
+                                        </p>
+                                        <p className="text-xs font-bold text-red-500">
+                                            {bundle.discountPercent}% OFF
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         <div className="flex items-center gap-2 text-violet-400 font-semibold text-sm group-hover:gap-3 transition-all">
                             자세히 보기

@@ -33,9 +33,9 @@ export const AdminUserDetail: React.FC = () => {
     return (
         <div className="min-h-screen bg-zinc-950 text-white pb-20">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                <button onClick={() => navigate('/admin/users')} className="flex items-center gap-2 text-zinc-500 hover:text-white mb-8 transition-colors group">
+                <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-zinc-500 hover:text-white mb-8 transition-colors group">
                     <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                    <span className="text-sm font-medium">사용자 목록으로 돌아가기</span>
+                    <span className="text-sm font-medium">뒤로가기</span>
                 </button>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">

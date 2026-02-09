@@ -14,22 +14,32 @@ export interface AdminStats {
     totalCreators: number;
     totalCourses: number;
     totalSparring: number;
+    totalRoutines: number;
+    totalSubscribers: number;
 }
 
 export const getAdminStats = async (): Promise<AdminStats> => {
     try {
-        const { data, error } = await supabase.rpc('get_admin_dashboard_stats');
+        const [rpcResult, routinesResult, subscribersResult] = await Promise.all([
+            supabase.rpc('get_admin_dashboard_stats'),
+            supabase.from('routines').select('id', { count: 'exact', head: true }),
+            supabase.from('subscriptions').select('id', { count: 'exact', head: true }).eq('status', 'active')
+        ]);
 
-        if (error) {
-            console.error('Error fetching admin stats:', error);
-            throw error;
+        if (rpcResult.error) {
+            console.error('Error fetching admin stats:', rpcResult.error);
+            throw rpcResult.error;
         }
 
-        // RPC returns the exact object shape we need, no transformation needed
-        return data as AdminStats;
+        const baseStats = rpcResult.data;
+        return {
+            ...baseStats,
+            totalRoutines: routinesResult.count || 0,
+            totalSubscribers: subscribersResult.count || 0
+        } as AdminStats;
     } catch (error) {
         console.error('Error fetching admin stats:', error);
-        return { totalUsers: 0, totalDrills: 0, pendingCreators: 0, totalCreators: 0, totalCourses: 0, totalSparring: 0 };
+        return { totalUsers: 0, totalDrills: 0, pendingCreators: 0, totalCreators: 0, totalCourses: 0, totalSparring: 0, totalRoutines: 0, totalSubscribers: 0 };
     }
 };
 
@@ -109,7 +119,8 @@ export async function deleteDrill(drillId: string) {
 }
 
 export async function getRoutines() {
-    const { data, error } = await supabase
+    // First, get all routines
+    const { data: routines, error } = await supabase
         .from('routines')
         .select('*')
         .order('created_at', { ascending: false });
@@ -118,7 +129,45 @@ export async function getRoutines() {
         console.error('Error fetching routines:', error);
         return [];
     }
-    return data || [];
+
+    if (!routines || routines.length === 0) {
+        return [];
+    }
+
+    // Get unique creator IDs
+    const creatorIds = [...new Set(routines.map((r: any) => r.creator_id).filter(Boolean))];
+
+    // Fetch creators info
+    let creatorsMap: Record<string, { name: string, profile_image?: string }> = {};
+
+    if (creatorIds.length > 0) {
+        const { data: creators } = await supabase
+            .from('creators')
+            .select('id, name, profile_image')
+            .in('id', creatorIds);
+
+        if (creators) {
+            creatorsMap = creators.reduce((acc: any, creator: any) => {
+                acc[creator.id] = {
+                    name: creator.name,
+                    profile_image: creator.profile_image
+                };
+                return acc;
+            }, {});
+        }
+    }
+
+    // Combine data
+    const enrichedRoutines = routines.map((routine: any) => {
+        const creator = creatorsMap[routine.creator_id];
+        return {
+            ...routine,
+            creatorName: creator?.name || 'Unknown',
+            creatorProfileImage: creator?.profile_image
+        };
+    });
+
+    return enrichedRoutines;
 }
 
 export async function deleteRoutine(routineId: string) {
@@ -136,7 +185,10 @@ export async function getLessonsAdmin() {
         .from('lessons')
         .select(`
             *,
-            course:courses(title)
+            course:courses(
+                title,
+                creator:creators(name)
+            )
         `)
         .order('created_at', { ascending: false });
 
@@ -164,12 +216,10 @@ export async function updateLessonAdmin(lessonId: string, updates: any) {
 }
 
 export async function getSparringVideosAdmin(): Promise<any[]> {
+    // Admin API: fetch ALL sparring videos regardless of is_published status
     const { data, error } = await supabase
         .from('sparring_videos')
-        .select(`
-            *,
-            creator:creators(name, profile_image)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
     if (error) {
@@ -178,23 +228,34 @@ export async function getSparringVideosAdmin(): Promise<any[]> {
         return [];
     }
 
+    // Fetch creator info separately
+    const creatorIds = [...new Set((data || []).map(v => v.creator_id).filter(Boolean))];
+    const { data: creators } = creatorIds.length > 0
+        ? await supabase.from('creators').select('id, name, profile_image').in('id', creatorIds)
+        : { data: [] };
+
+    const creatorMap = new Map((creators || []).map(c => [c.id, c]));
+
     // Transform to frontend-friendly camelCase
-    return (data || []).map(row => ({
-        ...row,
-        creatorId: row.creator_id,
-        videoUrl: row.video_url,
-        thumbnailUrl: row.thumbnail_url,
-        uniformType: row.uniform_type,
-        isPublished: row.is_published,
-        previewVimeoId: row.preview_vimeo_id,
-        createdAt: row.created_at,
-        price: typeof row.price === 'string' ? parseInt(row.price) : (row.price || 0),
-        creator: row.creator ? {
-            id: row.creator_id,
-            name: (row.creator as any).name,
-            profileImage: (row.creator as any).profile_image
-        } : null
-    }));
+    return (data || []).map(row => {
+        const creator = creatorMap.get(row.creator_id);
+        return {
+            ...row,
+            creatorId: row.creator_id,
+            videoUrl: row.video_url,
+            thumbnailUrl: row.thumbnail_url,
+            uniformType: row.uniform_type,
+            isPublished: row.is_published,
+            previewVimeoId: row.preview_vimeo_id,
+            createdAt: row.created_at,
+            price: typeof row.price === 'string' ? parseInt(row.price) : (row.price || 0),
+            creator: creator ? {
+                id: creator.id,
+                name: creator.name,
+                profileImage: creator.profile_image
+            } : null
+        };
+    });
 }
 
 export async function deleteSparringVideoAdmin(videoId: string) {
@@ -570,25 +631,63 @@ export async function getAdminRecentActivity() {
 
 export async function getAdminTopPerformers() {
     try {
-        const [topCourses, topCreators] = await Promise.all([
-            supabase.from('courses').select('id, title, views, creator:creators(name)').order('views', { ascending: false }).limit(5),
-            supabase.from('creators').select('id, name, subscriber_count').order('subscriber_count', { ascending: false }).limit(5)
-        ]);
+        // Fetch top courses by views
+        const topCourses = await supabase
+            .from('courses')
+            .select('id, title, views, creator:creators(name)')
+            .order('views', { ascending: false })
+            .limit(5);
+
+        // Fetch creators with their revenue from settlements
+        const { data: settlements } = await supabase
+            .from('creator_monthly_settlements')
+            .select('creator_id, creator_name, total_revenue')
+            .order('total_revenue', { ascending: false });
+
+        // Aggregate revenue by creator
+        const creatorRevenueMap = new Map<string, { name: string; revenue: number }>();
+        settlements?.forEach(s => {
+            const existing = creatorRevenueMap.get(s.creator_id);
+            if (existing) {
+                existing.revenue += s.total_revenue || 0;
+            } else {
+                creatorRevenueMap.set(s.creator_id, {
+                    name: s.creator_name,
+                    revenue: s.total_revenue || 0
+                });
+            }
+        });
+
+        // Get top 5 creators by revenue
+        const topCreatorsByRevenue = Array.from(creatorRevenueMap.entries())
+            .sort((a, b) => b[1].revenue - a[1].revenue)
+            .slice(0, 5);
+
+        // Fetch subscriber counts for these creators
+        const creatorIds = topCreatorsByRevenue.map(([id]) => id);
+        const { data: creatorDetails } = await supabase
+            .from('creators')
+            .select('id, subscriber_count')
+            .in('id', creatorIds.length > 0 ? creatorIds : ['']);
+
+        const subscriberMap = new Map<string, number>();
+        creatorDetails?.forEach(c => subscriberMap.set(c.id, c.subscriber_count || 0));
 
         return {
             courses: topCourses.data?.map(c => ({
                 id: c.id,
                 title: c.title,
-                salesCount: c.views, // Using views as a proxy for popularity, not sales
-                revenue: 0, // Real revenue requires ledger data which is currently empty
+                views: c.views || 0,
+                salesCount: c.views || 0,
+                revenue: 0,
                 instructor: (c.creator as any)?.name
             })) || [],
-            creators: topCreators.data?.map(cr => ({
-                id: cr.id,
-                name: cr.name,
-                subscribers: cr.subscriber_count,
-                revenue: 0 // Real revenue requires ledger data which is currently empty
-            })) || []
+            creators: topCreatorsByRevenue.map(([id, data]) => ({
+                id,
+                name: data.name,
+                subscribers: subscriberMap.get(id) || 0,
+                revenue: data.revenue
+            }))
         };
     } catch (error) {
         console.error('Error fetching top performers:', error);
@@ -970,6 +1069,26 @@ export async function approveContent(id: string, type: 'course' | 'drill' | 'spa
             }
         }
     }
+
+    return { data, error };
+}
+
+// ==================== Content Publishing Request ====================
+
+export async function requestContentPublishing(id: string, type: 'course' | 'drill' | 'sparring' | 'lesson') {
+    const tableMap = {
+        'course': 'courses',
+        'drill': 'drills',
+        'sparring': 'sparring_videos',
+        'lesson': 'lessons'
+    };
+
+    const { data, error } = await supabase
+        .from(tableMap[type])
+        .update({ status: 'pending' })
+        .eq('id', id)
+        .select()
+        .single();
 
     return { data, error };
 }

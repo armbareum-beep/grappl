@@ -13,8 +13,8 @@ export function transformLesson(data: any): Lesson {
         description: data.description,
         category: data.category,
         lessonNumber: data.lesson_number,
-        vimeoUrl: data.vimeo_url,
-        videoUrl: data.video_url,
+        vimeoUrl: data.vimeo_url || data.action_video,
+        videoUrl: data.video_url || data.action_video,
         thumbnailUrl: data.thumbnail_url || data.course?.thumbnail_url,
         courseTitle: data.course?.title,
         length: data.length,
@@ -231,5 +231,3 @@ export async function getStandaloneLessons(creatorId?: string) {
     return { data: (data || []).map(transformLesson), error };
 
 }
-
-

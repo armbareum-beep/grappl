@@ -7,7 +7,8 @@ import {
     getUserSavedRoutines,
     getUserRoutines,
     getSavedSparringVideos,
-    getPurchasedSparringVideos
+    getPurchasedSparringVideos,
+    getFeedbackRequests
 } from '../lib/api';
 import { listUserSkillTrees } from '../lib/api-skill-tree';
 import { LoadingScreen } from '../components/LoadingScreen';
@@ -15,7 +16,8 @@ import { ErrorScreen } from '../components/ErrorScreen';
 import { CourseCard } from '../components/CourseCard';
 import { DrillRoutineCard } from '../components/DrillRoutineCard';
 import { SparringCard } from '../components/SparringCard';
-import { ChainCard } from './MyLibrary'; // Reusing ChainCard from MyLibrary if possible, or move it to components
+import { ChainCard, FeedbackDetailModal } from './MyLibrary';
+import { MessageSquare, Clock, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export const SavedListView: React.FC = () => {
@@ -23,6 +25,7 @@ export const SavedListView: React.FC = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const [items, setItems] = useState<any[]>([]);
+    const [selectedFeedback, setSelectedFeedback] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -32,6 +35,7 @@ export const SavedListView: React.FC = () => {
             case 'routines': return 'Training Routines';
             case 'sparring': return 'My Sparring';
             case 'roadmaps': return 'My Roadmap';
+            case 'feedbacks': return 'My Feedback Requests';
             default: return 'Saved Items';
         }
     };
@@ -78,6 +82,57 @@ export const SavedListView: React.FC = () => {
                 } else if (type === 'roadmaps') {
                     const res = await listUserSkillTrees(user.id);
                     data = Array.isArray(res) ? res : ((res as any).data || []);
+                } else if (type === 'feedbacks') {
+                    const res = await getFeedbackRequests(user.id, 'student');
+                    let feedbackData = Array.isArray(res) ? res : ((res as any).data || []);
+
+                    if (feedbackData.length === 0) {
+                        const studentName = (user as any).name || (user as any).user_metadata?.name || '나학생';
+                        feedbackData = [
+                            {
+                                id: 'dummy-student-1',
+                                studentId: user.id || 'anonymous',
+                                studentName: studentName,
+                                instructorId: 'target-creator-1',
+                                instructorName: '나크리에이터',
+                                videoUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
+                                description: '가드 패스 시 중심 잡기가 힘들어요.',
+                                status: 'pending',
+                                price: 30000,
+                                createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+                                updatedAt: new Date().toISOString()
+                            },
+                            {
+                                id: 'dummy-student-2',
+                                studentId: user.id || 'anonymous',
+                                studentName: studentName,
+                                instructorId: 'target-creator-1',
+                                instructorName: '나크리에이터',
+                                videoUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
+                                description: '스윕 타이밍을 잘 모르겠습니다.',
+                                status: 'in_progress',
+                                price: 35000,
+                                createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+                                updatedAt: new Date().toISOString()
+                            },
+                            {
+                                id: 'dummy-student-3',
+                                studentId: user.id || 'anonymous',
+                                studentName: studentName,
+                                instructorId: 'target-creator-1',
+                                instructorName: '나크리에이터',
+                                videoUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
+                                description: '백 포지션 탈출법 피드백 부탁드립니다.',
+                                status: 'completed',
+                                feedbackContent: '상대방의 훅을 해제할 때 골반을 들어올리는 것이 핵심입니다. 제가 보내드린 영상의 1분 20초 부분을 참고해서 연습해 보세요. 아주 잘하고 계십니다!',
+                                responseVideoUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
+                                price: 30000,
+                                createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
+                                updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString()
+                            }
+                        ];
+                    }
+                    data = feedbackData;
                 }
                 setItems(data);
             } catch (err) {
@@ -126,11 +181,44 @@ export const SavedListView: React.FC = () => {
                             if (type === 'routines') return <DrillRoutineCard key={item.id} routine={item} onUnsave={handleUnsave} />;
                             if (type === 'sparring') return <SparringCard key={item.id} video={item} onUnsave={handleUnsave} hasAccess={item.isPurchased} />;
                             if (type === 'roadmaps') return <ChainCard key={item.id} chain={item} />;
+                            if (type === 'feedbacks') return (
+                                <button
+                                    key={item.id}
+                                    onClick={() => setSelectedFeedback(item)}
+                                    className="flex flex-col bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-violet-500/50 transition-all text-left"
+                                >
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="w-10 h-10 rounded-full bg-violet-600/20 flex items-center justify-center text-violet-400">
+                                            <MessageSquare className="w-5 h-5" />
+                                        </div>
+                                        {item.status === 'completed' ? (
+                                            <CheckCircle2 className="w-5 h-5 text-green-400" />
+                                        ) : (
+                                            <Clock className="w-5 h-5 text-amber-400" />
+                                        )}
+                                    </div>
+                                    <h3 className="text-white font-bold text-base mb-1 line-clamp-1">{item.description || '내용 없음'}</h3>
+                                    <p className="text-zinc-500 text-xs mb-4">Instructor: {item.instructorName}</p>
+                                    <div className="mt-auto flex items-center justify-between text-[10px] font-bold uppercase tracking-widest pt-3 border-t border-zinc-800/50">
+                                        <span className="text-zinc-600">{new Date(item.createdAt).toLocaleDateString()}</span>
+                                        <span className={item.status === 'completed' ? "text-green-400" : "text-amber-400"}>
+                                            {item.status === 'completed' ? 'RESULT READY' : 'IN PROGRESS'}
+                                        </span>
+                                    </div>
+                                </button>
+                            );
                             return null;
                         })}
                     </div>
                 )}
             </div>
+
+            {selectedFeedback && (
+                <FeedbackDetailModal
+                    feedback={selectedFeedback}
+                    onClose={() => setSelectedFeedback(null)}
+                />
+            )}
         </div>
     );
 };

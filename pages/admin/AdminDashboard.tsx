@@ -20,7 +20,9 @@ export const AdminDashboard: React.FC = () => {
         pendingCreators: 0,
         totalCreators: 0,
         totalCourses: 0,
-        totalSparring: 0
+        totalSparring: 0,
+        totalRoutines: 0,
+        totalSubscribers: 0
     });
     const [chartData, setChartData] = useState<{ salesData: any[]; userGrowthData: any[] }>({ salesData: [], userGrowthData: [] });
     const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
@@ -161,13 +163,6 @@ export const AdminDashboard: React.FC = () => {
                     icon: Bell,
                     bg: "bg-orange-400/10",
                     link: "/admin/notifications"
-                },
-                {
-                    title: "시스템 모니터링",
-                    desc: "보안 로그 및 시스템 상태",
-                    icon: Shield,
-                    bg: "bg-red-400/10",
-                    link: "/admin/logs"
                 }
             ]
         },
@@ -305,12 +300,14 @@ export const AdminDashboard: React.FC = () => {
                 </div>
 
                 {/* KPI Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
                     {[
                         { label: '총 사용자', value: stats.totalUsers, icon: Users, color: 'violet' },
-                        { label: '총 강좌', value: stats.totalCourses, icon: BookOpen, color: 'blue' },
+                        { label: '총 클래스', value: stats.totalCourses, icon: BookOpen, color: 'blue' },
+                        { label: '총 루틴', value: stats.totalRoutines, icon: Activity, color: 'cyan' },
+                        { label: '총 스파링', value: stats.totalSparring, icon: Swords, color: 'rose' },
                         { label: '인스트럭터', value: stats.totalCreators, icon: Shield, color: 'purple', alert: stats.pendingCreators > 0 },
-                        { label: '스파링 영상', value: stats.totalSparring, icon: Swords, color: 'rose' }
+                        { label: '총 구독자', value: stats.totalSubscribers, icon: DollarSign, color: 'emerald' }
                     ].map((kpi, i) => (
                         <div key={i} className="bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-6 backdrop-blur-xl hover:border-zinc-700 transition-colors group relative overflow-hidden">
                             <div className="flex items-center justify-between mb-4">
@@ -372,7 +369,7 @@ export const AdminDashboard: React.FC = () => {
                                         <div key={i} className="flex items-center justify-between p-3 bg-zinc-950/50 rounded-xl border border-zinc-800/50 hover:border-zinc-700 transition-all cursor-pointer">
                                             <div>
                                                 <div className="text-sm font-bold text-zinc-100">{course.title}</div>
-                                                <div className="text-[10px] text-zinc-500">{course.instructor} • {course.salesCount}회 판매</div>
+                                                <div className="text-[10px] text-zinc-500">{course.instructor} • 조회수 {(course.views || course.salesCount || 0).toLocaleString()}회</div>
                                             </div>
                                             <div className="text-sm font-mono font-bold text-violet-400">₩{formatCurrency(course.revenue)}</div>
                                         </div>
@@ -445,8 +442,8 @@ export const AdminDashboard: React.FC = () => {
                                 ))}
                             </div>
                             <div className="mt-auto pt-6">
-                                <Link to="/admin/audit-logs" className="flex items-center justify-center gap-2 w-full py-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-xl text-xs font-bold text-zinc-400 transition-all border border-zinc-700/50">
-                                    전체 로그 확인
+                                <Link to="/admin/activity" className="flex items-center justify-center gap-2 w-full py-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-xl text-xs font-bold text-zinc-400 transition-all border border-zinc-700/50">
+                                    전체 활동 보기
                                     <ArrowRight className="w-3 h-3" />
                                 </Link>
                             </div>

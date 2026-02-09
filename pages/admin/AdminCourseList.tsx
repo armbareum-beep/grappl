@@ -1,12 +1,60 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getCourses, deleteCourse } from '../../lib/api';
+import { getCourses, deleteCourse, updateCourse } from '../../lib/api';
 import { Course } from '../../types';
 import { Button } from '../../components/Button';
 import { Trash2, Eye, Search, Plus, ArrowLeft, Edit } from 'lucide-react';
+import { useToast } from '../../contexts/ToastContext';
+
+const EditableCell = ({ value, onSave, type = 'text' }: { value: string | number, onSave: (val: string) => void, type?: 'text' | 'number' }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [localValue, setLocalValue] = useState(String(value));
+
+    useEffect(() => {
+        setLocalValue(String(value));
+    }, [value]);
+
+    const handleSave = () => {
+        setIsEditing(false);
+        if (localValue !== String(value)) {
+            onSave(localValue);
+        }
+    };
+
+    if (isEditing) {
+        return (
+            <input
+                autoFocus
+                type={type}
+                value={localValue}
+                onChange={(e) => setLocalValue(e.target.value)}
+                onBlur={handleSave}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSave();
+                    if (e.key === 'Escape') {
+                        setLocalValue(String(value));
+                        setIsEditing(false);
+                    }
+                }}
+                className="bg-zinc-800 text-white px-2 py-1 rounded border border-zinc-700 w-full max-w-[200px]"
+            />
+        );
+    }
+
+    return (
+        <div
+            onClick={() => setIsEditing(true)}
+            className="cursor-pointer hover:bg-zinc-800/50 px-2 py-1 -mx-2 rounded transition-colors"
+            title="클릭하여 수정"
+        >
+            {type === 'number' ? `₩${Number(value).toLocaleString()}` : value}
+        </div>
+    );
+};
 
 export const AdminCourseList: React.FC = () => {
     const navigate = useNavigate();
+    const { success, error: toastError } = useToast();
     const [courses, setCourses] = useState<Course[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -26,6 +74,19 @@ export const AdminCourseList: React.FC = () => {
         }
     }
 
+    const handleUpdateField = async (courseId: string, field: string, value: string | number) => {
+        try {
+            const { error } = await updateCourse(courseId, { [field]: value });
+            if (error) throw error;
+
+            setCourses(courses.map(c => c.id === courseId ? { ...c, [field]: value } : c));
+            success(`${field === 'title' ? '제목' : '가격'}이 수정되었습니다.`);
+        } catch (error) {
+            console.error('Error updating course:', error);
+            toastError('수정 중 오류가 발생했습니다.');
+        }
+    };
+
     const handleDelete = async (courseId: string) => {
         if (!window.confirm('정말로 이 강좌를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
 
@@ -34,10 +95,10 @@ export const AdminCourseList: React.FC = () => {
             if (error) throw error;
 
             setCourses(courses.filter(c => c.id !== courseId));
-            alert('강좌가 삭제되었습니다.');
+            success('강좌가 삭제되었습니다.');
         } catch (error) {
             console.error('Error deleting course:', error);
-            alert('삭제 중 오류가 발생했습니다.');
+            toastError('삭제 중 오류가 발생했습니다.');
         }
     };
 
@@ -61,11 +122,11 @@ export const AdminCourseList: React.FC = () => {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
                     <div className="space-y-1">
                         <button
-                            onClick={() => navigate('/admin')}
+                            onClick={() => navigate(-1)}
                             className="flex items-center gap-2 text-zinc-500 hover:text-white mb-4 transition-colors group"
                         >
                             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                            <span className="text-sm font-medium">대시보드로 돌아가기</span>
+                            <span className="text-sm font-medium">뒤로가기</span>
                         </button>
                         <h1 className="text-3xl font-extrabold tracking-tight">강좌 관리</h1>
                         <p className="text-zinc-400">등록된 모든 강좌의 데이터를 관리하고 모니터링합니다.</p>
@@ -119,7 +180,12 @@ export const AdminCourseList: React.FC = () => {
                                                         />
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <div className="font-bold text-zinc-100 group-hover:text-violet-400 transition-colors truncate">{course.title}</div>
+                                                        <div className="font-bold text-zinc-100 transition-colors">
+                                                            <EditableCell
+                                                                value={course.title}
+                                                                onSave={(val) => handleUpdateField(course.id, 'title', val)}
+                                                            />
+                                                        </div>
                                                         <div className="text-xs text-zinc-500 mt-0.5">{course.category}</div>
                                                     </div>
                                                 </div>
@@ -133,11 +199,11 @@ export const AdminCourseList: React.FC = () => {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-5 text-sm font-semibold text-zinc-200">
-                                                {course.price === 0 ? (
-                                                    <span className="text-emerald-400">무료</span>
-                                                ) : (
-                                                    `₩${course.price.toLocaleString()}`
-                                                )}
+                                                <EditableCell
+                                                    value={course.price}
+                                                    type="number"
+                                                    onSave={(val) => handleUpdateField(course.id, 'price', parseInt(val) || 0)}
+                                                />
                                             </td>
                                             <td className="px-6 py-5">
                                                 <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">

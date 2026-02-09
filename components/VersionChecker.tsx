@@ -48,10 +48,18 @@ export const VersionChecker: React.FC = () => {
     const checkVersion = async (isAutoUpdate = false) => {
         if (isUpdating.current) return;
 
+        // ✅ 오프라인 체크 추가
+        if (!navigator.onLine) {
+            console.log('[VersionChecker] 오프라인 - 체크 건너뜀');
+            return;
+        }
+
         try {
+            // ✅ 캐시 우회 강화 (cache: 'no-store' 추가)
             const response = await fetch('/version.json?t=' + new Date().getTime(), {
+                cache: 'no-store',
                 headers: {
-                    'Cache-Control': 'no-cache',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
                     'Pragma': 'no-cache'
                 }
             });
@@ -67,41 +75,38 @@ export const VersionChecker: React.FC = () => {
             // USE THE INJECTED VERSION FROM VITE as the source of truth for "currently running"
             const currentVersion = import.meta.env.VITE_APP_VERSION;
 
-            console.log(`[VersionCheck] Current: ${currentVersion}, Newest: ${newestVersion}, Auto: ${isAutoUpdate}`);
+            console.log('[VersionChecker] 현재:', currentVersion, '/ 서버:', newestVersion);
 
             if (currentVersion && newestVersion !== currentVersion) {
-                if (isAutoUpdate) {
-                    // Automatically update if requested (e.g. on visibility change)
-                    handleUpdate(newestVersion);
-                } else {
-                    // Otherwise show the prompt
-                    setLatestVersion(newestVersion);
-                    setShowUpdatePrompt(true);
-                }
+                console.log('[VersionChecker] 새 버전 감지! 자동 업데이트 시작...');
+
+                // ✅ 자동 업데이트 활성화 (사용자 선택 반영)
+                // 새 버전이 감지되면 즉시 hardReload 실행
+                handleUpdate(newestVersion);
             }
         } catch (error) {
-            console.error('[VersionCheck] Failed to check version:', error);
+            console.error('[VersionChecker] 버전 체크 실패:', error);
         }
     };
 
     useEffect(() => {
         if (isDev) return;
 
-        // Initial soft check
-        checkVersion(false);
+        // Initial check
+        checkVersion();
 
         // Check and AUTOMATICALLY reload on visibility change (when user comes back to tab)
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
-                console.log('[VersionCheck] Tab focused, checking for updates...');
-                checkVersion(false); // Changed to false to show prompt instead of auto-reload
+                console.log('[VersionChecker] 탭 포커스, 업데이트 확인 중...');
+                checkVersion();
             }
         };
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
-        // Periodic check every 30 minutes (soft check, shows UI)
-        const interval = setInterval(() => checkVersion(false), 30 * 60 * 1000);
+        // ✅ 주기적 체크 (10분) - 서버 부하 고려
+        const interval = setInterval(() => checkVersion(), 10 * 60 * 1000);
 
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);

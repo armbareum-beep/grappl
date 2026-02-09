@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 
-import { User, Bell, Shield, CreditCard, ChevronRight, Upload as UploadIcon, Check, Settings as SettingsIcon, LogOut, Loader2, AlertTriangle, Calendar, Smartphone } from 'lucide-react';
-import { updateUserProfile, uploadProfileImage, getCreatorById, updatePassword, getUserSubscription, cancelSubscription } from '../lib/api';
+import { User, Bell, Shield, CreditCard, ChevronRight, Upload as UploadIcon, Check, Settings as SettingsIcon, LogOut, Loader2, AlertTriangle, Calendar, Smartphone, RefreshCw } from 'lucide-react';
+import { updateUserProfile, uploadProfileImage, getCreatorById, updatePassword, getUserSubscription, cancelSubscription, calculateUpgradeProration } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
 import { format } from 'date-fns';
@@ -32,6 +32,9 @@ export const Settings: React.FC = () => {
     const [subscription, setSubscription] = useState<any>(null);
     const [subscriptionLoading, setSubscriptionLoading] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+    const [upgradeCalculation, setUpgradeCalculation] = useState<any>(null);
+    const [upgradeLoading, setUpgradeLoading] = useState(false);
 
     // Password Change State
     const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -234,6 +237,30 @@ export const Settings: React.FC = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleInitiateUpgrade = async () => {
+        if (!subscription) return;
+        setUpgradeLoading(true);
+        try {
+            const result = await calculateUpgradeProration(subscription.id);
+            setUpgradeCalculation(result.upgradeDetails);
+            setShowUpgradeModal(true);
+        } catch (err) {
+            console.error(err);
+            setMessage({ type: 'error', text: '업그레이드 계산 중 오류가 발생했습니다.' });
+        } finally {
+            setUpgradeLoading(false);
+        }
+    };
+
+    const handleConfirmUpgrade = () => {
+        if (!upgradeCalculation || !subscription) return;
+        setShowUpgradeModal(false);
+        // Navigate to checkout with upgrade details
+        window.location.href = `/checkout/subscription_upgrade/${subscription.id}?from=settings`;
+        // Store upgrade details in sessionStorage for the checkout page
+        sessionStorage.setItem('upgradeDetails', JSON.stringify(upgradeCalculation));
     };
 
     const handleToggleNotification = async (type: 'email' | 'push' | 'marketing', value: boolean) => {
@@ -452,7 +479,16 @@ export const Settings: React.FC = () => {
                                 </div>
 
                                 {!subscription.cancel_at_period_end && (
-                                    <div className="flex justify-end pt-6 border-t border-zinc-800">
+                                    <div className="flex justify-between items-center pt-6 border-t border-zinc-800 gap-4 flex-wrap">
+                                        {subscription.plan_interval === 'month' && (
+                                            <button
+                                                onClick={handleInitiateUpgrade}
+                                                disabled={upgradeLoading}
+                                                className="px-6 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold rounded-xl hover:from-violet-500 hover:to-indigo-500 transition-all shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                                            >
+                                                {upgradeLoading ? '계산 중...' : '연간 요금제로 업그레이드'}
+                                            </button>
+                                        )}
                                         <button
                                             onClick={() => setShowCancelModal(true)}
                                             className="text-sm text-zinc-500 hover:text-red-400 underline transition-colors"
@@ -662,6 +698,67 @@ export const Settings: React.FC = () => {
                                 </Button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Upgrade Subscription Modal */}
+            {showUpgradeModal && upgradeCalculation && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-zinc-900 rounded-2xl max-w-md w-full p-6 border border-zinc-800 shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center gap-3 mb-4 text-violet-500">
+                            <RefreshCw className="w-6 h-6" />
+                            <h3 className="text-xl font-bold">연간 요금제로 업그레이드</h3>
+                        </div>
+
+                        <div className="bg-zinc-800/50 rounded-xl p-4 mb-6">
+                            <p className="text-sm text-zinc-400 mb-3">프로레이션 계산</p>
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-zinc-500">연간 요금제 가격</span>
+                                    <span className="text-white font-bold">
+                                        ₩{upgradeCalculation.yearlyPrice?.toLocaleString() || '0'}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-green-400">
+                                    <span>남은 {upgradeCalculation.remainingDays}일 크레딧</span>
+                                    <span className="font-bold">
+                                        -₩{upgradeCalculation.creditAmount?.toLocaleString() || '0'}
+                                    </span>
+                                </div>
+                                <div className="h-px bg-zinc-700 my-2"></div>
+                                <div className="flex justify-between text-lg">
+                                    <span className="text-white font-bold">최종 결제 금액</span>
+                                    <span className="text-violet-400 font-black">
+                                        ₩{upgradeCalculation.finalAmount?.toLocaleString() || '0'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 mb-6">
+                            <p className="text-xs text-blue-400 leading-relaxed">
+                                <strong>혜택:</strong> 연간 요금제는 월간 대비 약 17% 할인되며, 현재 구독의 남은 기간은 크레딧으로 적용됩니다.
+                            </p>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    setShowUpgradeModal(false);
+                                    setUpgradeCalculation(null);
+                                }}
+                                className="flex-1 px-4 py-3 border border-zinc-700 rounded-xl text-zinc-300 hover:bg-zinc-800 transition-colors font-medium"
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={handleConfirmUpgrade}
+                                className="flex-1 px-4 py-3 bg-violet-600 text-white rounded-xl hover:bg-violet-500 transition-colors font-bold"
+                            >
+                                업그레이드 진행
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

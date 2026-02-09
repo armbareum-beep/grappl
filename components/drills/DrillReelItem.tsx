@@ -1,5 +1,6 @@
 
 import React, { useRef, useState, useEffect, useMemo, memo, useCallback } from 'react';
+import { useVideoPreloadSafe } from '../../contexts/VideoPreloadContext';
 import { Drill } from '../../types';
 import {
     Heart, Bookmark,
@@ -23,6 +24,7 @@ import { extractVimeoId } from '../../lib/api';
 // --- Sub-Component: Single Video Player ---
 interface SingleVideoPlayerProps {
     url?: string;
+    drillId?: string; // For preload consumption
     isActive: boolean;
     isVisible: boolean;
     shouldLoad: boolean;
@@ -38,10 +40,12 @@ interface SingleVideoPlayerProps {
     thumbnailUrl?: string; // New: Thumbnail to show while player is loading/deferred
     isNext?: boolean; // New: Flag for pre-playing (offset 1)
     isNext2?: boolean; // New: Flag for pre-playing (offset 2)
+    previewLimitReachedRef?: React.MutableRefObject<boolean>; // 세션 전체에서 유지되는 플래그
 }
 
 const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
     url,
+    drillId,
     isActive,
     isVisible,
     shouldLoad,
@@ -56,12 +60,17 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
     onPreviewLimitReached,
     thumbnailUrl,
     isNext = false,
-    isNext2 = false
+    isNext2 = false,
+    previewLimitReachedRef: externalPreviewLimitReachedRef
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const playerRef = useRef<Player | null>(null);
     const [ready, setReady] = useState(false);
+    const preloadConsumedRef = useRef(false);
+
+    // 프리로드 컨텍스트 (optional)
+    const videoPreload = useVideoPreloadSafe();
 
     const vimeoId = useMemo(() => extractVimeoId(url), [url]);
     const useVimeo = !!vimeoId;
@@ -70,6 +79,7 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
     const isPreviewModeRef = useRef(isPreviewMode);
     const maxPreviewDurationRef = useRef(maxPreviewDuration);
     const onPreviewLimitReachedRef = useRef(onPreviewLimitReached);
+    const previewLimitReachedRef = externalPreviewLimitReachedRef || useRef(false); // 외부에서 전달된 플래그 사용, 없으면 로컬 생성
 
     useEffect(() => {
         onProgressRef.current = onProgress;
@@ -89,6 +99,72 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
 
         let isMounted = true;
 
+        // 프리로드된 플레이어 확인 및 소비
+        if (!playerRef.current && drillId && videoPreload && !preloadConsumedRef.current) {
+            if (videoPreload.isPreloadedFor(drillId)) {
+                const preloaded = videoPreload.consumePreloadedPlayer();
+                if (preloaded && containerRef.current) {
+                    console.log('[SingleVideoPlayer] Using preloaded player for drill:', drillId, '- Should play instantly!');
+                    preloadConsumedRef.current = true;
+
+                    // iframe을 현재 컨테이너로 이동
+                    containerRef.current.innerHTML = '';
+                    containerRef.current.appendChild(preloaded.iframe);
+
+                    playerRef.current = preloaded.player;
+                    setReady(true);
+                    onReady();
+
+                    // 이벤트 리스너 설정
+                    preloaded.player.on('timeupdate', (data) => {
+                        if (!isMounted) return;
+                        if (data.seconds > 0.1) {
+                            onPlay?.();
+                            setReady(true);
+                        }
+                        const previewMode = isPreviewModeRef.current;
+                        const previewDuration = maxPreviewDurationRef.current;
+                        const percent = data.percent ?? (data.duration ? data.seconds / data.duration : 0);
+
+                        if (previewMode && previewDuration) {
+                            const calcPercent = (data.seconds / previewDuration) * 100;
+                            onProgressRef.current(calcPercent, data.seconds);
+                            if (data.seconds >= previewDuration) {
+                                preloaded.player?.pause().catch(() => { });
+                                onPreviewLimitReachedRef.current?.();
+                            }
+                        } else {
+                            onProgressRef.current(percent * 100, data.seconds);
+                        }
+                    });
+
+                    preloaded.player.on('play', () => {
+                        if (isMounted) {
+                            onPlay?.();
+                            setReady(true);
+                        }
+                    });
+
+                    preloaded.player.on('ended', () => {
+                        if (isPreviewModeRef.current) {
+                            onPreviewLimitReachedRef.current?.();
+                        }
+                    });
+
+                    preloaded.player.on('error', () => { onError('재생 오류'); });
+
+                    return () => {
+                        isMounted = false;
+                        const p = playerRef.current;
+                        playerRef.current = null;
+                        if (p) p.destroy().catch(() => { });
+                        if (containerRef.current) containerRef.current.innerHTML = '';
+                        setReady(false);
+                    };
+                }
+            }
+        }
+
         if (!playerRef.current) {
             const fullId = extractVimeoId(url);
             if (!fullId) {
@@ -103,7 +179,11 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
                 autopause: false,
                 controls: false,
                 playsinline: true,
-                dnt: true
+                dnt: true,
+                title: false,
+                byline: false,
+                portrait: false,
+                quality: 'auto'
             };
 
             const [baseId, hash] = fullId.includes(':') ? fullId.split(':') : [fullId, null];
@@ -121,7 +201,10 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
                         controls: '0',
                         playsinline: '1',
                         dnt: '1',
-                        background: '0'
+                        title: '0',
+                        byline: '0',
+                        portrait: '0',
+                        quality: 'auto'
                     });
                     iframe.src = `https://player.vimeo.com/video/${baseId}?${params.toString()}`;
                     iframe.className = "w-full h-full border-0";
@@ -160,25 +243,22 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
                         onPlay?.();
                         setReady(true);
                     }
-                    // ref 사용하여 최신 값 반영
-                    const previewMode = isPreviewModeRef.current;
+                    // preview mode 상태 확인
+                    const isPreviewMode = isPreviewModeRef.current;
                     const previewDuration = maxPreviewDurationRef.current;
 
                     // duration을 가져와서 percent 계산 (data.percent가 undefined일 수 있음)
                     const percent = data.percent ?? (data.duration ? data.seconds / data.duration : 0);
 
-                    console.log('[SingleVideoPlayer timeupdate]', { seconds: data.seconds, percent, previewMode, previewDuration });
-
-                    if (previewMode && previewDuration) {
+                    if (isPreviewMode && previewDuration) {
                         const calcPercent = (data.seconds / previewDuration) * 100;
-                        console.log('[SingleVideoPlayer] Preview mode progress:', calcPercent);
                         onProgressRef.current(calcPercent, data.seconds);
-                        if (data.seconds >= previewDuration) {
+                        if (data.seconds >= previewDuration && !previewLimitReachedRef.current) {
+                            previewLimitReachedRef.current = true; // 한 번만 실행
                             player?.pause().catch(() => { });
                             onPreviewLimitReachedRef.current?.();
                         }
                     } else {
-                        console.log('[SingleVideoPlayer] Normal mode progress:', percent * 100);
                         onProgressRef.current(percent * 100, data.seconds);
                     }
                 });
@@ -189,7 +269,8 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
                     }
                 });
                 player.on('ended', () => {
-                    if (isPreviewModeRef.current) {
+                    if (isPreviewModeRef.current && !previewLimitReachedRef.current) {
+                        previewLimitReachedRef.current = true;
                         onPreviewLimitReachedRef.current?.();
                     }
                 });
@@ -205,7 +286,7 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
             if (containerRef.current) containerRef.current.innerHTML = '';
             setReady(false);
         };
-    }, [shouldLoad, url]);
+    }, [shouldLoad, url, drillId]);
 
     useEffect(() => {
         const player = playerRef.current;
@@ -218,12 +299,20 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
                     if (!shouldPlay) await player.pause();
                     else {
                         const p = await player.getPaused();
-                        if (p) await player.play().catch(async (err) => {
-                            if (err.name === 'NotAllowedError') {
-                                await player.setMuted(true);
-                                await player.play().catch(() => { });
-                            }
-                        });
+                        if (p) {
+                            console.log('[SingleVideoPlayer] Resuming preloaded player:', drillId);
+                            const playStartTime = performance.now();
+
+                            await player.play().catch(async (err) => {
+                                if (err.name === 'NotAllowedError') {
+                                    await player.setMuted(true);
+                                    await player.play().catch(() => { });
+                                }
+                            });
+
+                            const playEndTime = performance.now();
+                            console.log(`[SingleVideoPlayer] Play took ${(playEndTime - playStartTime).toFixed(2)}ms`);
+                        }
                         onPlay?.();
                     }
                     await player.setVolume(isMuted ? 0 : 1);
@@ -241,9 +330,6 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
     if (!shouldLoad) return thumbnailUrl ? (
         <div className="absolute inset-0 w-full h-full">
             <img src={thumbnailUrl} className="w-full h-full object-cover opacity-60" alt="" />
-            <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-10 h-10 border-4 border-white/10 border-t-white/30 rounded-full animate-spin" />
-            </div>
         </div>
     ) : null;
 
@@ -300,33 +386,38 @@ interface DrillReelItemProps {
     isMuted: boolean;
     onToggleMute: () => void;
     isLiked: boolean;
-    onLike: () => void;
+    onLike: (drill: Drill) => void;
     likeCount: number;
     isSaved: boolean;
-    onSave: () => void;
+    onSave: (drill: Drill) => void;
     isFollowed: boolean;
-    onFollow: () => void;
-    onViewRoutine: () => void;
+    onFollow: (drill: Drill) => void;
+    onViewRoutine: (drill: Drill) => void;
     offset: number;
     isSubscriber: boolean;
     purchasedItemIds: string[];
     isLoggedIn: boolean;
     isDailyFreeDrill?: boolean;
-    onVideoReady?: () => void;
+    index: number;
+    onVideoReady?: (index: number) => void;
     onProgressUpdate?: (percent: number, seconds: number, hasAccess: boolean) => void;
     isSessionExpired?: boolean;
     isCached?: boolean;
+    previewLimitReachedRef?: React.MutableRefObject<boolean>;
 }
 
 export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
     drill, isActive, isMuted, onToggleMute, isLiked, onLike, likeCount,
     isSaved, onSave, isFollowed, onFollow, onViewRoutine, offset,
     isSubscriber, purchasedItemIds, isLoggedIn, isDailyFreeDrill = false,
-    isCached = false, onVideoReady, onProgressUpdate, isSessionExpired = false
+    index, isCached = false, onVideoReady, onProgressUpdate, isSessionExpired = false, previewLimitReachedRef
 }) => {
     const navigate = useNavigate();
     const containerRef = useRef<HTMLDivElement>(null);
-    const [currentVideoType, setCurrentVideoType] = useState<'main' | 'description'>('main');
+    const actionUrl = drill.vimeoUrl || drill.videoUrl;
+    const finalDescUrl = drill.descriptionVideoUrl;
+
+    const [currentVideoType, setCurrentVideoType] = useState<'main' | 'description'>(actionUrl ? 'main' : 'description');
     const [mainVideoStarted, setMainVideoStarted] = useState(false);
     const [descVideoStarted, setDescVideoStarted] = useState(false);
     const [mainVideoReady, setMainVideoReady] = useState(false);
@@ -348,7 +439,6 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
     const currentVideoTypeRef = useRef(currentVideoType);
 
     useEffect(() => {
-        console.log('[DrillReelItem] Updating refs:', { isActive, hasCallback: !!onProgressUpdate });
         isActiveRef.current = isActive;
         onProgressUpdateRef.current = onProgressUpdate;
     }, [isActive, onProgressUpdate]);
@@ -364,15 +454,9 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
             return;
         }
 
-        if (isActive || offset === 1 || offset === 2) {
-            // Active OR Next TWO items: load immediately to allow aggressive pre-playing
+        if (isActive || Math.abs(offset) <= 3) {
+            // Active OR Next/Previous THREE items: load immediately
             setShouldLoadPlayer(true);
-        } else if (Math.abs(offset) === 1) {
-            // Previous item: delay to reduce initial burst
-            const timer = setTimeout(() => {
-                setShouldLoadPlayer(true);
-            }, 800);
-            return () => clearTimeout(timer);
         }
     }, [isActive, offset]);
 
@@ -381,11 +465,11 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
     useEffect(() => {
         if (!isActive) {
             // 비활성화 시 UI 상태만 리셋 (videoStarted는 유지 - 이전 영상 즉시 재생을 위해)
-            setCurrentVideoType('main');
+            setCurrentVideoType(actionUrl ? 'main' : 'description');
             setUserPaused(false);
             // mainVideoStarted, descVideoStarted는 유지하여 로딩 오버레이 방지
         }
-    }, [isActive, drill.id]);
+    }, [isActive, drill.id, actionUrl]);
 
     const drillPrice = Number((drill as any).price || 0);
     const hasAccess = isDailyFreeDrill || (isLoggedIn && (drillPrice === 0 || isSubscriber || purchasedItemIds.includes(drill.id)));
@@ -405,7 +489,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
                 return;
             }
             if (!hasAccess) return;
-            onLike();
+            onLike(drill);
             setShowLikeAnimation(true);
             setTimeout(() => setShowLikeAnimation(false), 900);
         } else {
@@ -421,11 +505,10 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
         const isReady = currentVideoType === 'main' ? mainVideoReady : descVideoReady;
         const isStarted = currentVideoType === 'main' ? mainVideoStarted : descVideoStarted;
         if (!isReady) return;
-        if (!isActive || isStarted) onVideoReady?.();
-    }, [currentVideoType, mainVideoReady, mainVideoStarted, descVideoReady, descVideoStarted, isActive, onVideoReady]);
+        if (!isActive || isStarted) onVideoReady?.(index);
+    }, [currentVideoType, mainVideoReady, mainVideoStarted, descVideoReady, descVideoStarted, isActive, onVideoReady, index]);
 
-    const actionUrl = drill.vimeoUrl || drill.videoUrl;
-    const finalDescUrl = drill.descriptionVideoUrl;
+    // URL definitions already moved up for initial state use
 
     useEffect(() => {
         console.log('[DrillReelItem Debug]', {
@@ -454,12 +537,13 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
                     onTap={handleTap}
                     onDragEnd={(_, info) => {
                         if (info.offset.x > 80 && currentVideoType === 'main' && finalDescUrl) setCurrentVideoType('description');
-                        else if (info.offset.x < -80 && currentVideoType === 'description') setCurrentVideoType('main');
+                        else if (info.offset.x < -80 && currentVideoType === 'description' && actionUrl) setCurrentVideoType('main');
                     }}
                 >
                     {/* Main Video */}
                     <SingleVideoPlayer
                         url={actionUrl}
+                        drillId={drill.id}
                         isActive={isActive}
                         isVisible={currentVideoType === 'main'}
                         shouldLoad={shouldLoadPlayer || isCached}
@@ -476,6 +560,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
                         isPreviewMode={!hasAccess || isSessionExpired}
                         maxPreviewDuration={30}
                         onPreviewLimitReached={() => setIsLoginModalOpen(true)}
+                        previewLimitReachedRef={previewLimitReachedRef}
                     />
 
                     {/* Description Video */}
@@ -499,6 +584,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
                             isPreviewMode={!hasAccess || isSessionExpired}
                             maxPreviewDuration={30}
                             onPreviewLimitReached={() => setIsLoginModalOpen(true)}
+                            previewLimitReachedRef={previewLimitReachedRef}
                         />
                     )}
 
@@ -506,14 +592,11 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
                     <AnimatePresence>
                         {!(currentVideoType === 'main' ? mainVideoStarted : descVideoStarted) && (
                             <motion.div
-                                className="absolute inset-0 z-20"
+                                className="absolute inset-0 z-20 bg-black"
                                 exit={{ opacity: 0 }}
                                 transition={{ duration: 0.5 }}
                             >
                                 <img src={drill.thumbnailUrl} className="w-full h-full object-cover opacity-60" alt="" />
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin" />
-                                </div>
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -533,7 +616,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
                     </AnimatePresence>
 
                     {/* Video Type Indicator */}
-                    {finalDescUrl && (
+                    {actionUrl && finalDescUrl && (
                         <div className="absolute top-10 left-1/2 -translate-x-1/2 z-30 flex gap-2">
                             <div className={`w-8 h-1 rounded-full bg-white transition-opacity ${currentVideoType === 'main' ? 'opacity-100' : 'opacity-30'}`} />
                             <div className={`w-8 h-1 rounded-full bg-white transition-opacity ${currentVideoType === 'description' ? 'opacity-100' : 'opacity-30'}`} />
@@ -558,17 +641,17 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
                         {/* Sidebar: Like, Save, Share, Routine */}
                         <div className="absolute bottom-10 right-4 flex flex-col gap-5 pointer-events-auto items-center">
                             <div className="flex flex-col items-center gap-1">
-                                <button onClick={(e) => { e.stopPropagation(); onLike(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white active:scale-90 shadow-2xl transition-all">
+                                <button onClick={(e) => { e.stopPropagation(); onLike(drill); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white active:scale-90 shadow-2xl transition-all">
                                     <Heart className={cn("w-5 h-5 md:w-7 md:h-7", isLiked && "fill-violet-500 text-violet-500")} />
                                 </button>
                                 <span className="text-[11px] md:text-sm font-bold text-white drop-shadow-md">{likeCount.toLocaleString()}</span>
                             </div>
 
-                            <button onClick={(e) => { e.stopPropagation(); onSave(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white active:scale-90 shadow-2xl">
+                            <button onClick={(e) => { e.stopPropagation(); onSave(drill); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white active:scale-90 shadow-2xl">
                                 <Bookmark className={cn("w-5 h-5 md:w-6 md:h-6", isSaved && "fill-white text-white")} />
                             </button>
 
-                            <button onClick={(e) => { e.stopPropagation(); onViewRoutine(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white active:scale-90 shadow-2xl">
+                            <button onClick={(e) => { e.stopPropagation(); onViewRoutine(drill); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white active:scale-90 shadow-2xl">
                                 <ListVideo className="w-5 h-5 md:w-6 md:h-6" />
                             </button>
 
@@ -583,7 +666,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
                                 <Link to={`/creator/${drill.creatorId}`} className="flex items-center gap-2 mb-3 hover:opacity-80">
                                     {(drill as any).creatorProfileImage && <img src={(drill as any).creatorProfileImage} className="w-8 h-8 rounded-full border border-white/20 object-cover" alt="" />}
                                     <span className="font-bold text-sm shadow-sm">{drill.creatorName}</span>
-                                    <button onClick={(e) => { e.stopPropagation(); onFollow(); }} className={cn("px-3 py-1 rounded-full text-[10px] font-bold border transition-all", isFollowed ? "bg-violet-600 border-violet-600" : "bg-transparent border-violet-500 text-violet-400")}>
+                                    <button onClick={(e) => { e.stopPropagation(); onFollow(drill); }} className={cn("px-3 py-1 rounded-full text-[10px] font-bold border transition-all", isFollowed ? "bg-violet-600 border-violet-600" : "bg-transparent border-violet-500 text-violet-400")}>
                                         {isFollowed ? 'Following' : 'Follow'}
                                     </button>
                                 </Link>

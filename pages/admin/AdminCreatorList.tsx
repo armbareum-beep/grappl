@@ -130,7 +130,7 @@ export const AdminCreatorList: React.FC = () => {
                 <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-4">
                         <button
-                            onClick={() => navigate('/admin/dashboard')}
+                            onClick={() => navigate(-1)}
                             className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-lg transition-all"
                         >
                             <ArrowLeft className="w-5 h-5" />

@@ -160,7 +160,10 @@ export async function getUserInteractions(
         return [];
     }
 
-    return data || [];
+    return (data || []).map(item => ({
+        ...item,
+        content_type: item.content_type as ContentType
+    })) as UserInteraction[];
 }
 
 /**
@@ -468,7 +471,8 @@ export async function toggleCreatorFollow(userId: string, creatorId: string): Pr
         const { error } = await supabase
             .from('creator_follows')
             .delete()
-            .eq('id', data.id);
+            .eq('follower_id', userId)
+            .eq('creator_id', creatorId);
         if (error) throw error;
         return { followed: false };
     } else {
@@ -534,9 +538,45 @@ export async function getUserLikedDrills(_userId: string) {
     return interactions.map(i => ({ id: i.content_id }));
 }
 
-export async function getUserSavedDrills(_userId: string) {
-    const interactions = await getUserInteractions('save', 'drill');
-    return interactions.map(i => ({ id: i.content_id }));
+export async function getUserSavedDrills(userId: string) {
+    const { data, error } = await supabase
+        .from('user_interactions')
+        .select(`
+      content_id,
+      created_at,
+      drills (
+        id,
+        title,
+        description,
+        thumbnail_url,
+        difficulty,
+        duration_minutes,
+        category,
+        vimeo_url,
+        creator_id,
+        creator:creators (
+          name,
+          profile_image
+        )
+      )
+    `)
+        .eq('user_id', userId)
+        .eq('content_type', 'drill')
+        .eq('interaction_type', 'save')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Failed to fetch saved drills:', error);
+        return [];
+    }
+
+    return (data || []).map((item: any) => ({
+        id: item.content_id,
+        ...item.drills,
+        creatorName: item.drills?.creator?.name,
+        creatorProfileImage: item.drills?.creator?.profile_image,
+        savedAt: item.created_at
+    }));
 }
 
 export async function getUserLikedSparring(_userId: string) {
@@ -544,9 +584,43 @@ export async function getUserLikedSparring(_userId: string) {
     return interactions.map(i => ({ id: i.content_id }));
 }
 
-export async function getUserSavedSparring(_userId: string) {
-    const interactions = await getUserInteractions('save', 'sparring');
-    return interactions.map(i => ({ id: i.content_id }));
+export async function getUserSavedSparring(userId: string) {
+    const { data, error } = await supabase
+        .from('user_interactions')
+        .select(`
+      content_id,
+      created_at,
+      sparring_videos (
+        id,
+        title,
+        description,
+        thumbnail_url,
+        duration_minutes,
+        creator_id,
+        video_url,
+        creator:creators (
+          name,
+          profile_image
+        )
+      )
+    `)
+        .eq('user_id', userId)
+        .eq('content_type', 'sparring')
+        .eq('interaction_type', 'save')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Failed to fetch saved sparring:', error);
+        return [];
+    }
+
+    return (data || []).map((item: any) => ({
+        id: item.content_id,
+        ...item.sparring_videos,
+        creatorName: item.sparring_videos?.creator?.name,
+        creatorProfileImage: item.sparring_videos?.creator?.profile_image,
+        savedAt: item.created_at
+    }));
 }
 
 // Check functions

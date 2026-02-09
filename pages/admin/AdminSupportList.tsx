@@ -53,9 +53,9 @@ export const AdminSupportList: React.FC = () => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
                     <div className="space-y-1">
-                        <button onClick={() => navigate('/admin')} className="flex items-center gap-2 text-zinc-500 hover:text-white mb-4 transition-colors group">
+                        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-zinc-500 hover:text-white mb-4 transition-colors group">
                             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                            <span className="text-sm font-medium">대시보드로 돌아가기</span>
+                            <span className="text-sm font-medium">뒤로가기</span>
                         </button>
                         <h1 className="text-3xl font-extrabold tracking-tight">1:1 문의 관리</h1>
                         <p className="text-zinc-400">사용자들이 남긴 문의사항을 확인하고 답변을 작성합니다.</p>

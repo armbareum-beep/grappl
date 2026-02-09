@@ -59,11 +59,11 @@ export const AdminNotifications: React.FC = () => {
         <div className="min-h-screen bg-zinc-950 text-white pb-20">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 <button
-                    onClick={() => navigate('/admin')}
+                    onClick={() => navigate(-1)}
                     className="flex items-center gap-2 text-zinc-500 hover:text-white mb-6 transition-all group"
                 >
                     <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                    <span className="text-sm font-medium">대시보드로 돌아가기</span>
+                    <span className="text-sm font-medium">뒤로가기</span>
                 </button>
 
                 <div className="flex items-center gap-4 mb-8">
@@ -76,16 +76,16 @@ export const AdminNotifications: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Send Form */}
-                    <div className="lg:col-span-1">
-                        <div className="bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-6 backdrop-blur-xl">
-                            <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                                <Send className="w-4 h-4 text-violet-400" />
-                                새 알림 발송
-                            </h2>
-                            <form onSubmit={handleSend} className="space-y-6">
-                                <div>
+                <div className="space-y-8">
+                    {/* Send Form - Full Width */}
+                    <div className="bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-8 backdrop-blur-xl">
+                        <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                            <Send className="w-4 h-4 text-violet-400" />
+                            새 알림 발송
+                        </h2>
+                        <form onSubmit={handleSend} className="space-y-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                                <div className="lg:col-span-1">
                                     <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">
                                         수신 대상
                                     </label>
@@ -110,7 +110,7 @@ export const AdminNotifications: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <div>
+                                <div className="lg:col-span-3">
                                     <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">
                                         제목
                                     </label>
@@ -123,34 +123,36 @@ export const AdminNotifications: React.FC = () => {
                                         required
                                     />
                                 </div>
+                            </div>
 
-                                <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">
-                                        내용
-                                    </label>
-                                    <textarea
-                                        value={message}
-                                        onChange={(e) => setMessage(e.target.value)}
-                                        placeholder="전달할 내용을 입력하세요..."
-                                        rows={6}
-                                        className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500/40 resize-none"
-                                        required
-                                    />
-                                </div>
+                            <div>
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">
+                                    내용
+                                </label>
+                                <textarea
+                                    value={message}
+                                    onChange={(e) => setMessage(e.target.value)}
+                                    placeholder="전달할 내용을 입력하세요..."
+                                    rows={8}
+                                    className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500/40 resize-y min-h-[200px]"
+                                    required
+                                />
+                            </div>
 
+                            <div className="flex justify-end">
                                 <button
                                     type="submit"
                                     disabled={sending}
-                                    className="w-full py-4 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                    className="px-8 py-4 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                                 >
                                     {sending ? '발송 중...' : '알림 발송하기'}
                                 </button>
-                            </form>
-                        </div>
+                            </div>
+                        </form>
                     </div>
 
-                    {/* History List */}
-                    <div className="lg:col-span-2">
+                    {/* History List - Full Width */}
+                    <div>
                         <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-2xl overflow-hidden backdrop-blur-xl">
                             <div className="px-6 py-4 border-b border-zinc-800/50 bg-zinc-900/50">
                                 <h3 className="font-bold text-zinc-300">발송 이력</h3>

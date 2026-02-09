@@ -1,11 +1,59 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { getSparringVideosAdmin, deleteSparringVideoAdmin } from '../../lib/api-admin';
+import { updateSparringVideo } from '../../lib/api';
 import { SparringVideo } from '../../types';
 import { Trash2, Eye, Search, Plus, ArrowLeft, PlayCircle, Edit } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 
+const EditableCell = ({ value, onSave, type = 'text' }: { value: string | number, onSave: (val: string) => void, type?: 'text' | 'number' }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [localValue, setLocalValue] = useState(String(value));
+
+    useEffect(() => {
+        setLocalValue(String(value));
+    }, [value]);
+
+    const handleSave = () => {
+        setIsEditing(false);
+        if (localValue !== String(value)) {
+            onSave(localValue);
+        }
+    };
+
+    if (isEditing) {
+        return (
+            <input
+                autoFocus
+                type={type}
+                value={localValue}
+                onChange={(e) => setLocalValue(e.target.value)}
+                onBlur={handleSave}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSave();
+                    if (e.key === 'Escape') {
+                        setLocalValue(String(value));
+                        setIsEditing(false);
+                    }
+                }}
+                className="bg-zinc-800 text-white px-2 py-1 rounded border border-zinc-700 w-full max-w-[200px]"
+            />
+        );
+    }
+
+    return (
+        <div
+            onClick={() => setIsEditing(true)}
+            className="cursor-pointer hover:bg-zinc-800/50 px-2 py-1 -mx-2 rounded transition-colors"
+            title="클릭하여 수정"
+        >
+            {type === 'number' ? (Number(value) > 0 ? `₩${Number(value).toLocaleString()}` : '무료') : value}
+        </div>
+    );
+};
+
 export const AdminSparringList: React.FC = () => {
+    const navigate = useNavigate();
     const { success, error: toastError } = useToast();
     const [videos, setVideos] = useState<SparringVideo[]>([]);
     const [loading, setLoading] = useState(true);
@@ -24,6 +72,19 @@ export const AdminSparringList: React.FC = () => {
             toastError('스파링 영상 목록을 불러오는데 실패했습니다.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleUpdateField = async (id: string, field: string, value: string | number) => {
+        try {
+            const { error } = await updateSparringVideo(id, { [field]: value });
+            if (error) throw error;
+
+            setVideos(prev => prev.map(v => v.id === id ? { ...v, [field]: value } : v));
+            success(`${field === 'title' ? '제목' : '가격'}이 수정되었습니다.`);
+        } catch (error) {
+            console.error('Failed to update sparring video:', error);
+            toastError('수정에 실패했습니다.');
         }
     };
 
@@ -61,9 +122,9 @@ export const AdminSparringList: React.FC = () => {
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <Link to="/admin/dashboard" className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-lg transition-all">
+                        <button onClick={() => navigate(-1)} className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-lg transition-all">
                             <ArrowLeft className="w-5 h-5" />
-                        </Link>
+                        </button>
                         <div>
                             <h1 className="text-2xl font-bold text-white">스파링 관리</h1>
                             <p className="text-zinc-400">총 {videos.length}개의 영상</p>
@@ -105,7 +166,13 @@ export const AdminSparringList: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-zinc-800">
-                                {filteredVideos.map((video) => (
+                                {filteredVideos.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={7} className="p-12 text-center text-zinc-500">
+                                            스파링 영상이 없습니다.
+                                        </td>
+                                    </tr>
+                                ) : filteredVideos.map((video) => (
                                     <tr key={video.id} className="group hover:bg-zinc-800/50 transition-colors">
                                         <td className="p-4">
                                             <div className="w-16 h-24 rounded-lg overflow-hidden bg-zinc-800 relative">
@@ -119,8 +186,11 @@ export const AdminSparringList: React.FC = () => {
                                             </div>
                                         </td>
                                         <td className="p-4">
-                                            <div className="font-medium text-white group-hover:text-violet-400 transition-colors">
-                                                {video.title}
+                                            <div className="font-medium text-white transition-colors">
+                                                <EditableCell
+                                                    value={video.title}
+                                                    onSave={(val) => handleUpdateField(video.id, 'title', val)}
+                                                />
                                             </div>
                                             {video.description && (
                                                 <div className="text-sm text-zinc-500 truncate max-w-[200px] mt-1">
@@ -134,9 +204,11 @@ export const AdminSparringList: React.FC = () => {
                                             </span>
                                         </td>
                                         <td className="p-4">
-                                            <span className={`px-2 py-1 rounded text-xs font-medium ${video.price > 0 ? 'bg-amber-500/10 text-amber-500' : 'bg-zinc-800 text-zinc-400'}`}>
-                                                {video.price > 0 ? `₩${video.price.toLocaleString()}` : '무료'}
-                                            </span>
+                                            <EditableCell
+                                                value={video.price}
+                                                type="number"
+                                                onSave={(val) => handleUpdateField(video.id, 'price', parseInt(val) || 0)}
+                                            />
                                         </td>
                                         <td className="p-4 text-zinc-400 text-sm font-mono">
                                             {(video.views || 0).toLocaleString()}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, BookOpen, DollarSign, Upload, LogOut, Settings, Clapperboard, HelpCircle, Network, Dumbbell, Home, Bookmark } from 'lucide-react';
+import { Menu, X, BookOpen, DollarSign, Upload, LogOut, Settings, Clapperboard, HelpCircle, Network, Dumbbell, Home, Bookmark, Users, MessageSquare } from 'lucide-react';
 import { Button } from './Button';
 import { useAuth as useAuthContext } from '../contexts/AuthContext';
 import { NotificationDropdown } from './NotificationDropdown';
@@ -315,6 +315,22 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                         <div className="h-px bg-zinc-800/50 my-1 mx-2" />
 
                         <Link
+                          to="/instructors"
+                          className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-zinc-800/50 text-zinc-300 hover:text-white mx-2 font-medium"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          <Users className="mr-2 h-4 w-4" />
+                          <span>인스트럭터 보기</span>
+                        </Link>
+                        <Link
+                          to="/feedback"
+                          className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-zinc-800/50 text-zinc-300 hover:text-white mx-2 font-medium"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          <MessageSquare className="mr-2 h-4 w-4" />
+                          <span>1:1 피드백 서비스</span>
+                        </Link>
+                        <Link
                           to="/saved"
                           className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-zinc-800/50 text-zinc-300 hover:text-white mx-2 font-medium"
                           onClick={() => setUserMenuOpen(false)}
@@ -430,6 +446,24 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <div className="h-px bg-zinc-800/50 my-2 mx-3" />
 
                     <Link
+                      to="/instructors"
+                      className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Users className="w-5 h-5" />
+                      <span>인스트럭터 보기</span>
+                    </Link>
+
+                    <Link
+                      to="/feedback"
+                      className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <MessageSquare className="w-5 h-5" />
+                      <span>1:1 피드백 서비스</span>
+                    </Link>
+
+                    <Link
                       to="/saved"
                       className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
                       onClick={() => setMobileMenuOpen(false)}
@@ -480,6 +514,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </>
                 ) : (
                   <>
+                    <Link
+                      to="/instructors"
+                      className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Users className="w-5 h-5" />
+                      <span>인스트럭터 보기</span>
+                    </Link>
                     <Link
                       to="/pricing"
                       className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
@@ -542,7 +584,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <div>
                   <h4 className="font-semibold text-zinc-100 mb-6">서비스</h4>
                   <ul className="space-y-4 text-sm">
-                    <li><Link to="/browse" className="text-zinc-400 hover:text-violet-400 transition-colors">강좌 둘러보기</Link></li>
+                    <li><Link to="/instructors" className="text-zinc-400 hover:text-violet-400 transition-colors">인스트럭터 보기</Link></li>
+                    <li><Link to="/feedback" className="text-zinc-400 hover:text-violet-400 transition-colors">1:1 피드백 서비스</Link></li>
+                    <li><Link to="/library?tab=all" className="text-zinc-400 hover:text-violet-400 transition-colors">강좌 둘러보기</Link></li>
                     <li><Link to="/pricing" className="text-zinc-400 hover:text-violet-400 transition-colors">요금제</Link></li>
 
                   </ul>

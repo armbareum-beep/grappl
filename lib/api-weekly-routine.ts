@@ -59,26 +59,30 @@ export async function getWeeklyRoutinePlan(planId: string) {
     return { data: transformWeeklyRoutinePlan(data), error: null };
 }
 
+interface CreateWeeklyRoutinePlanInput {
+    user_id: string;
+    title: string;
+    schedule: WeeklySchedule;
+    is_public: boolean;
+    description?: string;
+    tags?: string[];
+    thumbnail_url?: string | null;
+}
+
 /**
  * Create a new weekly routine plan
  */
-export async function createWeeklyRoutinePlan(
-    userId: string,
-    title: string,
-    schedule: WeeklySchedule,
-    isPublic: boolean = false,
-    description?: string,
-    tags?: string[]
-) {
+export async function createWeeklyRoutinePlan(plan: CreateWeeklyRoutinePlanInput) {
     const { data, error } = await supabase
         .from('weekly_routine_plans')
         .insert({
-            user_id: userId,
-            title: title,
-            schedule: schedule,
-            is_public: isPublic,
-            description: description,
-            tags: tags
+            user_id: plan.user_id,
+            title: plan.title,
+            schedule: plan.schedule as any,
+            is_public: plan.is_public,
+            description: plan.description,
+            tags: plan.tags,
+            thumbnail_url: plan.thumbnail_url
         })
         .select()
         .single();
@@ -91,28 +95,35 @@ export async function createWeeklyRoutinePlan(
     return { data: transformWeeklyRoutinePlan(data), error: null };
 }
 
+interface UpdateWeeklyRoutinePlanInput {
+    title: string;
+    schedule: WeeklySchedule;
+    is_public?: boolean;
+    description?: string;
+    tags?: string[];
+    thumbnail_url?: string | null;
+}
+
 /**
  * Update an existing weekly routine plan
  */
 export async function updateWeeklyRoutinePlan(
     planId: string,
-    title: string,
-    schedule: WeeklySchedule,
-    isPublic?: boolean,
-    description?: string,
-    tags?: string[]
+    plan: UpdateWeeklyRoutinePlanInput
 ) {
     const updateData: any = {
-        title: title,
-        schedule: schedule,
+        title: plan.title,
+        schedule: plan.schedule as any,
         updated_at: new Date().toISOString()
     };
 
-    if (typeof isPublic === 'boolean') {
-        updateData.is_public = isPublic;
+    if (typeof plan.is_public === 'boolean') {
+        updateData.is_public = plan.is_public;
     }
-    if (description !== undefined) updateData.description = description;
-    if (tags !== undefined) updateData.tags = tags;
+    if (plan.description !== undefined) updateData.description = plan.description;
+    if (plan.tags !== undefined) updateData.tags = plan.tags;
+    if (plan.thumbnail_url !== undefined) updateData.thumbnail_url = plan.thumbnail_url;
+
 
     const { data, error } = await supabase
         .from('weekly_routine_plans')
@@ -144,18 +155,38 @@ export async function deleteWeeklyRoutinePlan(planId: string) {
 /**
  * Save or Update wrapper
  */
+export interface WeeklyRoutineSaveData {
+    title: string;
+    schedule: WeeklySchedule;
+    isPublic: boolean;
+    description?: string;
+    tags?: string[];
+    thumbnailUrl?: string | null;
+}
+
 export async function saveWeeklyRoutinePlan(
+    plan: WeeklyRoutineSaveData,
     userId: string,
-    schedule: WeeklySchedule,
-    planId?: string,
-    title: string = '나의 주간 루틴',
-    isPublic: boolean = false,
-    description?: string,
-    tags?: string[]
+    planId?: string | null
 ) {
     if (planId) {
-        return updateWeeklyRoutinePlan(planId, title, schedule, isPublic, description, tags);
+        return updateWeeklyRoutinePlan(planId, {
+            title: plan.title,
+            schedule: plan.schedule,
+            is_public: plan.isPublic,
+            description: plan.description,
+            tags: plan.tags,
+            thumbnail_url: plan.thumbnailUrl
+        });
     } else {
-        return createWeeklyRoutinePlan(userId, title, schedule, isPublic, description, tags);
+        return createWeeklyRoutinePlan({
+            user_id: userId,
+            title: plan.title,
+            schedule: plan.schedule,
+            is_public: plan.isPublic,
+            description: plan.description,
+            tags: plan.tags,
+            thumbnail_url: plan.thumbnailUrl
+        });
     }
 }

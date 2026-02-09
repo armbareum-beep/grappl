@@ -72,16 +72,16 @@ export const SaveModal: React.FC<SaveModalProps> = ({
         }
     }, [isOpen, initialTitle, initialIsPublic, mode]);
 
-    // Effect to trigger capture when entering Step 2 (Publish Mode)
+    // Effect to trigger capture when modal opens (any mode)
     useEffect(() => {
-        if ((step === 2 || mode === 'publish') && onCaptureThumbnail && !thumbnailPreview) {
+        if (isOpen && onCaptureThumbnail && !thumbnailPreview) {
             // Give a small delay for modal transition
             const timer = setTimeout(() => {
                 onCaptureThumbnail();
             }, 500);
             return () => clearTimeout(timer);
         }
-    }, [step, mode, onCaptureThumbnail, thumbnailPreview]);
+    }, [isOpen, onCaptureThumbnail, thumbnailPreview]);
 
     const handleAddTag = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && currentTag.trim()) {

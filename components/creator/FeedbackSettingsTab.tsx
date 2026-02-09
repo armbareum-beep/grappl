@@ -169,7 +169,7 @@ export const FeedbackSettingsTab: React.FC = () => {
                 <ul className="text-sm text-indigo-300 space-y-1 break-keep pl-1">
                     <li className="flex items-start gap-2">
                         <span className="mt-1.5 w-1 h-1 rounded-full bg-indigo-400 flex-shrink-0" />
-                        학생들이 YouTube 영상 링크를 제공하고 피드백을 요청합니다
+                        학생들이 직접 찍은 영상을 업로드하여 피드백을 요청합니다
                     </li>
                     <li className="flex items-start gap-2">
                         <span className="mt-1.5 w-1 h-1 rounded-full bg-indigo-400 flex-shrink-0" />

@@ -15,11 +15,11 @@ export const AdminMarketing: React.FC = () => {
 
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
                     <button
-                        onClick={() => navigate('/admin')}
+                        onClick={() => navigate(-1)}
                         className="flex items-center gap-2 text-zinc-500 hover:text-white mb-6 transition-all group"
                     >
                         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                        <span className="text-sm font-medium">대시보드로 돌아가기</span>
+                        <span className="text-sm font-medium">뒤로가기</span>
                     </button>
                     <div className="space-y-2">
                         <h1 className="text-4xl font-black tracking-tighter text-white">마케팅 관리</h1>

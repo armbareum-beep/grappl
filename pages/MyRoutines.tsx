@@ -22,7 +22,7 @@ export const MyRoutines: React.FC = () => {
         <div className={cn(
             "text-zinc-100 flex flex-col transition-all duration-300 bg-zinc-950",
             isFullScreen
-                ? "fixed inset-0 z-50 h-screen overflow-y-auto pt-4 px-4 pb-4"
+                ? "fixed inset-0 z-50 h-screen overflow-y-auto pt-4 px-4 pb-20"
                 : "min-h-screen md:pl-28 pt-8 pb-20 px-6 md:px-10"
         )}>
             <div className="flex items-center justify-between mb-6">

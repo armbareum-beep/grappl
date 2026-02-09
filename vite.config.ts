@@ -38,9 +38,39 @@ export default defineConfig({
             workbox: {
                 skipWaiting: true,
                 clientsClaim: true,
-                cleanupOutdatedCaches: true, // 로컬 캐시와 서버 버전 충돌 방지
-                maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
-                navigateFallbackDenylist: [/^\/api/], // API 요청은 Service Worker가 가로채지 않음
+                cleanupOutdatedCaches: true,
+                maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // Increase to 10MB
+                navigateFallbackDenylist: [/^\/api/],
+                runtimeCaching: [
+                    {
+                        urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+                        handler: 'CacheFirst',
+                        options: {
+                            cacheName: 'google-fonts-cache',
+                            expiration: {
+                                maxEntries: 10,
+                                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+                            },
+                            cacheableResponse: {
+                                statuses: [0, 200]
+                            }
+                        }
+                    },
+                    {
+                        urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+                        handler: 'CacheFirst',
+                        options: {
+                            cacheName: 'gstatic-fonts-cache',
+                            expiration: {
+                                maxEntries: 20,
+                                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+                            },
+                            cacheableResponse: {
+                                statuses: [0, 200]
+                            }
+                        }
+                    }
+                ]
             },
             includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
             manifest: {

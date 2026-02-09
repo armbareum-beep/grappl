@@ -221,7 +221,6 @@ export const CourseDetail: React.FC = () => {
 
                 // Increment views & like count
                 getCourseLikeCount(id).then(setLikeCount);
-                incrementCourseViews(id);
             } catch (error: any) {
                 console.error('Error handling course data:', error);
             }
@@ -229,6 +228,10 @@ export const CourseDetail: React.FC = () => {
 
         handleCourseData();
     }, [course, id, user?.id, lessons]);
+
+    // Note: Course views are calculated as the sum of all lesson views within the course
+    // Lesson views are recorded in LessonDetail when users watch lessons
+    // No direct view counting needed here
 
     // Handle Lesson Selection & Progress Sync based on URL
     useEffect(() => {
@@ -1088,7 +1091,10 @@ export const CourseDetail: React.FC = () => {
     );
 
     return (
-        <div className="bg-zinc-950 min-h-screen text-zinc-100 selection:bg-violet-500/30">
+        <div
+            className="bg-zinc-950 min-h-screen text-zinc-100 selection:bg-violet-500/30"
+            onContextMenu={(e) => e.preventDefault()}
+        >
             {/* Header (Transparent Sticky) */}
             <div className="fixed top-20 left-0 right-0 z-50 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-900 px-4">
                 <div className="max-w-[1800px] mx-auto h-16 flex items-center justify-between">

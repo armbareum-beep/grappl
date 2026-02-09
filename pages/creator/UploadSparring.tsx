@@ -26,7 +26,7 @@ import { Button } from '../../components/Button';
 import { cn } from '../../lib/utils';
 
 export const UploadSparring: React.FC = () => {
-    const { user, loading } = useAuth();
+    const { user, loading, isAdmin } = useAuth();
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
     const [searchParams] = useSearchParams();
@@ -76,7 +76,7 @@ export const UploadSparring: React.FC = () => {
                 return;
             }
 
-            if (data.creatorId !== user?.id) {
+            if (data.creatorId !== user?.id && !isAdmin) {
                 toastError('수정 권한이 없습니다.');
                 navigate('/creator');
                 return;

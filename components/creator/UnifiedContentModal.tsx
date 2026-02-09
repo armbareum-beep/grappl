@@ -87,7 +87,6 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
         uniformType: UniformType.Gi,
         price: 0,
         thumbnailUrl: '',
-        published: true,
         isSubscriptionExcluded: false,
         sparringType: 'Sparring' as 'Sparring' | 'Competition',
         creatorId: '',
@@ -120,6 +119,8 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
     const [mainVideoCuts, setMainVideoCuts] = useState<{ start: number; end: number }[] | null>(null);
     const [showMainTrimmer, setShowMainTrimmer] = useState(false);
     const [relatedFilter, setRelatedFilter] = useState<'lesson' | 'drill' | 'sparring' | null>(null);
+    const [showPublishingModal, setShowPublishingModal] = useState(false);
+    const [pendingSaveData, setPendingSaveData] = useState<any>(null);
 
     // Initialize related filter when tab changes or content type changes
     useEffect(() => {
@@ -146,7 +147,6 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                 uniformType: (editingItem as any).uniformType || UniformType.Gi,
                 price: (editingItem as any).price || 0,
                 thumbnailUrl: editingItem.thumbnailUrl || '',
-                published: (editingItem as any).published ?? true,
                 isSubscriptionExcluded: (editingItem as any).isSubscriptionExcluded || false,
                 sparringType: (editingItem as any).category === 'Competition' ? 'Competition' : 'Sparring',
                 creatorId: (editingItem as any).creatorId || '',
@@ -348,7 +348,32 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                 mainVideoCuts,
                 mainVideoFile,
             };
-            await onSave(saveData);
+
+            // Show publishing modal for course, routine, sparring (not for drills/lessons)
+            if (['course', 'routine', 'sparring'].includes(contentType)) {
+                setPendingSaveData(saveData);
+                setShowPublishingModal(true);
+                setSaving(false);
+            } else {
+                await onSave(saveData);
+                onClose();
+            }
+        } catch (error) {
+            console.error('Save error:', error);
+            setSaving(false);
+        }
+    };
+
+    const handlePublishingChoice = async (publishRequested: boolean) => {
+        setSaving(true);
+        try {
+            const finalSaveData = {
+                ...pendingSaveData,
+                publishingRequested, // Flag to request publishing
+            };
+            await onSave(finalSaveData);
+            setShowPublishingModal(false);
+            setPendingSaveData(null);
             onClose();
         } catch (error) {
             console.error('Save error:', error);
@@ -610,30 +635,16 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                             {/* Course/Sparring specific options - Publishing */}
                             {(contentType === 'course' || contentType === 'sparring') && (
                                 <div className="space-y-3 pt-4 border-t border-zinc-800">
-                                    {contentType === 'course' && (
-                                        <label className="flex items-start gap-4 p-4 rounded-xl border border-zinc-800 bg-zinc-950/30 hover:bg-zinc-800/20 transition-all cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={formData.isSubscriptionExcluded}
-                                                onChange={(e) => setFormData(prev => ({ ...prev, isSubscriptionExcluded: e.target.checked }))}
-                                                className="mt-1 h-5 w-5 text-violet-600 border-zinc-700 rounded-md bg-zinc-900"
-                                            />
-                                            <div>
-                                                <span className="block font-semibold text-zinc-200">구독 제외 상품</span>
-                                                <span className="block text-sm text-zinc-500 mt-1">체크하면 구독권 사용자도 별도 구매가 필요합니다.</span>
-                                            </div>
-                                        </label>
-                                    )}
                                     <label className="flex items-start gap-4 p-4 rounded-xl border border-zinc-800 bg-zinc-950/30 hover:bg-zinc-800/20 transition-all cursor-pointer">
                                         <input
                                             type="checkbox"
-                                            checked={formData.published}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, published: e.target.checked }))}
+                                            checked={formData.isSubscriptionExcluded}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, isSubscriptionExcluded: e.target.checked }))}
                                             className="mt-1 h-5 w-5 text-violet-600 border-zinc-700 rounded-md bg-zinc-900"
                                         />
                                         <div>
-                                            <span className="block font-semibold text-zinc-200">전체 공개 (Publish)</span>
-                                            <span className="block text-sm text-zinc-500 mt-1">체크하면 서비스(릴스 등)에 노출됩니다.</span>
+                                            <span className="block font-semibold text-zinc-200">구독 제외 상품</span>
+                                            <span className="block text-sm text-zinc-500 mt-1">체크하면 구독권 사용자도 별도 구매가 필요합니다.</span>
                                         </div>
                                     </label>
                                 </div>
@@ -1173,6 +1184,39 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                     document.body
                 )
             }
+
+            {/* Publishing Request Modal */}
+            {showPublishingModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowPublishingModal(false)} />
+                    <div className="relative bg-zinc-900 border border-zinc-800 rounded-3xl p-8 max-w-lg w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                        <h3 className="text-2xl font-bold text-white mb-3">콘텐츠 공개</h3>
+                        <p className="text-zinc-400 mb-6">
+                            이 {contentType === 'course' ? '강좌' : contentType === 'routine' ? '루틴' : '스파링'}를 공개하시겠습니까?<br/>
+                            <span className="text-sm mt-2 block">
+                                💡 공개를 요청하시면 관리자 승인 후 웹사이트에 공개됩니다.
+                            </span>
+                        </p>
+
+                        <div className="space-y-3">
+                            <button
+                                onClick={() => handlePublishingChoice(false)}
+                                disabled={saving}
+                                className="w-full py-3.5 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-sm hover:bg-zinc-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                임시저장 (비공개)
+                            </button>
+                            <button
+                                onClick={() => handlePublishingChoice(true)}
+                                disabled={saving}
+                                className="w-full py-3.5 rounded-xl bg-violet-600 text-white font-bold text-sm hover:bg-violet-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-violet-900/20"
+                            >
+                                {saving ? '저장 중...' : '공개 요청'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >,
         document.body
     );

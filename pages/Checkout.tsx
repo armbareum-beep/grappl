@@ -56,6 +56,22 @@ export const Checkout: React.FC = () => {
         setLoading(true);
         try {
             let initialAmount = 0;
+
+            // Check if this is an upgrade from Settings page
+            const upgradeCalculation = (location.state as any)?.upgradeCalculation;
+
+            if (type === 'subscription_upgrade' && upgradeCalculation) {
+                // Upgrade flow - use pre-calculated amounts
+                initialAmount = upgradeCalculation.finalAmount;
+                setProductTitle('구독 업그레이드 (연간)');
+                setAmount(upgradeCalculation.yearlyPrice);
+                setDiscountedAmount(upgradeCalculation.finalAmount);
+                // Store in sessionStorage for later use in payment handler
+                sessionStorage.setItem('upgradeDetails', JSON.stringify(upgradeCalculation));
+                setLoading(false);
+                return;
+            }
+
             if (type === 'course') {
                 const { data: course } = await supabase.from('courses').select('title, price').eq('id', id).single();
                 initialAmount = course?.price || 0;
@@ -385,17 +401,19 @@ export const Checkout: React.FC = () => {
 
                                                 setLoading(true);
                                                 try {
+                                                    const isUpgrade = type === 'subscription_upgrade';
                                                     const isMonthlySubscription = type === 'subscription' && !productTitle.includes('(연간)');
 
                                                     // Determine Channel Key (V2 Specific)
                                                     // User Request: Yearly Subscription should use GENERAL Channel (One-time payment)
-                                                    const channelKey = (type === 'subscription' && isMonthlySubscription)
+                                                    // Upgrades are also one-time payments
+                                                    const channelKey = (type === 'subscription' && isMonthlySubscription && !isUpgrade)
                                                         ? import.meta.env.VITE_PORTONE_CHANNEL_KEY_SUBSCRIPTION
                                                         : import.meta.env.VITE_PORTONE_CHANNEL_KEY_GENERAL;
 
                                                     let response;
                                                     // Monthly Subscription -> Issue Billing Key
-                                                    if (isMonthlySubscription) {
+                                                    if (isMonthlySubscription && !isUpgrade) {
                                                         response = await PortOne.requestIssueBillingKey({
                                                             storeId: import.meta.env.VITE_PORTONE_STORE_ID,
                                                             channelKey: channelKey,
@@ -410,7 +428,7 @@ export const Checkout: React.FC = () => {
                                                             },
                                                         });
                                                     }
-                                                    // Yearly Pass & Others -> One-time Payment
+                                                    // Yearly Pass, Upgrades & Others -> One-time Payment
                                                     else {
                                                         response = await PortOne.requestPayment({
                                                             storeId: import.meta.env.VITE_PORTONE_STORE_ID,
@@ -457,6 +475,9 @@ export const Checkout: React.FC = () => {
                                                     if (!session) throw new Error('Not authenticated');
 
                                                     const anyResponse = response as any;
+                                                    const upgradeDetails = isUpgrade
+                                                        ? JSON.parse(sessionStorage.getItem('upgradeDetails') || '{}')
+                                                        : null;
 
                                                     const verifyResponse = await fetch(
                                                         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-portone-payment`,
@@ -469,16 +490,21 @@ export const Checkout: React.FC = () => {
                                                             body: JSON.stringify({
                                                                 paymentId: anyResponse?.paymentId || '',
                                                                 billingKey: anyResponse?.billingKey || '',
-                                                                mode: type,
-                                                                id: id,
+                                                                mode: isUpgrade ? 'subscription_upgrade' : type,
+                                                                id: isUpgrade ? upgradeDetails?.currentSubscription?.id : id,
                                                                 userId: user?.id,
                                                                 couponCode: appliedCoupon?.code,
-                                                                amount: isMonthlySubscription ? discountedAmount : undefined
+                                                                amount: discountedAmount
                                                             }),
                                                         }
                                                     );
 
                                                     if (!verifyResponse.ok) throw new Error('결제 검증 실패');
+
+                                                    // Clean up upgrade details from sessionStorage
+                                                    if (isUpgrade) {
+                                                        sessionStorage.removeItem('upgradeDetails');
+                                                    }
 
                                                     // Payment Success Notification
                                                     if (user?.id) {

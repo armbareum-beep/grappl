@@ -80,9 +80,9 @@ export const AdminContentApproval: React.FC = () => {
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
                     <div className="space-y-1">
-                        <button onClick={() => navigate('/admin')} className="flex items-center gap-2 text-zinc-500 hover:text-white mb-4 transition-colors group">
+                        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-zinc-500 hover:text-white mb-4 transition-colors group">
                             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                            <span className="text-sm font-medium">대시보드로 돌아가기</span>
+                            <span className="text-sm font-medium">뒤로가기</span>
                         </button>
                         <h1 className="text-3xl font-extrabold tracking-tight">콘텐츠 승인 대기열</h1>
                         <p className="text-zinc-400">인스트럭터가 등록한 새 콘텐츠를 검토하고 승인 여부를 결정합니다.</p>

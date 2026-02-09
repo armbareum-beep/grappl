@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { cn } from '../../lib/utils';
-import { getCreatorCourses, calculateCreatorEarnings, getDrills, deleteDrill, getAllCreatorLessons, deleteLesson, getUserCreatedRoutines, deleteRoutine, getSparringVideos, deleteSparringVideo, deleteCourse, getRoutineById } from '../../lib/api';
-import { Course, Drill, Lesson, DrillRoutine, SparringVideo } from '../../types';
+import { getCreatorCourses, calculateCreatorEarnings, getDrills, deleteDrill, getAllCreatorLessons, deleteLesson, getUserCreatedRoutines, deleteRoutine, getSparringVideos, deleteSparringVideo, deleteCourse, getRoutineById, getBundles, deleteBundle } from '../../lib/api';
+import { Course, Drill, Lesson, DrillRoutine, SparringVideo, Bundle } from '../../types';
 import { MobileTabSelector } from '../../components/MobileTabSelector';
 import { Button } from '../../components/Button';
 import { BookOpen, DollarSign, Eye, TrendingUp, Package, MessageSquare, LayoutDashboard, PlayCircle, Grid, Layers, Clapperboard, X } from 'lucide-react';
@@ -21,7 +21,7 @@ import { ContentCard } from '../../components/creator/ContentCard';
 import { useDataControls, SearchInput, SortSelect, Pagination, SortOption } from '../../components/common/DataControls';
 import { UnifiedContentModal } from '../../components/creator/UnifiedContentModal';
 import { useToast } from '../../contexts/ToastContext';
-import { createCourse, updateCourse, createRoutine, updateRoutine, createSparringVideo, updateSparringVideo, updateCourseLessons, updateCourseBundles } from '../../lib/api';
+import { createCourse, updateCourse, createRoutine, updateRoutine, createSparringVideo, updateSparringVideo, updateCourseLessons, updateCourseBundles, requestCoursePublishing, requestRoutinePublishing, requestSparringPublishing } from '../../lib/api';
 import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 
 export const CreatorDashboard: React.FC = () => {
@@ -35,6 +35,7 @@ export const CreatorDashboard: React.FC = () => {
     const [lessons, setLessons] = useState<Lesson[]>([]);
     const [routines, setRoutines] = useState<DrillRoutine[]>([]);
     const [sparringVideos, setSparringVideos] = useState<SparringVideo[]>([]);
+    const [bundles, setBundles] = useState<Bundle[]>([]);
     const [earnings, setEarnings] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
@@ -103,7 +104,6 @@ export const CreatorDashboard: React.FC = () => {
                         uniformType: data.uniformType,
                         price: data.price,
                         thumbnailUrl: data.thumbnailUrl,
-                        published: data.published,
                         isSubscriptionExcluded: data.isSubscriptionExcluded,
                         creatorId: data.creatorId,
                     });
@@ -122,7 +122,6 @@ export const CreatorDashboard: React.FC = () => {
                         uniformType: data.uniformType,
                         price: data.price,
                         thumbnailUrl: data.thumbnailUrl,
-                        published: data.published,
                         isSubscriptionExcluded: data.isSubscriptionExcluded,
                         creatorId: user.id,
                     });
@@ -133,6 +132,21 @@ export const CreatorDashboard: React.FC = () => {
                     }
                     if (result.data) courseId = result.data.id;
                     success('클래스가 생성되었습니다.');
+
+                    // Request publishing if user chose to publish
+                    if (data.publishingRequested && courseId) {
+                        try {
+                            const { error: publishError } = await requestCoursePublishing(courseId);
+                            if (publishError) {
+                                console.error('Publishing request error:', publishError);
+                                toastError('공개 요청 중 오류가 발생했습니다.');
+                            } else {
+                                success('관리자 승인 대기열에 올라갔습니다. 승인 후 웹사이트에 공개됩니다.');
+                            }
+                        } catch (err) {
+                            console.error('Publishing request error:', err);
+                        }
+                    }
                 }
 
                 // Handle Curriculum (Lessons)
@@ -187,7 +201,7 @@ export const CreatorDashboard: React.FC = () => {
                     }
                     success('루틴이 수정되었습니다.');
                 } else {
-                    const { error } = await createRoutine({
+                    const result = await createRoutine({
                         title: data.title,
                         description: data.description,
                         category: data.category,
@@ -201,11 +215,26 @@ export const CreatorDashboard: React.FC = () => {
                         creatorName: user.user_metadata?.name || 'Creator',
                     }, data.selectedDrillIds);
 
-                    if (error) {
-                        toastError('루틴 생성 중 오류가 발생했습니다: ' + (error.message || error));
+                    if (result.error) {
+                        toastError('루틴 생성 중 오류가 발생했습니다: ' + (result.error.message || result.error));
                         return; // Stop execution on error
                     }
                     success('루틴이 생성되었습니다.');
+
+                    // Request publishing if user chose to publish
+                    if (data.publishingRequested && result.data?.id) {
+                        try {
+                            const { error: publishError } = await requestRoutinePublishing(result.data.id);
+                            if (publishError) {
+                                console.error('Publishing request error:', publishError);
+                                toastError('공개 요청 중 오류가 발생했습니다.');
+                            } else {
+                                success('관리자 승인 대기열에 올라갔습니다. 승인 후 웹사이트에 공개됩니다.');
+                            }
+                        } catch (err) {
+                            console.error('Publishing request error:', err);
+                        }
+                    }
                 }
                 // Refresh routines with timeout
                 try {
@@ -228,7 +257,6 @@ export const CreatorDashboard: React.FC = () => {
                         uniformType: data.uniformType,
                         price: data.price,
                         relatedItems: data.relatedItems,
-                        isPublished: data.published,
                         creatorId: data.creatorId,
                     });
 
@@ -248,7 +276,6 @@ export const CreatorDashboard: React.FC = () => {
                         uniformType: data.uniformType,
                         price: data.price,
                         relatedItems: data.relatedItems,
-                        isPublished: data.published,
                         creatorId: user.id
                     });
 
@@ -278,7 +305,20 @@ export const CreatorDashboard: React.FC = () => {
                             success('스파링이 생성되었습니다. 영상을 나중에 업로드해주세요.');
                         }
 
-
+                        // Request publishing if user chose to publish
+                        if (data.publishingRequested) {
+                            try {
+                                const { error: publishError } = await requestSparringPublishing(sparringId);
+                                if (publishError) {
+                                    console.error('Publishing request error:', publishError);
+                                    toastError('공개 요청 중 오류가 발생했습니다.');
+                                } else {
+                                    success('관리자 승인 대기열에 올라갔습니다. 승인 후 웹사이트에 공개됩니다.');
+                                }
+                            } catch (err) {
+                                console.error('Publishing request error:', err);
+                            }
+                        }
                     }
                 }
 
@@ -369,6 +409,13 @@ export const CreatorDashboard: React.FC = () => {
         itemsPerPage: 6
     });
 
+    const bundleControls = useDataControls<Bundle>({
+        data: bundles,
+        searchKeys: ['title', 'description'],
+        sortOptions: commonSortOptions,
+        itemsPerPage: 6
+    });
+
 
 
     const lessonControls = useDataControls<Lesson>({
@@ -385,132 +432,132 @@ export const CreatorDashboard: React.FC = () => {
         itemsPerPage: 10
     });
 
-    useEffect(() => {
-        async function fetchData() {
-            if (!user) return;
+    const fetchData = React.useCallback(async (forceRefresh?: boolean) => {
+        if (!user) return;
 
-            // Only show full screen loading if we don't have courses yet (initial load)
-            // This prevents the screen from flashing/locking when AuthContext refreshes silently
-            if (courses.length === 0) {
-                setLoading(true);
-            }
-
-            // Helper: Add timeout to any promise
-            const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> => {
-                return Promise.race([
-                    promise,
-                    new Promise<T>((resolve) => setTimeout(() => {
-                        console.warn('API call timed out, using fallback');
-                        resolve(fallback);
-                    }, timeoutMs))
-                ]);
-            };
-
-            // Fetch data in parallel with timeout protection
-            const fetchCourses = withTimeout(
-                getCreatorCourses(user.id).catch(err => {
-                    console.error('Failed to fetch courses:', err);
-                    return [];
-                }),
-                10000,
-                []
-            );
-
-            const fetchDrills = withTimeout(
-                getDrills(user.id).catch(err => {
-                    console.error('Failed to fetch drills:', err);
-                    return { data: [], error: err };
-                }),
-                10000,
-                { data: [], error: null }
-            );
-
-            const fetchLessons = withTimeout(
-                getAllCreatorLessons(user.id).catch(err => {
-                    console.error('Failed to fetch lessons:', err);
-                    return [];
-                }),
-                10000,
-                []
-            );
-
-            const fetchRoutines = withTimeout(
-                getUserCreatedRoutines(user.id).catch(err => {
-                    console.error('Failed to fetch routines:', err);
-                    return { data: [], error: err };
-                }),
-                10000,
-                { data: [], error: null }
-            );
-
-            const fetchSparring = withTimeout(
-                getSparringVideos(100, user.id).catch(err => {
-                    console.error('Failed to fetch sparring:', err);
-                    return { data: [], error: err };
-                }),
-                10000,
-                { data: [], error: null }
-            );
-
-            const fetchEarnings = withTimeout(
-                calculateCreatorEarnings(user.id).catch(err => {
-                    console.error('Failed to fetch earnings:', err);
-                    return { error: err };
-                }),
-                10000,
-                { error: null }
-            );
-
-            try {
-                const [coursesData, drillsData, lessonsData, routinesData, sparringData, earningsData] = await Promise.all([
-                    fetchCourses,
-                    fetchDrills,
-                    fetchLessons,
-                    fetchRoutines,
-                    fetchSparring,
-                    fetchEarnings
-                ]);
-
-                console.log('Dashboard Data Loaded:', {
-                    courses: coursesData?.length,
-                    drills: Array.isArray(drillsData) ? drillsData.length : (drillsData as any)?.data?.length,
-                    sparring: sparringData?.data?.length,
-                    sparringDetails: sparringData?.data?.map((s: any) => ({ id: s.id, title: s.title, price: s.price })),
-                    earnings: earningsData
-                });
-
-                setCourses(Array.isArray(coursesData) ? coursesData : []);
-                setDrills(Array.isArray(drillsData) ? drillsData : (drillsData as any)?.data || []);
-                setLessons(Array.isArray(lessonsData) ? lessonsData : (lessonsData as any)?.data || []);
-                setRoutines(Array.isArray(routinesData) ? routinesData : (routinesData as any)?.data || []);
-                setSparringVideos(Array.isArray(sparringData) ? sparringData : (sparringData as any)?.data || []);
-
-                if (earningsData && 'data' in earningsData) {
-                    setEarnings(earningsData.data);
-                } else if (earningsData && !('error' in earningsData)) {
-                    // Handle case where earnings might return data directly or in generic format
-                    setEarnings(earningsData);
-                }
-            } catch (error) {
-                console.error('Critical Error in Dashboard Promise.all:', error);
-            } finally {
-                setLoading(false);
-            }
+        // Only show full screen loading if we don't have courses yet (initial load)
+        if (courses.length === 0 && !forceRefresh) {
+            setLoading(true);
         }
 
+        // Helper: Add timeout to any promise
+        const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> => {
+            return Promise.race([
+                promise,
+                new Promise<T>((resolve) => setTimeout(() => {
+                    console.warn('API call timed out, using fallback');
+                    resolve(fallback);
+                }, timeoutMs))
+            ]);
+        };
+
+        // Fetch data in parallel with timeout protection
+        const fetchCourses = withTimeout(
+            getCreatorCourses(user.id).catch(err => {
+                console.error('Failed to fetch courses:', err);
+                return [];
+            }),
+            10000,
+            []
+        );
+
+        const fetchDrills = withTimeout(
+            getDrills(user.id, 50, forceRefresh).catch(err => {
+                console.error('Failed to fetch drills:', err);
+                return { data: [], error: err };
+            }),
+            10000,
+            { data: [], error: null }
+        );
+
+        const fetchLessons = withTimeout(
+            getAllCreatorLessons(user.id).catch(err => {
+                console.error('Failed to fetch lessons:', err);
+                return [];
+            }),
+            10000,
+            []
+        );
+
+        const fetchRoutines = withTimeout(
+            getUserCreatedRoutines(user.id).catch(err => {
+                console.error('Failed to fetch routines:', err);
+                return { data: [], error: err };
+            }),
+            10000,
+            { data: [], error: null }
+        );
+
+        const fetchSparring = withTimeout(
+            getSparringVideos(100, user.id).catch(err => {
+                console.error('Failed to fetch sparring:', err);
+                return { data: [], error: err };
+            }),
+            10000,
+            { data: [], error: null }
+        );
+
+        const fetchEarnings = withTimeout(
+            calculateCreatorEarnings(user.id).catch(err => {
+                console.error('Failed to fetch earnings:', err);
+                return { error: err };
+            }),
+            10000,
+            { error: null }
+        );
+
+        const fetchBundles = withTimeout(
+            getBundles().catch(err => {
+                console.error('Failed to fetch bundles:', err);
+                return { data: [], error: err };
+            }),
+            10000,
+            { data: [], error: null }
+        );
+
+        try {
+            const [coursesData, drillsData, lessonsData, routinesData, sparringData, earningsData, bundlesData] = await Promise.all([
+                fetchCourses,
+                fetchDrills,
+                fetchLessons,
+                fetchRoutines,
+                fetchSparring,
+                fetchEarnings,
+                fetchBundles
+            ]);
+
+            setCourses(Array.isArray(coursesData) ? coursesData : []);
+            setDrills(Array.isArray(drillsData) ? drillsData : (drillsData as any)?.data || []);
+            setLessons(Array.isArray(lessonsData) ? lessonsData : (lessonsData as any)?.data || []);
+            setRoutines(Array.isArray(routinesData) ? routinesData : (routinesData as any)?.data || []);
+            setSparringVideos(Array.isArray(sparringData) ? sparringData : (sparringData as any)?.data || []);
+
+            if (bundlesData?.data) {
+                setBundles(bundlesData.data.filter((b: Bundle) => b.creatorId === user.id));
+            }
+
+            if (earningsData && 'data' in earningsData) {
+                setEarnings(earningsData.data);
+            } else if (earningsData && !('error' in earningsData)) {
+                setEarnings(earningsData);
+            }
+        } catch (error) {
+            console.error('Critical Error in Dashboard Promise.all:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, [user?.id, courses.length]);
+
+    useEffect(() => {
         fetchData();
-
-        // 폴링 비활성화 - 페이지 새로고침으로 데이터 자동 로드됨
-        // 처리중 상태는 페이지 새로고침 시점에 최신 데이터로 업데이트됨
-
-    }, [user?.id]); // FIX: Only re-run if user ID changes, preventing infinite loops on object reference updates
+    }, [fetchData]);
+    // FIX: Only re-run if user ID changes, preventing infinite loops on object reference updates
 
     // Polling for processing items (Lessons & Drills)
     useEffect(() => {
         if (!user) return;
 
         const hasProcessingLessons = lessons.some(l => !l.vimeoUrl);
-        // Drill processing check: no vimeoUrl OR vimeoUrl is empty string (sometimes it might be null)
         const hasProcessingDrills = drills.some(d => !d.vimeoUrl || d.vimeoUrl.trim() === '');
 
         if (!hasProcessingLessons && !hasProcessingDrills) return;
@@ -519,14 +566,13 @@ export const CreatorDashboard: React.FC = () => {
             // Poll Lessons if needed
             if (hasProcessingLessons) {
                 try {
-                    // Fix: Handle object return type from getAllCreatorLessons
-                    const result = await getAllCreatorLessons(user.id).catch(() => ({ data: [] }));
-                    const latestLessons = (result && 'data' in (result as any))
-                        ? (result as any).data
-                        : (Array.isArray(result) ? result : []);
-
-                    if (latestLessons && latestLessons.length > 0) {
-                        setLessons(latestLessons);
+                    const { data } = await getAllCreatorLessons(user.id);
+                    if (data && data.length > 0) {
+                        setLessons(data);
+                        // If all complete, refresh everything
+                        if (!data.some(l => !l.vimeoUrl)) {
+                            fetchData(true);
+                        }
                     }
                 } catch (err) {
                     console.error('Error polling lessons:', err);
@@ -536,20 +582,22 @@ export const CreatorDashboard: React.FC = () => {
             // Poll Drills if needed
             if (hasProcessingDrills) {
                 try {
-                    const result = await getDrills(user.id);
-                    const latestDrills = Array.isArray(result) ? result : (result as any)?.data || [];
-
-                    if (latestDrills && latestDrills.length > 0) {
-                        setDrills(latestDrills);
+                    const refreshedDrills = await getDrills(user.id, 50, true);
+                    if (refreshedDrills && refreshedDrills.length > 0) {
+                        setDrills(refreshedDrills);
+                        // If all complete, refresh everything
+                        if (!refreshedDrills.some(d => !d.vimeoUrl || d.vimeoUrl.trim() === '')) {
+                            fetchData(true);
+                        }
                     }
                 } catch (err) {
                     console.error('Error polling drills:', err);
                 }
             }
-        }, 5000); // Poll every 5 seconds
+        }, 10000); // Poll every 10 seconds
 
         return () => clearInterval(pollInterval);
-    }, [user, lessons, drills, courses, routines]); // Re-run effect when data updates
+    }, [user?.id, lessons, drills]);
 
 
     const handleDeleteDrill = async (drillId: string, drillTitle: string) => {
@@ -603,6 +651,19 @@ export const CreatorDashboard: React.FC = () => {
 
         // Refresh routines list
         setRoutines(routines.filter(r => r.id !== routineId));
+    };
+
+    const handleDeleteBundle = async (bundleId: string, bundleTitle: string) => {
+        if (!confirm(`"${bundleTitle}" 번들을 삭제하시겠습니까?`)) return;
+
+        const { error } = await deleteBundle(bundleId);
+        if (error) {
+            alert('번들 삭제 중 오류가 발생했습니다.');
+            return;
+        }
+
+        // Refresh bundles list
+        setBundles(bundles.filter(b => b.id !== bundleId));
     };
 
     const handleDeleteSparringVideo = async (videoId: string, title: string) => {
@@ -876,6 +937,7 @@ export const CreatorDashboard: React.FC = () => {
                                                         price={routine.price}
                                                         views={routine.views}
                                                         count={routine.drillCount}
+                                                        creatorName={routine.creatorName}
                                                         onEdit={() => openRoutineModal(routine)}
                                                         onDelete={() => handleDeleteRoutine(routine.id, routine.title)}
                                                     />
@@ -944,6 +1006,7 @@ export const CreatorDashboard: React.FC = () => {
                                     )}
                                 </div>
                             )}
+
                         </div>
                     ) : activeTab === 'materials' ? (
                         <div className="space-y-8">
@@ -1011,7 +1074,7 @@ export const CreatorDashboard: React.FC = () => {
                                                         views={lesson.views || 0}
                                                         duration={lesson.durationMinutes}
                                                         createdAt={lesson.createdAt}
-                                                        isProcessing={!lesson.vimeoUrl}
+                                                        isProcessing={!lesson.vimeoUrl && !lesson.videoUrl}
                                                         onClick={() => {
                                                             if (!lesson.vimeoUrl) {
                                                                 alert('동영상이 처리 중입니다. 잠시만 기다려주세요.');
@@ -1076,7 +1139,7 @@ export const CreatorDashboard: React.FC = () => {
                                                         thumbnailUrl={drill.thumbnailUrl}
                                                         views={drill.views}
                                                         createdAt={drill.createdAt}
-                                                        isProcessing={!!(!drill.vimeoUrl || drill.vimeoUrl?.trim() === '')}
+                                                        isProcessing={!!(!drill.vimeoUrl && !drill.videoUrl)}
                                                         isError={!!(drill.vimeoUrl?.startsWith('ERROR:'))}
                                                         onClick={() => {
                                                             if (!drill.vimeoUrl) {

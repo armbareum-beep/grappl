@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
+import { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import Player from '@vimeo/player';
 import { Lock, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -548,6 +548,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         <div
             className={fillContainer ? 'relative w-full h-full' : 'relative w-full'}
             style={!fillContainer ? { aspectRatio: aspectRatio || 16 / 9 } : undefined}
+            onContextMenu={(e) => e.preventDefault()}
             onClick={async (_e) => {
                 // Ignore clicks if native controls are shown - let the iframe handle it
                 if (showControls) return;
@@ -602,12 +603,47 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
             />
 
             {/* 
+              * Advanced Context Menu Shield (Mask)
+              * Covers the top portion of the video where users typically right-click.
+              * Blocks contextmenu and proxies click to play/pause.
+              * We leave the bottom area (controls) accessible.
+              */}
+            {showControls && (
+                <div
+                    className="absolute inset-x-0 top-0 z-[2] cursor-pointer"
+                    style={{ height: 'calc(100% - 60px)' }} // Revert to allow bottom controls
+                    onContextMenu={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }}
+                    onClick={async (e) => {
+                        e.stopPropagation();
+                        if (!playerRef.current || showUpgradeOverlay) return;
+
+                        try {
+                            const paused = await playerRef.current.getPaused();
+                            if (paused) {
+                                playerRef.current.play();
+                            } else {
+                                playerRef.current.pause();
+                            }
+                        } catch (err) {
+                            console.warn('[VideoPlayer] Mask click sync failed:', err);
+                        }
+                    }}
+                />
+            )}
+
+            {/* 
               * Pointer Shield: captures clicks/drags when controls are hidden.
               * This allows drag events to bubble up to the carousel (Embla) 
               * for click-and-drag scrolling on desktop.
               */}
             {!showControls && (
-                <div className="absolute inset-0 z-[5] cursor-pointer" />
+                <div
+                    className="absolute inset-0 z-[5] cursor-pointer"
+                    onContextMenu={(e) => e.preventDefault()}
+                />
             )}
 
             {/* Direct Video Fallback */}

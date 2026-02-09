@@ -84,7 +84,7 @@ export function useDrillsFeed() {
                         title
                     )
                 `)
-                .limit(50); // Reduced from 200 for better performance
+                .limit(15); // Reduced for faster initial load
 
             // Try to fetch related lessons separately (gracefully handles missing column)
             let relatedLessonsMap: Record<string, any> = {};

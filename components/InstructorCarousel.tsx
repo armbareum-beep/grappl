@@ -1,19 +1,8 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { Users, BookOpen, Dumbbell, Shield, CheckCircle, Video } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-
-interface Creator {
-    id: string;
-    name: string;
-    bio: string;
-    profile_image: string;
-    subscriber_count: number;
-    course_count: number;
-    routine_count: number;
-    sparring_count: number;
-}
+import { useCreators } from '../hooks/use-queries';
 
 interface InstructorCarouselProps {
     searchQuery?: string;
@@ -42,59 +31,11 @@ const InstructorAvatar: React.FC<{ src: string; name: string }> = ({ src, name }
 };
 
 export const InstructorCarousel: React.FC<InstructorCarouselProps> = ({ searchQuery = '' }) => {
-    const [creators, setCreators] = useState<Creator[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { data: instructorsResult = [], isLoading: loading } = useCreators();
 
-    const [emblaRef] = useEmblaCarousel({ loop: true, align: 'center' }, [
-        Autoplay({ delay: 3000, stopOnInteraction: false })
-    ]);
-
-    useEffect(() => {
-        fetchCreators();
-    }, []);
-
-    const fetchCreators = async () => {
-        try {
-            // Fetch creators with course count
-            const { data: creatorsData, error: creatorsError } = await supabase
-                .from('creators')
-                .select('id, name, bio, profile_image, subscriber_count')
-                .eq('approved', true)
-                .order('subscriber_count', { ascending: false });
-
-            if (creatorsError) throw creatorsError;
-
-            // Get course, routine, and sparring counts for each creator
-            const creatorsWithCounts = await Promise.all(
-                (creatorsData || []).map(async (creator) => {
-                    const [coursesResult, routinesResult, sparringResult] = await Promise.all([
-                        supabase.from('courses').select('id', { count: 'exact', head: true }).eq('creator_id', creator.id),
-                        supabase.from('routines').select('id', { count: 'exact', head: true }).eq('creator_id', creator.id),
-                        supabase.from('sparring_videos').select('id', { count: 'exact', head: true }).eq('creator_id', creator.id)
-                    ]);
-
-                    return {
-                        ...creator,
-                        course_count: coursesResult.count || 0,
-                        routine_count: routinesResult.count || 0,
-                        sparring_count: sparringResult.count || 0
-                    };
-                })
-            );
-
-            // Shuffle the creators for random display order on refresh
-            for (let i = creatorsWithCounts.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [creatorsWithCounts[i], creatorsWithCounts[j]] = [creatorsWithCounts[j], creatorsWithCounts[i]];
-            }
-
-            setCreators(creatorsWithCounts);
-            setLoading(false);
-        } catch (error) {
-            console.error('Error fetching creators:', error);
-            setLoading(false);
-        }
-    };
+    const creators = useMemo(() => {
+        return [...instructorsResult].sort(() => Math.random() - 0.5);
+    }, [instructorsResult]);
 
     const filteredCreators = useMemo(() => {
         if (!searchQuery) return creators;
@@ -104,6 +45,10 @@ export const InstructorCarousel: React.FC<InstructorCarouselProps> = ({ searchQu
             (creator.bio && creator.bio.toLowerCase().includes(query))
         );
     }, [creators, searchQuery]);
+
+    const [emblaRef] = useEmblaCarousel({ loop: true, align: 'center' }, [
+        Autoplay({ delay: 3000, stopOnInteraction: false })
+    ]);
 
     if (loading) return <div className="text-center text-slate-500 py-12">로딩 중...</div>;
 
@@ -138,7 +83,7 @@ export const InstructorCarousel: React.FC<InstructorCarouselProps> = ({ searchQu
                                             <div className="absolute inset-0 bg-violet-600 rounded-full blur-md opacity-0 group-hover:opacity-40 transition-opacity duration-300 -z-10"></div>
 
                                             <div className="w-full h-full rounded-full overflow-hidden bg-zinc-800">
-                                                <InstructorAvatar src={creator.profile_image} name={creator.name} />
+                                                <InstructorAvatar src={creator.profileImage || ''} name={creator.name} />
                                             </div>
                                         </div>
                                     </div>
@@ -167,27 +112,27 @@ export const InstructorCarousel: React.FC<InstructorCarouselProps> = ({ searchQu
     );
 };
 
-function StatStat(creator: Creator) {
+function StatStat(creator: any) {
     return (
         <div className="grid grid-cols-4 gap-1 py-4 border-t border-zinc-800/50 bg-zinc-900/30 rounded-xl">
             <div className="flex flex-col items-center">
                 <Users className="w-3 h-3 text-violet-500 mb-1" />
-                <span className="text-xs font-bold text-white">{creator.subscriber_count > 999 ? '999+' : creator.subscriber_count}</span>
+                <span className="text-xs font-bold text-white">{(creator.subscriberCount || 0) > 999 ? '999+' : creator.subscriberCount}</span>
                 <span className="text-[8px] text-zinc-500 uppercase tracking-wider">수련생</span>
             </div>
             <div className="flex flex-col items-center border-l border-zinc-800/50">
                 <BookOpen className="w-3 h-3 text-violet-500 mb-1" />
-                <span className="text-xs font-bold text-white">{creator.course_count}</span>
+                <span className="text-xs font-bold text-white">{creator.courseCount || 0}</span>
                 <span className="text-[8px] text-zinc-500 uppercase tracking-wider">클래스</span>
             </div>
             <div className="flex flex-col items-center border-l border-zinc-800/50">
                 <Dumbbell className="w-3 h-3 text-violet-500 mb-1" />
-                <span className="text-xs font-bold text-white">{creator.routine_count}</span>
+                <span className="text-xs font-bold text-white">{creator.routineCount || 0}</span>
                 <span className="text-[8px] text-zinc-500 uppercase tracking-wider">루틴</span>
             </div>
             <div className="flex flex-col items-center border-l border-zinc-800/50">
                 <Video className="w-3 h-3 text-violet-500 mb-1" />
-                <span className="text-xs font-bold text-white">{creator.sparring_count}</span>
+                <span className="text-xs font-bold text-white">{creator.sparringCount || 0}</span>
                 <span className="text-[8px] text-zinc-500 uppercase tracking-wider">스파링</span>
             </div>
         </div>

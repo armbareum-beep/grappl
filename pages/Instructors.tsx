@@ -1,16 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Shield, CheckCircle, Search, BookOpen, Dumbbell, Video } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 import { LoadingScreen } from '../components/LoadingScreen';
-
-interface Creator {
-    id: string;
-    name: string;
-    bio: string;
-    profile_image: string;
-    subscriber_count: number;
-}
+import { useCreators } from '../hooks/use-queries';
+import { Creator } from '../types';
 
 const InstructorAvatar: React.FC<{ src: string; name: string }> = ({ src, name }) => {
     const [error, setError] = useState(false);
@@ -36,30 +29,12 @@ const InstructorAvatar: React.FC<{ src: string; name: string }> = ({ src, name }
 
 export const Instructors: React.FC = () => {
     const navigate = useNavigate();
-    const [creators, setCreators] = useState<Creator[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { data: creatorsResult = [], isLoading: loading } = useCreators();
     const [searchTerm, setSearchTerm] = useState('');
 
-    useEffect(() => {
-        fetchCreators();
-    }, []);
-
-    const fetchCreators = async () => {
-        try {
-            const { data, error } = await supabase
-                .from('creators')
-                .select('id, name, bio, profile_image, subscriber_count')
-                .eq('approved', true)
-                .order('subscriber_count', { ascending: false });
-
-            if (error) throw error;
-            setCreators(data || []);
-        } catch (error) {
-            console.error('Error fetching creators:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const creators = React.useMemo(() => {
+        return [...creatorsResult].sort(() => Math.random() - 0.5);
+    }, [creatorsResult]);
 
     const filteredCreators = creators.filter(creator =>
         creator.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -126,7 +101,7 @@ export const Instructors: React.FC = () => {
                                 <div className="relative -mt-16 flex justify-center mb-4 z-10">
                                     <div className="w-32 h-32 rounded-full p-1 bg-zinc-900 ring-4 ring-zinc-900 group-hover:ring-violet-500/30 transition-all duration-300 shadow-xl">
                                         <div className="w-full h-full rounded-full overflow-hidden bg-zinc-800 relative">
-                                            <InstructorAvatar src={creator.profile_image} name={creator.name} />
+                                            <InstructorAvatar src={creator.profileImage || ''} name={creator.name} />
                                         </div>
                                     </div>
                                 </div>
@@ -151,7 +126,7 @@ export const Instructors: React.FC = () => {
                                                 <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">수련생</span>
                                                 <div className="flex items-center gap-1 text-sm font-bold text-zinc-200">
                                                     <Users className="w-3 h-3 text-violet-500" />
-                                                    <span>{creator.subscriber_count > 9999 ? '9.9k+' : creator.subscriber_count.toLocaleString()}</span>
+                                                    <span>{(creator.subscriberCount || 0) > 9999 ? '9.9k+' : (creator.subscriberCount || 0).toLocaleString()}</span>
                                                 </div>
                                             </div>
 
@@ -160,7 +135,7 @@ export const Instructors: React.FC = () => {
                                                 <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">클래스</span>
                                                 <div className="flex items-center gap-1 text-sm font-bold text-zinc-200">
                                                     <BookOpen className="w-3 h-3 text-violet-500" />
-                                                    <span>5</span>
+                                                    <span>{creator.courseCount || 0}</span>
                                                 </div>
                                             </div>
 
@@ -169,7 +144,7 @@ export const Instructors: React.FC = () => {
                                                 <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">루틴</span>
                                                 <div className="flex items-center gap-1 text-sm font-bold text-zinc-200">
                                                     <Dumbbell className="w-3 h-3 text-violet-500" />
-                                                    <span>3</span>
+                                                    <span>{creator.routineCount || 0}</span>
                                                 </div>
                                             </div>
 
@@ -178,7 +153,7 @@ export const Instructors: React.FC = () => {
                                                 <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">스파링</span>
                                                 <div className="flex items-center gap-1 text-sm font-bold text-zinc-200">
                                                     <Video className="w-3 h-3 text-violet-500" />
-                                                    <span>8</span>
+                                                    <span>{creator.sparringCount || 0}</span>
                                                 </div>
                                             </div>
                                         </div>

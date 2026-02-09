@@ -97,10 +97,27 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
         return matchesSearch && matchesCategory;
     };
 
-    const filteredLessons = lessons.filter(filterItem);
-    const filteredDrills = drills.filter(filterItem);
-    const filteredSavedLessons = savedLessons.filter(filterItem);
-    const filteredSavedDrills = savedDrills.filter(filterItem);
+    const safeArray = (arr: any) => Array.isArray(arr) ? arr : [];
+    const filteredLessons = safeArray(lessons).filter(filterItem);
+    const filteredDrills = safeArray(drills).filter(filterItem);
+    const filteredSavedLessons = safeArray(savedLessons).filter(filterItem);
+    const filteredSavedDrills = safeArray(savedDrills).filter(filterItem);
+
+    // Debugging log to catch issues with props
+    useEffect(() => {
+        if (isOpen) {
+            console.log('AddTechniqueModal Props:', {
+                lessonsCount: safeArray(lessons).length,
+                drillsCount: safeArray(drills).length,
+                savedLessonsCount: safeArray(savedLessons).length,
+                savedDrillsCount: safeArray(savedDrills).length,
+                lessonsType: typeof lessons,
+                drillsType: typeof drills,
+                isLessonsArray: Array.isArray(lessons),
+                isDrillsArray: Array.isArray(drills)
+            });
+        }
+    }, [isOpen, lessons, drills, savedLessons, savedDrills]);
 
     const handleAddSelected = () => {
         if (selectedItems.length > 0) {

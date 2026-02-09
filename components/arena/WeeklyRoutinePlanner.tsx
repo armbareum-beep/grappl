@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DrillRoutine, WeeklySchedule, WeeklyRoutinePlan } from '../../types';
 import { Calendar, Trash2, Clock, Play, Share2, Download, Save, FolderOpen, FilePlus, PlayCircle } from 'lucide-react';
 import { toPng } from 'html-to-image';
@@ -36,6 +36,7 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
 }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [schedule, setSchedule] = useState<WeeklySchedule>({
         '월': [], '화': [], '수': [], '목': [], '금': [], '토': [], '일': []
     });
@@ -65,6 +66,36 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
     const [isStartModalOpen, setIsStartModalOpen] = useState(false);
     const [startModalRoutines, setStartModalRoutines] = useState<DrillRoutine[]>([]);
 
+    // Load specific plan if ID is in URL
+    useEffect(() => {
+        const planId = searchParams.get('id');
+        if (planId && user) {
+            const loadPlan = async () => {
+                try {
+                    const { data, error } = await getWeeklyRoutinePlan(planId);
+                    if (error) throw error;
+                    if (data) {
+                        setSchedule(data.schedule);
+                        setCurrentPlanId(data.id);
+                        setCurrentPlanTitle(data.title);
+                        // Also update draft so TrainingRoutinesTab sees it
+                        localStorage.setItem('weekly_schedule_draft', JSON.stringify(data.schedule));
+                    }
+                } catch (err) {
+                    console.error('Error loading plan from URL:', err);
+                }
+            };
+            loadPlan();
+        }
+    }, [searchParams, user]);
+
+    // Stable key for guestRoutines to avoid infinite loops from JSON.stringify in dependencies
+    const guestRoutineIds = useMemo(() =>
+        guestRoutines.map(r => r.id).join(','),
+        [guestRoutines]
+    );
+    const prevGuestRoutineIds = React.useRef(guestRoutineIds);
+
     useEffect(() => {
         // Try to load from local storage first
         const saved = localStorage.getItem('weekly_schedule_draft');
@@ -92,7 +123,8 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
             // Save this initial guest schedule to localStorage so it persists
             localStorage.setItem('weekly_schedule_draft', JSON.stringify(newSchedule));
         }
-    }, [isGuest, guestRoutines]);
+        prevGuestRoutineIds.current = guestRoutineIds;
+    }, [isGuest, guestRoutineIds, guestRoutines]);
 
     // Listen for external updates to the schedule (e.g. from TrainingRoutinesTab)
     useEffect(() => {
@@ -100,7 +132,12 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
             const saved = localStorage.getItem('weekly_schedule_draft');
             if (saved) {
                 try {
-                    setSchedule(JSON.parse(saved));
+                    const parsed = JSON.parse(saved);
+                    // Only update if actually different to prevent infinite loops
+                    setSchedule(prev => {
+                        if (JSON.stringify(prev) === saved) return prev;
+                        return parsed;
+                    });
                 } catch (e) {
                     console.error('Failed to load schedule', e);
                 }
@@ -152,26 +189,21 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
 
     const handleSavePlan = async (data: WeeklyRoutineSaveData) => {
         if (!user) return;
+        setIsSavingPlan(true);
 
         try {
-            setIsSavingPlan(true);
-            const res = await saveWeeklyRoutinePlan(
-                user.id,
+            const planToSave = {
+                ...data,
                 schedule,
-                currentPlanId || undefined,
-                data.title,
-                data.isPublic,
-                data.description,
-                data.tags
-            );
+                thumbnailUrl: capturedImage
+            };
+            const { data: savedPlan, error } = await saveWeeklyRoutinePlan(planToSave, user.id, currentPlanId);
 
-            if (res.error || !res.data) {
-                throw new Error(res.error?.message || 'Failed to save');
+            if (error) throw error;
+            if (savedPlan) {
+                setCurrentPlanId(savedPlan.id);
+                setCurrentPlanTitle(savedPlan.title);
             }
-
-            setCurrentPlanId(res.data.id);
-            setCurrentPlanTitle(res.data.title);
-            // alert('루틴이 저장되었습니다.'); // Success handled in modal step 3
         } catch (err) {
             console.error('Save failed:', err);
             alert('저장에 실패했습니다.');

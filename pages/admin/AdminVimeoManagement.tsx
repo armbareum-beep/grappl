@@ -2,14 +2,16 @@ import React, { useEffect, useState } from 'react';
 import {
     Video, Trash2, RefreshCw, ExternalLink,
     AlertTriangle, Shield, Clock, FileVideo,
-    Search, Info, CheckCircle2
+    Search, Info, CheckCircle2, ArrowLeft
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { getVimeoOrphans, deleteVimeoVideo, VimeoOrphan } from '../../lib/api-admin';
 import { useToast } from '../../contexts/ToastContext';
 import { Button } from '../../components/Button';
 import { format } from 'date-fns';
 
 export const AdminVimeoManagement: React.FC = () => {
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [data, setData] = useState<{ count: number; total: number; orphans: VimeoOrphan[] } | null>(null);
@@ -66,6 +68,15 @@ export const AdminVimeoManagement: React.FC = () => {
     return (
         <div className="min-h-screen bg-zinc-950 text-white pb-20">
             <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+                {/* Back Button */}
+                <button
+                    onClick={() => navigate(-1)}
+                    className="flex items-center gap-2 text-zinc-500 hover:text-white mb-6 transition-all group"
+                >
+                    <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                    <span className="text-sm font-medium">뒤로가기</span>
+                </button>
+
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
                     <div className="space-y-2">

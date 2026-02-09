@@ -1,11 +1,56 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getDrills } from '../../lib/api';
+import { getDrills, updateDrill } from '../../lib/api';
 import { deleteDrill } from '../../lib/api-admin';
 import { Drill, Difficulty } from '../../types';
 import { Button } from '../../components/Button';
 import { Trash2, Eye, Search, Plus, ArrowLeft, PlayCircle, Edit } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
+
+const EditableCell = ({ value, onSave }: { value: string, onSave: (val: string) => void }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [localValue, setLocalValue] = useState(value);
+
+    useEffect(() => {
+        setLocalValue(value);
+    }, [value]);
+
+    const handleSave = () => {
+        setIsEditing(false);
+        if (localValue !== value) {
+            onSave(localValue);
+        }
+    };
+
+    if (isEditing) {
+        return (
+            <input
+                autoFocus
+                value={localValue}
+                onChange={(e) => setLocalValue(e.target.value)}
+                onBlur={handleSave}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSave();
+                    if (e.key === 'Escape') {
+                        setLocalValue(value);
+                        setIsEditing(false);
+                    }
+                }}
+                className="bg-zinc-800 text-white px-2 py-1 rounded border border-zinc-700 w-full max-w-[200px]"
+            />
+        );
+    }
+
+    return (
+        <div
+            onClick={() => setIsEditing(true)}
+            className="cursor-pointer hover:bg-zinc-800/50 px-2 py-1 -mx-2 rounded transition-colors"
+            title="클릭하여 수정"
+        >
+            {value}
+        </div>
+    );
+};
 
 export const AdminDrillList: React.FC = () => {
     const navigate = useNavigate();
@@ -28,6 +73,19 @@ export const AdminDrillList: React.FC = () => {
             setLoading(false);
         }
     }
+
+    const handleUpdateTitle = async (drillId: string, newTitle: string) => {
+        try {
+            const { error } = await updateDrill(drillId, { title: newTitle });
+            if (error) throw error;
+
+            setDrills(drills.map(d => d.id === drillId ? { ...d, title: newTitle } : d));
+            success('제목이 수정되었습니다.');
+        } catch (error) {
+            console.error('Error updating drill:', error);
+            toastError('수정 중 오류가 발생했습니다.');
+        }
+    };
 
     const handleDelete = async (drillId: string) => {
         if (!window.confirm('정말로 이 드릴을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
@@ -64,11 +122,11 @@ export const AdminDrillList: React.FC = () => {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
                     <div className="space-y-1">
                         <button
-                            onClick={() => navigate('/admin')}
+                            onClick={() => navigate(-1)}
                             className="flex items-center gap-2 text-zinc-500 hover:text-white mb-4 transition-colors group"
                         >
                             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                            <span className="text-sm font-medium">대시보드로 돌아가기</span>
+                            <span className="text-sm font-medium">뒤로가기</span>
                         </button>
                         <h1 className="text-3xl font-extrabold tracking-tight">드릴 관리</h1>
                         <p className="text-zinc-400">전체 드릴 데이터베이스와 루틴 활용도를 관리합니다.</p>
@@ -122,7 +180,12 @@ export const AdminDrillList: React.FC = () => {
                                                         )}
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <div className="font-bold text-zinc-100 group-hover:text-violet-400 transition-colors truncate">{drill.title}</div>
+                                                        <div className="font-bold text-zinc-100 transition-colors">
+                                                            <EditableCell
+                                                                value={drill.title}
+                                                                onSave={(val) => handleUpdateTitle(drill.id, val)}
+                                                            />
+                                                        </div>
                                                         <div className="flex gap-2 mt-1">
                                                             {drill.tags?.slice(0, 2).map((tag, i) => (
                                                                 <span key={i} className="text-[10px] font-medium text-zinc-500 bg-zinc-800/50 px-2 py-0.5 rounded border border-zinc-700/50">

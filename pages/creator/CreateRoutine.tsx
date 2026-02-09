@@ -7,7 +7,7 @@ import { Image as ImageIcon, DollarSign, Type, AlignLeft, X, CheckCircle, ArrowL
 import { useToast } from '../../contexts/ToastContext';
 
 export const CreateRoutine: React.FC = () => {
-    const { user } = useAuth();
+    const { user, isAdmin } = useAuth();
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
     const isEditMode = !!id;
@@ -65,7 +65,7 @@ export const CreateRoutine: React.FC = () => {
             }
 
             // Verify ownership
-            if (data.creatorId !== user?.id) {
+            if (data.creatorId !== user?.id && !isAdmin) {
                 toastError('수정 권한이 없습니다.');
                 navigate('/creator');
                 return;

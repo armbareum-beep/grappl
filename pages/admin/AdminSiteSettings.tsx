@@ -146,7 +146,7 @@ export const AdminSiteSettings: React.FC = () => {
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
                     <div className="flex items-center gap-4">
-                        <button type="button" onClick={() => navigate('/admin')} className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl transition-all"><ArrowLeft className="w-5 h-5" /></button>
+                        <button type="button" onClick={() => navigate(-1)} className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl transition-all"><ArrowLeft className="w-5 h-5" /></button>
                         <div>
                             <h1 className="text-3xl font-black tracking-tight">사이트 상세 설정</h1>
                             <p className="text-zinc-500 text-sm mt-1">강조할 문구는 <span className="text-violet-400 font-bold">{"{괄호}"}</span>로 감싸주세요. <span className="text-zinc-400 font-bold ml-2">Enter</span> 키로 자유롭게 줄을 바꿀 수 있습니다.</p>

@@ -89,9 +89,7 @@ export function DrillReels() {
             {/* Content Area */}
             <div className="flex-1 h-full relative">
                 <div className="w-full h-full">
-                    {loading ? (
-                        <LoadingScreen message="드릴을 준비하고 있습니다..." />
-                    ) : displayDrills.length > 0 ? (
+                    {displayDrills.length > 0 ? (
                         <DrillReelsFeed
                             drills={displayDrills}
                             initialIndex={initialIndex}

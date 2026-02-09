@@ -110,13 +110,13 @@ export const DrillDetail: React.FC = () => {
         }
     }, [id, authLoading]);
 
-    // Increment view count after 5 seconds of watching (only for authorized users)
+    // Increment view count after 10 seconds of watching (only for authorized users)
     useEffect(() => {
         if (!drill || !owns || !id) return;
 
         const timer = setTimeout(() => {
             incrementDrillViews(id).catch(console.error);
-        }, 5000); // 5 seconds
+        }, 10000); // 10 seconds
 
         return () => clearTimeout(timer);
     }, [drill?.id, owns, id]);

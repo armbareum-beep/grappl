@@ -304,10 +304,7 @@ export const RoutineDetail: React.FC = () => {
                     console.warn('Failed to check daily free drill:', e);
                 }
 
-                // Increment view count
-                if (!id.startsWith('custom-')) {
-                    incrementRoutineView(id);
-                }
+                // View count will be recorded after 15 seconds in useEffect below
             } catch (error) {
                 console.error('Error in RoutineDetail load:', error);
             } finally {
@@ -319,6 +316,11 @@ export const RoutineDetail: React.FC = () => {
             loadRoutineAndPermissions();
         }
     }, [id, authLoading, user?.id]);
+
+    // Note: Routine views are calculated as the sum of all drill views within the routine
+    // Drill views are recorded in DrillDetail when users watch drills
+    // No direct view counting needed here
+
     // Handle deep linking to specific drill via query param
     useEffect(() => {
         const drillId = searchParams.get('drill');

@@ -1,10 +1,10 @@
 import React from 'react';
-import { Pencil, Trash2, Eye, BookOpen, Layers, Clapperboard, PlayCircle, Grid } from 'lucide-react';
+import { Pencil, Trash2, Eye, BookOpen, Layers, Clapperboard, PlayCircle, Grid, Package } from 'lucide-react';
 import { Button } from '../Button';
 import { cn } from '../../lib/utils';
 import { MouseEvent } from 'react';
 
-export type ContentType = 'course' | 'routine' | 'sparring' | 'lesson' | 'drill';
+export type ContentType = 'course' | 'routine' | 'sparring' | 'lesson' | 'drill' | 'bundle';
 
 interface ContentCardProps {
     type: ContentType;
@@ -24,6 +24,7 @@ interface ContentCardProps {
     onClick?: () => void;
     category?: string;
     uniformType?: string;
+    creatorName?: string;
 }
 
 export const ContentCard: React.FC<ContentCardProps> = ({
@@ -43,14 +44,16 @@ export const ContentCard: React.FC<ContentCardProps> = ({
     onDelete,
     onClick,
     category,
-    uniformType
+    uniformType,
+    creatorName
 }) => {
     const Icon = {
         course: BookOpen,
         routine: Layers,
         sparring: Clapperboard,
         lesson: PlayCircle,
-        drill: Grid
+        drill: Grid,
+        bundle: Package
     }[type];
 
     const label = {
@@ -58,7 +61,8 @@ export const ContentCard: React.FC<ContentCardProps> = ({
         routine: '루틴',
         sparring: '스파링',
         lesson: '레슨',
-        drill: '드릴'
+        drill: '드릴',
+        bundle: '번들'
     }[type];
 
     const countLabel = {
@@ -66,7 +70,8 @@ export const ContentCard: React.FC<ContentCardProps> = ({
         routine: '조회수',
         sparring: '',
         lesson: '',
-        drill: ''
+        drill: '',
+        bundle: '콘텐츠'
     }[type];
 
     return (
@@ -81,7 +86,7 @@ export const ContentCard: React.FC<ContentCardProps> = ({
             {/* Thumbnail Header */}
             <div className={cn(
                 "w-full bg-zinc-800 relative overflow-hidden",
-                (type === 'drill' || type === 'routine') ? "aspect-[9/16]" : "aspect-video"
+                "aspect-video"
             )}>
                 {thumbnailUrl && !isProcessing && !isError ? (
                     <img
@@ -137,6 +142,11 @@ export const ContentCard: React.FC<ContentCardProps> = ({
                     <h3 className="font-bold text-white group-hover:text-violet-400 transition-colors mb-1" title={title}>
                         {title}
                     </h3>
+                    {creatorName && (
+                        <p className="text-[11px] text-violet-400/80 font-medium mb-1">
+                            {creatorName}
+                        </p>
+                    )}
                     {description && (
                         <p className="text-xs text-zinc-500 mb-3">
                             {description}

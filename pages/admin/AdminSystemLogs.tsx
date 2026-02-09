@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getSystemLogs } from '../../lib/api-admin';
-import { Shield, AlertTriangle, AlertOctagon, Info, Clock, Search, RefreshCw, Terminal } from 'lucide-react';
+import { Shield, AlertTriangle, AlertOctagon, Info, Clock, Search, RefreshCw, Terminal, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface LogEntry {
     id: string;
@@ -13,6 +14,7 @@ interface LogEntry {
 }
 
 export const AdminSystemLogs: React.FC = () => {
+    const navigate = useNavigate();
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [filterLevel, setFilterLevel] = useState<string>('all');
@@ -58,6 +60,15 @@ export const AdminSystemLogs: React.FC = () => {
     return (
         <div className="min-h-screen bg-zinc-950 text-white pb-20">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+                {/* Back Button */}
+                <button
+                    onClick={() => navigate(-1)}
+                    className="flex items-center gap-2 text-zinc-500 hover:text-white mb-6 transition-all group"
+                >
+                    <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                    <span className="text-sm font-medium">뒤로가기</span>
+                </button>
+
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
                     <div>
                         <h1 className="text-3xl font-extrabold tracking-tight mb-1">System & Security Logs</h1>

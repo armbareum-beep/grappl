@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { getLessonsAdmin, deleteLessonAdmin, updateLessonAdmin } from '../../lib/api-admin';
 import { Lesson } from '../../types';
 import { Trash2, Eye, Search, Plus, ArrowLeft, PlayCircle, Edit } from 'lucide-react';
@@ -51,6 +51,7 @@ const EditableCell = ({ value, onSave }: { value: string, onSave: (val: string) 
 };
 
 export const AdminLessonList = () => {
+    const navigate = useNavigate();
     const { success, error: toastError } = useToast();
     const [lessons, setLessons] = useState<Lesson[]>([]);
     const [loading, setLoading] = useState(true);
@@ -99,11 +100,18 @@ export const AdminLessonList = () => {
         }
     };
 
-    const filteredLessons = lessons.filter(lesson =>
-        lesson.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lesson.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lesson.courseTitle?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredLessons = lessons.filter(lesson => {
+        const searchLower = searchTerm.toLowerCase();
+        // @ts-ignore - joined data
+        const instructorName = lesson.creator?.name || lesson.course?.creator?.name || '';
+        // @ts-ignore - joined data
+        const courseTitle = lesson.course?.title || lesson.courseTitle || '';
+
+        return lesson.title.toLowerCase().includes(searchLower) ||
+            lesson.description?.toLowerCase().includes(searchLower) ||
+            courseTitle.toLowerCase().includes(searchLower) ||
+            instructorName.toLowerCase().includes(searchLower);
+    });
 
     if (loading) {
         return (
@@ -119,9 +127,9 @@ export const AdminLessonList = () => {
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <Link to="/admin/dashboard" className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-lg transition-all">
+                        <button onClick={() => navigate(-1)} className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-lg transition-all">
                             <ArrowLeft className="w-5 h-5" />
-                        </Link>
+                        </button>
                         <div>
                             <h1 className="text-2xl font-bold text-white">레슨 관리</h1>
                             <p className="text-zinc-400">총 {lessons.length}개의 레슨</p>
@@ -140,7 +148,7 @@ export const AdminLessonList = () => {
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
                     <input
                         type="text"
-                        placeholder="레슨 검색..."
+                        placeholder="레슨, 인스트럭터, 강좌 검색..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full pl-12 pr-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-white focus:border-violet-500 focus:outline-none transition-all placeholder:text-zinc-600"
@@ -154,7 +162,8 @@ export const AdminLessonList = () => {
                             <thead>
                                 <tr className="border-b border-zinc-800 bg-zinc-900/50">
                                     <th className="p-4 text-xs font-medium text-zinc-500 uppercase tracking-wider">썸네일</th>
-                                    <th className="p-4 text-xs font-medium text-zinc-500 uppercase tracking-wider w-1/3">제목</th>
+                                    <th className="p-4 text-xs font-medium text-zinc-500 uppercase tracking-wider w-1/4">제목</th>
+                                    <th className="p-4 text-xs font-medium text-zinc-500 uppercase tracking-wider">인스트럭터</th>
                                     <th className="p-4 text-xs font-medium text-zinc-500 uppercase tracking-wider">포함된 강좌</th>
                                     <th className="p-4 text-xs font-medium text-zinc-500 uppercase tracking-wider">난이도</th>
                                     <th className="p-4 text-xs font-medium text-zinc-500 uppercase tracking-wider">조회수</th>
@@ -183,6 +192,12 @@ export const AdminLessonList = () => {
                                                     onSave={(newTitle) => handleUpdateTitle(lesson.id, newTitle)}
                                                 />
                                             </div>
+                                        </td>
+                                        <td className="p-4">
+                                            <span className="text-zinc-400 text-sm">
+                                                {/* @ts-ignore - joined data */}
+                                                {lesson.creator?.name || lesson.course?.creator?.name || '-'}
+                                            </span>
                                         </td>
                                         <td className="p-4">
                                             <span className="text-zinc-400 text-sm">
@@ -246,9 +261,13 @@ export const AdminLessonList = () => {
                                     <div className="min-w-0 flex-1 flex flex-col justify-between py-1">
                                         <div>
                                             <div className="font-bold text-white mb-1 line-clamp-2">{lesson.title}</div>
-                                            <div className="text-xs text-zinc-400">
+                                            <div className="text-xs text-zinc-400 mb-1">
                                                 {/* @ts-ignore - joined data */}
-                                                {lesson.course?.title || 'No Course'}
+                                                인스트럭터: {lesson.creator?.name || lesson.course?.creator?.name || '-'}
+                                            </div>
+                                            <div className="text-xs text-zinc-500">
+                                                {/* @ts-ignore - joined data */}
+                                                강좌: {lesson.course?.title || '-'}
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2 mt-2">
