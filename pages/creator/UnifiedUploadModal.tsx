@@ -283,12 +283,12 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         });
     }, [tasks, mainVideo.videoId, descVideo.videoId]);
 
-    const MAX_VIDEO_DURATION_SECONDS = 60; // 1분 제한
+    const MAX_VIDEO_DURATION_SECONDS = 90; // 1분 30초 제한
 
     const handleFileUpload = async (file: File, setter: React.Dispatch<React.SetStateAction<ProcessingState>>) => {
         const objectUrl = URL.createObjectURL(file);
 
-        // 드릴 영상 길이 검증 (1분 제한)
+        // 드릴 영상 길이 검증 (1분 30초 제한)
         if (contentType === 'drill') {
             const video = document.createElement('video');
             video.preload = 'metadata';
@@ -298,7 +298,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                 video.onloadedmetadata = () => {
                     if (video.duration > MAX_VIDEO_DURATION_SECONDS) {
                         URL.revokeObjectURL(objectUrl);
-                        toastError(`영상 길이가 1분을 초과합니다. (${Math.floor(video.duration)}초) 1분 이하의 영상만 업로드할 수 있습니다.`);
+                        toastError(`영상 길이가 1분 30초를 초과합니다. (${Math.floor(video.duration)}초) 1분 30초 이하의 영상만 업로드할 수 있습니다.`);
                         reject(new Error('Video too long'));
                     } else {
                         resolve();
@@ -308,7 +308,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                     resolve(); // 메타데이터 로드 실패 시 일단 업로드 허용
                 };
             }).catch(() => {
-                setter(prev => ({ ...prev, error: '영상 길이가 1분을 초과합니다.' }));
+                setter(prev => ({ ...prev, error: '영상 길이가 1분 30초를 초과합니다.' }));
                 return;
             });
         }
@@ -371,7 +371,10 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
             difficulty: (contentType === 'sparring' ? undefined : formData.level) as any,
             uniformType: formData.uniformType,
             durationMinutes: formData.durationMinutes,
-            thumbnailUrl: thumbnailUrl || 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...',
+            // Don't use placeholder thumbnail if Vimeo URL exists - let API fetch it
+            thumbnailUrl: thumbnailUrl || (mainVideo.vimeoUrl || descVideo.vimeoUrl ? undefined : `https://placehold.co/600x800/1e293b/ffffff?text=${contentType}`),
+            vimeoUrl: mainVideo.vimeoUrl || undefined,
+            descriptionVideoUrl: contentType === 'drill' ? (descVideo.vimeoUrl || undefined) : undefined,
         };
 
         let result: any;
@@ -394,8 +397,10 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         if (contentType === 'drill') {
             const isMainValid = mainVideo.status === 'complete' || mainVideo.status === 'completed' || !!mainVideo.vimeoUrl || !!mainVideo.videoId || !!mainVideo.file;
             const isDescValid = descVideo.status === 'complete' || descVideo.status === 'completed' || !!descVideo.vimeoUrl || !!descVideo.videoId || !!descVideo.file;
-            if (!isMainValid) { toastError('동작 영상을 업로드하거나 URL을 입력해주세요.'); setActiveTab('main'); return; }
-            if (!isDescValid) { toastError('설명 영상을 업로드하거나 URL을 입력해주세요.'); setActiveTab('desc'); return; }
+            if (!isMainValid && !isDescValid) {
+                toastError('동작 영상 또는 설명 영상 중 최소 하나는 있어야 합니다.');
+                return;
+            }
         }
         setIsSubmitting(true);
         try {
@@ -421,7 +426,8 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                 difficulty: (contentType === 'sparring' ? undefined : formData.level) as any,
                 uniformType: formData.uniformType,
                 durationMinutes: formData.durationMinutes,
-                thumbnailUrl: thumbnailUrl || 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...',
+                // Don't use placeholder thumbnail if Vimeo URL exists - let API fetch it
+                thumbnailUrl: thumbnailUrl || (mainVideo.vimeoUrl || descVideo.vimeoUrl ? undefined : `https://placehold.co/600x800/1e293b/ffffff?text=${contentType}`),
                 length: formData.length,
                 vimeoUrl: mainVideo.vimeoUrl || undefined,
                 descriptionVideoUrl: contentType === 'drill' ? (descVideo.vimeoUrl || undefined) : undefined,
@@ -586,7 +592,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                         <p className="font-bold text-white text-lg mb-2">{label} 업로드</p>
                         <p className="text-sm text-zinc-500">탭하여 동영상 선택</p>
                         {contentType === 'drill' && (
-                            <p className="text-xs text-amber-500 mt-2 font-medium">⏱ 최대 1분 이하 영상만 가능</p>
+                            <p className="text-xs text-amber-500 mt-2 font-medium">⏱ 최대 1분 30초 이하 영상만 가능</p>
                         )}
                     </div>
                 ) : (
@@ -809,7 +815,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                         <Button variant="secondary" onClick={() => navigate('/creator')} className="flex-1 h-14 rounded-xl">취소</Button>
                         <Button
                             onClick={handleSubmit}
-                            disabled={isSubmitting || !formData.title || (contentType === 'drill' ? (!mainVideo.file && !mainVideo.vimeoUrl) || (!descVideo.file && !descVideo.vimeoUrl) : (!mainVideo.file && !mainVideo.vimeoUrl))}
+                            disabled={isSubmitting || !formData.title || (contentType === 'drill' ? (!mainVideo.file && !mainVideo.vimeoUrl && !descVideo.file && !descVideo.vimeoUrl) : (!mainVideo.file && !mainVideo.vimeoUrl))}
                             className="flex-[2] h-14 rounded-xl bg-violet-600 hover:bg-violet-500"
                         >
                             {isSubmitting ? <Loader className="w-5 h-5 animate-spin mx-auto" /> : (isEditMode ? '수정사항 저장' : '업로드 시작')}
