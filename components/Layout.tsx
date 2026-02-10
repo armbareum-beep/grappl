@@ -11,6 +11,7 @@ import { GlobalSearch } from '../pages/GlobalSearch';
 import { cn } from '../lib/utils';
 import { getSiteSettings } from '../lib/api-admin';
 import { SiteSettings } from '../types';
+import { onNavHover, preloadCriticalRoutes } from '../lib/prefetch';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -32,6 +33,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     getSiteSettings().then(res => {
       if (res.data) setSiteSettings(res.data);
     }).catch(err => console.error('Failed to fetch site settings for footer:', err));
+  }, []);
+
+  // 앱 시작 시 주요 라우트 청크 미리 로드
+  React.useEffect(() => {
+    preloadCriticalRoutes();
   }, []);
 
   const userMenuRef = React.useRef<HTMLDivElement>(null);
@@ -165,6 +171,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <Link
                   key={item.name}
                   to={item.href}
+                  onMouseEnter={() => onNavHover(item.href)}
                   className={cn(
                     "p-3 rounded-full transition-all group relative hover:scale-110",
                     active
@@ -236,6 +243,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <Link
                       key={item.name}
                       to={item.href}
+                      onMouseEnter={() => onNavHover(item.href)}
                       className={cn(
                         "px-3 lg:px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 flex items-center space-x-1.5 lg:space-x-2 whitespace-nowrap",
                         isActive(item.href)
@@ -671,6 +679,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <Link
                   key={item.name}
                   to={item.href}
+                  onTouchStart={() => onNavHover(item.href)}
                   className={cn(
                     "flex flex-col items-center justify-center w-full h-full relative transition-all duration-300",
                     item.isSpecial
