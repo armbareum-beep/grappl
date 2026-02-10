@@ -4,6 +4,7 @@ import { getLessonsAdmin, deleteLessonAdmin, updateLessonAdmin } from '../../lib
 import { Lesson } from '../../types';
 import { Trash2, Eye, Search, Plus, ArrowLeft, PlayCircle, Edit } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
+import { ConfirmModal } from '../../components/common/ConfirmModal';
 
 const EditableCell = ({ value, onSave }: { value: string, onSave: (val: string) => void }) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -57,6 +58,12 @@ export const AdminLessonList = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
+    // Confirm Modal State
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        lessonId: string | null;
+    }>({ isOpen: false, lessonId: null });
+
     useEffect(() => {
         fetchLessons();
     }, []);
@@ -87,8 +94,6 @@ export const AdminLessonList = () => {
     };
 
     const handleDelete = async (id: string) => {
-        if (!window.confirm('정말 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
-
         try {
             const { error } = await deleteLessonAdmin(id);
             if (error) throw error;
@@ -97,7 +102,18 @@ export const AdminLessonList = () => {
         } catch (error) {
             console.error('Failed to delete lesson:', error);
             toastError('삭제에 실패했습니다.');
+        } finally {
+            setConfirmModal({ isOpen: false, lessonId: null });
         }
+    };
+
+    const openDeleteConfirm = (lessonId: string) => {
+        setConfirmModal({ isOpen: true, lessonId });
+    };
+
+    const handleConfirmAction = () => {
+        if (!confirmModal.lessonId) return;
+        handleDelete(confirmModal.lessonId);
     };
 
     const filteredLessons = lessons.filter(lesson => {
@@ -123,6 +139,18 @@ export const AdminLessonList = () => {
 
     return (
         <div className="min-h-screen bg-zinc-950 p-4 md:p-8">
+            {/* Confirm Modal */}
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal({ isOpen: false, lessonId: null })}
+                onConfirm={handleConfirmAction}
+                title="레슨 삭제"
+                message="정말 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+                confirmText="삭제"
+                cancelText="취소"
+                variant="danger"
+            />
+
             <div className="max-w-7xl mx-auto space-y-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
@@ -177,7 +205,7 @@ export const AdminLessonList = () => {
                                         <td className="p-4">
                                             <div className="w-16 h-10 rounded-lg overflow-hidden bg-zinc-800 relative">
                                                 {lesson.thumbnailUrl ? (
-                                                    <img src={lesson.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                                    <img src={lesson.thumbnailUrl} alt={`${lesson.title} 썸네일`} loading="lazy" className="w-full h-full object-cover" />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center text-zinc-600">
                                                         <PlayCircle className="w-5 h-5" />
@@ -229,7 +257,7 @@ export const AdminLessonList = () => {
                                                     </button>
                                                 </Link>
                                                 <button
-                                                    onClick={() => handleDelete(lesson.id)}
+                                                    onClick={() => openDeleteConfirm(lesson.id)}
                                                     className="p-2.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
@@ -251,7 +279,7 @@ export const AdminLessonList = () => {
                                 <div className="flex gap-4 mb-4">
                                     <div className="w-20 h-20 rounded-lg overflow-hidden bg-zinc-800 relative flex-shrink-0">
                                         {lesson.thumbnailUrl ? (
-                                            <img src={lesson.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                            <img src={lesson.thumbnailUrl} alt={`${lesson.title} 썸네일`} loading="lazy" className="w-full h-full object-cover" />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center text-zinc-600">
                                                 <PlayCircle className="w-6 h-6" />
@@ -293,7 +321,7 @@ export const AdminLessonList = () => {
                                         </button>
                                     </Link>
                                     <button
-                                        onClick={() => handleDelete(lesson.id)}
+                                        onClick={() => openDeleteConfirm(lesson.id)}
                                         className="w-full py-2 bg-zinc-800 text-zinc-400 hover:text-red-400 rounded-xl text-xs font-medium transition-all"
                                     >
                                         Delete

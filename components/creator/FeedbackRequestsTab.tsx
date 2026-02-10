@@ -4,11 +4,13 @@ import { getFeedbackRequests, submitFeedbackResponse, updateFeedbackStatus, uplo
 import { FeedbackRequest } from '../../types';
 import { MessageSquare, Clock, CheckCircle, XCircle, ExternalLink, Video, Loader2 } from 'lucide-react';
 import { cn, getYouTubeEmbedUrl } from '../../lib/utils';
+import { useToast } from '../../contexts/ToastContext';
 
 type FilterStatus = 'all' | 'pending' | 'in_progress' | 'completed';
 
 export const FeedbackRequestsTab: React.FC = () => {
     const { user } = useAuth();
+    const { success, error: toastError } = useToast();
     const [requests, setRequests] = useState<FeedbackRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<FilterStatus>('pending');
@@ -109,7 +111,7 @@ export const FeedbackRequestsTab: React.FC = () => {
 
             if (!error) {
                 await updateFeedbackStatus(selectedRequest.id, 'completed');
-                alert('피드백이 제출되었습니다!');
+                success('피드백이 제출되었습니다!');
                 setSelectedRequest(null);
                 setFeedbackContent('');
                 setSelectedFile(null);
@@ -119,7 +121,7 @@ export const FeedbackRequestsTab: React.FC = () => {
             }
         } catch (error: any) {
             console.error('Feedback submission failed:', error);
-            alert(`제출 중 오류가 발생했습니다: ${error.message || '알 수 없는 오류'}`);
+            toastError(`제출 중 오류가 발생했습니다: ${error.message || '알 수 없는 오류'}`);
         } finally {
             setSubmitting(false);
             setUploadProgress(0);
@@ -369,7 +371,7 @@ export const FeedbackRequestsTab: React.FC = () => {
                                                     const file = e.target.files?.[0];
                                                     if (file) {
                                                         if (file.size > 500 * 1024 * 1024) {
-                                                            alert('파일 크기는 500MB를 초과할 수 없습니다.');
+                                                            toastError('파일 크기는 500MB를 초과할 수 없습니다.');
                                                             return;
                                                         }
                                                         setSelectedFile(file);

@@ -40,9 +40,8 @@ export const videoProcessingApi = {
                 const { supabase } = await import('./supabase');
                 const { data } = await supabase.auth.getSession();
                 authToken = data.session?.access_token;
-                console.log('[Upload] Using fresh access token:', authToken ? 'present' : 'missing');
-            } catch (err) {
-                console.warn('[Upload] Failed to get session, using anon key:', err);
+            } catch {
+                // Failed to get session, using anon key
             }
         }
 
@@ -67,7 +66,6 @@ export const videoProcessingApi = {
                 },
                 chunkSize: 3 * 1024 * 1024, // Reduced to 3MB for maximum stability on mobile
                 onError: (error) => {
-                    console.error('TUS upload failed:', error);
                     reject(error);
                 },
                 onProgress: (bytesUploaded, bytesTotal) => {
@@ -93,8 +91,7 @@ export const videoProcessingApi = {
                     upload.resumeFromPreviousUpload(previousUploads[0]);
                 }
                 upload.start();
-            }).catch((err) => {
-                console.error('Failed to check previous uploads:', err);
+            }).catch(() => {
                 upload.start();
             });
         });
@@ -163,8 +160,6 @@ export const videoProcessingApi = {
 
         for (let attempt = 0; attempt < maxRetries; attempt++) {
             try {
-                console.log(`[processVideo] Attempt ${attempt + 1}/${maxRetries}`, { requestId, drillId, videoType });
-
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
 
@@ -197,12 +192,10 @@ export const videoProcessingApi = {
                 }
 
                 const result = await response.json();
-                console.log('✅ Processing started successfully:', { requestId, processId: result.processId, drillId });
                 return result;
 
             } catch (err: any) {
                 lastError = err;
-                console.error(`❌ Attempt ${attempt + 1} failed:`, err.message, { requestId, drillId });
 
                 // If this is the last attempt, throw the error
                 if (attempt === maxRetries - 1) {
@@ -211,7 +204,6 @@ export const videoProcessingApi = {
 
                 // Wait before retrying (exponential backoff)
                 const waitTime = Math.min(1000 * Math.pow(2, attempt), 5000);
-                console.log(`⏳ Retrying in ${waitTime}ms...`);
                 await new Promise(resolve => setTimeout(resolve, waitTime));
             }
         }

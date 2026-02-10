@@ -156,7 +156,7 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
 
     const handleSaveRoutine = () => {
         // Implement save routine logic later
-        alert('루틴 저장 기능은 준비 중입니다.');
+        toastError('루틴 저장 기능은 준비 중입니다.');
     };
 
     const togglePlay = (e: React.MouseEvent<HTMLVideoElement>) => {
@@ -405,7 +405,7 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                         className="w-[44px] h-[44px] rounded-full border border-zinc-800 overflow-hidden cursor-pointer hover:border-zinc-700 transition-colors"
                     >
                         {post.userAvatar ? (
-                            <img src={post.userAvatar} alt={post.userName} className="w-full h-full object-cover" />
+                            <img src={post.userAvatar} alt={post.userName} loading="lazy" className="w-full h-full object-cover" />
                         ) : (
                             <div className="w-full h-full bg-gradient-to-br from-zinc-800 to-zinc-950 flex items-center justify-center text-zinc-500 font-bold uppercase">
                                 {(post.userName?.includes('@') ? 'G' : post.userName?.[0]) || 'G'}
@@ -559,12 +559,13 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                                     <img
                                         src={images[currentImageIndex]}
                                         alt={`Post content ${currentImageIndex + 1}`}
+                                        loading="lazy"
                                         className="w-full h-auto max-h-[600px] object-cover"
                                     />
                                     {images.length > 1 && (
                                         <>
-                                            <button onClick={prevImage} className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover/media:opacity-100 transition-opacity"><ChevronLeft className="w-5 h-5" /></button>
-                                            <button onClick={nextImage} className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover/media:opacity-100 transition-opacity"><ChevronRight className="w-5 h-5" /></button>
+                                            <button onClick={prevImage} aria-label="이전 이미지" className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover/media:opacity-100 transition-opacity"><ChevronLeft className="w-5 h-5" /></button>
+                                            <button onClick={nextImage} aria-label="다음 이미지" className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover/media:opacity-100 transition-opacity"><ChevronRight className="w-5 h-5" /></button>
                                             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
                                                 {images.map((_, idx) => (
                                                     <div key={idx} className={`w-1.5 h-1.5 rounded-full transition-all ${currentImageIndex === idx ? 'bg-white w-4' : 'bg-white/30'}`} />
@@ -622,6 +623,7 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                                         <img
                                             src={cardImage}
                                             alt={cardTitle}
+                                            loading="lazy"
                                             className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105"
                                         />
                                         <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent" />
@@ -756,7 +758,7 @@ export const SocialPost: React.FC<SocialPostProps> = ({ post }) => {
                                         comments.map((comment: any) => (
                                             <div key={comment.id} className="flex gap-3">
                                                 <div className="w-6 h-6 rounded-full bg-zinc-800 flex-shrink-0 overflow-hidden">
-                                                    {comment.user?.avatar_url && <img src={comment.user.avatar_url} className="w-full h-full object-cover" />}
+                                                    {comment.user?.avatar_url && <img src={comment.user.avatar_url} loading="lazy" className="w-full h-full object-cover" />}
                                                 </div>
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-2 mb-0.5">

@@ -62,6 +62,7 @@ export const FeaturedRoutinesSection: React.FC<FeaturedRoutinesSectionProps> = (
                                 <img
                                     src={routine.thumbnailUrl}
                                     alt={routine.title}
+                                    loading="lazy"
                                     className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
                                 />
                             ) : (
@@ -107,7 +108,7 @@ export const FeaturedRoutinesSection: React.FC<FeaturedRoutinesSectionProps> = (
                             >
                                 <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 overflow-hidden hover:border-violet-500/50 transition-colors">
                                     {routine.creatorProfileImage ? (
-                                        <img src={routine.creatorProfileImage} alt={routine.creatorName} className="w-full h-full object-cover" />
+                                        <img src={routine.creatorProfileImage} alt={routine.creatorName} loading="lazy" className="w-full h-full object-cover" />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">
                                             {routine.creatorName?.charAt(0)}

@@ -537,7 +537,7 @@ export const UploadDrill: React.FC = () => {
                         </div>
                         {thumbnailUrl && (
                             <div className="w-32 aspect-[9/16] rounded-xl overflow-hidden border border-zinc-800">
-                                <img src={thumbnailUrl} alt="Thumbnail" className="w-full h-full object-cover" />
+                                <img src={thumbnailUrl} alt="썸네일" loading="lazy" className="w-full h-full object-cover" />
                             </div>
                         )}
                     </div>
@@ -649,7 +649,7 @@ export const UploadDrill: React.FC = () => {
                                                         }`}
                                                 >
                                                     <div className="w-12 aspect-video bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0">
-                                                        {lesson.thumbnailUrl && <img src={lesson.thumbnailUrl} className="w-full h-full object-cover" alt="" />}
+                                                        {lesson.thumbnailUrl && <img src={lesson.thumbnailUrl} loading="lazy" className="w-full h-full object-cover" alt={lesson.title || "썸네일"} />}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <p className="font-bold text-sm truncate">{lesson.title}</p>
@@ -688,7 +688,7 @@ export const UploadDrill: React.FC = () => {
                                                         }`}
                                                 >
                                                     <div className="w-12 aspect-video bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0">
-                                                        {sparring.thumbnailUrl && <img src={sparring.thumbnailUrl} className="w-full h-full object-cover" alt="" />}
+                                                        {sparring.thumbnailUrl && <img src={sparring.thumbnailUrl} loading="lazy" className="w-full h-full object-cover" alt={sparring.title || "썸네일"} />}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <p className="font-bold text-sm truncate">{sparring.title}</p>

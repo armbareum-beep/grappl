@@ -442,6 +442,14 @@ export interface CreatorProfileUpdate {
     youtubeUrl?: string;
 }
 
+export async function toggleCreatorHidden(creatorId: string, hidden: boolean) {
+    const { error } = await supabase
+        .from('creators')
+        .update({ hidden })
+        .eq('id', creatorId);
+    return { error };
+}
+
 export async function updateCreatorProfileAdmin(creatorId: string, updates: CreatorProfileUpdate) {
     // 1. Update creators table
     const { error: creatorError } = await supabase

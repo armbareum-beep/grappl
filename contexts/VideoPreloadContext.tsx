@@ -64,7 +64,6 @@ export const VideoPreloadProvider: React.FC<VideoPreloadProviderProps> = ({ chil
     useEffect(() => {
         if (preloadState.status === 'ready') {
             timeoutRef.current = setTimeout(() => {
-                console.log('[VideoPreload] Cleanup unused preloaded player after 5min timeout');
                 cleanupPreload();
             }, 5 * 60 * 1000);
 
@@ -89,26 +88,14 @@ export const VideoPreloadProvider: React.FC<VideoPreloadProviderProps> = ({ chil
 
     const startPreload = useCallback((drill: { id: string; vimeoUrl?: string; videoUrl?: string }) => {
         // 이미 프리로딩 중이거나, 같은 영상이 로드되어 있으면 스킵
-        if (isPreloadingRef.current) {
-            console.log('[VideoPreload] Already preloading, skip');
-            return;
-        }
-        if (preloadState.drillId === drill.id && preloadState.status === 'ready') {
-            console.log('[VideoPreload] Already preloaded for this drill');
-            return;
-        }
+        if (isPreloadingRef.current) return;
+        if (preloadState.drillId === drill.id && preloadState.status === 'ready') return;
 
         const url = drill.vimeoUrl || drill.videoUrl;
-        if (!url) {
-            console.log('[VideoPreload] No video URL available');
-            return;
-        }
+        if (!url) return;
 
         const vimeoId = extractVimeoId(url);
-        if (!vimeoId) {
-            console.log('[VideoPreload] Not a Vimeo video, skip preload');
-            return;
-        }
+        if (!vimeoId) return;
 
         // 기존 프리로드 정리
         if (preloadState.playerRef) {
@@ -126,8 +113,6 @@ export const VideoPreloadProvider: React.FC<VideoPreloadProviderProps> = ({ chil
             playerRef: null,
             iframeRef: null,
         });
-
-        console.log('[VideoPreload] Starting preload for drill:', drill.id);
 
         try {
             const [baseId, hash] = vimeoId.includes(':') ? vimeoId.split(':') : [vimeoId, null];
@@ -162,14 +147,9 @@ export const VideoPreloadProvider: React.FC<VideoPreloadProviderProps> = ({ chil
             const player = new Player(iframe);
 
             player.ready().then(async () => {
-                console.log('[VideoPreload] Player ready for drill:', drill.id);
-
                 // 음소거 및 음량 0으로 설정 (iOS 요구사항)
                 await player.setVolume(0).catch(() => { });
                 await player.setMuted(true).catch(() => { });
-
-                // 버퍼링 완료 상태로 준비 (pause는 하지 않음, DrillReelItem에서 play() 호출 시 즉시 재생)
-                console.log('[VideoPreload] Player prepared for instant playback:', drill.id);
 
                 setPreloadState({
                     status: 'ready',
@@ -184,10 +164,7 @@ export const VideoPreloadProvider: React.FC<VideoPreloadProviderProps> = ({ chil
                 setTimeout(async () => {
                     try {
                         await player.setQuality('hd');
-                        console.log('[VideoPreload] Upgraded to HD for drill:', drill.id);
-                    } catch (err) {
-                        console.log('[VideoPreload] HD upgrade not available, staying with sd quality');
-                    }
+                    } catch { }
                 }, 1000);
             }).catch((err) => {
                 console.error('[VideoPreload] Player ready failed:', err);
@@ -217,8 +194,6 @@ export const VideoPreloadProvider: React.FC<VideoPreloadProviderProps> = ({ chil
         if (preloadState.status !== 'ready' || !preloadState.playerRef || !preloadState.iframeRef) {
             return null;
         }
-
-        console.log('[VideoPreload] Consuming preloaded player for drill:', preloadState.drillId);
 
         const result = {
             player: preloadState.playerRef,

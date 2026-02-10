@@ -13,11 +13,6 @@ export function useWakeLock(enabled: boolean = true) {
         try {
             // @ts-ignore
             sentinelRef.current = await navigator.wakeLock.request('screen');
-            console.log('[Wake Lock] Screen Wake Lock is active');
-
-            sentinelRef.current.addEventListener('release', () => {
-                console.log('[Wake Lock] Screen Wake Lock was released');
-            });
         } catch (err: any) {
             console.error(`[Wake Lock] ${err.name}, ${err.message}`);
         }

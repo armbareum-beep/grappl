@@ -22,7 +22,6 @@ import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 import { ThumbnailCropper } from '../../components/ThumbnailCropper';
 import { useToast } from '../../contexts/ToastContext';
 import { ImageUploader } from '../../components/ImageUploader';
-import Player from '@vimeo/player';
 
 type ContentType = 'drill' | 'lesson' | 'sparring';
 
@@ -175,7 +174,6 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                 if (result) {
                     // Normalize data since API returns might be raw DB objects (snake_case) or transformed (camelCase)
                     const data = result;
-                    console.log('Fetched Data:', data);
 
                     setFormData({
                         title: data.title || '',
@@ -327,56 +325,9 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         }));
     };
 
+    // 로컬 비디오 캡쳐 (Vimeo는 아래 썸네일 선택기 사용)
     const captureFromVideo = async (type: 'main' | 'desc') => {
         try {
-            const state = type === 'main' ? mainVideo : descVideo;
-            const vimeoRef = type === 'main' ? mainVimeoRef : descVimeoRef;
-
-            // Vimeo 영상인 경우
-            if (state.vimeoUrl) {
-                const vimeoId = extractVimeoId(state.vimeoUrl);
-                if (!vimeoId) {
-                    toastError('Vimeo 영상 ID를 찾을 수 없습니다.');
-                    return;
-                }
-
-                let currentTime = 0;
-
-                // iframe이 있으면 현재 시간 가져오기 시도
-                if (vimeoRef.current) {
-                    try {
-                        const player = new Player(vimeoRef.current);
-                        currentTime = await player.getCurrentTime();
-                    } catch (playerError) {
-                        console.warn('Could not get current time from player, using 0:', playerError);
-                    }
-                }
-
-                // vumbnail.com으로 썸네일 가져오기
-                const thumbnailUrl = currentTime > 0
-                    ? `https://vumbnail.com/${vimeoId}.jpg?time=${Math.floor(currentTime)}`
-                    : `https://vumbnail.com/${vimeoId}_large.jpg`;
-
-                try {
-                    const response = await fetch(thumbnailUrl);
-                    if (!response.ok) throw new Error('Thumbnail fetch failed');
-                    const blob = await response.blob();
-
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                        setCroppingImage(reader.result as string);
-                        setActiveCropper(type);
-                    };
-                    reader.readAsDataURL(blob);
-                } catch (fetchError) {
-                    console.error('Fetch error:', fetchError);
-                    // 직접 URL을 썸네일로 설정
-                    toastError('썸네일을 가져올 수 없습니다. 아래 Vimeo 썸네일 선택기를 사용해주세요.');
-                }
-                return;
-            }
-
-            // 로컬 비디오인 경우
             const video = type === 'main' ? mainVideoRef.current : descVideoRef.current;
             if (!video) {
                 toastError('영상이 로드되지 않았습니다.');
@@ -392,7 +343,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
             setActiveCropper(type);
         } catch (e: any) {
             console.error('Capture failed:', e);
-            toastError('화면 캡처에 실패했습니다. 아래 Vimeo 썸네일 선택기를 사용해주세요.');
+            toastError('화면 캡처에 실패했습니다.');
         }
     };
 
@@ -653,9 +604,12 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                     <div className="flex-1 min-h-[250px] flex flex-col gap-3">
                         {/* 캡처/삭제 버튼을 영상 위에 배치 */}
                         <div className="flex justify-end gap-2">
-                            <button onClick={() => captureFromVideo(type)} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 rounded-xl text-white text-sm flex items-center gap-2 transition-colors">
-                                <Camera className="w-4 h-4" /> 썸네일 캡처
-                            </button>
+                            {/* 로컬 비디오일 때만 캡쳐 버튼 표시 (Vimeo는 아래 썸네일 선택기 사용) */}
+                            {!state.vimeoUrl && (
+                                <button onClick={() => captureFromVideo(type)} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 rounded-xl text-white text-sm flex items-center gap-2 transition-colors">
+                                    <Camera className="w-4 h-4" /> 썸네일 캡처
+                                </button>
+                            )}
                             <button onClick={() => setter(initialProcessingState)} className="px-4 py-2 bg-zinc-800 hover:bg-rose-500/20 rounded-xl text-rose-400 text-sm flex items-center gap-2 border border-zinc-700 transition-colors">
                                 <Trash2 className="w-4 h-4" /> 삭제
                             </button>
@@ -829,7 +783,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                                     <div className="space-y-2">
                                         <p className="text-xs text-zinc-500 font-medium">현재 미리보기</p>
                                         <div className="relative aspect-video rounded-xl overflow-hidden border border-zinc-800">
-                                            <img src={thumbnailUrl} alt="Thumbnail" className="w-full h-full object-cover" />
+                                            <img src={thumbnailUrl} alt="썸네일" loading="lazy" className="w-full h-full object-cover" />
                                         </div>
                                     </div>
                                 )}
@@ -925,7 +879,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                                                         className={`w-full flex items-center gap-3 p-2 rounded-xl transition-all ${isSelected ? 'bg-violet-500/10 border border-violet-500/30' : 'hover:bg-zinc-800 border border-transparent'}`}
                                                     >
                                                         <div className="w-16 aspect-video rounded-lg bg-zinc-800 overflow-hidden flex-shrink-0">
-                                                            {lesson.thumbnailUrl && <img src={lesson.thumbnailUrl} alt="" className="w-full h-full object-cover" />}
+                                                            {lesson.thumbnailUrl && <img src={lesson.thumbnailUrl} alt={lesson.title || "썸네일"} loading="lazy" className="w-full h-full object-cover" />}
                                                         </div>
                                                         <div className="flex-1 text-left min-w-0">
                                                             <p className="text-sm font-bold text-white truncate">{lesson.title}</p>
@@ -965,7 +919,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                                                         className={`w-full flex items-center gap-3 p-2 rounded-xl transition-all ${isSelected ? 'bg-blue-500/10 border border-blue-500/30' : 'hover:bg-zinc-800 border border-transparent'}`}
                                                     >
                                                         <div className="w-16 aspect-video rounded-lg bg-zinc-800 overflow-hidden flex-shrink-0">
-                                                            {sparring.thumbnailUrl && <img src={sparring.thumbnailUrl} alt="" className="w-full h-full object-cover" />}
+                                                            {sparring.thumbnailUrl && <img src={sparring.thumbnailUrl} alt={sparring.title || "썸네일"} loading="lazy" className="w-full h-full object-cover" />}
                                                         </div>
                                                         <div className="flex-1 text-left min-w-0">
                                                             <p className="text-sm font-bold text-white truncate">{sparring.title}</p>

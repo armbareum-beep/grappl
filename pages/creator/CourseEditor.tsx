@@ -9,6 +9,7 @@ import { getVimeoVideoInfo, formatDuration } from '../../lib/vimeo';
 import { VideoUploader } from '../../components/VideoUploader';
 import { ImageUploader } from '../../components/ImageUploader';
 import { useToast } from '../../contexts/ToastContext';
+import { ConfirmModal } from '../../components/common/ConfirmModal';
 
 
 
@@ -153,6 +154,13 @@ export const CourseEditor: React.FC = () => {
     const [creatorLessons, setCreatorLessons] = useState<Lesson[]>([]);
     const [selectedImportIds, setSelectedImportIds] = useState<Set<string>>(new Set());
 
+    // Confirm Modal State
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        type: 'reverse' | 'deleteLesson' | null;
+        lessonId?: string;
+    }>({ isOpen: false, type: null });
+
 
 
     const sensors = useSensors(
@@ -203,10 +211,13 @@ export const CourseEditor: React.FC = () => {
         }
     };
 
-    const handleReverseOrder = async () => {
+    const handleReverseOrder = () => {
         if (lessons.length < 2) return;
+        setConfirmModal({ isOpen: true, type: 'reverse' });
+    };
 
-        if (!window.confirm('현재 레슨 순서를 완전히 거꾸로 뒤집으시겠습니까? (1번이 마지막으로 이동합니다)')) return;
+    const confirmReverseOrder = async () => {
+        setConfirmModal({ isOpen: false, type: null });
 
         const reversedLessons = [...lessons].reverse().map((l, index) => ({
             ...l,
@@ -577,8 +588,15 @@ export const CourseEditor: React.FC = () => {
         }
     };
 
-    const handleDeleteLesson = async (lessonId: string) => {
-        if (!window.confirm('이 레슨을 커리큘럼에서 제거하시겠습니까? (레슨 자체는 삭제되지 않습니다)')) return;
+    const handleDeleteLesson = (lessonId: string) => {
+        setConfirmModal({ isOpen: true, type: 'deleteLesson', lessonId });
+    };
+
+    const confirmDeleteLesson = async () => {
+        const lessonId = confirmModal.lessonId;
+        setConfirmModal({ isOpen: false, type: null });
+        if (!lessonId) return;
+
         try {
             if (!isNew) {
                 const { error } = await removeLessonFromCourse(lessonId);
@@ -587,6 +605,14 @@ export const CourseEditor: React.FC = () => {
             setLessons(lessons.filter(l => l.id !== lessonId));
         } catch (error) {
             console.error('Error removing lesson from course:', error);
+        }
+    };
+
+    const handleConfirmAction = async () => {
+        if (confirmModal.type === 'reverse') {
+            await confirmReverseOrder();
+        } else if (confirmModal.type === 'deleteLesson') {
+            await confirmDeleteLesson();
         }
     };
 
@@ -1130,7 +1156,7 @@ export const CourseEditor: React.FC = () => {
                                                     </div>
                                                     <div className="absolute right-4 top-4 w-16 h-16 rounded-xl bg-zinc-900/80 border border-zinc-800 flex-shrink-0 overflow-hidden shadow-inner ring-1 ring-white/5 group-hover:scale-105 transition-transform">
                                                         {drill.thumbnailUrl ? (
-                                                            <img src={drill.thumbnailUrl} alt="" className="w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all" />
+                                                            <img src={drill.thumbnailUrl} alt={drill.title || "썸네일"} loading="lazy" className="w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all" />
                                                         ) : (
                                                             <div className="w-full h-full flex items-center justify-center text-zinc-700"><Video className="w-6 h-6" /></div>
                                                         )}
@@ -1225,7 +1251,7 @@ export const CourseEditor: React.FC = () => {
                                                     </div>
                                                     <div className="absolute right-4 top-4 w-16 h-10 rounded-lg bg-zinc-900 border border-zinc-800 flex-shrink-0 overflow-hidden shadow-inner ring-1 ring-white/5">
                                                         {video.thumbnailUrl && (
-                                                            <img src={video.thumbnailUrl} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                            <img src={video.thumbnailUrl} alt={video.title || "썸네일"} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                                                         )}
                                                     </div>
                                                 </div>
@@ -1615,7 +1641,18 @@ export const CourseEditor: React.FC = () => {
                 )
             }
 
-
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal({ isOpen: false, type: null })}
+                onConfirm={handleConfirmAction}
+                title={confirmModal.type === 'reverse' ? '레슨 순서 반전' : '레슨 제거'}
+                message={confirmModal.type === 'reverse'
+                    ? '현재 레슨 순서를 완전히 거꾸로 뒤집으시겠습니까? (1번이 마지막으로 이동합니다)'
+                    : '이 레슨을 커리큘럼에서 제거하시겠습니까? (레슨 자체는 삭제되지 않습니다)'}
+                confirmText={confirmModal.type === 'reverse' ? '반전' : '제거'}
+                cancelText="취소"
+                variant={confirmModal.type === 'deleteLesson' ? 'danger' : 'warning'}
+            />
         </>
     );
 };

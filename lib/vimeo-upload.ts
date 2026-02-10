@@ -15,7 +15,6 @@ export interface VimeoUploadResult {
  * Supabase Storage에서 파일 다운로드 (Blob 반환)
  */
 export async function downloadFromSupabase(bucketName: string, filePath: string): Promise<Blob> {
-    console.log(`Downloading from Supabase: ${bucketName}/${filePath}`);
     const { data, error } = await supabase.storage
         .from(bucketName)
         .download(filePath);
@@ -50,7 +49,6 @@ export async function processAndUploadVideo(params: {
     try {
         // 1. Supabase에서 파일 다운로드 (브라우저 메모리)
         if (onProgress) onProgress('upload', 10); // Start
-        console.log('[Process] Downloading from Supabase:', filePath);
 
         const blob = await downloadFromSupabase(bucketName, filePath);
         const file = new File([blob], filePath, { type: blob.type });
@@ -59,7 +57,6 @@ export async function processAndUploadVideo(params: {
 
         // 2. 서버에 업로드 링크 요청 (create_upload - 인증 처리)
         if (onProgress) onProgress('upload', 35);
-        console.log('[Process] Requesting upload link...');
 
         let initResponse: Response;
         try {
@@ -76,7 +73,6 @@ export async function processAndUploadVideo(params: {
                 })
             });
         } catch (fetchError: any) {
-            console.error('[Process] create_upload fetch 실패:', fetchError);
             throw new Error(`Vimeo 업로드 링크 요청 실패 (네트워크 오류). Service Worker 캐시를 초기화하거나 시크릿 모드에서 시도해주세요. 원인: ${fetchError.message}`);
         }
 
@@ -84,8 +80,7 @@ export async function processAndUploadVideo(params: {
         let initResult;
         try {
             initResult = JSON.parse(initText);
-        } catch (e) {
-            console.error('[Process] Server returned non-JSON:', initText);
+        } catch {
             throw new Error(`서버 응답이 올바르지 않습니다 (Status: ${initResponse.status}). API 엔드포인트가 활성화되어 있는지 확인해주세요.`);
         }
 
@@ -94,7 +89,6 @@ export async function processAndUploadVideo(params: {
         }
 
         const { uploadLink, vimeoId } = initResult;
-        console.log('[Process] Upload link received:', vimeoId);
 
         // 3. 브라우저에서 직접 Vimeo 업로드 (TUS - 대용량 전송)
         // 타임아웃 문제 해결의 핵심: 브라우저가 직접 업로드합니다.
@@ -116,7 +110,6 @@ export async function processAndUploadVideo(params: {
         if (onProgress) onProgress('upload', 90);
 
         // 4. 서버에 완료 알림 및 DB 업데이트 요청 (complete_upload)
-        console.log('[Process] Finalizing upload...');
 
         let completeResponse: Response;
         try {
@@ -133,7 +126,6 @@ export async function processAndUploadVideo(params: {
                 })
             });
         } catch (fetchError: any) {
-            console.error('[Process] complete_upload fetch 실패:', fetchError);
             throw new Error(`DB 업데이트 요청 실패 (네트워크 오류). 원인: ${fetchError.message}`);
         }
 
@@ -150,25 +142,17 @@ export async function processAndUploadVideo(params: {
         }
 
         // 5. 임시 파일 정리: Supabase Storage에서 삭제
-        console.log('[Process] Supabase 임시 파일 정리 중...');
         try {
-            const { error: deleteError } = await supabase.storage
+            await supabase.storage
                 .from(bucketName)
                 .remove([filePath]);
-
-            if (deleteError) {
-                console.warn('[Process] 임시 파일 삭제 실패 (무시됨):', deleteError.message);
-            } else {
-                console.log('[Process] 임시 파일이 성공적으로 삭제되었습니다');
-            }
-        } catch (cleanupErr) {
-            console.warn('[Process] 정리 중 오류 발생 (무시됨):', cleanupErr);
+        } catch {
+            // Cleanup error ignored
         }
 
         if (onProgress) onProgress('upload', 100);
 
         const finalThumbnailUrl = thumbnailUrl || `https://vumbnail.com/${vimeoId}.jpg`;
-        console.log('[Process] 모든 처리 완료!', { vimeoId });
 
         return {
             vimeoId,
@@ -177,8 +161,6 @@ export async function processAndUploadVideo(params: {
         };
 
     } catch (error: any) {
-        console.error('[Process] Failed:', error);
-
         // 에러 상태를 DB에 기록 (직접 수행하여 서버 의존성 줄임)
         const errorUpdate: any = contentType === 'sparring'
             ? { video_url: 'error', thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Upload+Error' }

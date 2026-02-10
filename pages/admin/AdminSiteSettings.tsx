@@ -100,7 +100,6 @@ export const AdminSiteSettings: React.FC = () => {
             };
             data.footer = mergeWithDefaults(defaultFooter, data.footer);
 
-            console.log('Final merged settings:', data);
             setSettings(data);
         } catch (error) {
             console.error('Error fetching settings:', error);

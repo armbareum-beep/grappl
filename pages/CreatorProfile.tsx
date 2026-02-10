@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { BookOpen, MessageSquare, Clock, DollarSign, Shield, Zap, PlayCircle, ArrowLeft, Upload, Video, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { getCreatorById, getCoursesByCreator, getRoutines, getSparringVideos, getFeedbackSettings, createFeedbackRequest, toggleCreatorFollow, checkCreatorFollowStatus, uploadFeedbackVideo, getFeedbackRequests, deleteFeedbackRequest } from '../lib/api';
 import { Creator, Course, FeedbackSettings, DrillRoutine, SparringVideo } from '../types';
 import { CourseCard } from '../components/CourseCard';
@@ -12,6 +13,7 @@ export const CreatorProfile: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { error: toastError, warning } = useToast();
     const [creator, setCreator] = useState<Creator | null>(null);
     const [courses, setCourses] = useState<Course[]>([]);
     const [routines, setRoutines] = useState<DrillRoutine[]>([]);
@@ -104,7 +106,7 @@ export const CreatorProfile: React.FC = () => {
             navigate(`/checkout/feedback/${data.id}`);
         } catch (error: any) {
             console.error('Feedback request failed:', error);
-            alert(`요청 중 오류가 발생했습니다: ${error.message || error.details || JSON.stringify(error) || '알 수 없는 오류'}`);
+            toastError(`요청 중 오류가 발생했습니다: ${error.message || error.details || '알 수 없는 오류'}`, 5000);
         } finally {
             setSubmitting(false);
             setUploadProgress(0);
@@ -113,7 +115,7 @@ export const CreatorProfile: React.FC = () => {
 
     const handleSubscribe = async () => {
         if (!user) {
-            alert('로그인이 필요한 서비스입니다.');
+            warning('로그인이 필요한 서비스입니다.');
             return;
         }
         if (!creator) return;
@@ -148,7 +150,7 @@ export const CreatorProfile: React.FC = () => {
                 subscriberCount: prev.subscriberCount + (previousStatus ? 1 : -1) - (newStatus ? 1 : -1)
             } : null);
             console.error('Follow error:', error);
-            alert('오류가 발생했습니다. 다시 시도해주세요.');
+            toastError('오류가 발생했습니다. 다시 시도해주세요.');
         } finally {
             setSubscribeLoading(false);
         }
@@ -471,7 +473,7 @@ export const CreatorProfile: React.FC = () => {
                                             const file = e.target.files?.[0];
                                             if (file) {
                                                 if (file.size > 500 * 1024 * 1024) { // 500MB limit for now
-                                                    alert('파일 크기는 500MB 이하의 영상만 가능합니다.');
+                                                    warning('파일 크기는 500MB 이하의 영상만 가능합니다.');
                                                     return;
                                                 }
                                                 setSelectedFile(file);

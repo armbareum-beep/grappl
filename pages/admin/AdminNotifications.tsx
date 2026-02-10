@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { getAdminNotifications, createAdminNotification, AdminNotification } from '../../lib/api-admin';
 import { ArrowLeft, Bell, Send } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../../contexts/ToastContext';
+import { ConfirmModal } from '../../components/common/ConfirmModal';
 
 export const AdminNotifications: React.FC = () => {
     const navigate = useNavigate();
-
+    const { success, error: toastError } = useToast();
 
     const [notifications, setNotifications] = useState<AdminNotification[]>([]);
     const [title, setTitle] = useState('');
@@ -13,6 +15,9 @@ export const AdminNotifications: React.FC = () => {
     const [targetAudience, setTargetAudience] = useState<'all' | 'creators' | 'users'>('all');
     const [sending, setSending] = useState(false);
     const [loading, setLoading] = useState(true);
+
+    // Confirm Modal State
+    const [confirmModalOpen, setConfirmModalOpen] = useState(false);
 
     useEffect(() => {
         fetchNotifications();
@@ -27,23 +32,34 @@ export const AdminNotifications: React.FC = () => {
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!title.trim() || !message.trim()) return;
+        setConfirmModalOpen(true);
+    };
 
-        if (!window.confirm(`정말 "${targetAudience}" 그룹에게 알림을 발송하시겠습니까?`)) return;
-
+    const handleConfirmSend = async () => {
+        setConfirmModalOpen(false);
         setSending(true);
         try {
             const { error } = await createAdminNotification(title, message, targetAudience);
             if (error) throw error;
 
-            alert('알림이 발송되었습니다.');
+            success('알림이 발송되었습니다.');
             setTitle('');
             setMessage('');
             fetchNotifications();
         } catch (error) {
             console.error('Failed to send notification:', error);
-            alert('알림 발송에 실패했습니다.');
+            toastError('알림 발송에 실패했습니다.');
         } finally {
             setSending(false);
+        }
+    };
+
+    const getTargetAudienceLabel = () => {
+        switch (targetAudience) {
+            case 'all': return '전체';
+            case 'creators': return '인스트럭터';
+            case 'users': return '일반 유저';
+            default: return targetAudience;
         }
     };
 
@@ -57,6 +73,18 @@ export const AdminNotifications: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-zinc-950 text-white pb-20">
+            {/* Confirm Modal */}
+            <ConfirmModal
+                isOpen={confirmModalOpen}
+                onClose={() => setConfirmModalOpen(false)}
+                onConfirm={handleConfirmSend}
+                title="알림 발송 확인"
+                message={`정말 "${getTargetAudienceLabel()}" 그룹에게 알림을 발송하시겠습니까?`}
+                confirmText="발송"
+                cancelText="취소"
+                variant="warning"
+            />
+
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 <button
                     onClick={() => navigate(-1)}

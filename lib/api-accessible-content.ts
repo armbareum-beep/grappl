@@ -128,8 +128,7 @@ async function getUserInfo(userId: string | null) {
       subscriptionTier,
       purchasedItemIds
     };
-  } catch (error) {
-    console.error('[getUserInfo] Error:', error);
+  } catch {
     return {
       isSubscriber: false,
       subscriptionTier: null,
@@ -145,8 +144,6 @@ async function getUserInfo(userId: string | null) {
  */
 export async function getAccessibleDrills(userId: string | null, limit: number = 50) {
   try {
-    console.log('[getAccessibleDrills] Starting fetch, userId:', userId);
-
     // 모든 드릴 가져오기 (필터링 없음)
     const { data: allDrills, error } = await supabase
       .from('drills')
@@ -155,7 +152,6 @@ export async function getAccessibleDrills(userId: string | null, limit: number =
       .limit(limit);
 
     if (error) {
-      console.error('[getAccessibleDrills] Query error:', error);
       throw error;
     }
 
@@ -164,7 +160,6 @@ export async function getAccessibleDrills(userId: string | null, limit: number =
     }
 
     // 모든 드릴 반환 (동작 영상은 누구나 볼 수 있음)
-    console.log('[getAccessibleDrills] Total drills:', allDrills.length, 'All accessible (action videos free)');
     return { data: allDrills, error: null };
   } catch (error) {
     console.error('Error fetching accessible drills:', error);
@@ -180,8 +175,6 @@ export async function getAccessibleDrills(userId: string | null, limit: number =
  */
 export async function getAccessibleLessons(userId: string | null, limit: number = 50) {
   try {
-    console.log('[getAccessibleLessons] Fetching accessible lessons, userId:', userId);
-
     // 모든 레슨 가져오기
     const { data: allLessons, error } = await supabase
       .from('lessons')
@@ -200,7 +193,6 @@ export async function getAccessibleLessons(userId: string | null, limit: number 
       .limit(limit);
 
     if (error) {
-      console.error('[getAccessibleLessons] Query error:', error);
       throw error;
     }
 
@@ -240,7 +232,6 @@ export async function getAccessibleLessons(userId: string | null, limit: number 
       return false;
     });
 
-    console.log('[getAccessibleLessons] Total lessons:', allLessons.length, 'Accessible:', accessibleLessons.length);
     return { data: accessibleLessons, error: null };
   } catch (error) {
     console.error('Error fetching accessible lessons:', error);
@@ -256,8 +247,6 @@ export async function getAccessibleLessons(userId: string | null, limit: number 
  */
 export async function getAccessibleSparring(userId: string | null, limit: number = 20) {
   try {
-    console.log('[getAccessibleSparring] Fetching accessible sparring, userId:', userId);
-
     const { data: videos, error } = await supabase
       .from('sparring_videos')
       .select('*')
@@ -327,7 +316,6 @@ export async function getAccessibleSparring(userId: string | null, limit: number
       };
     });
 
-    console.log('[getAccessibleSparring] Total videos:', videos.length, 'Accessible:', mappedVideos.length);
     return { data: mappedVideos, error: null };
   } catch (error) {
     console.error('Error fetching accessible sparring:', error);

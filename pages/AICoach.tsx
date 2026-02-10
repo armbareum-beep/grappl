@@ -124,8 +124,6 @@ export const AICoach: React.FC = () => {
             const { getTrainingLogs, getPublicSparringVideos } = await import('../lib/api');
             const { data: logsData, error: logsError } = await getTrainingLogs(user.id);
 
-            console.log('Activity logs fetched:', logsData?.length || 0);
-
             if (logsError) throw logsError;
 
             const combinedLogs = logsData || [];
@@ -146,7 +144,6 @@ export const AICoach: React.FC = () => {
             setLogs(combinedLogs as any);
 
             if (combinedLogs.length > 0) {
-                console.log('Running rule-based analysis for', combinedLogs.length, 'entries');
                 try {
                     setReadiness(analyzeReadiness(combinedLogs as any));
                     setBalance(analyzeBalance(combinedLogs as any));
@@ -171,15 +168,12 @@ export const AICoach: React.FC = () => {
 
         // Use standard logs state which is already combined
         if (logs.length === 0) {
-            console.log('No logs to analyze deeply');
             return;
         }
 
         setIsAnalyzingDeeply(true);
-        console.log('Starting deep analysis with Gemini...');
         try {
             const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-            console.log('[Debug] Loaded API Key length:', apiKey?.length);
             if (!apiKey) {
                 console.error('Gemini API Key missing');
                 setIsAnalyzingDeeply(false);
@@ -237,7 +231,6 @@ export const AICoach: React.FC = () => {
                 availableContent
             );
             if (result) {
-                console.log('Deep analysis successful:', result.styleProfile.identity);
                 setDeepAnalysis(result);
                 // Save timestamp and result
                 const now = new Date().toISOString();

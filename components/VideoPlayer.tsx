@@ -206,7 +206,6 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
                 // Initialize player with the iframe
                 try {
                     player = new Player(iframe);
-                    console.log('[VideoPlayer] Strategy: Manual Iframe (Private Video)');
                 } catch (sdkError) {
                     console.warn('[VideoPlayer] Failed to attach Vimeo SDK to manual iframe (likely iOS restriction). Ignoring to allow playback.', sdkError);
                     // Do NOT setPlayerError here. We want to leave the iframe alone so it might still play.
@@ -224,7 +223,6 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
                 const isDirectVideo = vimeoIdStr.match(/\.(mp4|m3u8|webm|ogv)(\?.*)?$/i) || vimeoIdStr.includes('storage.googleapis.com') || vimeoIdStr.includes('supabase.co/storage');
 
                 if (isDirectVideo) {
-                    console.log('[VideoPlayer] Strategy: Direct Video URL');
                     // We don't initialize Vimeo Player for direct videos
                     // But we still want to keep the same UI
                     return;
@@ -233,8 +231,6 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
                 // Fallback to URL or ID via options
                 player = new Player(containerRef.current, options);
             }
-
-            console.log('[VideoPlayer] Initialized player with strategy:', numericId > 0 && hash ? 'Manual Iframe' : 'SDK Options');
 
             playerRef.current = player;
             const currentPlayer = player; // Capture for closure safety
@@ -351,7 +347,6 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
                 });
 
                 currentPlayer.on('loaded', () => {
-                    console.log('[VideoPlayer] Loaded event fired, playing:', playingRef.current);
                     if (startTime && startTime > 0) {
                         currentPlayer.setCurrentTime(startTime).catch(err =>
                             console.warn('Failed to set initial time:', err)
@@ -363,7 +358,6 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
                         .then(([width, height]) => {
                             if (width && height) {
                                 const ratio = width / height;
-                                console.log(`[VideoPlayer] Detected aspect ratio: ${width}x${height} (${ratio.toFixed(2)})`);
                                 setAspectRatio(ratio);
                                 onAspectRatioChange?.(ratio);
                             }

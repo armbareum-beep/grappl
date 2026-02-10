@@ -40,26 +40,16 @@ export function hasHighlight(text: string | null | undefined): boolean {
  * ✅ Fixed: Added proper timing control for mobile/PWA environments
  */
 export async function hardReload(preserveKeys: string[] = [], forceAll: boolean = false) {
-    console.log('[hardReload] 시작 - ForceAll:', forceAll);
-
     try {
         // 1. Service Worker 완전 제거 (완료 대기)
         if ('serviceWorker' in navigator) {
             const registrations = await navigator.serviceWorker.getRegistrations();
-            console.log(`[hardReload] ${registrations.length}개 Service Worker 제거 중`);
 
-            const unregisterResults = await Promise.all(
+            await Promise.all(
                 registrations.map(async (registration) => {
-                    const success = await registration.unregister();
-                    console.log(`[hardReload] SW 제거: ${success ? '성공' : '실패'}`);
-                    return success;
+                    await registration.unregister();
                 })
             );
-
-            const allUnregistered = unregisterResults.every(result => result === true);
-            if (!allUnregistered) {
-                console.warn('[hardReload] 일부 Service Worker 제거 실패');
-            }
 
             // 추가 대기: unregister가 완료되어도 백그라운드 정리 필요
             await new Promise(resolve => setTimeout(resolve, 500));
@@ -68,21 +58,12 @@ export async function hardReload(preserveKeys: string[] = [], forceAll: boolean 
         // 2. 모든 캐시 스토리지 삭제 (완료 확인)
         if ('caches' in window) {
             const keys = await caches.keys();
-            console.log(`[hardReload] ${keys.length}개 캐시 삭제 중:`, keys);
 
-            const deleteResults = await Promise.all(
+            await Promise.all(
                 keys.map(async (key) => {
-                    const deleted = await caches.delete(key);
-                    console.log(`[hardReload] 캐시 "${key}" 삭제: ${deleted ? '성공' : '실패'}`);
-                    return deleted;
+                    await caches.delete(key);
                 })
             );
-
-            // 모든 캐시 삭제 확인
-            const allDeleted = deleteResults.every(result => result === true);
-            if (!allDeleted) {
-                console.warn('[hardReload] 일부 캐시 삭제 실패');
-            }
 
             // 추가 대기: 캐시 삭제가 완전히 반영되도록
             await new Promise(resolve => setTimeout(resolve, 300));
@@ -103,7 +84,6 @@ export async function hardReload(preserveKeys: string[] = [], forceAll: boolean 
             Object.entries(preservedValues).forEach(([key, value]) => {
                 if (value !== null) localStorage.setItem(key, value);
             });
-            console.log('[hardReload] LocalStorage 전체 삭제 (일부 보존)');
         } else {
             // Selective LocalStorage Clear (Keep auth and specified keys)
             const toRemove: string[] = [];
@@ -119,12 +99,10 @@ export async function hardReload(preserveKeys: string[] = [], forceAll: boolean 
                 }
             }
             toRemove.forEach((key) => localStorage.removeItem(key));
-            console.log(`[hardReload] LocalStorage ${toRemove.length}개 항목 삭제`);
         }
 
         // 4. SessionStorage 완전 삭제
         sessionStorage.clear();
-        console.log('[hardReload] SessionStorage 전체 삭제');
 
         // 5. 최종 대기 (모바일 환경 안정성)
         await new Promise(resolve => setTimeout(resolve, 200));
@@ -133,13 +111,10 @@ export async function hardReload(preserveKeys: string[] = [], forceAll: boolean 
         const url = new URL(window.location.href);
         url.searchParams.set('cache_bust', Date.now().toString());
 
-        console.log('[hardReload] 페이지 리로드:', url.toString());
-
         // location.replace로 변경 (히스토리 남기지 않음)
         window.location.replace(url.toString());
 
-    } catch (error) {
-        console.error('[hardReload] 오류 발생:', error);
+    } catch {
         // 오류 발생 시에도 리로드 시도
         window.location.reload();
     }

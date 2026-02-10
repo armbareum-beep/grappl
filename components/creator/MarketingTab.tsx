@@ -3,10 +3,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getBundles, createBundle, updateBundle, createCoupon, updateCoupon, getCreatorCourses, getCoupons, deleteBundle, deleteCoupon, getUserCreatedRoutines, getCreatorSparringVideos } from '../../lib/api';
 import { Bundle, Coupon, Course, DrillRoutine, SparringVideo } from '../../types';
 import { Package, Tag, Plus, X, Pencil, AlertCircle } from 'lucide-react';
+import { useToast } from '../../contexts/ToastContext';
+import { ConfirmModal } from '../common/ConfirmModal';
 // cn utility imported for potential future use
 
 export const MarketingTab: React.FC = () => {
     const { user } = useAuth();
+    const { success, error: toastError } = useToast();
     const [bundles, setBundles] = useState<Bundle[]>([]);
     const [coupons, setCoupons] = useState<Coupon[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
@@ -35,6 +38,13 @@ export const MarketingTab: React.FC = () => {
     const [editingBundle, setEditingBundle] = useState<Bundle | null>(null);
     const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
 
+    // Confirm modal state
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        type: 'bundle' | 'coupon' | null;
+        id: string;
+    }>({ isOpen: false, type: null, id: '' });
+
     useEffect(() => {
         if (user) {
             loadData();
@@ -44,7 +54,6 @@ export const MarketingTab: React.FC = () => {
     const loadData = async () => {
         if (!user) return;
         setLoading(true);
-        console.log('Loading Marketing data for user:', user.id);
         const [bundlesRes, couponsRes, coursesData, routinesRes, sparringData] = await Promise.all([
             getBundles(),
             getCoupons(),
@@ -52,9 +61,6 @@ export const MarketingTab: React.FC = () => {
             getUserCreatedRoutines(user.id),
             getCreatorSparringVideos(user.id)
         ]);
-
-        console.log('Bundles result:', bundlesRes);
-        console.log('Coupons result:', couponsRes);
 
         if (bundlesRes.data) {
             const myBundles = (bundlesRes.data as Bundle[]).filter((b: Bundle) => b.creatorId === user.id);
@@ -76,25 +82,34 @@ export const MarketingTab: React.FC = () => {
         setLoading(false);
     };
 
-    const handleDeleteBundle = async (id: string) => {
-        if (!window.confirm('정말 이 번들을 삭제하시겠습니까?')) return;
-        const { error } = await deleteBundle(id);
-        if (error) {
-            alert('번들 삭제 실패: ' + error.message);
-        } else {
-            alert('번들이 삭제되었습니다.');
-            await loadData();
-        }
+    const handleDeleteBundle = (id: string) => {
+        setConfirmModal({ isOpen: true, type: 'bundle', id });
     };
 
-    const handleDeleteCoupon = async (id: string) => {
-        if (!window.confirm('정말 이 쿠폰을 삭제하시겠습니까?')) return;
-        const { error } = await deleteCoupon(id);
-        if (error) {
-            alert('쿠폰 삭제 실패: ' + error.message);
-        } else {
-            alert('쿠폰이 삭제되었습니다.');
-            await loadData();
+    const handleDeleteCoupon = (id: string) => {
+        setConfirmModal({ isOpen: true, type: 'coupon', id });
+    };
+
+    const confirmDelete = async () => {
+        const { type, id } = confirmModal;
+        setConfirmModal({ isOpen: false, type: null, id: '' });
+
+        if (type === 'bundle') {
+            const { error } = await deleteBundle(id);
+            if (error) {
+                toastError('번들 삭제 실패: ' + error.message);
+            } else {
+                success('번들이 삭제되었습니다.');
+                await loadData();
+            }
+        } else if (type === 'coupon') {
+            const { error } = await deleteCoupon(id);
+            if (error) {
+                toastError('쿠폰 삭제 실패: ' + error.message);
+            } else {
+                success('쿠폰이 삭제되었습니다.');
+                await loadData();
+            }
         }
     };
 
@@ -152,9 +167,9 @@ export const MarketingTab: React.FC = () => {
         });
 
         if (error) {
-            alert('번들 수정 실패: ' + error.message);
+            toastError('번들 수정 실패: ' + error.message);
         } else {
-            alert('번들이 수정되었습니다.');
+            success('번들이 수정되었습니다.');
             setEditingBundle(null);
             clearBundleForm();
             await loadData();
@@ -174,9 +189,9 @@ export const MarketingTab: React.FC = () => {
         });
 
         if (error) {
-            alert('쿠폰 수정 실패: ' + error.message);
+            toastError('쿠폰 수정 실패: ' + error.message);
         } else {
-            alert('쿠폰이 수정되었습니다.');
+            success('쿠폰이 수정되었습니다.');
             setEditingCoupon(null);
             clearCouponForm();
             await loadData();
@@ -198,7 +213,7 @@ export const MarketingTab: React.FC = () => {
 
         if (error) {
             console.error('Error creating bundle:', error);
-            alert(`번들 생성 실패: ${error.message || '알 수 없는 오류'}`);
+            toastError(`번들 생성 실패: ${error.message || '알 수 없는 오류'}`);
             return;
         }
 
@@ -209,7 +224,7 @@ export const MarketingTab: React.FC = () => {
         setSelectedRoutines([]);
         setShowBundleForm(false);
         await loadData();
-        alert('번들이 생성되었습니다!');
+        success('번들이 생성되었습니다!');
     };
 
     const handleCreateCoupon = async (e: React.FormEvent) => {
@@ -227,12 +242,7 @@ export const MarketingTab: React.FC = () => {
 
         if (error) {
             console.error('Error creating coupon:', error);
-            // More detailed error logging for debugging
-            if ('message' in error) console.error('Coupon Error Message:', error.message);
-            if ('details' in error) console.error('Coupon Error Details:', (error as any).details);
-            if ('hint' in error) console.error('Coupon Error Hint:', (error as any).hint);
-
-            alert(`쿠폰 생성 실패: ${error.message || JSON.stringify(error) || '알 수 없는 오류'}`);
+            toastError(`쿠폰 생성 실패: ${error.message || JSON.stringify(error) || '알 수 없는 오류'}`);
             return;
         }
 
@@ -242,7 +252,7 @@ export const MarketingTab: React.FC = () => {
         setExpiresAt('');
         setShowCouponForm(false);
         await loadData();
-        alert('쿠폰이 생성되었습니다!');
+        success('쿠폰이 생성되었습니다!');
     };
 
     const toggleCourseSelection = (courseId: string) => {
@@ -696,6 +706,19 @@ export const MarketingTab: React.FC = () => {
                     )}
                 </div>
             </div>
+
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal({ isOpen: false, type: null, id: '' })}
+                onConfirm={confirmDelete}
+                title={confirmModal.type === 'bundle' ? '번들 삭제' : '쿠폰 삭제'}
+                message={confirmModal.type === 'bundle'
+                    ? '정말 이 번들을 삭제하시겠습니까?'
+                    : '정말 이 쿠폰을 삭제하시겠습니까?'}
+                confirmText="삭제"
+                cancelText="취소"
+                variant="danger"
+            />
         </div>
     );
 };

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { getAdminCreators, getPendingCreators, approveCreator, rejectCreator } from '../../lib/api';
-import { deleteCreator, updateCreatorProfileAdmin, CreatorProfileUpdate } from '../../lib/api-admin';
+import { deleteCreator, updateCreatorProfileAdmin, CreatorProfileUpdate, toggleCreatorHidden } from '../../lib/api-admin';
 import { Creator } from '../../types';
-import { User, ArrowLeft, Trash2, Shield, Users, Edit, X, Save, CheckCircle, XCircle } from 'lucide-react';
+import { User, ArrowLeft, Trash2, Shield, Users, Edit, X, Save, CheckCircle, XCircle, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../contexts/ToastContext';
 import { ImageUploader } from '../../components/ImageUploader';
+import { ConfirmModal } from '../../components/common/ConfirmModal';
 
 export const AdminCreatorList: React.FC = () => {
     const navigate = useNavigate();
@@ -20,6 +21,13 @@ export const AdminCreatorList: React.FC = () => {
     const [editingCreator, setEditingCreator] = useState<Creator | null>(null);
     const [editForm, setEditForm] = useState<CreatorProfileUpdate>({});
     const [saving, setSaving] = useState(false);
+
+    // Confirm Modal State
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        type: 'delete' | 'reject';
+        creatorId: string | null;
+    }>({ isOpen: false, type: 'delete', creatorId: null });
 
     useEffect(() => {
         fetchData();
@@ -43,8 +51,6 @@ export const AdminCreatorList: React.FC = () => {
     };
 
     const handleDelete = async (creatorId: string) => {
-        if (!window.confirm('정말 이 인스트럭터를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
-
         try {
             const { error } = await deleteCreator(creatorId);
             if (error) throw error;
@@ -54,7 +60,13 @@ export const AdminCreatorList: React.FC = () => {
         } catch (error) {
             console.error('Error deleting creator:', error);
             toastError('삭제 중 오류가 발생했습니다.');
+        } finally {
+            setConfirmModal({ isOpen: false, type: 'delete', creatorId: null });
         }
+    };
+
+    const openDeleteConfirm = (creatorId: string) => {
+        setConfirmModal({ isOpen: true, type: 'delete', creatorId });
     };
 
     const handleApprove = async (creatorId: string) => {
@@ -70,7 +82,6 @@ export const AdminCreatorList: React.FC = () => {
     };
 
     const handleReject = async (creatorId: string) => {
-        if (!window.confirm('정말 이 신청을 거절하시겠습니까? 거절 시 신청 내역이 삭제됩니다.')) return;
         try {
             const { error } = await rejectCreator(creatorId);
             if (error) throw error;
@@ -79,6 +90,37 @@ export const AdminCreatorList: React.FC = () => {
         } catch (error) {
             console.error('Rejection failed:', error);
             toastError('거절 처리에 실패했습니다.');
+        } finally {
+            setConfirmModal({ isOpen: false, type: 'reject', creatorId: null });
+        }
+    };
+
+    const openRejectConfirm = (creatorId: string) => {
+        setConfirmModal({ isOpen: true, type: 'reject', creatorId });
+    };
+
+    const handleConfirmAction = () => {
+        if (!confirmModal.creatorId) return;
+        if (confirmModal.type === 'delete') {
+            handleDelete(confirmModal.creatorId);
+        } else if (confirmModal.type === 'reject') {
+            handleReject(confirmModal.creatorId);
+        }
+    };
+
+    const handleToggleHidden = async (creatorId: string, currentHidden: boolean) => {
+        try {
+            const { error } = await toggleCreatorHidden(creatorId, !currentHidden);
+            if (error) throw error;
+
+            // Update local state
+            setCreators(creators.map(c =>
+                c.id === creatorId ? { ...c, hidden: !currentHidden } : c
+            ));
+            success(currentHidden ? '인스트럭터가 공개되었습니다.' : '인스트럭터가 숨김 처리되었습니다.');
+        } catch (error) {
+            console.error('Toggle hidden failed:', error);
+            toastError('숨김 처리에 실패했습니다.');
         }
     };
 
@@ -200,9 +242,16 @@ export const AdminCreatorList: React.FC = () => {
                                     </div>
 
                                     <div className="flex-1 text-center md:text-left space-y-2 w-full">
-                                        <h3 className="text-xl font-bold text-white group-hover:text-violet-300 transition-colors">
-                                            {creator.name}
-                                        </h3>
+                                        <div className="flex items-center justify-center md:justify-start gap-2">
+                                            <h3 className="text-xl font-bold text-white group-hover:text-violet-300 transition-colors">
+                                                {creator.name}
+                                            </h3>
+                                            {creator.hidden && (
+                                                <span className="px-2 py-0.5 bg-zinc-700 text-zinc-400 text-[10px] font-bold uppercase rounded border border-zinc-600">
+                                                    숨김
+                                                </span>
+                                            )}
+                                        </div>
                                         {creator.email && (
                                             <p className="text-xs text-zinc-500 font-mono">
                                                 {creator.email}
@@ -221,6 +270,18 @@ export const AdminCreatorList: React.FC = () => {
 
                                     <div className="flex items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
                                         <button
+                                            onClick={() => handleToggleHidden(creator.id, creator.hidden || false)}
+                                            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-medium transition-all ${
+                                                creator.hidden
+                                                    ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 hover:text-emerald-300 border border-emerald-500/20'
+                                                    : 'bg-zinc-700/50 hover:bg-zinc-700 text-zinc-300 border border-zinc-600'
+                                            }`}
+                                            title={creator.hidden ? '공개하기' : '숨기기'}
+                                        >
+                                            {creator.hidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                                            {creator.hidden ? '공개' : '숨김'}
+                                        </button>
+                                        <button
                                             onClick={() => openEditModal(creator)}
                                             className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-all"
                                         >
@@ -228,7 +289,7 @@ export const AdminCreatorList: React.FC = () => {
                                             수정
                                         </button>
                                         <button
-                                            onClick={() => handleDelete(creator.id)}
+                                            onClick={() => openDeleteConfirm(creator.id)}
                                             className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 rounded-xl text-sm font-medium transition-all"
                                         >
                                             <Trash2 className="w-4 h-4" />
@@ -297,7 +358,7 @@ export const AdminCreatorList: React.FC = () => {
                                             승인
                                         </button>
                                         <button
-                                            onClick={() => handleReject(creator.id)}
+                                            onClick={() => openRejectConfirm(creator.id)}
                                             className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-zinc-800 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/50 border border-zinc-700 text-zinc-400 rounded-xl text-sm font-medium transition-all"
                                         >
                                             <XCircle className="w-4 h-4" />
@@ -310,6 +371,20 @@ export const AdminCreatorList: React.FC = () => {
                     )
                 )}
             </div>
+
+            {/* Confirm Modal */}
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal({ isOpen: false, type: 'delete', creatorId: null })}
+                onConfirm={handleConfirmAction}
+                title={confirmModal.type === 'delete' ? '인스트럭터 삭제' : '신청 거절'}
+                message={confirmModal.type === 'delete'
+                    ? '정말 이 인스트럭터를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.'
+                    : '정말 이 신청을 거절하시겠습니까? 거절 시 신청 내역이 삭제됩니다.'}
+                confirmText={confirmModal.type === 'delete' ? '삭제' : '거절'}
+                cancelText="취소"
+                variant={confirmModal.type === 'delete' ? 'danger' : 'warning'}
+            />
 
             {/* Edit Modal */}
             {isEditModalOpen && (

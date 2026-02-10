@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Trash2, Edit, Plus, Star, User } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
+import { ConfirmModal } from '../common/ConfirmModal';
 
 interface Testimonial {
     id: string;
@@ -25,6 +26,7 @@ export const AdminTestimonialsTab: React.FC = () => {
         comment: '',
         profile_image: ''
     });
+    const [confirmModal, setConfirmModal] = useState<{isOpen: boolean; action: () => void; title: string; message: string}>({isOpen: false, action: () => {}, title: '', message: ''});
 
     useEffect(() => {
         fetchTestimonials();
@@ -32,7 +34,6 @@ export const AdminTestimonialsTab: React.FC = () => {
 
     const fetchTestimonials = async () => {
         try {
-            console.log('Fetching testimonials...');
             const { data, error } = await supabase
                 .from('testimonials')
                 .select('*')
@@ -43,7 +44,6 @@ export const AdminTestimonialsTab: React.FC = () => {
                 throw error;
             }
 
-            console.log('Testimonials received:', data);
             setTestimonials(data || []);
         } catch (error: any) {
             console.error('Error fetching testimonials:', error);
@@ -93,16 +93,24 @@ export const AdminTestimonialsTab: React.FC = () => {
     };
 
     const handleDelete = async (id: string) => {
-        if (!window.confirm('정말 삭제하시겠습니까?')) return;
-        try {
-            const { error } = await supabase.from('testimonials').delete().eq('id', id);
-            if (error) throw error;
-            success('삭제되었습니다.');
-            fetchTestimonials();
-        } catch (error) {
-            console.error('Error deleting testimonial:', error);
-            toastError('삭제에 실패했습니다.');
-        }
+        setConfirmModal({
+            isOpen: true,
+            title: '삭제 확인',
+            message: '정말 삭제하시겠습니까?',
+            action: async () => {
+                try {
+                    const { error } = await supabase.from('testimonials').delete().eq('id', id);
+                    if (error) throw error;
+                    success('삭제되었습니다.');
+                    fetchTestimonials();
+                } catch (error) {
+                    console.error('Error deleting testimonial:', error);
+                    toastError('삭제에 실패했습니다.');
+                } finally {
+                    setConfirmModal(prev => ({...prev, isOpen: false}));
+                }
+            }
+        });
     };
 
     if (loading) return <div className="p-12 text-center text-zinc-500 font-medium">데이터를 불러오는 중...</div>;
@@ -211,7 +219,7 @@ export const AdminTestimonialsTab: React.FC = () => {
                             <div className="flex items-center gap-4 mb-4">
                                 <div className="w-12 h-12 rounded-2xl bg-zinc-800 overflow-hidden border border-zinc-700 flex-shrink-0">
                                     {t.profile_image ? (
-                                        <img src={t.profile_image} alt={t.name} className="w-full h-full object-cover" />
+                                        <img src={t.profile_image} alt={t.name} loading="lazy" className="w-full h-full object-cover" />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-zinc-600">
                                             <User className="w-6 h-6" />
@@ -231,8 +239,8 @@ export const AdminTestimonialsTab: React.FC = () => {
                             <p className="text-sm text-zinc-400 leading-relaxed line-clamp-3 mb-6">"{t.comment}"</p>
 
                             <div className="flex justify-end gap-2 border-t border-zinc-800 pt-4">
-                                <button onClick={() => handleEdit(t)} className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg transition-all"><Edit className="w-4 h-4" /></button>
-                                <button onClick={() => handleDelete(t.id)} className="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"><Trash2 className="w-4 h-4" /></button>
+                                <button onClick={() => handleEdit(t)} aria-label="수정" className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg transition-all"><Edit className="w-4 h-4" /></button>
+                                <button onClick={() => handleDelete(t.id)} aria-label="삭제" className="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"><Trash2 className="w-4 h-4" /></button>
                             </div>
                         </div>
                     ))
@@ -244,6 +252,15 @@ export const AdminTestimonialsTab: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal(prev => ({...prev, isOpen: false}))}
+                onConfirm={confirmModal.action}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                variant="danger"
+            />
         </div>
     );
 };

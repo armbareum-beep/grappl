@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, Link2, Facebook, Twitter, Instagram } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useToast } from '../../contexts/ToastContext';
 
 const KakaoIcon = () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -33,6 +34,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     url,
     imageUrl,
 }) => {
+    const { info } = useToast();
     const shareUrl = url || window.location.href;
     const [copied, setCopied] = useState(false);
 
@@ -50,7 +52,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
         switch (platform) {
             case 'kakao':
                 handleCopy();
-                alert('링크가 복사되었습니다. 카카오톡에 붙여넣기 해주세요!');
+                info('링크가 복사되었습니다. 카카오톡에 붙여넣기 해주세요!');
                 return;
             case 'facebook':
                 openUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
@@ -63,7 +65,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 break;
             case 'instagram':
                 handleCopy();
-                alert('링크가 복사되었습니다. 인스타그램에 붙여넣기 해주세요!');
+                info('링크가 복사되었습니다. 인스타그램에 붙여넣기 해주세요!');
                 return;
         }
 
@@ -110,7 +112,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                             <div className="bg-zinc-950/50 rounded-3xl overflow-hidden mb-8 border border-zinc-800/50 flex items-center gap-4 p-4 group transition-all hover:bg-zinc-950/80">
                                 {imageUrl && (
                                     <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-zinc-800 border border-white/5">
-                                        <img src={imageUrl} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                        <img src={imageUrl} alt={title || "썸네일"} loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                                     </div>
                                 )}
                                 <div className="flex-1 min-w-0">

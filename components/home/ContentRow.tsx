@@ -53,6 +53,17 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
         checkSaved();
     }, [user?.id, item.id, type]);
 
+    // Listen for save toggle events from other instances of the same item
+    useEffect(() => {
+        const handleSaveToggle = (e: CustomEvent<{ id: string; type: string; isSaved: boolean }>) => {
+            if (e.detail.id === item.id && e.detail.type === type) {
+                setIsSaved(e.detail.isSaved);
+            }
+        };
+        window.addEventListener('content-save-toggle', handleSaveToggle as EventListener);
+        return () => window.removeEventListener('content-save-toggle', handleSaveToggle as EventListener);
+    }, [item.id, type]);
+
     const handleSave = async (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
@@ -65,7 +76,12 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
             else if (type === 'routine') await toggleRoutineSave(user.id, item.id);
             else if (type === 'sparring') await toggleSparringSave(user.id, item.id);
             else if (type === 'lesson') await toggleLessonSave(user.id, item.id);
-            setIsSaved(!isSaved);
+            const newSavedState = !isSaved;
+            setIsSaved(newSavedState);
+            // Notify other instances of the same item
+            window.dispatchEvent(new CustomEvent('content-save-toggle', {
+                detail: { id: item.id, type, isSaved: newSavedState }
+            }));
         } catch (err) {
             console.error(err);
         }
@@ -134,7 +150,7 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
             style={{
                 perspective: '1000px',
                 transformStyle: 'preserve-3d',
-                ...(variant === 'ranking' ? { width: (type === 'routine' || type === 'sparring') ? '230px' : '380px' } : {})
+                ...(variant === 'ranking' ? { width: (type === 'routine' || type === 'sparring') ? '250px' : '410px' } : {})
             }}
         >
             {variant === 'ranking' ? (
@@ -151,7 +167,7 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
                     <div
                         className="relative z-20 rounded-lg overflow-hidden bg-zinc-900 shadow-2xl transition-transform duration-300 group-hover:scale-[1.03] transform-gpu"
                         style={{
-                            marginLeft: (type === 'routine' || type === 'sparring') ? '55px' : '90px',
+                            marginLeft: (type === 'routine' || type === 'sparring') ? '75px' : '110px',
                             width: (type === 'routine' || type === 'sparring') ? '170px' : '300px',
                             aspectRatio: type === 'routine' ? '2/3' : type === 'sparring' ? '1/1' : '16/9'
                         }}
@@ -201,10 +217,10 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
                 </div>
             )}
 
-            <div className="pt-3 px-1 flex flex-col gap-0 items-start relative" style={variant === 'ranking' ? { marginLeft: (type === 'routine' || type === 'sparring') ? '55px' : '90px' } : {}}>
+            <div className="pt-3 px-1 flex flex-col gap-0 items-start relative" style={variant === 'ranking' ? { marginLeft: (type === 'routine' || type === 'sparring') ? '75px' : '110px' } : {}}>
                 <div className="flex-1 min-w-0 relative pb-1 pr-1 w-full">
                     <div className="flex justify-between items-start gap-1">
-                        <h3 className="flex-1 text-white text-[13px] md:text-[14px] font-bold truncate group-hover:text-violet-400 transition-colors uppercase tracking-tight leading-tight">{getTitle(item)}</h3>
+                        <h3 className="flex-1 text-white text-[13px] md:text-[14px] font-bold truncate md:whitespace-normal md:line-clamp-2 group-hover:text-violet-400 transition-colors uppercase tracking-tight leading-tight">{getTitle(item)}</h3>
                         <button
                             onClick={(e) => {
                                 e.preventDefault();
@@ -284,7 +300,7 @@ export const ContentRow: React.FC<ContentRowProps> = ({
     const handleClick = (item: any) => {
         if (type === 'course') navigate(`/courses/${item.courseId || item.id}`);
         else if (type === 'routine') navigate(`/routines/${item.id}`);
-        else if (type === 'sparring') navigate(`/sparring/${item.id}`);
+        else if (type === 'sparring') navigate(`/sparring?id=${item.id}`);
         else if (type === 'lesson') navigate(`/lessons/${item.id}`);
         else if (type === 'chain') navigate(`/skill-tree?id=${item.id}`);
         else if (type === 'weekly-routine') navigate(`/training-routines?id=${item.id}`);

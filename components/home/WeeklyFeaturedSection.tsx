@@ -202,7 +202,7 @@ export const WeeklyFeaturedSection: React.FC<WeeklyFeaturedSectionProps> = ({
                                         <div className="flex -space-x-2">
                                             {[1, 2, 3].map(i => (
                                                 <div key={i} className="w-6 h-6 rounded-full border-2 border-[#09090b] bg-zinc-800 overflow-hidden">
-                                                    <img src={`https://i.pravatar.cc/100?img=${i + 10}`} alt="user" className="w-full h-full object-cover grayscale" />
+                                                    <img src={`https://i.pravatar.cc/100?img=${i + 10}`} alt="user" loading="lazy" className="w-full h-full object-cover grayscale" />
                                                 </div>
                                             ))}
                                         </div>

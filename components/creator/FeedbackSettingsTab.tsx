@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getFeedbackSettings, updateFeedbackSettings } from '../../lib/api';
 import { MessageSquare, DollarSign, Clock, Users } from 'lucide-react';
+import { useToast } from '../../contexts/ToastContext';
 
 export const FeedbackSettingsTab: React.FC = () => {
     const { user } = useAuth();
+    const { success } = useToast();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -44,7 +46,7 @@ export const FeedbackSettingsTab: React.FC = () => {
         });
 
         if (!error) {
-            alert('설정이 저장되었습니다!');
+            success('설정이 저장되었습니다!');
         }
         setSaving(false);
     };

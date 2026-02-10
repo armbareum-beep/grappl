@@ -102,6 +102,7 @@ export const RecentCompletedRoutinesSection: React.FC<Props> = ({ routines }) =>
                 <img
                   src={routine.routineThumbnail}
                   alt={routine.routineTitle}
+                  loading="lazy"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
               </div>
@@ -123,7 +124,7 @@ export const RecentCompletedRoutinesSection: React.FC<Props> = ({ routines }) =>
                   >
                     <div className="w-7 h-7 rounded-full bg-zinc-800 border border-zinc-700 overflow-hidden hover:border-violet-500/50 transition-colors">
                       {routine.creatorProfileImage ? (
-                        <img src={routine.creatorProfileImage} alt={routine.creatorName} className="w-full h-full object-cover" />
+                        <img src={routine.creatorProfileImage} alt={routine.creatorName} loading="lazy" className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-[9px] text-zinc-500 font-bold">
                           {routine.creatorName?.charAt(0)}

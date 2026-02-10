@@ -106,7 +106,7 @@ export const ChainLibrary: React.FC = () => {
                             {/* Card Header / Thumbnail */}
                             <div className="h-32 bg-zinc-950 relative overflow-hidden group-hover:h-32 transition-all">
                                 {chain.thumbnailUrl ? (
-                                    <img src={chain.thumbnailUrl} alt={chain.title} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                                    <img src={chain.thumbnailUrl} alt={chain.title} loading="lazy" className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
                                 ) : (
                                     <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-950">
                                         <Layers className="w-8 h-8 text-zinc-800 group-hover:text-zinc-700 transition-colors" />
@@ -125,7 +125,7 @@ export const ChainLibrary: React.FC = () => {
                                     <div className="flex items-center gap-2 mb-2">
                                         <div className="w-5 h-5 rounded-full bg-zinc-800 overflow-hidden flex-shrink-0">
                                             {chain.creatorAvatar ? (
-                                                <img src={chain.creatorAvatar} alt="" className="w-full h-full object-cover" />
+                                                <img src={chain.creatorAvatar} alt={chain.creatorName || "프로필"} loading="lazy" className="w-full h-full object-cover" />
                                             ) : (
                                                 <User className="w-3 h-3 text-zinc-500 m-auto" />
                                             )}

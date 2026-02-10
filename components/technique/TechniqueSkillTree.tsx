@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useToast } from '../../contexts/ToastContext';
 import ReactFlow, {
     Node,
     Edge,
@@ -37,7 +38,7 @@ import { TextNode } from './TextNode';
 import GroupNode from './GroupNode';
 import {
     Plus, Trash2, Save, Share2, FolderOpen, X, FilePlus, Video,
-    Map as MapIcon, Network, List as ListIcon, Maximize2, Minimize2, Type, Edit3, PlayCircle, Signpost, Copy, GripVertical, Download
+    Map as MapIcon, Network, List as ListIcon, Maximize2, Minimize2, Type, Edit3, PlayCircle, Copy, GripVertical, Download
 } from 'lucide-react';
 
 import { SaveModal, LoadModal, SaveData } from './SkillTreeModals';
@@ -252,6 +253,7 @@ const DroppableGroup: React.FC<{
 
 export const TechniqueSkillTree: React.FC = () => {
     const { user, isSubscribed, isAdmin } = useAuth();
+    const { warning } = useToast();
     const navigate = useNavigate();
     const location = useLocation();
     const [searchParams] = useSearchParams();
@@ -315,81 +317,27 @@ export const TechniqueSkillTree: React.FC = () => {
     const [groupingInitialNodeId, setGroupingInitialNodeId] = useState<string | null>(null);
     const [selectedForGrouping, setSelectedForGrouping] = useState<Set<string>>(new Set());
 
-    // Visualization Mode
-    const [mode, setMode] = useState<'skill-tree' | 'roadmap'>('roadmap');
-    const [isPreviewMode, setIsPreviewMode] = useState(false);
+    // Guest Data Migration Modal State
+    const [pendingGuestMigration, setPendingGuestMigration] = useState<{ parsed: any; lessons: any[]; drills: any[] } | null>(null);
 
-    // Update Nodes and Edges when Mode Changes
+    // Delete Group Confirm State
+    const [deleteGroupConfirmId, setDeleteGroupConfirmId] = useState<string | null>(null);
+
+    // Update Edges style - always white
     useEffect(() => {
         if (loading) return;
 
-        setNodes((nds) => {
-            // Simple check to prevent infinite loops if mode and preview match
-            if (nds.length > 0 && nds[0].data.mode === mode && nds[0].data.isPreview === isPreviewMode) return nds;
-            return nds.map(n => ({ ...n, data: { ...n.data, mode, isPreview: isPreviewMode } }));
-        });
-
         setEdges((eds) => {
-            const nodeStatus = new Map<string, string>();
-            nodes.forEach(n => {
-                const { mastery, isCompleted, isInProgress } = n.data;
-                if (isPreviewMode) {
-                    const isEven = parseInt(n.id.replace(/\D/g, '') || '0') % 2 === 0;
-                    const isThree = parseInt(n.id.replace(/\D/g, '') || '0') % 3 === 0;
-                    if (isEven) nodeStatus.set(n.id, 'mastered');
-                    else if (isThree) nodeStatus.set(n.id, 'in-progress');
-                    else nodeStatus.set(n.id, 'locked');
-                } else {
-                    if ((mastery && mastery.masteryLevel >= 5) || isCompleted) {
-                        nodeStatus.set(n.id, 'mastered');
-                    } else if ((mastery && mastery.masteryLevel >= 1) || isInProgress) {
-                        nodeStatus.set(n.id, 'in-progress');
-                    } else {
-                        nodeStatus.set(n.id, 'locked');
-                    }
-                }
-            });
-
             return eds.map((e) => {
-                const status = nodeStatus.get(e.target);
-                let className = '';
-                let stroke = '#ffffff'; // Default White
-                let strokeWidth = 2;
-                let strokeDasharray = 'none'; // Default solid for locked state
-
-                if (mode === 'skill-tree') {
-                    stroke = '#ffffff';
-                    strokeWidth = 2;
-                    className = 'skill-tree-edge';
-                    strokeDasharray = 'none'; // Skill tree is always solid
-                } else {
-                    // Roadmap mode
-                    if (status === 'mastered') {
-                        className = 'roadmap-edge-glow';
-                        stroke = '#8b5cf6'; // Dark Purple
-                        strokeWidth = 4;
-                        strokeDasharray = 'none'; // Solid line for completed
-                    } else if (status === 'in-progress') {
-                        className = 'roadmap-edge-flow';
-                        stroke = '#a78bfa'; // Light Purple
-                        strokeWidth = 3;
-                        strokeDasharray = '10 10'; // Animated dashed line
-                    } else {
-                        // locked state - solid white line
-                        strokeDasharray = 'none';
-                    }
-                }
-
                 return {
                     ...e,
                     animated: false,
-                    style: { stroke, strokeWidth, strokeDasharray },
-                    className: `${mode === 'roadmap' ? 'roadmap-edge' : ''} ${className}`,
-                    data: { ...e.data, mode }
+                    style: { stroke: '#ffffff', strokeWidth: 2, strokeDasharray: 'none' },
+                    className: 'skill-tree-edge'
                 };
             });
         });
-    }, [mode, loading, nodes.length, isPreviewMode]); // Re-run when mode or preview changes
+    }, [loading, nodes.length]);
 
     // Detect mobile viewport
     useEffect(() => {
@@ -870,63 +818,8 @@ export const TechniqueSkillTree: React.FC = () => {
                         try {
                             const parsed = JSON.parse(guestData);
                             if (parsed.nodes && parsed.nodes.length > 0) {
-                                // Ask user if they want to keep guest data
-                                const keepGuestData = confirm('게스트 모드에서 만든 로드맵이 있습니다. 계속 사용하시겠습니까?');
-                                if (keepGuestData) {
-                                    // Convert guest nodes to flow format
-                                    const flowNodes: Node[] = parsed.nodes.map((node: any) => {
-                                        const type = node.type === 'text' ? 'text' : node.type === 'group' ? 'group' : 'content';
-                                        if (type === 'text') {
-                                            return {
-                                                id: node.id,
-                                                type: 'text',
-                                                position: node.position,
-                                                data: {
-                                                    label: node.data?.label || 'Text',
-                                                    style: node.data?.style || {},
-                                                    onChange: (newData: any) => handleNodeDataChange(node.id, newData),
-                                                    onDelete: () => {
-                                                        setNodes((nds) => nds.filter((n) => n.id !== node.id));
-                                                        setEdges((eds) => eds.filter((e) => e.source !== node.id && e.target !== node.id));
-                                                    }
-                                                }
-                                            };
-                                        }
-                                        const contentId = node.contentId || '';
-                                        const lesson = (node.contentType === 'lesson' && Array.isArray(lessons)) ? lessons.find((l: Lesson) => l.id === contentId) : undefined;
-                                        const drill = (node.contentType === 'drill' && Array.isArray(drills)) ? drills.find((d: Drill) => d.id === contentId) : undefined;
-                                        return {
-                                            id: node.id,
-                                            type: 'content',
-                                            position: node.position,
-                                            data: {
-                                                contentType: node.contentType || 'technique',
-                                                contentId,
-                                                lesson,
-                                                drill,
-                                                isCompleted: false,
-                                                isInProgress: false
-                                            }
-                                        };
-                                    });
-                                    const flowEdges: Edge[] = parsed.edges.map((edge: any) => ({
-                                        id: edge.id,
-                                        source: edge.source,
-                                        target: edge.target,
-                                        type: 'default',
-                                        animated: false,
-                                        sourceHandle: edge.sourceHandle,
-                                        targetHandle: edge.targetHandle,
-                                        style: { stroke: '#ffffff', strokeWidth: 2, strokeDasharray: 'none' }
-                                    }));
-                                    setNodes(flowNodes);
-                                    setEdges(flowEdges);
-                                    setCurrentTreeTitle(parsed.title || '나의 스킬 트리');
-                                    // Clear guest data after migration
-                                    localStorage.removeItem('guest_skill_tree');
-                                } else {
-                                    localStorage.removeItem('guest_skill_tree');
-                                }
+                                // Store the pending migration data and show modal
+                                setPendingGuestMigration({ parsed, lessons, drills });
                             }
                         } catch (e) {
                             console.error('Error migrating guest skill tree:', e);
@@ -1270,33 +1163,13 @@ export const TechniqueSkillTree: React.FC = () => {
                 return eds;
             }
 
-            // Create new edge - check target node status to apply correct style immediately
+            // Create new edge with skill-tree style
             const isGroupConnection = sourceNode.type === 'group' || targetNode.type === 'group';
-            const targetData = targetNode.data;
-            const { mastery, isCompleted, isInProgress } = targetData;
 
-            let stroke = '#ffffff';
-            let strokeWidth = isGroupConnection ? 3.5 : 2;
-            let strokeDasharray = 'none';
-            let className = mode === 'roadmap' ? 'roadmap-edge' : 'skill-tree-edge';
-
-            if (mode === 'roadmap') {
-                // Check target node status
-                if ((mastery && mastery.masteryLevel >= 5) || isCompleted) {
-                    // Mastered
-                    stroke = '#8b5cf6';
-                    strokeWidth = 4;
-                    strokeDasharray = 'none';
-                    className = 'roadmap-edge roadmap-edge-glow';
-                } else if ((mastery && mastery.masteryLevel >= 1) || isInProgress) {
-                    // In Progress
-                    stroke = '#a78bfa';
-                    strokeWidth = 3;
-                    strokeDasharray = '10 10';
-                    className = 'roadmap-edge roadmap-edge-flow';
-                }
-                // else: locked - keep white solid
-            }
+            const stroke = '#ffffff';
+            const strokeWidth = isGroupConnection ? 3.5 : 2;
+            const strokeDasharray = 'none';
+            const className = 'skill-tree-edge';
 
             const newEdge: Edge = {
                 id: `edge-${sourceId}-${targetNode.id}-${Date.now()}`,
@@ -1572,9 +1445,9 @@ export const TechniqueSkillTree: React.FC = () => {
                 title: title
             });
         } else {
-            alert('연결된 영상이 없습니다.');
+            warning('연결된 영상이 없습니다.');
         }
-    }, [user, isAdmin, isSubscribed, navigate]);
+    }, [user, isAdmin, isSubscribed, navigate, warning]);
 
     // Ensure all group nodes have the latest collapse/label handlers
     useEffect(() => {
@@ -1910,21 +1783,92 @@ export const TechniqueSkillTree: React.FC = () => {
 
     }, [nodes, setNodes, setEdges]);
 
-    const deleteGroupAndContent = useCallback((groupId: string) => {
-        if (confirm('그룹과 포함된 모든 내용을 삭제하시겠습니까?')) {
-            // Get children IDs first to use in edge filtering
-            const childrenIds = nodes.filter(n => n.parentNode === groupId).map(n => n.id);
+    // Guest migration confirmation handlers
+    const handleConfirmGuestMigration = useCallback(() => {
+        if (!pendingGuestMigration) return;
 
-            // Remove the group node and its children
-            setNodes(nds => nds.filter(n => n.id !== groupId && n.parentNode !== groupId));
+        const { parsed, lessons, drills } = pendingGuestMigration;
 
-            // Remove edges connected to the deleted group or its children
-            setEdges(eds => eds.filter(e =>
-                e.source !== groupId && e.target !== groupId && // Remove edges directly connected to the group
-                !childrenIds.includes(e.source) && !childrenIds.includes(e.target) // Remove edges connected to children
-            ));
-        }
-    }, [nodes, setNodes, setEdges]);
+        // Convert guest nodes to flow format
+        const flowNodes: Node[] = parsed.nodes.map((node: any) => {
+            const type = node.type === 'text' ? 'text' : node.type === 'group' ? 'group' : 'content';
+            if (type === 'text') {
+                return {
+                    id: node.id,
+                    type: 'text',
+                    position: node.position,
+                    data: {
+                        label: node.data?.label || 'Text',
+                        style: node.data?.style || {},
+                        onChange: (newData: any) => handleNodeDataChange(node.id, newData),
+                        onDelete: () => {
+                            setNodes((nds) => nds.filter((n) => n.id !== node.id));
+                            setEdges((eds) => eds.filter((e) => e.source !== node.id && e.target !== node.id));
+                        }
+                    }
+                };
+            }
+            const contentId = node.contentId || '';
+            const lesson = (node.contentType === 'lesson' && Array.isArray(lessons)) ? lessons.find((l: Lesson) => l.id === contentId) : undefined;
+            const drill = (node.contentType === 'drill' && Array.isArray(drills)) ? drills.find((d: Drill) => d.id === contentId) : undefined;
+            return {
+                id: node.id,
+                type: 'content',
+                position: node.position,
+                data: {
+                    contentType: node.contentType || 'technique',
+                    contentId,
+                    lesson,
+                    drill,
+                    isCompleted: false,
+                    isInProgress: false
+                }
+            };
+        });
+        const flowEdges: Edge[] = parsed.edges.map((edge: any) => ({
+            id: edge.id,
+            source: edge.source,
+            target: edge.target,
+            type: 'default',
+            animated: false,
+            sourceHandle: edge.sourceHandle,
+            targetHandle: edge.targetHandle,
+            style: { stroke: '#ffffff', strokeWidth: 2, strokeDasharray: 'none' }
+        }));
+        setNodes(flowNodes);
+        setEdges(flowEdges);
+        setCurrentTreeTitle(parsed.title || '나의 스킬 트리');
+        // Clear guest data after migration
+        localStorage.removeItem('guest_skill_tree');
+        setPendingGuestMigration(null);
+    }, [pendingGuestMigration, handleNodeDataChange, setNodes, setEdges]);
+
+    const handleCancelGuestMigration = useCallback(() => {
+        localStorage.removeItem('guest_skill_tree');
+        setPendingGuestMigration(null);
+    }, []);
+
+    const deleteGroupAndContentRequest = useCallback((groupId: string) => {
+        setDeleteGroupConfirmId(groupId);
+    }, []);
+
+    const handleConfirmDeleteGroup = useCallback(() => {
+        if (!deleteGroupConfirmId) return;
+
+        // Get children IDs first to use in edge filtering
+        const childrenIds = nodes.filter(n => n.parentNode === deleteGroupConfirmId).map(n => n.id);
+
+        // Remove the group node and its children
+        setNodes(nds => nds.filter(n => n.id !== deleteGroupConfirmId && n.parentNode !== deleteGroupConfirmId));
+
+        // Remove edges connected to the deleted group or its children
+        setEdges(eds => eds.filter(e =>
+            e.source !== deleteGroupConfirmId && e.target !== deleteGroupConfirmId && // Remove edges directly connected to the group
+            !childrenIds.includes(e.source) && !childrenIds.includes(e.target) // Remove edges connected to children
+        ));
+
+        setDeleteGroupConfirmId(null);
+    }, [deleteGroupConfirmId, nodes, setNodes, setEdges]);
 
     const focusNodeOrGroup = useCallback((id: string) => {
         const node = rfInstance?.getNode(id);
@@ -2588,12 +2532,6 @@ export const TechniqueSkillTree: React.FC = () => {
                 result = { data: newData ? transformUserSkillTree(newData) : null, error };
                 if (result.data) {
                     setCurrentTreeId(result.data.id);
-                    console.log('New chain created:', {
-                        id: result.data.id,
-                        title: result.data.title,
-                        isPublic: result.data.isPublic,
-                        tags: result.data.tags
-                    });
                 }
             }
 
@@ -2623,21 +2561,11 @@ export const TechniqueSkillTree: React.FC = () => {
                             tags: data.tags
                         }
                     });
-                    console.log('Shared to feed successfully');
                 } catch (feedErr) {
                     console.error('Error sharing to feed:', feedErr);
                     // Don't fail the save proper if feed share fails
                 }
             }
-
-            console.log('Save successful! Final data:', {
-                id: result.data?.id,
-                title: data.title,
-                isPublic: data.isPublic,
-                tags: data.tags,
-                difficulty: data.difficulty
-            });
-            console.log('=== SAVE DEBUG END ===');
 
             setCurrentTreeTitle(data.title);
             setIsPublic(data.isPublic);
@@ -2806,50 +2734,6 @@ export const TechniqueSkillTree: React.FC = () => {
                 </div>
             </div>
 
-            {/* Skill Tree / Roadmap Toggle - Top Right Floating */}
-            <div className={`fixed ${isFullScreen ? '!top-4' : '!top-24'} right-4 z-[10000] flex flex-col items-end transition-opacity duration-300 ${isUIHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-                <div className={`flex items-center w-fit bg-zinc-900 rounded-full border border-zinc-800/50 shadow-xl ${isMobile ? 'p-0.5 gap-0.5' : 'p-1 gap-1'}`}>
-                    <button
-                        onClick={() => setMode('skill-tree')}
-                        className={`rounded-full font-bold transition-all flex items-center justify-center ${mode === 'skill-tree'
-                            ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30'
-                            : 'text-zinc-400 hover:text-white'
-                            } ${isMobile ? 'w-8 h-8 p-0' : 'px-4 py-2 text-xs'}`}
-                        title="스킬 트리 모드"
-                    >
-                        {isMobile ? <Network className="w-4 h-4" /> : '스킬 트리'}
-                    </button>
-                    <button
-                        onClick={() => setMode('roadmap')}
-                        className={`rounded-full font-bold transition-all flex items-center justify-center ${mode === 'roadmap'
-                            ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30'
-                            : 'text-zinc-400 hover:text-white'
-                            } ${isMobile ? 'w-8 h-8 p-0' : 'px-4 py-2 text-xs'}`}
-                        title="로드맵 모드"
-                    >
-                        {isMobile ? <Signpost className="w-4 h-4" /> : '로드맵'}
-                    </button>
-                </div>
-
-                {/* Preview Toggle - only shows in Roadmap Mode */}
-                <AnimatePresence>
-                    {mode === 'roadmap' && (
-                        <motion.button
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 20 }}
-                            onClick={() => setIsPreviewMode(!isPreviewMode)}
-                            className={`mt-2 w-fit flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all text-[10px] font-bold ${isPreviewMode
-                                ? 'bg-violet-600/20 border-violet-500 text-violet-300 shadow-lg shadow-violet-500/20'
-                                : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300'
-                                }`}
-                        >
-                            <div className={`w-2 h-2 rounded-full ${isPreviewMode ? 'bg-violet-400 animate-pulse' : 'bg-zinc-600'}`} />
-                            {isPreviewMode ? '미리보기 끄기' : '애니메이션 미리보기'}
-                        </motion.button>
-                    )}
-                </AnimatePresence>
-            </div>
 
 
 
@@ -2957,7 +2841,7 @@ export const TechniqueSkillTree: React.FC = () => {
                                                 setCustomShareUrl(url);
                                                 setIsShareModalOpen(true);
                                             } else {
-                                                alert('데이터가 너무 커서 공유 링크를 생성할 수 없습니다.');
+                                                warning('데이터가 너무 커서 공유 링크를 생성할 수 없습니다.');
                                             }
                                             return;
                                         }
@@ -3347,33 +3231,7 @@ export const TechniqueSkillTree: React.FC = () => {
                             {!isMobile && (
                                 <MiniMap
                                     className="border border-slate-700/50 !w-32 !h-24 !bottom-4 !right-4 !bg-slate-900/80 backdrop-blur-sm"
-                                    nodeColor={(node) => {
-                                        if (mode === 'skill-tree') return '#ffffff';
-
-                                        const mastery = node.data.mastery;
-                                        const isCompleted = node.data.isCompleted;
-                                        const isInProgress = node.data.isInProgress;
-                                        const isPreview = node.data.isPreview;
-
-                                        if (isPreview) {
-                                            const isEven = parseInt(node.id.replace(/\D/g, '') || '0') % 2 === 0;
-                                            const isThree = parseInt(node.id.replace(/\D/g, '') || '0') % 3 === 0;
-                                            if (isEven) return '#8b5cf6';
-                                            if (isThree) return '#a78bfa';
-                                            return '#ffffff';
-                                        }
-
-                                        // Violet for Mastered/Completed
-                                        if ((mastery && mastery.masteryLevel >= 5) || isCompleted) {
-                                            return '#8b5cf6';
-                                        }
-                                        // Light Violet for In-progress
-                                        if ((mastery && mastery.masteryLevel >= 1) || isInProgress) {
-                                            return '#a78bfa';
-                                        }
-                                        // White for not started
-                                        return '#ffffff';
-                                    }}
+                                    nodeColor={() => '#ffffff'}
                                     maskColor="rgba(15, 23, 42, 0.7)"
                                 />
                             )}
@@ -3467,7 +3325,7 @@ export const TechniqueSkillTree: React.FC = () => {
                                                     key={group.id}
                                                     group={group}
                                                     onLabelChange={onLabelChange}
-                                                    onDelete={deleteGroupAndContent}
+                                                    onDelete={deleteGroupAndContentRequest}
                                                 >
                                                     {groupChildren.length === 0 ? (
                                                         <div className="py-8 text-center border-2 border-dashed border-zinc-800 rounded-xl text-zinc-600 text-[10px] font-bold">
@@ -3847,7 +3705,7 @@ export const TechniqueSkillTree: React.FC = () => {
 
                                     <button
                                         onClick={() => {
-                                            deleteGroupAndContent(menu.id);
+                                            deleteGroupAndContentRequest(menu.id);
                                             setMenu(null);
                                         }}
                                         className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-all font-bold text-xs"
@@ -3907,6 +3765,30 @@ export const TechniqueSkillTree: React.FC = () => {
                 onConfirm={confirmNewTree}
                 confirmText="새로 만들기"
                 variant="warning"
+            />
+
+            {/* Guest Data Migration Confirmation */}
+            <ConfirmModal
+                isOpen={pendingGuestMigration !== null}
+                onClose={handleCancelGuestMigration}
+                onConfirm={handleConfirmGuestMigration}
+                title="게스트 로드맵 발견"
+                message="게스트 모드에서 만든 로드맵이 있습니다. 계속 사용하시겠습니까?"
+                confirmText="사용하기"
+                cancelText="삭제하기"
+                variant="info"
+            />
+
+            {/* Delete Group Confirmation */}
+            <ConfirmModal
+                isOpen={deleteGroupConfirmId !== null}
+                onClose={() => setDeleteGroupConfirmId(null)}
+                onConfirm={handleConfirmDeleteGroup}
+                title="그룹 삭제"
+                message="그룹과 포함된 모든 내용을 삭제하시겠습니까?"
+                confirmText="삭제"
+                cancelText="취소"
+                variant="danger"
             />
 
             <ShareModal

@@ -42,16 +42,16 @@ export const CreateRoutine: React.FC = () => {
     const [activeSelectionTab, setActiveSelectionTab] = useState<'drills' | 'lessons' | 'sparring'>('drills');
 
     useEffect(() => {
-        if (user) {
+        if (!user) return;
+
+        if (isEditMode && id) {
+            // 편집 모드: 루틴 먼저 로드 후 추가 컨텐츠 로드
+            loadRoutine();
+        } else {
+            // 새로 만들기 모드: 바로 컨텐츠 로드
             loadDrills();
         }
-    }, [user?.id]);
-
-    useEffect(() => {
-        if (id && user) {
-            loadRoutine();
-        }
-    }, [id, user?.id]);
+    }, [user?.id, id, isEditMode]);
 
     const loadRoutine = async () => {
         if (!id) return;
@@ -82,13 +82,25 @@ export const CreateRoutine: React.FC = () => {
                 totalDurationMinutes: data.totalDurationMinutes || 0
             });
 
-            if (data.drills) {
-                setSelectedDrillIds(data.drills.map(d => d.id));
+            if (data.drills && data.drills.length > 0) {
+                const routineDrills = data.drills;
+                setSelectedDrillIds(routineDrills.map(d => d.id));
+
+                // 편집 모드: 루틴에 포함된 드릴들을 drills state에 병합
+                // 다른 크리에이터의 루틴을 수정할 때도 드릴 정보가 표시되도록 함
+                setDrills(prevDrills => {
+                    const existingIds = new Set(prevDrills.map(d => d.id));
+                    const newDrills = routineDrills.filter(d => !existingIds.has(d.id));
+                    return [...prevDrills, ...newDrills];
+                });
             }
 
             if (data.relatedItems) {
                 setRelatedItems(data.relatedItems);
             }
+
+            // 루틴 로드 후 추가 컨텐츠 로드 (레슨, 스파링 등)
+            await loadContent();
 
         } catch (error) {
             console.error('Error loading routine:', error);
@@ -114,7 +126,15 @@ export const CreateRoutine: React.FC = () => {
             api.getSparringVideos(100, user.id) // Fetch creator's sparring
         ]);
 
-        if (drillsRes) setDrills(drillsRes);
+        // 편집 모드에서 루틴의 드릴들이 이미 추가되어 있을 수 있으므로 병합
+        if (drillsRes) {
+            setDrills(prevDrills => {
+                const existingIds = new Set(prevDrills.map(d => d.id));
+                const newDrills = drillsRes.filter((d: Drill) => !existingIds.has(d.id));
+                // 기존 드릴 유지 + 새 드릴 추가
+                return [...prevDrills, ...newDrills];
+            });
+        }
 
         if (lessonsRes && lessonsRes.data) {
             // Filter for lessons only just in case
@@ -242,7 +262,6 @@ export const CreateRoutine: React.FC = () => {
                 return;
             }
 
-            console.log(`Routine ${isEditMode ? 'updated' : 'created'} successfully:`, data);
             success(`루틴이 성공적으로 ${isEditMode ? '수정' : '생성'}되었습니다!`);
 
             // Wait a bit for the toast to show before navigating
@@ -514,7 +533,7 @@ export const CreateRoutine: React.FC = () => {
                                             </div>
                                             <div className="absolute right-4 top-4 w-16 h-16 rounded-xl bg-zinc-900/80 border border-zinc-800 flex-shrink-0 overflow-hidden shadow-inner ring-1 ring-white/5 group-hover:scale-105 transition-transform">
                                                 {drill.thumbnailUrl && (
-                                                    <img src={drill.thumbnailUrl} alt="" className="w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all" />
+                                                    <img src={drill.thumbnailUrl} alt={drill.title || "썸네일"} loading="lazy" className="w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all" />
                                                 )}
                                             </div>
                                         </div>
@@ -557,7 +576,7 @@ export const CreateRoutine: React.FC = () => {
                                                 </div>
                                                 <div className="absolute right-4 top-4 w-16 h-16 rounded-xl bg-zinc-900/80 border border-zinc-800 flex-shrink-0 overflow-hidden shadow-inner ring-1 ring-white/5">
                                                     {lesson.thumbnailUrl && (
-                                                        <img src={lesson.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                                        <img src={lesson.thumbnailUrl} alt={lesson.title || "썸네일"} loading="lazy" className="w-full h-full object-cover" />
                                                     )}
                                                 </div>
                                             </div>
@@ -601,7 +620,7 @@ export const CreateRoutine: React.FC = () => {
                                                 </div>
                                                 <div className="absolute right-4 top-4 w-24 h-16 rounded-xl bg-zinc-900/80 border border-zinc-800 flex-shrink-0 overflow-hidden shadow-inner ring-1 ring-white/5">
                                                     {video.thumbnailUrl ? (
-                                                        <img src={video.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                                        <img src={video.thumbnailUrl} alt={video.title || "썸네일"} loading="lazy" className="w-full h-full object-cover" />
                                                     ) : (
                                                         <div className="w-full h-full flex items-center justify-center">
                                                             <Clapperboard className="w-6 h-6 text-zinc-600" />
@@ -654,7 +673,7 @@ export const CreateRoutine: React.FC = () => {
                         {/* Preview */}
                         {formData.thumbnailUrl && (
                             <div className="mt-4 w-full aspect-video rounded-xl overflow-hidden border border-zinc-800 bg-zinc-800/50 relative group">
-                                <img src={formData.thumbnailUrl} alt="Thumbnail Preview" className="w-full h-full object-cover" />
+                                <img src={formData.thumbnailUrl} alt="Thumbnail Preview" loading="lazy" className="w-full h-full object-cover" />
                                 <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-md">
                                     미리보기
                                 </div>
@@ -705,38 +724,65 @@ export const CreateRoutine: React.FC = () => {
                                     <Dumbbell className="w-16 h-16 text-zinc-700 mb-4" />
                                     <p className="text-zinc-600 font-bold">선택된 드릴이 없습니다</p>
                                 </div>
-                            ) : (
-                                <div className="grid grid-cols-2 sm:grid-cols-2 gap-4">
-                                    {drills.filter(d => selectedDrillIds.includes(d.id)).map((drill) => (
-                                        <div
-                                            key={drill.id}
-                                            onClick={() => {
-                                                setFormData({ ...formData, thumbnailUrl: drill.thumbnailUrl });
-                                                setShowThumbnailModal(false);
-                                                success('루틴 썸네일이 설정되었습니다 ✨');
-                                            }}
-                                            className="group relative aspect-video bg-zinc-950 rounded-2xl overflow-hidden cursor-pointer border-2 border-transparent hover:border-violet-500 transition-all shadow-2xl ring-1 ring-white/5"
-                                        >
-                                            <div className="absolute inset-0 bg-zinc-800 animate-pulse group-hover:hidden" />
-                                            <img
-                                                src={drill.thumbnailUrl}
-                                                alt={drill.title}
-                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 blur-[2px] hover:blur-0"
-                                                onLoad={(e) => (e.currentTarget.style.filter = 'none')}
-                                            />
-                                            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
-                                                <p className="text-xs font-black text-white truncate drop-shadow-lg">{drill.title}</p>
-                                                <p className="text-[10px] font-bold text-violet-400 mt-0.5">클릭하여 선택</p>
-                                            </div>
-                                            {formData.thumbnailUrl === drill.thumbnailUrl && (
-                                                <div className="absolute top-4 right-4 bg-violet-600 rounded-full p-2 shadow-[0_0_20px_rgba(139,92,246,0.5)] border border-violet-400/50">
-                                                    <CheckCircle className="w-5 h-5 text-white" />
-                                                </div>
-                                            )}
+                            ) : (() => {
+                                const selectedDrillsWithThumbnails = drills.filter(d => selectedDrillIds.includes(d.id) && d.thumbnailUrl);
+                                const selectedDrillsWithoutThumbnails = drills.filter(d => selectedDrillIds.includes(d.id) && !d.thumbnailUrl);
+
+                                if (selectedDrillsWithThumbnails.length === 0) {
+                                    return (
+                                        <div className="flex flex-col items-center justify-center py-20 grayscale opacity-40">
+                                            <ImageIcon className="w-16 h-16 text-zinc-700 mb-4" />
+                                            <p className="text-zinc-600 font-bold">선택된 드릴에 썸네일이 없습니다</p>
+                                            <p className="text-zinc-700 text-sm mt-2">드릴 수정에서 썸네일을 먼저 설정해주세요</p>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
+                                    );
+                                }
+
+                                return (
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-2 sm:grid-cols-2 gap-4">
+                                            {selectedDrillsWithThumbnails.map((drill) => (
+                                                <div
+                                                    key={drill.id}
+                                                    onClick={() => {
+                                                        if (drill.thumbnailUrl) {
+                                                            setFormData({ ...formData, thumbnailUrl: drill.thumbnailUrl });
+                                                            setShowThumbnailModal(false);
+                                                            success('루틴 썸네일이 설정되었습니다!');
+                                                        }
+                                                    }}
+                                                    className="group relative aspect-video bg-zinc-950 rounded-2xl overflow-hidden cursor-pointer border-2 border-transparent hover:border-violet-500 transition-all shadow-2xl ring-1 ring-white/5"
+                                                >
+                                                    <div className="absolute inset-0 bg-zinc-800 animate-pulse group-hover:hidden" />
+                                                    <img
+                                                        src={drill.thumbnailUrl}
+                                                        alt={drill.title}
+                                                        loading="lazy"
+                                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 blur-[2px] hover:blur-0"
+                                                        onLoad={(e) => (e.currentTarget.style.filter = 'none')}
+                                                    />
+                                                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
+                                                        <p className="text-xs font-black text-white truncate drop-shadow-lg">{drill.title}</p>
+                                                        <p className="text-[10px] font-bold text-violet-400 mt-0.5">클릭하여 선택</p>
+                                                    </div>
+                                                    {formData.thumbnailUrl === drill.thumbnailUrl && (
+                                                        <div className="absolute top-4 right-4 bg-violet-600 rounded-full p-2 shadow-[0_0_20px_rgba(139,92,246,0.5)] border border-violet-400/50">
+                                                            <CheckCircle className="w-5 h-5 text-white" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        {selectedDrillsWithoutThumbnails.length > 0 && (
+                                            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                                                <p className="text-xs text-amber-400">
+                                                    {selectedDrillsWithoutThumbnails.length}개의 드릴에 썸네일이 없습니다: {selectedDrillsWithoutThumbnails.map(d => d.title).join(', ')}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         <div className="flex gap-3 pt-6 border-t border-zinc-800/50">

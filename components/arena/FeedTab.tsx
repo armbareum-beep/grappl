@@ -8,7 +8,7 @@ export const FeedTab: React.FC = () => {
                 <h2 className="text-xl font-bold text-white mb-2">커뮤니티 피드</h2>
                 <p className="text-slate-400 text-sm">다른 수련생들의 훈련 일지를 확인하세요</p>
             </div>
-            <PublicJournalFeed onLogClick={(log) => console.log('Log clicked', log)} />
+            <PublicJournalFeed onLogClick={() => {}} />
         </div>
     );
 };

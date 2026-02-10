@@ -81,7 +81,6 @@ export const LandingPageV2: React.FC = () => {
             });
         } catch (error) {
             // Silent fail - prefetching is optional
-            console.log('Prefetch completed');
         }
     };
 

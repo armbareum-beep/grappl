@@ -293,6 +293,7 @@ export const SparringDetail: React.FC = () => {
                     <img
                         src={video.thumbnailUrl}
                         alt={video.title}
+                        loading="lazy"
                         className="w-full h-full object-cover opacity-50 blur-sm"
                     />
                 )}
@@ -477,7 +478,7 @@ export const SparringDetail: React.FC = () => {
                                             >
                                                 <div className="w-20 aspect-video rounded-lg overflow-hidden bg-zinc-900 border border-white/10 group-hover:border-white/20 shrink-0 relative">
                                                     {item.thumbnailUrl ? (
-                                                        <img src={item.thumbnailUrl} className="w-full h-full object-cover" alt="" />
+                                                        <img src={item.thumbnailUrl} loading="lazy" className="w-full h-full object-cover" alt={item.title || "썸네일"} />
                                                     ) : (
                                                         <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-zinc-700"><Play className="w-6 h-6" /></div>
                                                     )}
@@ -520,6 +521,7 @@ export const SparringDetail: React.FC = () => {
                                         <div className="relative">
                                             <img
                                                 src={creatorAvatar || `https://ui-avatars.com/api/?name=${creatorName}`}
+                                                loading="lazy"
                                                 className="w-7 md:w-8 h-7 md:h-8 rounded-full border border-white/20 object-cover"
                                                 alt={creatorName}
                                             />
@@ -602,7 +604,7 @@ export const SparringDetail: React.FC = () => {
                                     >
                                         <div className="w-24 aspect-[9/16] rounded-lg overflow-hidden bg-zinc-900 border border-zinc-800 group-hover:border-zinc-600 shrink-0 relative">
                                             {v.thumbnailUrl ? (
-                                                <img src={v.thumbnailUrl} className="w-full h-full object-cover" />
+                                                <img src={v.thumbnailUrl} loading="lazy" className="w-full h-full object-cover" alt={v.title || "썸네일"} />
                                             ) : (
                                                 <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-zinc-700"><Play className="w-6 h-6" /></div>
                                             )}

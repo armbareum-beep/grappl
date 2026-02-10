@@ -118,7 +118,6 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                     }
 
                     if (attempt < 3) {
-                        console.log(`[DirectVimeo] Retrying link creation in ${attempt * 2}s...`);
                         await new Promise(r => setTimeout(r, attempt * 2000));
                     }
                 }
@@ -128,7 +127,6 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                 }
 
                 const { uploadLink, vimeoId } = vimeoUploadData;
-                console.log('[DirectVimeo] Upload link received:', vimeoId);
 
                 const upload = new tus.Upload(task.file, {
                     uploadUrl: uploadLink,
@@ -149,7 +147,6 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                         updateTaskProgress(task.id, percentage);
                     },
                     onSuccess: async () => {
-                        console.log('Vimeo Upload Complete, updating DB...', task.id);
                         updateTaskStatus(task.id, 'processing');
 
                         try {
@@ -178,7 +175,6 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                                 throw new Error(error.error || 'DB 업데이트 실패');
                             }
 
-                            console.log('✅ Vimeo upload & DB update completed for:', task.id);
                             updateTaskStatus(task.id, 'completed');
                             setTimeout(() => {
                                 setTasks(prev => prev.filter(t => t.id !== task.id));
@@ -226,7 +222,6 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                     updateTaskProgress(task.id, percentage);
                 },
                 onSuccess: () => {
-                    console.log('Upload Complete, starting processing...', task.id);
                     updateTaskStatus(task.id, 'processing');
 
                     if (task.processingParams) {

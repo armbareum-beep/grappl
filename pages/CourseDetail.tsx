@@ -614,19 +614,6 @@ export const CourseDetail: React.FC = () => {
         const previewIdToSend = course?.previewVimeoId || (course as any)?.preview_vimeo_id || lessons[0]?.vimeoUrl || lessons[0]?.vimeo_url;
         const hasPreview = !!previewIdToSend;
 
-        console.log('[DEBUG] Course object:', course);
-
-        if (!hasAccess) {
-            console.log('[DEBUG] CourseDetail Preview Check:', {
-                courseId: course?.id,
-                previewVimeoId: previewIdToSend,
-                hasPreview,
-                lessonIsPreview: selectedLesson?.isPreview,
-                lessonId: selectedLesson?.id,
-                firstLessonUrl: lessons[0]?.vimeoUrl
-            });
-        }
-
         return (
             <div className="relative rounded-3xl overflow-hidden bg-black shadow-2xl ring-1 ring-zinc-800 group mb-6 lg:mb-0">
                 {/* Ambient Glow */}
@@ -834,7 +821,7 @@ export const CourseDetail: React.FC = () => {
                     <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
                         <Link to={`/creator/${creator.id}`} className="shrink-0 group relative">
                             <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-zinc-800 group-hover:border-violet-500 transition-colors">
-                                <img src={creator.profileImage} alt={creator.name} className="w-full h-full object-cover" />
+                                <img src={creator.profileImage} alt={creator.name} loading="lazy" className="w-full h-full object-cover" />
                             </div>
                         </Link>
                         <div className="flex-1 min-w-0">
@@ -900,7 +887,7 @@ export const CourseDetail: React.FC = () => {
                                         >
                                             <div className="w-20 aspect-video rounded-xl overflow-hidden bg-black shrink-0">
                                                 {drill.thumbnailUrl ? (
-                                                    <img src={drill.thumbnailUrl} alt={drill.title} className="w-full h-full object-cover" />
+                                                    <img src={drill.thumbnailUrl} alt={drill.title} loading="lazy" className="w-full h-full object-cover" />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center bg-zinc-800">
                                                         <Play className="w-4 h-4 text-zinc-600" />
@@ -937,7 +924,7 @@ export const CourseDetail: React.FC = () => {
                                         >
                                             <div className="w-20 aspect-video rounded-xl overflow-hidden bg-black shrink-0">
                                                 {video.thumbnailUrl ? (
-                                                    <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover" />
+                                                    <img src={video.thumbnailUrl} alt={video.title} loading="lazy" className="w-full h-full object-cover" />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center bg-zinc-800 text-zinc-600">
                                                         <Play className="w-4 h-4" />
@@ -1158,7 +1145,7 @@ export const CourseDetail: React.FC = () => {
                                     >
                                         <div className="aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 mb-3 relative shadow-lg group-hover:shadow-violet-900/10 transition-all">
                                             {course.thumbnailUrl ? (
-                                                <img src={course.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                                <img src={course.thumbnailUrl} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center bg-zinc-800"><Play className="w-10 h-10 text-zinc-600" /></div>
                                             )}

@@ -65,21 +65,6 @@ export const RoutineDetail: React.FC = () => {
     const [hasRetriedAccess, setHasRetriedAccess] = useState(false);
     const isDebug = searchParams.get('debug') === 'true';
 
-    // Debug log for troubleshooting video playback
-    useEffect(() => {
-        if (viewMode === 'player') {
-            console.log('[RoutineDetail] Player View Active:', {
-                drillId: currentDrill?.id,
-                drillTitle: currentDrill?.title,
-                videoType,
-                effectiveUrl: videoType === 'main' ? (currentDrill?.videoUrl || currentDrill?.vimeoUrl) : (currentDrill?.descriptionVideoUrl || currentDrill?.videoUrl || currentDrill?.vimeoUrl),
-                hasAccess: videoType === 'main' || (isSubscribed || owns || (routine?.price === 0) || (currentDrill?.id === dailyFreeDrillId)),
-                isSubscribed,
-                owns
-            });
-        }
-    }, [viewMode, currentDrill?.id, videoType, isSubscribed, owns, routine?.price, routine?.id, dailyFreeDrillId]);
-
     // Check Routine Save Status
     useEffect(() => {
         const checkSaveStatus = async () => {
@@ -262,9 +247,7 @@ export const RoutineDetail: React.FC = () => {
                 }
 
                 if (routineData) {
-                    console.log('[RoutineDetail] Routine data drills count:', routineData.drills?.length);
                     if (!routineData.drills && (routineData as any).items) {
-                        console.log('[RoutineDetail] Using legacy items field');
                         routineData.drills = (routineData as any).items;
                     }
                     setRoutine(routineData);
@@ -428,8 +411,6 @@ export const RoutineDetail: React.FC = () => {
         e.stopPropagation();
         if (refreshUser && user) {
             await refreshUser();
-            // Optional: You could show a toast here
-            console.log('[RoutineDetail] User permissions refreshed');
         } else {
             window.location.reload();
         }
@@ -554,7 +535,6 @@ export const RoutineDetail: React.FC = () => {
 
         // If we don't have access and haven't tried refreshing yet
         if (!hasAccess && !hasRetriedAccess) {
-            console.log('[RoutineDetail] Access denied, attempting one-time permission refresh...');
             setHasRetriedAccess(true);
             refreshUser();
         }
@@ -593,13 +573,13 @@ export const RoutineDetail: React.FC = () => {
                             {/* Routine Thumbnail Background */}
                             {routine.thumbnailUrl && (
                                 <div className="absolute inset-0 z-0 scale-110">
-                                    <img src={routine.thumbnailUrl} className="w-full h-full object-cover blur-2xl opacity-40" />
+                                    <img src={routine.thumbnailUrl} loading="lazy" className="w-full h-full object-cover blur-2xl opacity-40" />
                                     <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/20 via-zinc-950/80 to-zinc-950" />
                                 </div>
                             )}
 
-                            <button onClick={() => navigate(-1)} className="absolute top-6 left-4 z-[100] p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all border border-white/10 shadow-xl"><ChevronLeft className="w-5 h-5" /></button>
-                            <button onClick={handleSaveRoutine} className="absolute top-6 right-4 z-[100] p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all border border-white/10 shadow-xl">
+                            <button onClick={() => navigate(-1)} aria-label="뒤로 가기" className="absolute top-6 left-4 z-[100] p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all border border-white/10 shadow-xl"><ChevronLeft className="w-5 h-5" /></button>
+                            <button onClick={handleSaveRoutine} aria-label="저장" className="absolute top-6 right-4 z-[100] p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all border border-white/10 shadow-xl">
                                 <Bookmark className={cn("w-5 h-5 transition-all", isRoutineSaved ? "fill-violet-500 text-violet-500" : "text-white")} />
                             </button>
 
@@ -636,7 +616,7 @@ export const RoutineDetail: React.FC = () => {
                                     return (
                                         <div key={idx} onClick={() => { if (hasFullAccess || d?.id === dailyFreeDrillId) { setCurrentDrillIndex(idx); setViewMode('player'); setVideoType('main'); } else { handlePurchase(); } }} className="flex gap-4 bg-zinc-900/30 border border-zinc-800/50 p-3 rounded-2xl items-center active:bg-zinc-800/50 transition-colors cursor-pointer">
                                             <div className="relative w-28 aspect-video rounded-xl overflow-hidden bg-black shrink-0 border border-zinc-800/50">
-                                                {d?.thumbnailUrl && <img src={d.thumbnailUrl} className="w-full h-full object-cover" />}
+                                                {d?.thumbnailUrl && <img src={d.thumbnailUrl} loading="lazy" className="w-full h-full object-cover" />}
                                                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                                                     <PlayCircle className="w-5 h-5 text-white/80" />
                                                 </div>
@@ -706,7 +686,7 @@ export const RoutineDetail: React.FC = () => {
                                     >
                                         <div className="relative z-10 flex gap-3 items-center">
                                             <div className="w-12 h-12 rounded-xl bg-zinc-800 overflow-hidden shrink-0 border border-white/10 shadow-lg">
-                                                {relatedCourse.thumbnailUrl && <img src={relatedCourse.thumbnailUrl} className="w-full h-full object-cover" />}
+                                                {relatedCourse.thumbnailUrl && <img src={relatedCourse.thumbnailUrl} loading="lazy" className="w-full h-full object-cover" />}
                                             </div>
                                             <div className="flex-1">
                                                 <div className="text-[9px] font-bold text-violet-400 uppercase tracking-wider mb-0.5 flex items-center gap-1">
@@ -733,7 +713,7 @@ export const RoutineDetail: React.FC = () => {
                                                     className="flex items-center gap-3 p-2 rounded-xl bg-zinc-800/30 border border-white/5 active:bg-zinc-800/50 transition-colors cursor-pointer"
                                                 >
                                                     <div className="w-12 aspect-video rounded-lg overflow-hidden bg-zinc-900 shrink-0">
-                                                        {r.thumbnailUrl && <img src={r.thumbnailUrl} className="w-full h-full object-cover" />}
+                                                        {r.thumbnailUrl && <img src={r.thumbnailUrl} loading="lazy" className="w-full h-full object-cover" />}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <h4 className="text-[11px] font-bold text-zinc-200 truncate">{r.title}</h4>
@@ -758,6 +738,7 @@ export const RoutineDetail: React.FC = () => {
                             <div className="flex flex-col gap-3 items-start pointer-events-auto">
                                 <button
                                     onClick={() => setViewMode('landing')}
+                                    aria-label="뒤로 가기"
                                     className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all"
                                 >
                                     <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
@@ -858,10 +839,10 @@ export const RoutineDetail: React.FC = () => {
                             <div className="absolute top-0 bottom-0 right-4 z-40 flex flex-col justify-between py-6 pointer-events-auto">
                                 {/* Top Actions: Mute & List */}
                                 <div className="flex flex-col gap-3 items-center">
-                                    <button onClick={toggleMute} className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all">
+                                    <button onClick={toggleMute} aria-label={muted ? "음소거 해제" : "음소거"} className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all">
                                         {muted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
                                     </button>
-                                    <button onClick={() => setShowMobileList(true)} className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all">
+                                    <button onClick={() => setShowMobileList(true)} aria-label="목록 보기" className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all">
                                         <List className="w-5 h-5 md:w-6 md:h-6" />
                                     </button>
                                 </div>
@@ -870,20 +851,20 @@ export const RoutineDetail: React.FC = () => {
                                 <div className="flex flex-col gap-3 items-center pb-48">
                                     {/* Like */}
                                     <div className="flex flex-col items-center gap-0.5">
-                                        <button onClick={handleLikeDrill} className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90">
+                                        <button onClick={handleLikeDrill} aria-label="좋아요" className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90">
                                             <Heart className={`w-5 h-5 md:w-7 md:h-7 ${likedDrills.has(currentDrill.id) ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
                                         </button>
                                         <span className="text-[10px] font-medium text-zinc-200">{(currentDrill.likes || 0).toLocaleString()}</span>
                                     </div>
 
                                     {/* Save */}
-                                    <button onClick={handleSaveDrill} className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90">
+                                    <button onClick={handleSaveDrill} aria-label="저장" className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90">
                                         <Bookmark className={`w-5 h-5 md:w-6 md:h-6 ${savedDrills.has(currentDrill.id) ? 'fill-zinc-100' : ''}`} />
                                     </button>
 
 
                                     {/* Share */}
-                                    <button onClick={handleShare} className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90">
+                                    <button onClick={handleShare} aria-label="공유" className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90">
                                         <Share2 className="w-5 h-5 md:w-6 md:h-6" />
                                     </button>
 
@@ -908,12 +889,12 @@ export const RoutineDetail: React.FC = () => {
                             {/* Mobile List Overlay */}
                             {showMobileList && (
                                 <div className="absolute inset-0 z-[300] bg-black/95 backdrop-blur-xl animate-in slide-in-from-bottom flex flex-col">
-                                    <div className="p-4 border-b border-zinc-800 flex justify-between items-center"><h3 className="text-white font-bold">루틴 목록</h3><button onClick={() => setShowMobileList(false)}><X className="w-6 h-6 text-white" /></button></div>
+                                    <div className="p-4 border-b border-zinc-800 flex justify-between items-center"><h3 className="text-white font-bold">루틴 목록</h3><button onClick={() => setShowMobileList(false)} aria-label="닫기"><X className="w-6 h-6 text-white" /></button></div>
                                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
                                         {routine?.drills?.filter((d: any) => d !== null).map((d: any, idx) => (
                                             <div key={idx} onClick={() => { handleDrillSelect(idx); setShowMobileList(false); }} className={`p-3 rounded-xl flex items-center gap-4 transition-all cursor-pointer ${idx === currentDrillIndex ? 'bg-violet-600/10 border border-violet-500/30' : 'bg-zinc-900/50 border border-transparent'}`}>
                                                 <div className="w-20 aspect-video rounded-lg overflow-hidden bg-black shrink-0">
-                                                    <img src={d.thumbnailUrl} className="w-full h-full object-cover" />
+                                                    <img src={d.thumbnailUrl} loading="lazy" className="w-full h-full object-cover" />
                                                 </div>
                                                 <span className={`text-sm font-bold truncate ${idx === currentDrillIndex ? 'text-violet-400' : 'text-zinc-400'}`}>{d.title}</span>
                                                 {completedDrills.has(d.id) && <CheckCircle className="w-4 h-4 text-green-500 ml-auto shrink-0" />}
@@ -931,8 +912,8 @@ export const RoutineDetail: React.FC = () => {
             <div className={`hidden lg:block w-full ${viewMode === 'player' ? 'h-[calc(100vh-80px)] overflow-hidden' : 'min-h-screen'} pl-28 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-900/20 via-zinc-950/80 to-zinc-950`}>
                 {viewMode === 'landing' ? (
                     <div className="flex flex-col w-full pb-20 max-w-7xl mx-auto">
-                        <button onClick={() => navigate(-1)} className="fixed top-6 left-6 z-[100] p-3 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all group hover:bg-black/60 shadow-2xl"><ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /></button>
-                        <button onClick={handleSaveRoutine} className="fixed top-6 left-20 z-[100] p-3 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all group hover:bg-black/60 shadow-2xl ml-4">
+                        <button onClick={() => navigate(-1)} aria-label="뒤로 가기" className="fixed top-6 left-6 z-[100] p-3 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all group hover:bg-black/60 shadow-2xl"><ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /></button>
+                        <button onClick={handleSaveRoutine} aria-label="저장" className="fixed top-6 left-20 z-[100] p-3 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all group hover:bg-black/60 shadow-2xl ml-4">
                             <Bookmark className={cn("w-5 h-5 transition-all", isRoutineSaved ? "fill-violet-500 text-violet-500" : "text-white")} />
                         </button>
                         {/* Hero Section */}
@@ -940,7 +921,7 @@ export const RoutineDetail: React.FC = () => {
                             {/* Routine Thumbnail Background */}
                             {routine.thumbnailUrl && (
                                 <div className="absolute inset-0 z-0 scale-110">
-                                    <img src={routine.thumbnailUrl} className="w-full h-full object-cover blur-3xl opacity-30" />
+                                    <img src={routine.thumbnailUrl} loading="lazy" className="w-full h-full object-cover blur-3xl opacity-30" />
                                     <div className="absolute inset-0 bg-gradient-to-b from-transparent via-zinc-950/60 to-zinc-950" />
                                 </div>
                             )}
@@ -952,7 +933,7 @@ export const RoutineDetail: React.FC = () => {
                                     <div className="w-px h-4 bg-zinc-800" /><div className="flex items-center gap-2 text-violet-400"><Clock className="w-4 h-4" /><span className="font-bold">{totalDurationMinutes} Mins</span></div>
                                 </div>
                                 <div onClick={navigateToCreator} className="mt-6 flex items-center gap-3 bg-zinc-900/50 hover:bg-zinc-800/50 backdrop-blur-sm pr-6 pl-2 py-2 rounded-full border border-zinc-800/50 cursor-pointer transition-all">
-                                    <img src={routine.creatorProfileImage || `https://ui-avatars.com/api/?name=${routine.creatorName}`} className="w-10 h-10 rounded-full object-cover ring-2 ring-violet-500/20" />
+                                    <img src={routine.creatorProfileImage || `https://ui-avatars.com/api/?name=${routine.creatorName}`} loading="lazy" className="w-10 h-10 rounded-full object-cover ring-2 ring-violet-500/20" />
                                     <span className="text-zinc-300 font-bold">{routine.creatorName}</span>
                                 </div>
                             </div>
@@ -970,7 +951,7 @@ export const RoutineDetail: React.FC = () => {
                                             return (
                                                 <div key={idx} onClick={() => { if (hasFullAccess || d?.id === dailyFreeDrillId) { setCurrentDrillIndex(idx); setViewMode('player'); setVideoType('main'); } else { handlePurchase(); } }} className="group flex gap-5 bg-zinc-950/50 border border-zinc-800/60 p-4 rounded-xl hover:border-violet-500/30 transition-all cursor-pointer items-center">
                                                     <div className="relative w-40 aspect-video rounded-lg overflow-hidden bg-black shrink-0 border border-zinc-800">
-                                                        {d?.thumbnailUrl && <img src={d.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-105 transition-all" />}
+                                                        {d?.thumbnailUrl && <img src={d.thumbnailUrl} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-all" />}
                                                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                                                             <PlayCircle className="w-6 h-6 text-white/80" />
                                                         </div>
@@ -1037,7 +1018,7 @@ export const RoutineDetail: React.FC = () => {
                                                     <h4 className="text-lg font-bold text-white leading-tight group-hover:text-violet-200 transition-colors">{relatedCourse.title}</h4>
                                                 </div>
                                                 <div className="w-16 h-16 rounded-xl bg-zinc-800 overflow-hidden shrink-0 border border-white/10 shadow-lg group-hover:scale-105 transition-transform">
-                                                    {relatedCourse.thumbnailUrl && <img src={relatedCourse.thumbnailUrl} className="w-full h-full object-cover" />}
+                                                    {relatedCourse.thumbnailUrl && <img src={relatedCourse.thumbnailUrl} loading="lazy" className="w-full h-full object-cover" />}
                                                 </div>
                                             </div>
                                             <div className="flex items-center justify-between mt-2">
@@ -1065,7 +1046,7 @@ export const RoutineDetail: React.FC = () => {
                                         >
                                             <div className="aspect-video rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 mb-3 relative shadow-lg group-hover:shadow-violet-900/10 transition-all">
                                                 {r.thumbnailUrl ? (
-                                                    <img src={r.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                                    <img src={r.thumbnailUrl} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center bg-zinc-800"><Play className="w-10 h-10 text-zinc-600" /></div>
                                                 )}
@@ -1145,6 +1126,7 @@ export const RoutineDetail: React.FC = () => {
                                         <div className="flex flex-col gap-4 items-start pointer-events-auto">
                                             <button
                                                 onClick={() => setViewMode('landing')}
+                                                aria-label="뒤로 가기"
                                                 className="p-2.5 md:p-3.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all hover:bg-black/60 shadow-xl"
                                             >
                                                 <ChevronLeft className="w-5 h-5 md:w-7 md:h-7" />
@@ -1199,10 +1181,10 @@ export const RoutineDetail: React.FC = () => {
                                 <div className="flex flex-col justify-between py-6 ml-4">
                                     {/* Top Actions: Mute & List */}
                                     <div className="flex flex-col gap-3 items-center">
-                                        <button onClick={toggleMute} className="p-2 md:p-4 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all">
+                                        <button onClick={toggleMute} aria-label={muted ? "음소거 해제" : "음소거"} className="p-2 md:p-4 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all">
                                             {muted ? <VolumeX className="w-5 h-5 md:w-7 md:h-7" /> : <Volume2 className="w-5 h-5 md:w-7 md:h-7" />}
                                         </button>
-                                        <button onClick={() => setShowMobileList(true)} className="p-2 md:p-4 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all">
+                                        <button onClick={() => setShowMobileList(true)} aria-label="목록 보기" className="p-2 md:p-4 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all">
                                             <List className="w-5 h-5 md:w-7 md:h-7" />
                                         </button>
                                     </div>
@@ -1211,20 +1193,20 @@ export const RoutineDetail: React.FC = () => {
                                     <div className="flex flex-col gap-3 items-center">
                                         {/* Like */}
                                         <div className="flex flex-col items-center gap-0.5">
-                                            <button onClick={handleLikeDrill} className="p-2 md:p-4 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90">
+                                            <button onClick={handleLikeDrill} aria-label="좋아요" className="p-2 md:p-4 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90">
                                                 <Heart className={`w-5 h-5 md:w-7 md:h-7 ${currentDrill && likedDrills.has(currentDrill.id) ? 'fill-violet-500 text-violet-500' : ''} transition-all`} />
                                             </button>
                                             <span className="text-[10px] font-medium text-zinc-200">{(currentDrill?.likes || 0).toLocaleString()}</span>
                                         </div>
 
                                         {/* Save */}
-                                        <button onClick={handleSaveDrill} className="p-2 md:p-4 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90">
+                                        <button onClick={handleSaveDrill} aria-label="저장" className="p-2 md:p-4 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90">
                                             <Bookmark className={`w-5 h-5 md:w-7 md:h-7 ${currentDrill && savedDrills.has(currentDrill.id) ? 'fill-zinc-100' : ''}`} />
                                         </button>
 
 
                                         {/* Share */}
-                                        <button onClick={handleShare} className="p-2 md:p-4 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90">
+                                        <button onClick={handleShare} aria-label="공유" className="p-2 md:p-4 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all active:scale-90">
                                             <Share2 className="w-5 h-5 md:w-7 md:h-7" />
                                         </button>
 
@@ -1241,6 +1223,7 @@ export const RoutineDetail: React.FC = () => {
                                         <div className="flex items-center gap-3">
                                             <img
                                                 src={routine.creatorProfileImage || `https://ui-avatars.com/api/?name=${routine.creatorName}`}
+                                                loading="lazy"
                                                 className="w-10 h-10 rounded-full object-cover ring-2 ring-white/5"
                                             />
                                             <div>
@@ -1259,7 +1242,7 @@ export const RoutineDetail: React.FC = () => {
                                     {routine.drills?.map((d: any, idx) => (
                                         <button key={idx} onClick={() => handleDrillSelect(idx)} className={`group relative w-full flex items-center gap-3 p-3 rounded-xl transition-all ${idx === currentDrillIndex ? 'bg-violet-600/20 border border-violet-500/50' : 'hover:bg-zinc-900 border border-transparent'}`}>
                                             <div className="relative w-16 aspect-video bg-zinc-800 rounded-lg overflow-hidden shrink-0">
-                                                <img src={d.thumbnailUrl} className="w-full h-full object-cover" />
+                                                <img src={d.thumbnailUrl} loading="lazy" className="w-full h-full object-cover" />
                                             </div>
                                             <div className="text-left font-bold text-sm text-zinc-200 truncate">{d.title}</div>
                                             <div className="ml-auto flex items-center gap-2">

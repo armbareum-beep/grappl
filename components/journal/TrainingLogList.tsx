@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { TrainingLog } from '../../types';
 import { Calendar, Clock, Activity, Trash2, Edit2, BookOpen } from 'lucide-react';
 import { AICoachWidget } from './AICoachWidget';
+import { ConfirmModal } from '../common/ConfirmModal';
 
 interface TrainingLogListProps {
     logs: TrainingLog[];
@@ -10,6 +11,8 @@ interface TrainingLogListProps {
 }
 
 export const TrainingLogList: React.FC<TrainingLogListProps> = ({ logs, onDelete, onLogClick }) => {
+    const [deleteConfirmLogId, setDeleteConfirmLogId] = useState<string | null>(null);
+
     return (
         <div className="space-y-6">
             {/* AI Coach Widget - Always visible to encourage usage */}
@@ -44,9 +47,7 @@ export const TrainingLogList: React.FC<TrainingLogListProps> = ({ logs, onDelete
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        if (window.confirm('정말 삭제하시겠습니까?')) {
-                                            onDelete(log.id);
-                                        }
+                                        setDeleteConfirmLogId(log.id);
                                     }}
                                     className="p-2 rounded-full backdrop-blur-md bg-black/40 text-slate-300 hover:bg-red-500 hover:text-white transition-all"
                                     title="삭제"
@@ -111,6 +112,22 @@ export const TrainingLogList: React.FC<TrainingLogListProps> = ({ logs, onDelete
                     ))}
                 </div>
             )}
+
+            <ConfirmModal
+                isOpen={deleteConfirmLogId !== null}
+                onClose={() => setDeleteConfirmLogId(null)}
+                onConfirm={() => {
+                    if (deleteConfirmLogId) {
+                        onDelete(deleteConfirmLogId);
+                    }
+                    setDeleteConfirmLogId(null);
+                }}
+                title="수련 일지 삭제"
+                message="정말 삭제하시겠습니까?"
+                confirmText="삭제"
+                cancelText="취소"
+                variant="danger"
+            />
         </div>
     );
 };

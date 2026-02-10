@@ -144,6 +144,7 @@ export const VideoDetail: React.FC = () => {
           <img
             src={video.thumbnailUrl}
             alt={video.title}
+            loading="lazy"
             className="w-full h-full object-cover opacity-50"
           />
           <div className="absolute inset-0 flex flex-col items-center justify-center text-white z-10 px-4 text-center">
@@ -212,7 +213,7 @@ export const VideoDetail: React.FC = () => {
           {/* Creator Profile Small */}
           {creator && (
             <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 flex items-center mb-8">
-              <img src={creator.profileImage} alt={creator.name} className="w-16 h-16 rounded-full object-cover mr-4" />
+              <img src={creator.profileImage} alt={creator.name} loading="lazy" className="w-16 h-16 rounded-full object-cover mr-4" />
               <div className="flex-grow">
                 <h3 className="font-bold text-lg text-slate-900">{creator.name}</h3>
                 <p className="text-slate-500 text-sm">{creator.bio}</p>

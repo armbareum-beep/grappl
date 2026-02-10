@@ -123,7 +123,6 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs = [], autoRun
         const today = new Date().toISOString().split('T')[0];
 
         if (lastRunDate === today) {
-            console.log('Daily limit reached');
             if (!autoRun) {
                 // Instead of toast error, show Limit Modal
                 setShowLimitModal(true);

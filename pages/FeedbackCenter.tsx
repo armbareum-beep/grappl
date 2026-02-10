@@ -6,10 +6,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { MessageSquare, Video, Clock, CheckCircle2, ChevronRight, Info, Users, Upload, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '../components/Button';
+import { useToast } from '../contexts/ToastContext';
 
 export const FeedbackCenter: React.FC = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { error: toastError } = useToast();
     const [feedbacks, setFeedbacks] = useState<FeedbackRequest[]>([]);
     const [availableInstructors, setAvailableInstructors] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -34,9 +36,6 @@ export const FeedbackCenter: React.FC = () => {
                     getFeedbackRequests(user.id, 'student'),
                     getAvailableInstructorsForFeedback()
                 ]);
-
-                console.log('Feedback Response:', feedbackRes);
-                console.log('Instructors Response:', instructorsRes);
 
                 // Process feedbacks - only use real data
                 const finalFeedbacks = feedbackRes.data || [];
@@ -102,7 +101,7 @@ export const FeedbackCenter: React.FC = () => {
             navigate(`/checkout/feedback/${data.id}`);
         } catch (error: any) {
             console.error('Feedback request failed:', error);
-            alert(`요청 중 오류가 발생했습니다: ${error.message || error.details || JSON.stringify(error) || '알 수 없는 오류'}`);
+            toastError(`요청 중 오류가 발생했습니다: ${error.message || error.details || JSON.stringify(error) || '알 수 없는 오류'}`);
         } finally {
             setSubmitting(false);
             setUploadProgress(0);
@@ -338,7 +337,7 @@ function FeedbackDetailModal({ feedback, onClose }: { feedback: FeedbackRequest;
                         </h3>
                         <p className="text-xs text-zinc-500 mt-1">{feedback.instructorName} 인스트럭터</p>
                     </div>
-                    <button onClick={onClose} className="p-2 -mr-2 text-zinc-400 hover:text-white transition-colors">
+                    <button onClick={onClose} aria-label="닫기" className="p-2 -mr-2 text-zinc-400 hover:text-white transition-colors">
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
@@ -435,7 +434,7 @@ function FeedbackDetailModal({ feedback, onClose }: { feedback: FeedbackRequest;
                                                 const file = e.target.files?.[0];
                                                 if (file) {
                                                     if (file.size > 500 * 1024 * 1024) { // 500MB limit for now
-                                                        alert('파일 크기는 500MB 이하의 영상만 가능합니다.');
+                                                        toastError('파일 크기는 500MB 이하의 영상만 가능합니다.');
                                                         return;
                                                     }
                                                     setSelectedFile(file);

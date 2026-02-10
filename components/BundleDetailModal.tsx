@@ -162,7 +162,7 @@ export const BundleDetailModal: React.FC<BundleDetailModalProps> = ({
                                                 >
                                                     <div className="flex items-center gap-4">
                                                         <div className="w-14 h-14 bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0 border border-zinc-700/50">
-                                                            <img src={course.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                                            <img src={course.thumbnailUrl} alt={course.title + " 썸네일"} loading="lazy" className="w-full h-full object-cover" />
                                                         </div>
                                                         <div>
                                                             <h4 className="text-white font-bold group-hover:text-violet-400 transition-colors line-clamp-1">{course.title}</h4>
@@ -196,7 +196,7 @@ export const BundleDetailModal: React.FC<BundleDetailModalProps> = ({
                                                     <div className="flex items-center gap-4">
                                                         <div className="w-14 h-14 bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0 border border-zinc-700/50">
                                                             {routine.thumbnail_url ? (
-                                                                <img src={routine.thumbnail_url} alt="" className="w-full h-full object-cover" />
+                                                                <img src={routine.thumbnail_url} alt={routine.title + " 썸네일"} loading="lazy" className="w-full h-full object-cover" />
                                                             ) : (
                                                                 <div className="w-full h-full flex items-center justify-center bg-blue-500/10">
                                                                     <List className="w-6 h-6 text-blue-500" />
@@ -231,7 +231,7 @@ export const BundleDetailModal: React.FC<BundleDetailModalProps> = ({
                                                 >
                                                     <div className="flex items-center gap-4">
                                                         <div className="w-14 h-14 bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0 border border-zinc-700/50">
-                                                            <img src={video.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                                            <img src={video.thumbnailUrl} alt={video.title + " 썸네일"} loading="lazy" className="w-full h-full object-cover" />
                                                         </div>
                                                         <h4 className="text-white font-bold group-hover:text-amber-400 transition-colors line-clamp-1">{video.title}</h4>
                                                     </div>

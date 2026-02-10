@@ -614,9 +614,9 @@ export const JournalTab: React.FC = () => {
                         </h3>
                         <div className="flex flex-wrap items-center gap-2">
                             <div className="flex items-center bg-zinc-950 rounded-lg p-1 border border-zinc-800">
-                                <button onClick={() => setSelectedYear(prev => prev - 1)} className="p-1 hover:text-white text-zinc-500 transition-colors"><ChevronLeft className="w-4 h-4" /></button>
+                                <button onClick={() => setSelectedYear(prev => prev - 1)} aria-label="이전 연도" className="p-1 hover:text-white text-zinc-500 transition-colors"><ChevronLeft className="w-4 h-4" /></button>
                                 <span className="text-xs font-bold px-2 text-zinc-300">{selectedYear}</span>
-                                <button onClick={() => setSelectedYear(prev => prev + 1)} className="p-1 hover:text-white text-zinc-500 transition-colors"><ChevronRight className="w-4 h-4" /></button>
+                                <button onClick={() => setSelectedYear(prev => prev + 1)} aria-label="다음 연도" className="p-1 hover:text-white text-zinc-500 transition-colors"><ChevronRight className="w-4 h-4" /></button>
                             </div>
                             <div className="flex bg-zinc-950 rounded-lg p-1 border border-zinc-800">
                                 {(['1W', '1M', '3M', '6M', '1Y'] as GraphRange[]).map((range) => (
@@ -745,7 +745,7 @@ export const JournalTab: React.FC = () => {
                                         >
                                             <Share2 className="w-4 h-4" />
                                         </button>
-                                        <button onClick={() => setItemToDelete(item)} className="p-2 text-slate-500 hover:text-red-500 transition-colors">
+                                        <button onClick={() => setItemToDelete(item)} aria-label="삭제" className="p-2 text-slate-500 hover:text-red-500 transition-colors">
                                             <Trash2 className="w-4 h-4" />
                                         </button>
                                     </div>
@@ -775,13 +775,13 @@ export const JournalTab: React.FC = () => {
                     <div className="bg-zinc-900/90 backdrop-blur-2xl rounded-3xl w-full max-w-lg flex flex-col max-h-[90vh] border border-white/10 shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center p-6 border-b border-white/5">
                             <h2 className="text-lg font-bold text-white">새 게시물</h2>
-                            <button onClick={() => setIsCreating(false)} className="p-2 rounded-full hover:bg-white/5 transition-colors"><X className="w-5 h-5 text-zinc-400 hover:text-white" /></button>
+                            <button onClick={() => setIsCreating(false)} aria-label="닫기" className="p-2 rounded-full hover:bg-white/5 transition-colors"><X className="w-5 h-5 text-zinc-400 hover:text-white" /></button>
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-gray-700">
                             <div className="flex items-center gap-3 mb-4">
                                 <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
                                     {user?.user_metadata?.avatar_url ? (
-                                        <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                                        <img src={user.user_metadata.avatar_url} alt="Profile" loading="lazy" className="w-full h-full object-cover" />
                                     ) : (
                                         <User className="w-5 h-5 text-gray-400" />
                                     )}

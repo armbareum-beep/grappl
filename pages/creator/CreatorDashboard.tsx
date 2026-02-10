@@ -7,6 +7,7 @@ import { Course, Drill, Lesson, DrillRoutine, SparringVideo, Bundle } from '../.
 import { MobileTabSelector } from '../../components/MobileTabSelector';
 import { Button } from '../../components/Button';
 import { BookOpen, DollarSign, Eye, TrendingUp, Package, MessageSquare, LayoutDashboard, PlayCircle, Grid, Layers, Clapperboard, X } from 'lucide-react';
+import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { MarketingTab } from '../../components/creator/MarketingTab';
 import { FeedbackSettingsTab } from '../../components/creator/FeedbackSettingsTab';
 import { FeedbackRequestsTab } from '../../components/creator/FeedbackRequestsTab';
@@ -53,6 +54,14 @@ export const CreatorDashboard: React.FC = () => {
     const [showContentModal, setShowContentModal] = useState(false);
     const [contentModalType, setContentModalType] = useState<'course' | 'routine' | 'sparring'>('course');
     const [editingContent, setEditingContent] = useState<Course | DrillRoutine | SparringVideo | null>(null);
+
+    // Confirm Modal State for delete actions
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        type: 'drill' | 'course' | 'lesson' | 'routine' | 'bundle' | 'sparring' | null;
+        id: string;
+        title: string;
+    }>({ isOpen: false, type: null, id: '', title: '' });
 
     // Open Modal Handlers
     const openCourseModal = (course?: Course) => {
@@ -171,7 +180,6 @@ export const CreatorDashboard: React.FC = () => {
 
                 // Refresh courses with timeout to prevent hanging the UI
                 try {
-                    console.log('Refreshing courses after save...');
                     const coursesData = await Promise.race([
                         getCreatorCourses(user.id),
                         new Promise<Course[]>((_, reject) => setTimeout(() => reject(new Error('Course refresh timed out')), 5000))
@@ -238,7 +246,6 @@ export const CreatorDashboard: React.FC = () => {
                 }
                 // Refresh routines with timeout
                 try {
-                    console.log('Refreshing routines after save...');
                     const routinesData = await Promise.race([
                         getUserCreatedRoutines(user.id),
                         new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Routine refresh timed out')), 5000))
@@ -324,7 +331,6 @@ export const CreatorDashboard: React.FC = () => {
 
                 // Refresh sparring with timeout
                 try {
-                    console.log('Refreshing sparring after save...');
                     const sparringData = await Promise.race([
                         getSparringVideos(100, user.id),
                         new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Sparring refresh timed out')), 5000))
@@ -600,87 +606,119 @@ export const CreatorDashboard: React.FC = () => {
     }, [user?.id, lessons, drills]);
 
 
-    const handleDeleteDrill = async (drillId: string, drillTitle: string) => {
-        if (!confirm(`"${drillTitle}" 드릴을 삭제하시겠습니까?`)) return;
-
-        const { error } = await deleteDrill(drillId);
-        if (error) {
-            alert('드릴 삭제 중 오류가 발생했습니다.');
-            return;
-        }
-
-        // Refresh drills list
-        setDrills(drills.filter(d => d.id !== drillId));
+    const handleDeleteDrill = (drillId: string, drillTitle: string) => {
+        setConfirmModal({ isOpen: true, type: 'drill', id: drillId, title: drillTitle });
     };
 
-    const handleDeleteCourse = async (courseId: string, courseTitle: string) => {
-        if (!confirm(`"${courseTitle}" 클래스를 삭제하시겠습니까?`)) return;
-
-        const { error } = await deleteCourse(courseId);
-        if (error) {
-            alert('클래스 삭제 중 오류가 발생했습니다.');
-            return;
-        }
-
-        // Refresh courses list
-        setCourses(courses.filter(c => c.id !== courseId));
+    const handleDeleteCourse = (courseId: string, courseTitle: string) => {
+        setConfirmModal({ isOpen: true, type: 'course', id: courseId, title: courseTitle });
     };
 
-
-    const handleDeleteLesson = async (lessonId: string, lessonTitle: string) => {
-        if (!confirm(`"${lessonTitle}" 레슨을 삭제하시겠습니까?`)) return;
-
-        const { error } = await deleteLesson(lessonId);
-        if (error) {
-            alert('레슨 삭제 중 오류가 발생했습니다.');
-            return;
-        }
-
-        // Refresh lessons list
-        setLessons(lessons.filter(l => l.id !== lessonId));
+    const handleDeleteLesson = (lessonId: string, lessonTitle: string) => {
+        setConfirmModal({ isOpen: true, type: 'lesson', id: lessonId, title: lessonTitle });
     };
 
-    const handleDeleteRoutine = async (routineId: string, routineTitle: string) => {
-        if (!confirm(`"${routineTitle}" 루틴을 삭제하시겠습니까?`)) return;
-
-        const { error } = await deleteRoutine(routineId);
-        if (error) {
-            alert('루틴 삭제 중 오류가 발생했습니다.');
-            return;
-        }
-
-        // Refresh routines list
-        setRoutines(routines.filter(r => r.id !== routineId));
+    const handleDeleteRoutine = (routineId: string, routineTitle: string) => {
+        setConfirmModal({ isOpen: true, type: 'routine', id: routineId, title: routineTitle });
     };
 
-    const handleDeleteBundle = async (bundleId: string, bundleTitle: string) => {
-        if (!confirm(`"${bundleTitle}" 번들을 삭제하시겠습니까?`)) return;
-
-        const { error } = await deleteBundle(bundleId);
-        if (error) {
-            alert('번들 삭제 중 오류가 발생했습니다.');
-            return;
-        }
-
-        // Refresh bundles list
-        setBundles(bundles.filter(b => b.id !== bundleId));
+    const handleDeleteBundle = (bundleId: string, bundleTitle: string) => {
+        setConfirmModal({ isOpen: true, type: 'bundle', id: bundleId, title: bundleTitle });
     };
 
-    const handleDeleteSparringVideo = async (videoId: string, title: string) => {
-        if (!confirm(`"${title}" 스파링 영상을 삭제하시겠습니까?`)) return;
+    const handleDeleteSparringVideo = (videoId: string, title: string) => {
+        setConfirmModal({ isOpen: true, type: 'sparring', id: videoId, title: title });
+    };
 
-        const { error, archived } = await deleteSparringVideo(videoId) as any;
-        if (error) {
-            alert('스파링 영상 삭제 중 오류가 발생했습니다.');
-            return;
+    const confirmDelete = async () => {
+        const { type, id } = confirmModal;
+        setConfirmModal({ isOpen: false, type: null, id: '', title: '' });
+
+        switch (type) {
+            case 'drill': {
+                const { error } = await deleteDrill(id);
+                if (error) {
+                    toastError('드릴 삭제 중 오류가 발생했습니다.');
+                    return;
+                }
+                setDrills(drills.filter(d => d.id !== id));
+                break;
+            }
+            case 'course': {
+                const { error } = await deleteCourse(id);
+                if (error) {
+                    toastError('클래스 삭제 중 오류가 발생했습니다.');
+                    return;
+                }
+                setCourses(courses.filter(c => c.id !== id));
+                break;
+            }
+            case 'lesson': {
+                const { error } = await deleteLesson(id);
+                if (error) {
+                    toastError('레슨 삭제 중 오류가 발생했습니다.');
+                    return;
+                }
+                setLessons(lessons.filter(l => l.id !== id));
+                break;
+            }
+            case 'routine': {
+                const { error } = await deleteRoutine(id);
+                if (error) {
+                    toastError('루틴 삭제 중 오류가 발생했습니다.');
+                    return;
+                }
+                setRoutines(routines.filter(r => r.id !== id));
+                break;
+            }
+            case 'bundle': {
+                const { error } = await deleteBundle(id);
+                if (error) {
+                    toastError('번들 삭제 중 오류가 발생했습니다.');
+                    return;
+                }
+                setBundles(bundles.filter(b => b.id !== id));
+                break;
+            }
+            case 'sparring': {
+                const { error, archived } = await deleteSparringVideo(id) as any;
+                if (error) {
+                    toastError('스파링 영상 삭제 중 오류가 발생했습니다.');
+                    return;
+                }
+                if (archived) {
+                    success('이 영상은 구매 내역이 있어 완전히 삭제되지 않고 보관 처리되었습니다. (내 목록에서는 사라지지만 구매자는 계속 볼 수 있습니다)');
+                }
+                setSparringVideos(sparringVideos.filter(v => v.id !== id));
+                break;
+            }
         }
+    };
 
-        if (archived) {
-            alert('이 영상은 구매 내역이 있어 완전히 삭제되지 않고 보관 처리되었습니다.\n(내 목록에서는 사라지지만 구매자는 계속 볼 수 있습니다)');
+    const getConfirmModalMessage = () => {
+        const { type, title } = confirmModal;
+        switch (type) {
+            case 'drill': return `"${title}" 드릴을 삭제하시겠습니까?`;
+            case 'course': return `"${title}" 클래스를 삭제하시겠습니까?`;
+            case 'lesson': return `"${title}" 레슨을 삭제하시겠습니까?`;
+            case 'routine': return `"${title}" 루틴을 삭제하시겠습니까?`;
+            case 'bundle': return `"${title}" 번들을 삭제하시겠습니까?`;
+            case 'sparring': return `"${title}" 스파링 영상을 삭제하시겠습니까?`;
+            default: return '';
         }
+    };
 
-        // Refresh list
-        setSparringVideos(sparringVideos.filter(v => v.id !== videoId));
+    const getConfirmModalTitle = () => {
+        const { type } = confirmModal;
+        switch (type) {
+            case 'drill': return '드릴 삭제';
+            case 'course': return '클래스 삭제';
+            case 'lesson': return '레슨 삭제';
+            case 'routine': return '루틴 삭제';
+            case 'bundle': return '번들 삭제';
+            case 'sparring': return '스파링 삭제';
+            default: return '삭제 확인';
+        }
     };
 
     if (loading) {
@@ -1077,7 +1115,7 @@ export const CreatorDashboard: React.FC = () => {
                                                         isProcessing={!lesson.vimeoUrl && !lesson.videoUrl}
                                                         onClick={() => {
                                                             if (!lesson.vimeoUrl) {
-                                                                alert('동영상이 처리 중입니다. 잠시만 기다려주세요.');
+                                                                toastError('동영상이 처리 중입니다. 잠시만 기다려주세요.');
                                                                 return;
                                                             }
                                                             navigate(`/lessons/${lesson.id}`);
@@ -1143,7 +1181,7 @@ export const CreatorDashboard: React.FC = () => {
                                                         isError={!!(drill.vimeoUrl?.startsWith('ERROR:'))}
                                                         onClick={() => {
                                                             if (!drill.vimeoUrl) {
-                                                                alert('동영상이 처리 중입니다. 잠시만 기다려주세요.');
+                                                                toastError('동영상이 처리 중입니다. 잠시만 기다려주세요.');
                                                                 return;
                                                             }
                                                             navigate(`/drills/${drill.id}`);
@@ -1284,7 +1322,7 @@ export const CreatorDashboard: React.FC = () => {
                                         >
                                             <div className="w-24 h-16 bg-zinc-800 rounded overflow-hidden flex-shrink-0">
                                                 {video.thumbnailUrl ? (
-                                                    <img src={video.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                                    <img src={video.thumbnailUrl} alt={video.title || "썸네일"} loading="lazy" className="w-full h-full object-cover" />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center">
                                                         <Clapperboard className="w-6 h-6 text-zinc-600" />
@@ -1320,6 +1358,17 @@ export const CreatorDashboard: React.FC = () => {
                 drills={drills}
                 sparringVideos={sparringVideos}
                 onSave={handleContentSave}
+            />
+
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal({ isOpen: false, type: null, id: '', title: '' })}
+                onConfirm={confirmDelete}
+                title={getConfirmModalTitle()}
+                message={getConfirmModalMessage()}
+                confirmText="삭제"
+                cancelText="취소"
+                variant="danger"
             />
         </div>
     );

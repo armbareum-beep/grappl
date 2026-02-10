@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Capacitor 네이티브 앱 Safe Area 지원 */
+html {
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+}
+
 @layer base {
   :root {
     --background: 0 0% 3.9%;

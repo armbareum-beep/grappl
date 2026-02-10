@@ -373,7 +373,7 @@ export const AdminDurationSync: React.FC = () => {
                                                 <td className="px-6 py-4">
                                                     {item.thumbnail_url && !item.thumbnail_url.includes('placeholder') ? (
                                                         <div className="w-16 aspect-video bg-zinc-800 rounded overflow-hidden border border-white/5">
-                                                            <img src={item.thumbnail_url} alt="" className="w-full h-full object-cover" />
+                                                            <img src={item.thumbnail_url} alt={`${item.title || '영상'} 썸네일`} loading="lazy" className="w-full h-full object-cover" />
                                                         </div>
                                                     ) : (
                                                         <span className="text-xs text-amber-400">없음</span>

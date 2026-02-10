@@ -24,8 +24,8 @@ export const useOrientationFullscreen = (elementRef: RefObject<HTMLElement>, isA
                             (elementRef.current as any).msRequestFullscreen;
 
                         if (req) {
-                            req.call(elementRef.current).catch((err: any) => {
-                                console.log('Fullscreen request failed (likely needs user gesture):', err);
+                            req.call(elementRef.current).catch(() => {
+                                // Fullscreen request failed - likely needs user gesture
                             });
                         }
                     }
@@ -36,7 +36,9 @@ export const useOrientationFullscreen = (elementRef: RefObject<HTMLElement>, isA
                             (document as any).mozCancelFullScreen ||
                             (document as any).msExitFullscreen;
                         if (exit) {
-                            exit.call(document).catch((err: any) => console.log('Exit fullscreen failed:', err));
+                            exit.call(document).catch(() => {
+                                // Exit fullscreen failed - silently ignore
+                            });
                         }
                     }
                 }

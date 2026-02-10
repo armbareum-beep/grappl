@@ -71,7 +71,6 @@ export function useDrillsFeed() {
     return useQuery({
         queryKey: ['drills-feed', user?.id, effectivePermissions.isSubscriber, effectivePermissions.purchasedItemIds],
         queryFn: async () => {
-            console.log('[useDrillsFeed] Loading content...');
             const { fetchCreatorsByIds } = await import('../lib/api');
             // const { canAccessContentSync } = await import('../lib/api-accessible-content'); // No longer filtering here
 
@@ -120,7 +119,6 @@ export function useDrillsFeed() {
                 }
             } catch (e) {
                 // Column might not exist yet - that's okay
-                console.log('[useDrillsFeed] related_lesson_id column not available yet');
             }
 
             if (drillError) {
@@ -130,8 +128,6 @@ export function useDrillsFeed() {
 
             // Extract drills from the Join result
             const allDrills = routineDrills?.map((item: any) => item.drill) || [];
-            console.log('[useDrillsFeed] Raw drills fetched:', allDrills?.length);
-            console.log('[useDrillsFeed] routineDrills sample:', routineDrills?.slice(0, 2));
 
             const allCreatorIds = allDrills?.map((d: any) => d.creator_id).filter(Boolean) || [];
             const creatorsMap = await fetchCreatorsByIds([...new Set(allCreatorIds)]);
@@ -144,8 +140,6 @@ export function useDrillsFeed() {
 
                     return !hasError;
                 });
-
-            console.log('[useDrillsFeed] After filter, drills count:', processedDrills.length);
 
             const mappedDrills = processedDrills.map((d: any) => ({
                 id: d.id,
@@ -177,8 +171,6 @@ export function useDrillsFeed() {
                     courseId: relatedLessonsMap[d.id].course_id,
                 } : undefined,
             }));
-
-            console.log('[useDrillsFeed] Final mapped drills count:', mappedDrills.length);
 
             // Shuffle
             for (let i = mappedDrills.length - 1; i > 0; i--) {

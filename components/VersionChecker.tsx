@@ -38,14 +38,12 @@ export const VersionChecker: React.FC = () => {
         // Only force reload if 1 hour has passed since last reload
         // OR if this is not a background visibility check
         if (lastReload && now - parseInt(lastReload) < MIN_RELOAD_INTERVAL) {
-            console.log('[VersionCheck] Minor version diff ignored due to recent reload');
             return;
         }
 
         isUpdating.current = true;
         localStorage.setItem(LAST_UPDATE_KEY, now.toString());
         localStorage.setItem(LAST_SUCCESSFUL_RELOAD_KEY, now.toString());
-        console.log(`[VersionCheck] Updating to version: ${newVersion}...`);
 
         try {
             await hardReload([LAST_UPDATE_KEY, LAST_SUCCESSFUL_RELOAD_KEY], true);
@@ -62,7 +60,6 @@ export const VersionChecker: React.FC = () => {
 
         // ✅ 오프라인 체크 추가
         if (!navigator.onLine) {
-            console.log('[VersionChecker] 오프라인 - 체크 건너뜀');
             return;
         }
 
@@ -87,11 +84,7 @@ export const VersionChecker: React.FC = () => {
             // USE THE INJECTED VERSION FROM VITE as the source of truth for "currently running"
             const currentVersion = import.meta.env.VITE_APP_VERSION;
 
-            console.log('[VersionChecker] 현재:', currentVersion, '/ 서버:', newestVersion);
-
             if (currentVersion && newestVersion !== currentVersion) {
-                console.log('[VersionChecker] 새 버전 감지! 자동 업데이트 시작...');
-
                 // ✅ 자동 업데이트 활성화 (사용자 선택 반영)
                 // 새 버전이 감지되면 즉시 hardReload 실행
                 handleUpdate(newestVersion);
@@ -117,7 +110,6 @@ export const VersionChecker: React.FC = () => {
                     return;
                 }
                 lastVisibilityCheck = now;
-                console.log('[VersionChecker] 탭 포커스, 업데이트 확인 중...');
                 checkVersion();
             }
         };

@@ -53,7 +53,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
                 // If it's initial load and cache is very fresh, return immediately
                 if (isInitial && cacheAge < RECENT_TTL) {
-                    console.log('[AuthContext] Cache is very fresh, using immediately');
                     // Still trigger background update but don't wait
                     setTimeout(() => checkUserStatus(userId, false, true), 1000);
                     return { success: true, ...cachedData, usedCache: true };
@@ -75,9 +74,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
                 if (attempt > 0) {
                     await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt - 1)));
-                    console.log(`[AuthContext] Retrying user status check (${attempt + 1}/${maxAttempts})...`);
-                } else {
-                    console.log('[AuthContext] Fetching fresh user status for:', userId);
                 }
 
                 const queriesPromise = Promise.all([
@@ -130,7 +126,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 // If last attempt failed, fallback to cache or default
                 if (attempt >= maxAttempts) {
                     if (cachedData) {
-                        console.log('[AuthContext] Fetch failed, falling back to cache');
                         return { success: true, ...cachedData, usedCache: true };
                     }
                     return {

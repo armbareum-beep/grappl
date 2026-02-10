@@ -18,7 +18,3 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     }
 });
 
-// Expose to window for debugging
-if (typeof window !== 'undefined') {
-    (window as any).supabase = supabase;
-}

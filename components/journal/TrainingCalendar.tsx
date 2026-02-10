@@ -99,10 +99,10 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({ logs, onDate
                     </h2>
                 </div>
                 <div className="flex gap-2">
-                    <button onClick={prevMonth} className="p-2 hover:bg-slate-100 rounded-full text-slate-600">
+                    <button onClick={prevMonth} className="p-2 hover:bg-slate-100 rounded-full text-slate-600" aria-label="이전 달">
                         <ChevronLeft className="w-5 h-5" />
                     </button>
-                    <button onClick={nextMonth} className="p-2 hover:bg-slate-100 rounded-full text-slate-600">
+                    <button onClick={nextMonth} className="p-2 hover:bg-slate-100 rounded-full text-slate-600" aria-label="다음 달">
                         <ChevronRight className="w-5 h-5" />
                     </button>
                 </div>

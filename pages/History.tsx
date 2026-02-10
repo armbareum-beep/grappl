@@ -135,7 +135,7 @@ export const History: React.FC = () => {
                                         {/* Thumbnail */}
                                         <div className="relative w-[160px] aspect-video flex-shrink-0 bg-zinc-800 rounded-lg overflow-hidden border border-white/5">
                                             {item.thumbnail ? (
-                                                <img src={item.thumbnail} alt={item.title} className="w-full h-full object-cover" />
+                                                <img src={item.thumbnail} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center text-zinc-600">No Image</div>
                                             )}

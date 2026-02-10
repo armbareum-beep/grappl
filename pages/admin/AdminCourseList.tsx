@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { getCourses, deleteCourse, updateCourse } from '../../lib/api';
 import { Course } from '../../types';
 import { Button } from '../../components/Button';
+import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { Trash2, Eye, Search, Plus, ArrowLeft, Edit } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -58,6 +59,8 @@ export const AdminCourseList: React.FC = () => {
     const [courses, setCourses] = useState<Course[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; courseId: string | null }>({ isOpen: false, courseId: null });
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         fetchCourses();
@@ -87,18 +90,26 @@ export const AdminCourseList: React.FC = () => {
         }
     };
 
-    const handleDelete = async (courseId: string) => {
-        if (!window.confirm('정말로 이 강좌를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
+    const handleDeleteClick = (courseId: string) => {
+        setDeleteModal({ isOpen: true, courseId });
+    };
 
+    const handleDeleteConfirm = async () => {
+        if (!deleteModal.courseId) return;
+
+        setIsDeleting(true);
         try {
-            const { error } = await deleteCourse(courseId);
+            const { error } = await deleteCourse(deleteModal.courseId);
             if (error) throw error;
 
-            setCourses(courses.filter(c => c.id !== courseId));
+            setCourses(courses.filter(c => c.id !== deleteModal.courseId));
             success('강좌가 삭제되었습니다.');
+            setDeleteModal({ isOpen: false, courseId: null });
         } catch (error) {
             console.error('Error deleting course:', error);
             toastError('삭제 중 오류가 발생했습니다.');
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -223,7 +234,7 @@ export const AdminCourseList: React.FC = () => {
                                                         </button>
                                                     </Link>
                                                     <button
-                                                        onClick={() => handleDelete(course.id)}
+                                                        onClick={() => handleDeleteClick(course.id)}
                                                         className="p-2.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
                                                     >
                                                         <Trash2 className="w-4 h-4" />
@@ -294,7 +305,7 @@ export const AdminCourseList: React.FC = () => {
                                         </button>
                                     </Link>
                                     <button
-                                        onClick={() => handleDelete(course.id)}
+                                        onClick={() => handleDeleteClick(course.id)}
                                         className="w-full py-2 bg-zinc-800 text-zinc-400 hover:text-red-400 rounded-xl text-xs font-bold transition-all"
                                     >
                                         Delete
@@ -309,6 +320,18 @@ export const AdminCourseList: React.FC = () => {
                     )}
                 </div>
             </div>
+
+            <ConfirmModal
+                isOpen={deleteModal.isOpen}
+                onClose={() => setDeleteModal({ isOpen: false, courseId: null })}
+                onConfirm={handleDeleteConfirm}
+                title="강좌 삭제"
+                message="정말로 이 강좌를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+                confirmText="삭제"
+                cancelText="취소"
+                variant="danger"
+                isLoading={isDeleting}
+            />
         </div>
     );
 };

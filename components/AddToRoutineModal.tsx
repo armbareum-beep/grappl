@@ -3,6 +3,7 @@ import { Drill, DrillRoutine, Difficulty, VideoCategory } from '../types';
 import { Button } from './Button';
 import { Plus, Check, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 
 interface AddToRoutineModalProps {
     drill: Drill;
@@ -18,6 +19,7 @@ export const AddToRoutineModal: React.FC<AddToRoutineModalProps> = ({
     onSuccess
 }) => {
     const { user } = useAuth();
+    const { success, warning } = useToast();
     const [customRoutines, setCustomRoutines] = useState<DrillRoutine[]>([]);
     const [showNewRoutineForm, setShowNewRoutineForm] = useState(false);
     const [newRoutineName, setNewRoutineName] = useState('');
@@ -36,7 +38,7 @@ export const AddToRoutineModal: React.FC<AddToRoutineModalProps> = ({
     const handleAddToRoutine = (routine: DrillRoutine) => {
         // Check if drill is already in this routine
         if (routine.drills?.some(d => d.id === drill.id)) {
-            alert('이 드릴은 이미 해당 루틴에 포함되어 있습니다.');
+            warning('이 드릴은 이미 해당 루틴에 포함되어 있습니다.');
             return;
         }
 
@@ -55,14 +57,14 @@ export const AddToRoutineModal: React.FC<AddToRoutineModalProps> = ({
         );
         localStorage.setItem('my_custom_routines', JSON.stringify(updatedRoutines));
 
-        alert(`"${routine.title}" 루틴에 추가되었습니다!`);
+        success(`"${routine.title}" 루틴에 추가되었습니다!`);
         onSuccess();
         onClose();
     };
 
     const handleCreateNewRoutine = () => {
         if (!newRoutineName.trim()) {
-            alert('루틴 이름을 입력해주세요.');
+            warning('루틴 이름을 입력해주세요.');
             return;
         }
 
@@ -86,7 +88,7 @@ export const AddToRoutineModal: React.FC<AddToRoutineModalProps> = ({
         const existingRoutines = JSON.parse(localStorage.getItem('my_custom_routines') || '[]');
         localStorage.setItem('my_custom_routines', JSON.stringify([...existingRoutines, newRoutine]));
 
-        alert(`"${newRoutineName}" 루틴이 생성되고 드릴이 추가되었습니다!`);
+        success(`"${newRoutineName}" 루틴이 생성되고 드릴이 추가되었습니다!`);
         setNewRoutineName('');
         setShowNewRoutineForm(false);
         onSuccess();

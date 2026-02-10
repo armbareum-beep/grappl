@@ -213,7 +213,7 @@ export const TechniqueDetailPage: React.FC = () => {
                                             className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors"
                                         >
                                             <div className="w-12 h-12 rounded-lg bg-slate-700 overflow-hidden flex-shrink-0">
-                                                <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-cover" />
+                                                <img src={course.thumbnailUrl} alt={course.title} loading="lazy" className="w-full h-full object-cover" />
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="text-white font-medium truncate">{course.title}</div>
@@ -240,7 +240,7 @@ export const TechniqueDetailPage: React.FC = () => {
                                             className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors"
                                         >
                                             <div className="w-12 h-12 rounded-lg bg-slate-700 overflow-hidden flex-shrink-0">
-                                                <img src={routine.thumbnailUrl} alt={routine.title} className="w-full h-full object-cover" />
+                                                <img src={routine.thumbnailUrl} alt={routine.title} loading="lazy" className="w-full h-full object-cover" />
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="text-white font-medium truncate">{routine.title}</div>
@@ -267,7 +267,7 @@ export const TechniqueDetailPage: React.FC = () => {
                                             className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors"
                                         >
                                             <div className="w-12 h-12 rounded-lg bg-slate-700 overflow-hidden flex-shrink-0">
-                                                <img src={drill.thumbnailUrl} alt={drill.title} className="w-full h-full object-cover" />
+                                                <img src={drill.thumbnailUrl} alt={drill.title} loading="lazy" className="w-full h-full object-cover" />
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="text-white font-medium truncate">{drill.title}</div>

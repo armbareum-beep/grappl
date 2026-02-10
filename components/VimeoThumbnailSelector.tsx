@@ -25,13 +25,22 @@ export const VimeoThumbnailSelector: React.FC<VimeoThumbnailSelectorProps> = ({
     const [thumbnails, setThumbnails] = useState<VimeoThumbnail[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [processing, setProcessing] = useState(false);
 
     const fetchThumbnails = async () => {
         setLoading(true);
         setError(null);
+        setProcessing(false);
         try {
             // 1. Try backend API first (better quality, multiple options)
             const result = await getVimeoThumbnails(vimeoId);
+
+            // Check if video is still processing
+            if (result.processing) {
+                setProcessing(true);
+                setError(result.message || '영상이 아직 처리 중입니다.');
+                return;
+            }
 
             if (!result.error && result.thumbnails && result.thumbnails.length > 0) {
                 setThumbnails(result.thumbnails);
@@ -86,14 +95,22 @@ export const VimeoThumbnailSelector: React.FC<VimeoThumbnailSelectorProps> = ({
 
     if (error) {
         return (
-            <div className="flex flex-col items-center justify-center py-8 text-rose-400 gap-3 bg-rose-500/5 rounded-xl border border-rose-500/20">
-                <AlertCircle className="w-6 h-6" />
+            <div className={`flex flex-col items-center justify-center py-8 gap-3 rounded-xl border ${
+                processing
+                    ? 'text-amber-400 bg-amber-500/5 border-amber-500/20'
+                    : 'text-rose-400 bg-rose-500/5 border-rose-500/20'
+            }`}>
+                {processing ? (
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                ) : (
+                    <AlertCircle className="w-6 h-6" />
+                )}
                 <p className="text-sm font-medium">{error}</p>
                 <button
                     onClick={fetchThumbnails}
                     className="flex items-center gap-2 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg transition-colors"
                 >
-                    <RefreshCw className="w-3 h-3" /> 다시 시도
+                    <RefreshCw className="w-3 h-3" /> {processing ? '새로고침' : '다시 시도'}
                 </button>
             </div>
         );

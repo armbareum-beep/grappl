@@ -261,7 +261,7 @@ export const MyLibrary: React.FC = () => {
                     <div className="space-y-2">
                       {dayRoutines.slice(0, 2).map((routine: any, idx: number) => (
                         <div key={`${day}-${routine.id}-${idx}`} className="flex items-center gap-2 min-w-0">
-                          <img src={routine.thumbnailUrl} className="w-8 h-8 rounded object-cover flex-shrink-0" />
+                          <img src={routine.thumbnailUrl} loading="lazy" className="w-8 h-8 rounded object-cover flex-shrink-0" />
                           <span className="text-xs text-zinc-400 truncate">{routine.title}</span>
                         </div>
                       ))}
@@ -310,7 +310,7 @@ export function ChainCard({ chain }: { chain: UserSkillTree }) {
         className="relative aspect-video bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 transition-all group-hover:border-violet-500/50 group-hover:shadow-[0_0_15px_rgba(124,58,237,0.2)]"
       >
         {chain.thumbnailUrl ? (
-          <img src={chain.thumbnailUrl} alt={chain.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          <img src={chain.thumbnailUrl} alt={chain.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-zinc-900">
             <Network className="w-12 h-12 text-zinc-700" />

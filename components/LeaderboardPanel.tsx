@@ -142,7 +142,7 @@ export const LeaderboardPanel: React.FC<{ currentUserId: string }> = ({ currentU
                             {/* Avatar */}
                             <div className="w-8 h-8 rounded-full bg-slate-800 overflow-hidden flex-shrink-0 border border-slate-700">
                                 {user.avatar_url ? (
-                                    <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
+                                    <img src={user.avatar_url} alt={user.name} loading="lazy" className="w-full h-full object-cover" />
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center text-slate-500">
                                         <User className="w-4 h-4" />

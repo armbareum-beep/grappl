@@ -311,7 +311,7 @@ export const Settings: React.FC = () => {
                                 <div className="relative group">
                                     <div className="w-32 h-32 rounded-2xl overflow-hidden bg-zinc-800 border-2 border-zinc-700 flex items-center justify-center shadow-xl">
                                         {profileImageUrl ? (
-                                            <img src={profileImageUrl} alt="Profile" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                            <img src={profileImageUrl} alt="Profile" loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                                         ) : (
                                             <User className="w-12 h-12 text-zinc-600" />
                                         )}
@@ -534,7 +534,7 @@ export const Settings: React.FC = () => {
                             ) : (
                                 <div className="flex flex-col md:flex-row items-center gap-8">
                                     <div className="w-32 h-32 rounded-3xl bg-zinc-800 flex items-center justify-center border border-zinc-700 shadow-2xl relative group overflow-hidden">
-                                        <img src="/pwa-192x192.png" alt="App Icon" className="w-20 h-20 rounded-2xl shadow-lg" />
+                                        <img src="/pwa-192x192.png" alt="App Icon" loading="lazy" className="w-20 h-20 rounded-2xl shadow-lg" />
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
                                     </div>
                                     <div className="flex-1 text-center md:text-left space-y-4">

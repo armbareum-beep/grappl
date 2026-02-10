@@ -13,6 +13,7 @@ import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
 
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 
 const ShareModal = React.lazy(() => import('../components/social/ShareModal'));
 
@@ -20,6 +21,7 @@ export const DrillDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { user: contextUser, loading: authLoading } = useAuth();
+    const { success, error: toastError, info } = useToast();
     const [drill, setDrill] = useState<Drill | null>(null);
     const [loading, setLoading] = useState(true);
     const [owns, setOwns] = useState(false);
@@ -471,7 +473,7 @@ export const DrillDetail: React.FC = () => {
             const video = videoRef.current;
             if (video && owns) {
                 if (playing) {
-                    video.play().catch(err => console.log('Play error:', err));
+                    video.play().catch(() => { });
                 } else {
                     video.pause();
                 }
@@ -588,7 +590,7 @@ export const DrillDetail: React.FC = () => {
             // Revert on error
             setLiked(saved); // saved 대신 liked 변수를 쓴건 기존 코드의 버그일수도 있으나 일단 saved로 수정
             console.error('Error toggling save:', res.error);
-            alert('저장에 실패했습니다.');
+            toastError('저장에 실패했습니다.');
         } else {
             const newSaved = res.saved;
             setSaved(newSaved);
@@ -599,10 +601,10 @@ export const DrillDetail: React.FC = () => {
                 if (drill && !savedDrills.find((d: Drill) => d.id === drill.id)) {
                     savedDrills.push(drill);
                 }
-                alert('드릴이 나만의 루틴에 저장되었습니다! 아레나 > 나만의 루틴 탭에서 확인하세요.');
+                success('드릴이 나만의 루틴에 저장되었습니다!');
             } else {
                 savedDrills = savedDrills.filter((d: Drill) => d.id !== drill?.id);
-                alert('저장된 드릴에서 제거되었습니다.');
+                info('저장된 드릴에서 제거되었습니다.');
             }
             localStorage.setItem('saved_drills', JSON.stringify(savedDrills));
         }
@@ -742,7 +744,7 @@ export const DrillDetail: React.FC = () => {
                                         <img
                                             src={drill.thumbnailUrl}
                                             className="w-full h-full object-cover"
-                                            alt=""
+                                            alt={drill.title + " 썸네일"}
                                         />
                                         {/* Loading Spinner on top of thumbnail */}
                                         <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[2px]">

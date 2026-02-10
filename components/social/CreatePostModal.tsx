@@ -244,7 +244,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                     <div className="flex gap-4 mb-6">
                         <div className="w-12 h-12 rounded-full bg-slate-800 overflow-hidden flex-shrink-0 ring-2 ring-slate-800">
                             {userAvatar ? (
-                                <img src={userAvatar} alt="Profile" className="w-full h-full object-cover" />
+                                <img src={userAvatar} alt="Profile" loading="lazy" className="w-full h-full object-cover" />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center text-slate-400 font-bold bg-slate-800 uppercase">
                                     {(user?.email?.[0]?.toUpperCase()) || 'G'}
@@ -320,7 +320,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onPos
                                     {mediaFiles[idx]?.type.startsWith('video') ? (
                                         <video src={preview} className="w-full h-full object-cover" />
                                     ) : (
-                                        <img src={preview} alt={`Preview ${idx}`} className="w-full h-full object-cover" />
+                                        <img src={preview} alt={`Preview ${idx}`} loading="lazy" className="w-full h-full object-cover" />
                                     )}
                                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                         <button

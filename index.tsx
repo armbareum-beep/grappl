@@ -3,6 +3,10 @@ import ReactDOM from 'react-dom/client';
 import * as Sentry from "@sentry/react";
 import App from './App';
 import './src/index.css';
+import { initCapacitor } from './lib/capacitor-init';
+
+// Capacitor 네이티브 플러그인 초기화
+initCapacitor();
 
 // Sentry 에러 모니터링 초기화
 Sentry.init({

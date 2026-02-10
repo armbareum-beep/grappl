@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Copy, Building, User, Clock, Download } from 'lucide-react';
 import { getCreatorPayoutsAdmin } from '../../lib/api';
 import { getAdminSettlements, exportSettlementsToCSV } from '../../lib/api-admin';
+import { useToast } from '../../contexts/ToastContext';
+import { ConfirmModal } from '../common/ConfirmModal';
 
 interface CreatorPayoutInfo {
     id: string;
@@ -20,6 +22,7 @@ interface CreatorPayoutInfo {
 }
 
 export const AdminPayoutsTab: React.FC = () => {
+    const { success, error: toastError } = useToast();
     const [creators, setCreators] = useState<CreatorPayoutInfo[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -31,6 +34,7 @@ export const AdminPayoutsTab: React.FC = () => {
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth()); // 0-11
     const [calculating, setCalculating] = useState(false);
+    const [confirmModal, setConfirmModal] = useState<{isOpen: boolean; action: () => void; title: string; message: string}>({isOpen: false, action: () => {}, title: '', message: ''});
 
     useEffect(() => {
         loadData();
@@ -62,30 +66,43 @@ export const AdminPayoutsTab: React.FC = () => {
     }
 
     const handleCalculate = async () => {
-        if (!window.confirm(`${selectedYear}년 ${selectedMonth + 1}월 정산을 계산하시겠습니까?`)) return;
+        setConfirmModal({
+            isOpen: true,
+            title: '정산 계산 확인',
+            message: `${selectedYear}년 ${selectedMonth + 1}월 정산을 계산하시겠습니까?`,
+            action: async () => {
+                setCalculating(true);
+                const { calculatePayouts } = await import('../../lib/api-admin');
+                const { error } = await calculatePayouts(selectedYear, selectedMonth + 1);
+                setCalculating(false);
 
-        setCalculating(true);
-        const { calculatePayouts } = await import('../../lib/api-admin');
-        const { error } = await calculatePayouts(selectedYear, selectedMonth + 1);
-        setCalculating(false);
-
-        if (error) {
-            alert("Calculation failed");
-        } else {
-            loadPayouts();
-        }
+                if (error) {
+                    toastError("Calculation failed");
+                } else {
+                    loadPayouts();
+                }
+                setConfirmModal(prev => ({...prev, isOpen: false}));
+            }
+        });
     };
 
     const handleStatusUpdate = async (id: string, status: 'processing' | 'paid') => {
-        if (!window.confirm(`Update status to ${status}?`)) return;
-        const { updatePayoutStatus } = await import('../../lib/api-admin');
-        await updatePayoutStatus(id, status);
-        loadPayouts();
+        setConfirmModal({
+            isOpen: true,
+            title: '상태 변경 확인',
+            message: `Update status to ${status}?`,
+            action: async () => {
+                const { updatePayoutStatus } = await import('../../lib/api-admin');
+                await updatePayoutStatus(id, status);
+                loadPayouts();
+                setConfirmModal(prev => ({...prev, isOpen: false}));
+            }
+        });
     };
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
-        alert('복사되었습니다: ' + text);
+        success('복사되었습니다: ' + text);
     };
 
     return (
@@ -332,6 +349,15 @@ export const AdminPayoutsTab: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal(prev => ({...prev, isOpen: false}))}
+                onConfirm={confirmModal.action}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                variant="warning"
+            />
         </div>
     );
 };

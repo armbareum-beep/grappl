@@ -52,7 +52,6 @@ export const AICoachWidget: React.FC<AICoachWidgetProps> = ({ logs }) => {
         // Run analysis even on empty logs to show accurate (0%) baselines
         setRadarStats(calculateRadarStats(logs));
         setBalance(analyzeBalance(logs));
-        console.log(`[AICoachWidget] Logs updated: ${logs.length} entries`);
     }, [logs]);
 
     // Fallback radar data if no logs

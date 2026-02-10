@@ -89,7 +89,7 @@ export const SaveRoutineModal: React.FC<SaveModalProps> = ({
                         {/* Thumbnail Preview */}
                         <div className="relative w-full aspect-video bg-zinc-950 rounded-2xl border border-zinc-800 overflow-hidden group">
                             {thumbnailPreview ? (
-                                <img src={thumbnailPreview} alt="Preview" className="w-full h-full object-contain bg-zinc-900 opacity-80" />
+                                <img src={thumbnailPreview} alt="Preview" loading="lazy" className="w-full h-full object-contain bg-zinc-900 opacity-80" />
                             ) : (
                                 <div className="flex flex-col items-center justify-center h-full text-zinc-600">
                                     <Camera className="w-8 h-8 mb-2 animate-pulse" />
@@ -180,7 +180,7 @@ export const LoadRoutineModal: React.FC<LoadModalProps> = ({ isOpen, onClose, pl
                                 <p className="text-zinc-500 text-sm font-medium">저장된 주간 루틴 목록</p>
                             </div>
                         </div>
-                        <button onClick={onClose} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-2xl text-zinc-500 hover:text-white transition-all">
+                        <button onClick={onClose} aria-label="닫기" className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-2xl text-zinc-500 hover:text-white transition-all">
                             <X className="w-5 h-5" />
                         </button>
                     </div>

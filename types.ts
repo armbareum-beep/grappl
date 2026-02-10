@@ -52,6 +52,7 @@ export interface Creator {
   courseCount?: number;
   routineCount?: number;
   sparringCount?: number;
+  hidden?: boolean; // Admin can hide creators from public view
   payoutSettings?: {
     type: 'individual' | 'business';
     wiseAccountNumber?: string;

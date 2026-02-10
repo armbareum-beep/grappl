@@ -67,6 +67,7 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
     const videoRef = useRef<HTMLVideoElement>(null);
     const playerRef = useRef<Player | null>(null);
     const [ready, setReady] = useState(false);
+    const [isBuffering, setIsBuffering] = useState(false);
     const preloadConsumedRef = useRef(false);
 
     // 프리로드 컨텍스트 (optional)
@@ -152,6 +153,10 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
                     });
 
                     preloaded.player.on('error', () => { onError('재생 오류'); });
+
+                    // Buffering events
+                    preloaded.player.on('bufferstart', () => { if (isMounted) setIsBuffering(true); });
+                    preloaded.player.on('bufferend', () => { if (isMounted) setIsBuffering(false); });
 
                     return () => {
                         isMounted = false;
@@ -275,6 +280,10 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
                     }
                 });
                 player.on('error', () => { onError('재생 오류'); onReady(); });
+
+                // Buffering events
+                player.on('bufferstart', () => { if (isMounted) setIsBuffering(true); });
+                player.on('bufferend', () => { if (isMounted) setIsBuffering(false); });
             } catch { onError('초기화 실패'); onReady(); }
         } else if (ready) onReady();
 
@@ -339,6 +348,12 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
             className="absolute inset-0 w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:object-cover"
             style={{ opacity: isVisible ? 1 : 0, pointerEvents: 'none' }}
         >
+            {/* Buffering Spinner */}
+            {isBuffering && isVisible && (
+                <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
+                    <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin" />
+                </div>
+            )}
             {!useVimeo && url && (
                 <video
                     ref={videoRef}
@@ -366,6 +381,8 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
                         }
                     }}
                     onLoadedMetadata={() => onReady()}
+                    onWaiting={() => setIsBuffering(true)}
+                    onPlaying={() => setIsBuffering(false)}
                     onEnded={() => {
                         if (isPreviewModeRef.current) {
                             onPreviewLimitReachedRef.current?.();

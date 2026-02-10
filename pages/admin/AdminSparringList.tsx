@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { getSparringVideosAdmin, deleteSparringVideoAdmin } from '../../lib/api-admin';
 import { updateSparringVideo } from '../../lib/api';
 import { SparringVideo } from '../../types';
+import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { Trash2, Eye, Search, Plus, ArrowLeft, PlayCircle, Edit } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -58,6 +59,8 @@ export const AdminSparringList: React.FC = () => {
     const [videos, setVideos] = useState<SparringVideo[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; videoId: string | null }>({ isOpen: false, videoId: null });
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -88,17 +91,25 @@ export const AdminSparringList: React.FC = () => {
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!window.confirm('정말 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
+    const handleDeleteClick = (id: string) => {
+        setDeleteModal({ isOpen: true, videoId: id });
+    };
 
+    const handleDeleteConfirm = async () => {
+        if (!deleteModal.videoId) return;
+
+        setIsDeleting(true);
         try {
-            const { error } = await deleteSparringVideoAdmin(id);
+            const { error } = await deleteSparringVideoAdmin(deleteModal.videoId);
             if (error) throw error;
-            setVideos(prev => prev.filter(v => v.id !== id));
+            setVideos(prev => prev.filter(v => v.id !== deleteModal.videoId));
             success('스파링 영상이 삭제되었습니다.');
+            setDeleteModal({ isOpen: false, videoId: null });
         } catch (error) {
             console.error('Failed to delete sparring video:', error);
             toastError('삭제에 실패했습니다.');
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -177,7 +188,7 @@ export const AdminSparringList: React.FC = () => {
                                         <td className="p-4">
                                             <div className="w-16 h-24 rounded-lg overflow-hidden bg-zinc-800 relative">
                                                 {video.thumbnailUrl ? (
-                                                    <img src={video.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                                    <img src={video.thumbnailUrl} alt={video.title || "썸네일"} loading="lazy" className="w-full h-full object-cover" />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center text-zinc-600">
                                                         <PlayCircle className="w-5 h-5" />
@@ -229,7 +240,7 @@ export const AdminSparringList: React.FC = () => {
                                                     </button>
                                                 </Link>
                                                 <button
-                                                    onClick={() => handleDelete(video.id)}
+                                                    onClick={() => handleDeleteClick(video.id)}
                                                     className="p-2.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
@@ -251,7 +262,7 @@ export const AdminSparringList: React.FC = () => {
                                 <div className="flex gap-4 mb-4">
                                     <div className="w-20 h-28 rounded-xl overflow-hidden bg-zinc-800 relative flex-shrink-0">
                                         {video.thumbnailUrl ? (
-                                            <img src={video.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                            <img src={video.thumbnailUrl} alt={video.title || "썸네일"} loading="lazy" className="w-full h-full object-cover" />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center text-zinc-600">
                                                 <PlayCircle className="w-6 h-6" />
@@ -291,7 +302,7 @@ export const AdminSparringList: React.FC = () => {
                                         </button>
                                     </Link>
                                     <button
-                                        onClick={() => handleDelete(video.id)}
+                                        onClick={() => handleDeleteClick(video.id)}
                                         className="w-full py-2 bg-zinc-800 text-zinc-400 hover:text-red-400 rounded-xl text-xs font-medium transition-all"
                                     >
                                         Delete
@@ -306,6 +317,18 @@ export const AdminSparringList: React.FC = () => {
                     )}
                 </div>
             </div>
+
+            <ConfirmModal
+                isOpen={deleteModal.isOpen}
+                onClose={() => setDeleteModal({ isOpen: false, videoId: null })}
+                onConfirm={handleDeleteConfirm}
+                title="스파링 영상 삭제"
+                message="정말 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+                confirmText="삭제"
+                cancelText="취소"
+                variant="danger"
+                isLoading={isDeleting}
+            />
         </div>
     );
 };

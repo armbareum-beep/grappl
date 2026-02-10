@@ -3,9 +3,12 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getBundles, createBundle, updateBundle, createCoupon, updateCoupon, getCourses, getCoupons, deleteBundle, deleteCoupon } from '../../lib/api';
 import { Bundle, Coupon, Course } from '../../types';
 import { Package, Tag, Plus, X } from 'lucide-react';
+import { useToast } from '../../contexts/ToastContext';
+import { ConfirmModal } from '../common/ConfirmModal';
 
 export const AdminMarketingTab: React.FC = () => {
     const { user } = useAuth();
+    const { success, error: toastError } = useToast();
     const [bundles, setBundles] = useState<Bundle[]>([]);
     const [coupons, setCoupons] = useState<Coupon[]>([]);
     const [allCourses, setAllCourses] = useState<Course[]>([]);
@@ -29,6 +32,13 @@ export const AdminMarketingTab: React.FC = () => {
     // Editing state
     const [editingBundle, setEditingBundle] = useState<Bundle | null>(null);
     const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
+
+    // Confirm Modal State
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        type: 'bundle' | 'coupon';
+        id: string | null;
+    }>({ isOpen: false, type: 'bundle', id: null });
 
     useEffect(() => {
         if (user) {
@@ -58,24 +68,37 @@ export const AdminMarketingTab: React.FC = () => {
     };
 
     const handleDeleteBundle = async (id: string) => {
-        if (!window.confirm('정말 이 번들을 삭제하시겠습니까?')) return;
         const { error } = await deleteBundle(id);
         if (error) {
-            alert('번들 삭제 실패: ' + error.message);
+            toastError('번들 삭제 실패: ' + error.message);
         } else {
-            alert('번들이 삭제되었습니다.');
+            success('번들이 삭제되었습니다.');
             await loadData();
         }
+        setConfirmModal({ isOpen: false, type: 'bundle', id: null });
     };
 
     const handleDeleteCoupon = async (id: string) => {
-        if (!window.confirm('정말 이 쿠폰을 삭제하시겠습니까?')) return;
         const { error } = await deleteCoupon(id);
         if (error) {
-            alert('쿠폰 삭제 실패: ' + error.message);
+            toastError('쿠폰 삭제 실패: ' + error.message);
         } else {
-            alert('쿠폰이 삭제되었습니다.');
+            success('쿠폰이 삭제되었습니다.');
             await loadData();
+        }
+        setConfirmModal({ isOpen: false, type: 'coupon', id: null });
+    };
+
+    const openDeleteConfirm = (type: 'bundle' | 'coupon', id: string) => {
+        setConfirmModal({ isOpen: true, type, id });
+    };
+
+    const handleConfirmAction = () => {
+        if (!confirmModal.id) return;
+        if (confirmModal.type === 'bundle') {
+            handleDeleteBundle(confirmModal.id);
+        } else {
+            handleDeleteCoupon(confirmModal.id);
         }
     };
 
@@ -131,13 +154,13 @@ export const AdminMarketingTab: React.FC = () => {
         });
 
         if (error) {
-            alert(`번들 생성 실패: ${error.message}`);
+            toastError(`번들 생성 실패: ${error.message}`);
             return;
         }
 
         clearBundleForm();
         await loadData();
-        alert('번들이 생성되었습니다!');
+        success('번들이 생성되었습니다!');
     };
 
     const handleUpdateBundle = async (e: React.FormEvent) => {
@@ -152,9 +175,9 @@ export const AdminMarketingTab: React.FC = () => {
         });
 
         if (error) {
-            alert('번들 수정 실패: ' + error.message);
+            toastError('번들 수정 실패: ' + error.message);
         } else {
-            alert('번들이 수정되었습니다.');
+            success('번들이 수정되었습니다.');
             clearBundleForm();
             await loadData();
         }
@@ -174,13 +197,13 @@ export const AdminMarketingTab: React.FC = () => {
         });
 
         if (error) {
-            alert(`쿠폰 생성 실패: ${error.message}`);
+            toastError(`쿠폰 생성 실패: ${error.message}`);
             return;
         }
 
         clearCouponForm();
         await loadData();
-        alert('쿠폰이 생성되었습니다!');
+        success('쿠폰이 생성되었습니다!');
     };
 
     const handleUpdateCoupon = async (e: React.FormEvent) => {
@@ -196,9 +219,9 @@ export const AdminMarketingTab: React.FC = () => {
         });
 
         if (error) {
-            alert('쿠폰 수정 실패: ' + error.message);
+            toastError('쿠폰 수정 실패: ' + error.message);
         } else {
-            alert('쿠폰이 수정되었습니다.');
+            success('쿠폰이 수정되었습니다.');
             clearCouponForm();
             await loadData();
         }
@@ -224,6 +247,20 @@ export const AdminMarketingTab: React.FC = () => {
 
     return (
         <div className="space-y-12 relative pb-20 animate-in fade-in duration-700">
+            {/* Confirm Modal */}
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal({ isOpen: false, type: 'bundle', id: null })}
+                onConfirm={handleConfirmAction}
+                title={confirmModal.type === 'bundle' ? '번들 삭제' : '쿠폰 삭제'}
+                message={confirmModal.type === 'bundle'
+                    ? '정말 이 번들을 삭제하시겠습니까?'
+                    : '정말 이 쿠폰을 삭제하시겠습니까?'}
+                confirmText="삭제"
+                cancelText="취소"
+                variant="danger"
+            />
+
             {loading && (
                 <div className="fixed inset-0 bg-zinc-950/60 backdrop-blur-md z-[100] flex items-center justify-center">
                     <div className="flex flex-col items-center gap-4">
@@ -390,7 +427,7 @@ export const AdminMarketingTab: React.FC = () => {
                                         <Plus className="w-4 h-4 rotate-45" />
                                     </button>
                                     <button
-                                        onClick={() => handleDeleteBundle(bundle.id)}
+                                        onClick={() => openDeleteConfirm('bundle', bundle.id)}
                                         className="p-2.5 bg-zinc-800 hover:bg-rose-600 text-zinc-400 hover:text-white rounded-xl transition-all shadow-xl"
                                         title="영구 삭제"
                                     >
@@ -568,7 +605,7 @@ export const AdminMarketingTab: React.FC = () => {
                                         <Plus className="w-4 h-4 rotate-45" />
                                     </button>
                                     <button
-                                        onClick={() => handleDeleteCoupon(coupon.id)}
+                                        onClick={() => openDeleteConfirm('coupon', coupon.id)}
                                         className="p-2 bg-zinc-800 hover:bg-rose-600 text-zinc-500 hover:text-white rounded-lg transition-all shadow-xl"
                                         title="영구 삭제"
                                     >

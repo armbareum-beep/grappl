@@ -4,8 +4,8 @@ import { supabase } from '../lib/supabase';
 import { DrillRoutine } from '../types';
 import { Search, ChevronDown } from 'lucide-react';
 
-import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
+import { GridSkeleton } from '../components/common/Skeleton';
 import { cn, calculateHotScore } from '../lib/utils';
 import { UnifiedContentCard } from '../components/library/UnifiedContentCard';
 
@@ -116,7 +116,14 @@ export const Routines: React.FC<{
         }
     };
 
-    if (loading) return <LoadingScreen message="루틴을 불러오는 중..." />;
+    if (loading) return (
+        <div className="min-h-screen bg-zinc-950 text-zinc-100 md:pl-28 pt-8 pb-20 px-6 md:px-10">
+            <div className="max-w-[1600px] mx-auto p-4 md:px-12">
+                <div className="h-10 w-32 bg-zinc-800 rounded-lg animate-pulse mb-8" />
+                <GridSkeleton count={12} columns={4} />
+            </div>
+        </div>
+    );
     if (error) return <ErrorScreen error={error} resetMessage="루틴 목록을 불러오는 중 오류가 발생했습니다." />;
 
     const filteredRoutines = routines.filter(r => {

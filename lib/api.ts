@@ -118,6 +118,7 @@ function transformCreator(data: any, counts?: { courseCount?: number; routineCou
         courseCount: counts?.courseCount ?? data.courseCount ?? 0,
         routineCount: counts?.routineCount ?? data.routineCount ?? 0,
         sparringCount: counts?.sparringCount ?? data.sparringCount ?? 0,
+        hidden: data.hidden || false,
     };
 }
 
@@ -213,8 +214,9 @@ export async function getCreators(): Promise<Creator[]> {
         const { data: creatorsData, error } = await withTimeout(
             supabase
                 .from('creators')
-                .select('id, name, bio, profile_image, subscriber_count')
-                .eq('approved', true),
+                .select('id, name, bio, profile_image, subscriber_count, hidden')
+                .eq('approved', true)
+                .neq('hidden', true), // Filter out hidden creators from public view
             10000 // 10s
         );
 
@@ -1271,7 +1273,7 @@ export async function getRecentActivity(userId: string) {
             creatorName: creatorProfile?.name || l.course?.creator?.name || 'Unknown',
             creatorProfileImage: creatorProfile?.profileImage || l.course?.creator?.profile_image
         };
-    }).filter((item: any) => item && item.id);
+    }).filter((item: any) => item && item.id && item.courseId);
 
     return lessonItems;
 }
@@ -1732,7 +1734,6 @@ export async function uploadThumbnail(blob: Blob, bucketName: string = 'thumbnai
 
     for (const bucket of bucketsToTry) {
         try {
-            console.log(`Trying to upload thumbnail to bucket: ${bucket}`);
             const { error: uploadError } = await withTimeout(
                 supabase.storage
                     .from(bucket)
@@ -2664,7 +2665,6 @@ export async function getRecentCompletedRoutines(
         }
     }
 
-    console.log(`[getRecentCompletedRoutines] Returning ${enrichedData.length} records`);
     return enrichedData;
 }
 
@@ -2708,8 +2708,6 @@ export async function createTrainingLog(log: Omit<TrainingLog, 'id' | 'createdAt
 
     // Remove undefined keys
     Object.keys(dbData).forEach(key => dbData[key] === undefined && delete dbData[key]);
-
-    console.log('[createTrainingLog] Fixed Insert:', dbData);
 
     const { data, error } = await supabase
         .from('training_logs')
@@ -3843,27 +3841,21 @@ export async function getAvailableInstructorsForFeedback() {
             .select('id, instructor_id, enabled, price, turnaround_days, max_active_requests')
             .eq('enabled', true);
 
-        console.log('Step 1 - Feedback Settings:', { feedbackSettings, settingsError });
-
         if (settingsError) {
             console.error('Step 1 Error:', settingsError);
             return { data: null, error: settingsError };
         }
         if (!feedbackSettings || feedbackSettings.length === 0) {
-            console.log('No feedback settings found');
             return { data: [], error: null };
         }
 
         // Step 2: Get instructor details for each feedback setting
         const instructorIds = feedbackSettings.map((fs: any) => fs.instructor_id);
-        console.log('Step 2 - Instructor IDs:', instructorIds);
 
         const { data: instructors, error: instructorError } = await supabase
             .from('creators')
             .select('id, name, profile_image, bio')
             .in('id', instructorIds);
-
-        console.log('Step 2 - Instructors:', { instructors, instructorError });
 
         if (instructorError) {
             console.error('Step 2 Error:', instructorError);
@@ -3885,7 +3877,6 @@ export async function getAvailableInstructorsForFeedback() {
             };
         });
 
-        console.log('Step 3 - Final Result:', result);
         return { data: result, error: null };
     } catch (err) {
         console.error('getAvailableInstructorsForFeedback error:', err);
@@ -4258,17 +4249,42 @@ export async function promoteToCreator(userId: string) {
 }
 
 /**
- * Grant complimentary subscription to a user
+ * Grant complimentary subscription to a user (full free subscription)
+ * @param startDate - Start date of free period (YYYY-MM-DD)
+ * @param endDate - End date of free period (YYYY-MM-DD)
  */
-export async function grantComplimentarySubscription(userId: string, endDate: string) {
+export async function grantComplimentarySubscription(userId: string, startDate: string, endDate: string) {
     const { error } = await supabase
         .rpc('grant_complimentary_subscription', {
             target_user_id: userId,
+            start_date: startDate,
             end_date: endDate
         });
 
     if (error) {
         console.error('Error granting complimentary subscription:', error);
+        return { error };
+    }
+
+    return { error: null };
+}
+
+/**
+ * Extend existing subscription with complimentary period (keeps paid status)
+ * Only the specified period will be excluded from settlement
+ * @param startDate - Start date of free period (YYYY-MM-DD)
+ * @param endDate - End date of free period (YYYY-MM-DD)
+ */
+export async function extendSubscriptionComplimentary(userId: string, startDate: string, endDate: string) {
+    const { error } = await supabase
+        .rpc('extend_subscription_complimentary', {
+            target_user_id: userId,
+            start_date: startDate,
+            end_date: endDate
+        });
+
+    if (error) {
+        console.error('Error extending subscription with complimentary period:', error);
         return { error };
     }
 
@@ -4286,6 +4302,23 @@ export async function revokeComplimentarySubscription(userId: string) {
 
     if (error) {
         console.error('Error revoking complimentary subscription:', error);
+        return { error };
+    }
+
+    return { error: null };
+}
+
+/**
+ * Clear only the complimentary period (keeps subscription status)
+ */
+export async function clearComplimentaryPeriod(userId: string) {
+    const { error } = await supabase
+        .rpc('clear_complimentary_period', {
+            target_user_id: userId
+        });
+
+    if (error) {
+        console.error('Error clearing complimentary period:', error);
         return { error };
     }
 
@@ -5589,7 +5622,6 @@ export async function getDailyRoutine() {
         }
 
         if (!data || data.length === 0) {
-            console.log('[getDailyRoutine] No routines found in database');
             return { data: null, error: null };
         }
 
@@ -5598,8 +5630,6 @@ export async function getDailyRoutine() {
         const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
         const x = Math.sin(seed) * 10000;
         const index = Math.floor((x - Math.floor(x)) * data.length);
-
-        console.log(`[getDailyRoutine] Seed: ${seed}, Data Length: ${data.length}, Selected Index: ${index}`);
 
         const selectedRoutine = data[index];
 
@@ -6020,7 +6050,6 @@ export async function getRoutineById(id: string) {
         const mock = MOCK_ROUTINES.find(r => r.id === id);
         if (mock) return { data: mock, error: null };
     }
-    console.log('[getRoutineById] Fetching routine:', id);
 
     // 1. Remove unstable joins (creator:creators) to prevent API errors
     const { data, error } = await supabase
@@ -6049,12 +6078,6 @@ export async function getRoutineById(id: string) {
         console.warn('[getRoutineById] No data returned for routine:', id);
         return { data: null, error: { message: 'Routine not found', code: '404' } };
     }
-
-    console.log('[getRoutineById] Raw data received:', {
-        routineId: data.id,
-        creatorId: data.creator_id,
-        itemsCount: data.items?.length || 0
-    });
 
     // 2. Fetch creator info manually from 'users' table
     let creatorName = 'Unknown';
@@ -6487,7 +6510,6 @@ export async function getRandomSampleRoutines(limit: number = 1) {
 // Helper for transforming drill data
 export function transformDrill(data: any): Drill {
     if (!data) return {} as Drill;
-    console.log('transformDrill input:', data);
     const result = {
         id: data.id,
         title: data.title,
@@ -6512,7 +6534,6 @@ export function transformDrill(data: any): Drill {
         createdAt: data.created_at,
         uniformType: data.uniform_type,
     };
-    console.log('transformDrill output:', result);
     return result;
 }
 
@@ -6552,7 +6573,6 @@ export async function getDrillById(id: string) {
     if (mockDrill) return mockDrill;
 
     try {
-        console.log(`[getDrillById] Fetching drill ${id}...`);
         const startTime = Date.now();
 
         // Reduced timeout to 10s for faster feedback
@@ -6564,9 +6584,6 @@ export async function getDrillById(id: string) {
                 .limit(1),
             20000
         );
-
-        const duration = Date.now() - startTime;
-        console.log(`[getDrillById] Query completed in ${duration}ms`);
 
         if (error) {
             console.error(`[getDrillById] Error fetching drill ${id}:`, error);
@@ -6601,7 +6618,6 @@ export async function getDrillById(id: string) {
             } : null
         };
 
-        console.log(`[getDrillById] Successfully fetched drill ${id}`);
         return transformDrill(enrichedDrill);
     } catch (e: any) {
         console.error(`[getDrillById] Failed/timeout for drill ${id}:`, e);
@@ -7752,7 +7768,6 @@ export async function updateCourseBundles(
     try {
         // 1. Handle Drills (via course_drill_bundles table)
         const drillIds = relatedItems.filter(i => i.type === 'drill').map(i => i.id);
-        console.log(`Updating drills for course ${courseId}:`, drillIds);
 
         // Delete existing drill bundles
         const { error: delError } = await supabase.from('course_drill_bundles').delete().eq('course_id', courseId);
@@ -7776,7 +7791,6 @@ export async function updateCourseBundles(
 
         // 2. Handle Sparring Videos (via related_items in sparring_videos table)
         const newSparringIds = relatedItems.filter(i => i.type === 'sparring').map(i => i.id);
-        console.log(`Updating sparring for course ${courseId}:`, newSparringIds);
 
         // Get all sparring videos currently linked to this course
         const { data: currentSparring, error: fetchSparError } = await supabase
@@ -8513,7 +8527,12 @@ export async function getSiteSettings(): Promise<SiteSettings | null> {
 
 // --- Vimeo Actions ---
 
-export async function getVimeoThumbnails(vimeoId: string): Promise<{ thumbnails?: { id: string; url: string; active: boolean }[], error?: string }> {
+export async function getVimeoThumbnails(vimeoId: string): Promise<{
+    thumbnails?: { id: string; url: string; active: boolean }[],
+    processing?: boolean,
+    message?: string,
+    error?: string
+}> {
     try {
         const response = await fetch('/api/upload-to-vimeo', {
             method: 'POST',
@@ -8537,9 +8556,37 @@ export async function getVimeoThumbnails(vimeoId: string): Promise<{ thumbnails?
             return { error: data.error || 'Failed to fetch Vimeo thumbnails' };
         }
 
-        return { thumbnails: data.thumbnails };
+        return {
+            thumbnails: data.thumbnails,
+            processing: data.processing,
+            message: data.message
+        };
     } catch (error: any) {
         console.error('Error fetching Vimeo thumbnails:', error);
+        return { error: error.message };
+    }
+}
+
+export async function proxyImageFetch(imageUrl: string): Promise<{ base64?: string; error?: string }> {
+    try {
+        const response = await fetch('/api/upload-to-vimeo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'proxy_image',
+                imageUrl
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            return { error: data.error || 'Failed to fetch image' };
+        }
+
+        return { base64: data.base64 };
+    } catch (error: any) {
+        console.error('Error proxying image:', error);
         return { error: error.message };
     }
 }

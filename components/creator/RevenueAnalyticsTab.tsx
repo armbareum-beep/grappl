@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { DollarSign, TrendingUp, Download, Wallet, ArrowRight, MessageCircle } from 'lucide-react';
 import { Button } from '../Button';
 import { useToast } from '../../contexts/ToastContext';
+import { ConfirmModal } from '../common/ConfirmModal';
 
 interface MonthlyStat {
     period: string;
@@ -39,6 +40,7 @@ export const RevenueAnalyticsTab: React.FC = () => {
     const [feedbackCount, setFeedbackCount] = useState(0);
     const [directRevenue, setDirectRevenue] = useState(0);
     const [subscriptionRevenue, setSubscriptionRevenue] = useState(0);
+    const [showPayoutConfirm, setShowPayoutConfirm] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -91,16 +93,16 @@ export const RevenueAnalyticsTab: React.FC = () => {
         }
     };
 
-    const handlePayoutRequest = async () => {
+    const handlePayoutRequest = () => {
         if (availableBalance < 10000) {
             toastError('최소 정산 신청 금액은 10,000원입니다.');
             return;
         }
+        setShowPayoutConfirm(true);
+    };
 
-        if (!window.confirm(`${formatCurrency(availableBalance)} 정산 신청을 하시겠습니까?`)) {
-            return;
-        }
-
+    const confirmPayoutRequest = async () => {
+        setShowPayoutConfirm(false);
         setSubmitting(true);
         try {
             const { error } = await submitPayout(availableBalance);
@@ -369,6 +371,18 @@ export const RevenueAnalyticsTab: React.FC = () => {
                     </table>
                 </div>
             </div>
+
+            <ConfirmModal
+                isOpen={showPayoutConfirm}
+                onClose={() => setShowPayoutConfirm(false)}
+                onConfirm={confirmPayoutRequest}
+                title="정산 신청"
+                message={`${formatCurrency(availableBalance)} 정산 신청을 하시겠습니까?`}
+                confirmText="신청하기"
+                cancelText="취소"
+                variant="warning"
+                isLoading={submitting}
+            />
         </div>
     );
 };

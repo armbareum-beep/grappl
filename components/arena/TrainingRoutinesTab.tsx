@@ -543,7 +543,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                                 const cardContent = (
                                     <>
                                         <div className="w-20 h-12 bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0 relative">
-                                            <img src={drill.thumbnailUrl} alt={drill.title} className="w-full h-full object-cover" />
+                                            <img src={drill.thumbnailUrl} alt={drill.title} loading="lazy" className="w-full h-full object-cover" />
                                             {isSelectionMode && selectedDrills.has(drill.id) && (
                                                 <div className="absolute inset-0 bg-violet-600/50 flex items-center justify-center">
                                                     <Check className="w-6 h-6 text-white" />
@@ -701,7 +701,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                                             {/* Icon */}
                                             <div className="w-16 h-20 bg-zinc-800 rounded-xl overflow-hidden flex-shrink-0 relative border border-zinc-800 shadow-sm">
                                                 {routine.thumbnailUrl ? (
-                                                    <img src={routine.thumbnailUrl} alt={routine.title} className="w-full h-full object-cover" />
+                                                    <img src={routine.thumbnailUrl} alt={routine.title} loading="lazy" className="w-full h-full object-cover" />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center">
                                                         <PlaySquare className="w-6 h-6 text-zinc-700" />
@@ -805,6 +805,7 @@ export const TrainingRoutinesTab: React.FC = () => {
                                                     draggable={false}
                                                     src={routine.thumbnailUrl}
                                                     alt={routine.title}
+                                                    loading="lazy"
                                                     className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105`}
                                                 />
                                             ) : (

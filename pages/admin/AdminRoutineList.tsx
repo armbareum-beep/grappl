@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { getRoutines, deleteRoutine } from '../../lib/api-admin';
 import { updateRoutine } from '../../lib/api';
 import { DrillRoutine, Difficulty } from '../../types';
+import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { Trash2, Eye, Search, Plus, ArrowLeft, Activity, Edit } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -58,6 +59,8 @@ export const AdminRoutineList: React.FC = () => {
     const [routines, setRoutines] = useState<DrillRoutine[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; routineId: string | null }>({ isOpen: false, routineId: null });
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         fetchRoutines();
@@ -87,18 +90,26 @@ export const AdminRoutineList: React.FC = () => {
         }
     };
 
-    const handleDelete = async (routineId: string) => {
-        if (!window.confirm('정말로 이 루틴을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
+    const handleDeleteClick = (routineId: string) => {
+        setDeleteModal({ isOpen: true, routineId });
+    };
 
+    const handleDeleteConfirm = async () => {
+        if (!deleteModal.routineId) return;
+
+        setIsDeleting(true);
         try {
-            const { error } = await deleteRoutine(routineId);
+            const { error } = await deleteRoutine(deleteModal.routineId);
             if (error) throw error;
 
-            setRoutines(routines.filter(r => r.id !== routineId));
+            setRoutines(routines.filter(r => r.id !== deleteModal.routineId));
             success('루틴이 삭제되었습니다.');
+            setDeleteModal({ isOpen: false, routineId: null });
         } catch (error) {
             console.error('Error deleting routine:', error);
             toastError('삭제 중 오류가 발생했습니다.');
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -194,7 +205,7 @@ export const AdminRoutineList: React.FC = () => {
                                             <div className="flex items-center gap-5">
                                                 <div className="w-14 h-14 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden flex items-center justify-center text-zinc-400 group-hover:border-violet-500/30 group-hover:bg-violet-500/5 transition-all shadow-sm">
                                                     {(routine as any).thumbnailUrl || (routine as any).thumbnail_url ? (
-                                                        <img src={(routine as any).thumbnailUrl || (routine as any).thumbnail_url} className="w-full h-full object-cover" alt="" />
+                                                        <img src={(routine as any).thumbnailUrl || (routine as any).thumbnail_url} loading="lazy" className="w-full h-full object-cover" alt={`${routine.title} 썸네일`} />
                                                     ) : (
                                                         <Activity className="h-7 w-7 group-hover:text-violet-400 transition-colors" />
                                                     )}
@@ -252,7 +263,7 @@ export const AdminRoutineList: React.FC = () => {
                                                     </button>
                                                 </Link>
                                                 <button
-                                                    onClick={() => handleDelete(routine.id)}
+                                                    onClick={() => handleDeleteClick(routine.id)}
                                                     className="p-3 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-500 hover:text-rose-400 hover:border-rose-500/30 hover:bg-rose-500/5 transition-all"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
@@ -287,7 +298,7 @@ export const AdminRoutineList: React.FC = () => {
                                 <div className="flex gap-4 mb-4">
                                     <div className="w-20 h-20 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden flex items-center justify-center text-zinc-400 shadow-sm flex-shrink-0">
                                         {(routine as any).thumbnailUrl || (routine as any).thumbnail_url ? (
-                                            <img src={(routine as any).thumbnailUrl || (routine as any).thumbnail_url} className="w-full h-full object-cover" alt="" />
+                                            <img src={(routine as any).thumbnailUrl || (routine as any).thumbnail_url} loading="lazy" className="w-full h-full object-cover" alt={`${routine.title} 썸네일`} />
                                         ) : (
                                             <Activity className="h-8 w-8" />
                                         )}
@@ -338,7 +349,7 @@ export const AdminRoutineList: React.FC = () => {
                                         </button>
                                     </Link>
                                     <button
-                                        onClick={() => handleDelete(routine.id)}
+                                        onClick={() => handleDeleteClick(routine.id)}
                                         className="w-full py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-500 hover:text-rose-400 hover:border-rose-500/30 transition-all text-xs font-bold"
                                     >
                                         Delete
@@ -349,6 +360,18 @@ export const AdminRoutineList: React.FC = () => {
                     )}
                 </div>
             </div>
+
+            <ConfirmModal
+                isOpen={deleteModal.isOpen}
+                onClose={() => setDeleteModal({ isOpen: false, routineId: null })}
+                onConfirm={handleDeleteConfirm}
+                title="루틴 삭제"
+                message="정말로 이 루틴을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+                confirmText="삭제"
+                cancelText="취소"
+                variant="danger"
+                isLoading={isDeleting}
+            />
         </div>
     );
 };

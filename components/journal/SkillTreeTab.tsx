@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
+import { ConfirmModal } from '../common/ConfirmModal';
 import {
     getUserSkills,
     upsertUserSkill,
@@ -31,6 +33,7 @@ const CATEGORIES: { name: SkillCategory; icon: any; color: string }[] = [
 
 export const SkillTreeTab: React.FC = () => {
     const { user } = useAuth();
+    const { success, warning } = useToast();
     const [skills, setSkills] = useState<UserSkill[]>([]);
     const [subcategories, setSubcategories] = useState<SkillSubcategory[]>([]);
     const [allCourses, setAllCourses] = useState<Course[]>([]);
@@ -46,6 +49,8 @@ export const SkillTreeTab: React.FC = () => {
     const [showMasteryModal, setShowMasteryModal] = useState(false);
     const [masteryData, setMasteryData] = useState<{ courseTitle: string; xpEarned: number; leveledUp: boolean; newLevel?: number } | null>(null);
     const [arenaStats, setArenaStats] = useState<any>(null);
+    const [deleteSubcategoryConfirmId, setDeleteSubcategoryConfirmId] = useState<string | null>(null);
+    const [removeSkillConfirmId, setRemoveSkillConfirmId] = useState<string | null>(null);
 
     useEffect(() => {
         loadData();
@@ -95,13 +100,18 @@ export const SkillTreeTab: React.FC = () => {
         }
     };
 
-    const handleDeleteSubcategory = async (subcategoryId: string) => {
-        if (!confirm('이 서브카테고리와 포함된 모든 강좌를 삭제하시겠습니까?')) return;
+    const handleDeleteSubcategoryRequest = (subcategoryId: string) => {
+        setDeleteSubcategoryConfirmId(subcategoryId);
+    };
 
-        const { error } = await deleteSkillSubcategory(subcategoryId);
+    const handleConfirmDeleteSubcategory = async () => {
+        if (!deleteSubcategoryConfirmId) return;
+
+        const { error } = await deleteSkillSubcategory(deleteSubcategoryConfirmId);
         if (!error) {
             await loadData();
         }
+        setDeleteSubcategoryConfirmId(null);
     };
 
     const handleAddCourse = async (courseId: string) => {
@@ -123,13 +133,13 @@ export const SkillTreeTab: React.FC = () => {
         if (newStatus === 'mastered') {
             const isPurchased = purchasedCourseIds.includes(skill.courseId);
             if (!isPurchased) {
-                alert('강좌를 구매해야 마스터할 수 있습니다.');
+                warning('강좌를 구매해야 마스터할 수 있습니다.');
                 return;
             }
 
             const progress = await getCourseProgress(user.id, skill.courseId);
             if (progress.percentage < 100) {
-                alert('강좌를 100% 수강해야 마스터할 수 있습니다.');
+                warning('강좌를 100% 수강해야 마스터할 수 있습니다.');
                 return;
             }
 
@@ -150,12 +160,19 @@ export const SkillTreeTab: React.FC = () => {
         await loadData();
     };
 
-    const handleRemoveCourse = async (skillId: string) => {
-        if (!user || !confirm('이 강좌를 스킬 트리에서 제거하시겠습니까?')) return;
-        const { error } = await deleteUserSkill(skillId);
+    const handleRemoveCourseRequest = (skillId: string) => {
+        if (!user) return;
+        setRemoveSkillConfirmId(skillId);
+    };
+
+    const handleConfirmRemoveCourse = async () => {
+        if (!removeSkillConfirmId) return;
+
+        const { error } = await deleteUserSkill(removeSkillConfirmId);
         if (!error) {
             await loadData();
         }
+        setRemoveSkillConfirmId(null);
     };
 
     const categorySkills = skills.filter(s => s.category === selectedCategory);
@@ -334,9 +351,6 @@ export const SkillTreeTab: React.FC = () => {
                 </button>
                 <button
                     onClick={() => {
-                        console.log('Available courses:', availableCourses);
-                        console.log('All courses:', allCourses);
-                        console.log('Selected category:', selectedCategory);
                         setShowCourseSelector(!showCourseSelector);
                         setShowSubcategoryForm(false);
                     }}
@@ -470,7 +484,7 @@ export const SkillTreeTab: React.FC = () => {
                                     key={skill.id}
                                     skill={skill}
                                     onToggleStatus={handleToggleStatus}
-                                    onRemove={handleRemoveCourse}
+                                    onRemove={handleRemoveCourseRequest}
                                 />
                             ))}
                         </div>
@@ -485,7 +499,7 @@ export const SkillTreeTab: React.FC = () => {
                                 📁 {subcategory.name} ({subcatSkills.length})
                             </h3>
                             <button
-                                onClick={() => handleDeleteSubcategory(subcategory.id)}
+                                onClick={() => handleDeleteSubcategoryRequest(subcategory.id)}
                                 className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                                 title="서브카테고리 삭제"
                             >
@@ -503,7 +517,7 @@ export const SkillTreeTab: React.FC = () => {
                                         key={skill.id}
                                         skill={skill}
                                         onToggleStatus={handleToggleStatus}
-                                        onRemove={handleRemoveCourse}
+                                        onRemove={handleRemoveCourseRequest}
                                     />
                                 ))}
                             </div>
@@ -601,7 +615,7 @@ export const SkillTreeTab: React.FC = () => {
 
                                         setShowMasteryModal(false);
                                         setMasteryData(null);
-                                        alert('피드에 공유되었습니다!');
+                                        success('피드에 공유되었습니다!');
                                     }}
                                     className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-bold"
                                 >
@@ -651,6 +665,28 @@ export const SkillTreeTab: React.FC = () => {
                     animation: bounce-slow 2s ease-in-out infinite;
                 }
             `}</style>
+
+            <ConfirmModal
+                isOpen={deleteSubcategoryConfirmId !== null}
+                onClose={() => setDeleteSubcategoryConfirmId(null)}
+                onConfirm={handleConfirmDeleteSubcategory}
+                title="서브카테고리 삭제"
+                message="이 서브카테고리와 포함된 모든 강좌를 삭제하시겠습니까?"
+                confirmText="삭제"
+                cancelText="취소"
+                variant="danger"
+            />
+
+            <ConfirmModal
+                isOpen={removeSkillConfirmId !== null}
+                onClose={() => setRemoveSkillConfirmId(null)}
+                onConfirm={handleConfirmRemoveCourse}
+                title="강좌 제거"
+                message="이 강좌를 스킬 트리에서 제거하시겠습니까?"
+                confirmText="제거"
+                cancelText="취소"
+                variant="danger"
+            />
         </div>
     );
 };

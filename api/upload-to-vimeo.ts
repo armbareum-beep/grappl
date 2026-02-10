@@ -83,9 +83,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     name: title,
                     description: description || 'Uploaded from Grapplay',
                     privacy: {
-                        view: 'anybody',
-                        embed: 'public'
-                    }
+                        view: 'disable',
+                        embed: 'whitelist'
+                    },
+                    embed_domains: ['grapplay.com', 'www.grapplay.com', 'localhost']
                 })
             });
 
@@ -270,7 +271,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(200).json({ success: true });
         }
 
-        // --- Action 3: Get Thumbnails (auto-generates if only 1 exists) ---
+        // --- Action 3: Get Thumbnails (auto-generates if few exist) ---
         if (action === 'get_vimeo_thumbnails') {
             if (!vimeoId) throw new Error('vimeoId is required');
 
@@ -280,8 +281,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 'Accept': 'application/vnd.vimeo.*+json;version=3.4'
             };
 
+            // First check video status
+            const videoRes = await fetch(`https://api.vimeo.com/videos/${cleanId}`, {
+                headers: vimeoHeaders
+            });
+
+            if (!videoRes.ok) {
+                const errorText = await videoRes.text();
+                throw new Error(`Vimeo video fetch failed: ${errorText}`);
+            }
+
+            const videoInfo = await videoRes.json();
+            const videoStatus = videoInfo.status;
+            const duration = videoInfo.duration || 0;
+
+            console.log('[Vimeo] Video status:', videoStatus, 'Duration:', duration);
+
+            // If video is still processing, return early with message
+            if (videoStatus !== 'available') {
+                return res.status(200).json({
+                    thumbnails: [],
+                    processing: true,
+                    message: '영상이 아직 처리 중입니다. 잠시 후 다시 시도해주세요.'
+                });
+            }
+
             // Fetch existing pictures
-            const response = await fetch(`https://api.vimeo.com/videos/${cleanId}/pictures`, {
+            const response = await fetch(`https://api.vimeo.com/videos/${cleanId}/pictures?per_page=10`, {
                 headers: vimeoHeaders
             });
 
@@ -293,45 +319,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             let data = await response.json();
             const existingCount = (data.data || []).length;
 
-            // Auto-generate thumbnails at different time points if few exist
-            if (existingCount <= 1) {
+            console.log('[Vimeo] Existing thumbnails:', existingCount);
+
+            // Auto-generate thumbnails at different time points if few exist (less than 5)
+            if (existingCount < 5 && duration > 2) {
                 try {
-                    // Get video duration
-                    const videoRes = await fetch(`https://api.vimeo.com/videos/${cleanId}`, {
-                        headers: vimeoHeaders
+                    // Generate thumbnails at 10%, 30%, 50%, 70%, 90% of video
+                    const timePoints = [0.1, 0.3, 0.5, 0.7, 0.9]
+                        .map(pct => Math.round(pct * duration * 100) / 100)
+                        .filter(t => t > 0 && t < duration);
+
+                    console.log('[Vimeo] Generating thumbnails at:', timePoints);
+
+                    const results = await Promise.allSettled(
+                        timePoints.map(time =>
+                            fetch(`https://api.vimeo.com/videos/${cleanId}/pictures`, {
+                                method: 'POST',
+                                headers: { ...vimeoHeaders, 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ time, active: false })
+                            })
+                        )
+                    );
+
+                    // Log results for debugging
+                    results.forEach((r, i) => {
+                        if (r.status === 'fulfilled') {
+                            console.log(`[Vimeo] Thumbnail ${i} request: ${r.value.status}`);
+                        } else {
+                            console.log(`[Vimeo] Thumbnail ${i} failed:`, r.reason);
+                        }
                     });
 
-                    if (videoRes.ok) {
-                        const videoInfo = await videoRes.json();
-                        const duration = videoInfo.duration || 0;
+                    // Wait a bit for Vimeo to process (thumbnails are async)
+                    await new Promise(resolve => setTimeout(resolve, 2000));
 
-                        if (duration > 2) {
-                            // Generate thumbnails at 10%, 30%, 50%, 70%, 90% of video
-                            const timePoints = [0.1, 0.3, 0.5, 0.7, 0.9]
-                                .map(pct => Math.round(pct * duration * 100) / 100)
-                                .filter(t => t > 0 && t < duration);
-
-                            await Promise.allSettled(
-                                timePoints.map(time =>
-                                    fetch(`https://api.vimeo.com/videos/${cleanId}/pictures`, {
-                                        method: 'POST',
-                                        headers: { ...vimeoHeaders, 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ time, active: false })
-                                    })
-                                )
-                            );
-
-                            // Re-fetch all pictures including newly generated
-                            const refreshRes = await fetch(`https://api.vimeo.com/videos/${cleanId}/pictures?per_page=10`, {
-                                headers: vimeoHeaders
-                            });
-                            if (refreshRes.ok) {
-                                data = await refreshRes.json();
-                            }
-                        }
+                    // Re-fetch all pictures including newly generated
+                    const refreshRes = await fetch(`https://api.vimeo.com/videos/${cleanId}/pictures?per_page=10`, {
+                        headers: vimeoHeaders
+                    });
+                    if (refreshRes.ok) {
+                        data = await refreshRes.json();
+                        console.log('[Vimeo] After generation, thumbnails:', (data.data || []).length);
                     }
                 } catch (genErr) {
-                    console.warn('[Vercel] Thumbnail generation failed, returning existing:', genErr);
+                    console.warn('[Vimeo] Thumbnail generation failed:', genErr);
                 }
             }
 
@@ -346,6 +377,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
 
             return res.status(200).json({ thumbnails });
+        }
+
+        // --- Action 4: Proxy image fetch (bypasses CORS) ---
+        if (action === 'proxy_image') {
+            const { imageUrl } = req.body;
+            if (!imageUrl) throw new Error('imageUrl is required');
+
+            // Only allow Vimeo CDN URLs for security
+            if (!imageUrl.includes('vimeocdn.com') && !imageUrl.includes('vimeo.com')) {
+                throw new Error('Only Vimeo image URLs are allowed');
+            }
+
+            const imageResponse = await fetch(imageUrl);
+            if (!imageResponse.ok) throw new Error('Failed to fetch image');
+
+            const arrayBuffer = await imageResponse.arrayBuffer();
+            const base64 = Buffer.from(arrayBuffer).toString('base64');
+            const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+
+            return res.status(200).json({
+                base64: `data:${contentType};base64,${base64}`
+            });
         }
 
         return res.status(400).json({ error: 'Invalid action' });

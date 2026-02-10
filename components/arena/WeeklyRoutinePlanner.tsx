@@ -5,6 +5,7 @@ import { Calendar, Trash2, Clock, Play, Share2, Download, Save, FolderOpen, File
 import { toPng } from 'html-to-image';
 import { ShareModal } from '../../components/social/ShareModal';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import {
     saveWeeklyRoutinePlan,
     listUserWeeklyRoutinePlans,
@@ -35,6 +36,7 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
     guestRoutines = []
 }) => {
     const { user } = useAuth();
+    const { error: toastError, warning } = useToast();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [schedule, setSchedule] = useState<WeeklySchedule>({
@@ -51,6 +53,7 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [isLoadModalOpen, setIsLoadModalOpen] = useState(false);
     const [isSavingPlan, setIsSavingPlan] = useState(false);
+    const [deleteConfirmPlanId, setDeleteConfirmPlanId] = useState<string | null>(null);
 
     // Mouse drag scroll state
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -175,7 +178,7 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
 
     const handleOpenSaveModal = async () => {
         if (!user) {
-            alert('로그인 후 이용해주세요.');
+            warning('로그인 후 이용해주세요.');
             return;
         }
         // Capture thumbnail before opening modal
@@ -206,7 +209,7 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
             }
         } catch (err) {
             console.error('Save failed:', err);
-            alert('저장에 실패했습니다.');
+            toastError('저장에 실패했습니다.');
         } finally {
             setIsSavingPlan(false);
         }
@@ -214,7 +217,7 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
 
     const handleOpenLoadModal = async () => {
         if (!user) {
-            alert('로그인 후 이용해주세요.');
+            warning('로그인 후 이용해주세요.');
             return;
         }
 
@@ -226,7 +229,7 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
             }
         } catch (err) {
             console.error('Failed to list plans:', err);
-            alert('목록을 불러오는데 실패했습니다.');
+            toastError('목록을 불러오는데 실패했습니다.');
         }
     };
 
@@ -244,24 +247,30 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
             }
         } catch (err) {
             console.error('Load failed:', err);
-            alert('루틴을 불러오는데 실패했습니다.');
+            toastError('루틴을 불러오는데 실패했습니다.');
         }
     };
 
-    const handleDeletePlan = async (id: string, e: React.MouseEvent) => {
+    const handleDeletePlanRequest = (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (!window.confirm('정말 이 루틴을 삭제하시겠습니까?')) return;
+        setDeleteConfirmPlanId(id);
+    };
+
+    const handleConfirmDeletePlan = async () => {
+        if (!deleteConfirmPlanId) return;
 
         try {
-            await deleteWeeklyRoutinePlan(id);
-            setSavedPlans(prev => prev.filter(p => p.id !== id));
-            if (currentPlanId === id) {
+            await deleteWeeklyRoutinePlan(deleteConfirmPlanId);
+            setSavedPlans(prev => prev.filter(p => p.id !== deleteConfirmPlanId));
+            if (currentPlanId === deleteConfirmPlanId) {
                 setCurrentPlanId(null);
                 setCurrentPlanTitle('나의 주간 루틴');
             }
         } catch (err) {
             console.error('Delete failed:', err);
-            alert('삭제에 실패했습니다.');
+            toastError('삭제에 실패했습니다.');
+        } finally {
+            setDeleteConfirmPlanId(null);
         }
     };
 
@@ -318,7 +327,7 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
                 setCapturedImage(dataUrl);
                 setShareModalOpen(true);
             } else {
-                alert('이미지 생성에 실패했습니다. 다시 시도해주세요.');
+                toastError('이미지 생성에 실패했습니다. 다시 시도해주세요.');
             }
         } finally {
             setIsSharing(false);
@@ -338,7 +347,7 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
                 link.href = dataUrl;
                 link.click();
             } else {
-                alert('이미지 저장에 실패했습니다.');
+                toastError('이미지 저장에 실패했습니다.');
             }
         } finally {
             setIsSharing(false);
@@ -366,7 +375,7 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
 
             // Check for duplicates in the same day (optional, but good UX)
             if (schedule[day].some((r: DrillRoutine) => r.id === routine.id)) {
-                alert('이미 해당 요일에 추가된 루틴입니다.');
+                warning('이미 해당 요일에 추가된 루틴입니다.');
                 return;
             }
 
@@ -755,7 +764,18 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
                 onClose={() => setIsLoadModalOpen(false)}
                 plans={savedPlans}
                 onLoad={handleLoadPlan}
-                onDelete={handleDeletePlan}
+                onDelete={handleDeletePlanRequest}
+            />
+
+            <ConfirmModal
+                isOpen={deleteConfirmPlanId !== null}
+                onClose={() => setDeleteConfirmPlanId(null)}
+                onConfirm={handleConfirmDeletePlan}
+                title="루틴 삭제"
+                message="정말 이 루틴을 삭제하시겠습니까?"
+                confirmText="삭제"
+                cancelText="취소"
+                variant="danger"
             />
         </div>
     );

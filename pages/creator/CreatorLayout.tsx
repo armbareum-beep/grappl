@@ -15,7 +15,7 @@ export const CreatorLayout: React.FC = () => {
             <div className="w-64 bg-slate-900 border-r border-slate-800 hidden md:block fixed h-full z-10">
                 <div className="p-6 border-b border-slate-800">
                     <Link to="/" className="flex items-center gap-2">
-                        <img src="/logo_v2.png" alt="Grapplay" className="h-12 w-auto object-contain mix-blend-screen" />
+                        <img src="/logo_v2.png" alt="Grapplay" loading="lazy" className="h-12 w-auto object-contain mix-blend-screen" />
                         <span className="text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full border border-slate-700">Creator</span>
                     </Link>
                 </div>

@@ -458,7 +458,7 @@ export const UploadLesson: React.FC = () => {
                         </div>
                         {thumbnailUrl && (
                             <div className="w-48 aspect-video rounded-xl overflow-hidden border border-zinc-800">
-                                <img src={thumbnailUrl} alt="Thumbnail" className="w-full h-full object-cover" />
+                                <img src={thumbnailUrl} alt="Thumbnail" loading="lazy" className="w-full h-full object-cover" />
                             </div>
                         )}
                     </div>

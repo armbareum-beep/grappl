@@ -59,6 +59,7 @@ export const TrendingSparringSection: React.FC<TrendingSporringSectionProps> = (
                                 <img
                                     src={video.thumbnailUrl}
                                     alt={video.title}
+                                    loading="lazy"
                                     className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
                                 />
                             ) : (
@@ -99,7 +100,7 @@ export const TrendingSparringSection: React.FC<TrendingSporringSectionProps> = (
                             >
                                 <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 overflow-hidden hover:border-violet-500/50 transition-colors">
                                     {(video.creatorProfileImage || video.creator?.profileImage) ? (
-                                        <img src={video.creatorProfileImage || video.creator?.profileImage} alt={video.creator?.name} className="w-full h-full object-cover" />
+                                        <img src={video.creatorProfileImage || video.creator?.profileImage} alt={video.creator?.name} loading="lazy" className="w-full h-full object-cover" />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">
                                             {video.creator?.name?.charAt(0)}

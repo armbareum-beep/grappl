@@ -1,6 +1,8 @@
 import React from 'react';
 // FORCE HMR UPDATE APP - NEW UI TEST
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
+import { SpeedInsights } from '@vercel/speed-insights/react';
+import { Analytics } from '@vercel/analytics/react';
 import { Layout } from './components/Layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LoadingScreen } from './components/LoadingScreen';
@@ -9,6 +11,7 @@ import { ToastProvider } from './contexts/ToastContext';
 import { BackgroundUploadProvider } from './contexts/BackgroundUploadContext';
 import { VideoPreloadProvider } from './contexts/VideoPreloadContext';
 import { GlobalUploadProgress } from './components/GlobalUploadProgress';
+import { GlobalDrillPreloader } from './components/GlobalDrillPreloader';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminRoute } from './components/AdminRoute';
 import { VersionChecker } from './components/VersionChecker';
@@ -124,8 +127,6 @@ const OAuthRedirectHandler: React.FC = () => {
         if (savedPath && savedPath !== '/login' && savedPath !== '/' && savedPath !== location.pathname) {
           localStorage.removeItem('oauth_redirect_path');
           setHasChecked(true);
-
-          console.log('OAuth redirect to:', savedPath);
           setTimeout(() => {
             if (window.location.pathname !== savedPath) {
               window.location.href = savedPath;
@@ -245,6 +246,7 @@ const App: React.FC = () => {
         <BackgroundUploadProvider>
           <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <VideoPreloadProvider>
+              <GlobalDrillPreloader />
               <OAuthRedirectHandler />
               <ScrollToRestore />
               <Layout>
@@ -363,6 +365,8 @@ const App: React.FC = () => {
           <GlobalUploadProgress />
         </BackgroundUploadProvider>
       </ToastProvider>
+      <SpeedInsights />
+      <Analytics />
     </ErrorBoundary>
   );
 };

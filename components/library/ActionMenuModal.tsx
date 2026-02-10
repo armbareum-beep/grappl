@@ -39,6 +39,7 @@ export const ActionMenuModal: React.FC<ActionMenuModalProps> = ({
                     <img
                         src={item.thumbnailUrl}
                         alt={item.title}
+                        loading="lazy"
                         className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-transparent" />
@@ -67,7 +68,7 @@ export const ActionMenuModal: React.FC<ActionMenuModalProps> = ({
                             <div className="flex items-center gap-2">
                                 <div className="w-6 h-6 rounded-full bg-zinc-800 overflow-hidden border border-zinc-700">
                                     {item.creatorProfileImage ? (
-                                        <img src={item.creatorProfileImage} alt={item.creatorName} className="w-full h-full object-cover" />
+                                        <img src={item.creatorProfileImage} alt={item.creatorName} loading="lazy" className="w-full h-full object-cover" />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-[8px] text-zinc-500 font-bold">
                                             {item.creatorName?.charAt(0)}

@@ -1,7 +1,7 @@
-
 import React, { useState } from 'react';
 import { Calendar, User, Clock, Download, Dumbbell, Globe } from 'lucide-react';
 import { format } from 'date-fns';
+import { useToast } from '../../contexts/ToastContext';
 
 // Mock data for shared weekly routines
 // In a real implementation, this would come from a 'user_weekly_schedules' table
@@ -51,11 +51,12 @@ const SHARED_SCHEDULES = [
 ];
 
 export const SharedRoutineLibrary: React.FC = () => {
+    const { success } = useToast();
     const [schedules, setSchedules] = useState(SHARED_SCHEDULES);
 
     const handleImport = (id: string, title: string) => {
         // In a real app, this would fetch the schedule JSON and save it to the user's local storage or backend
-        alert(`'${title}' 스케줄을 내 캘린더로 가져왔습니다! (Mock Alert)`);
+        success(`'${title}' 스케줄을 내 캘린더로 가져왔습니다!`);
     };
 
     return (
@@ -128,7 +129,7 @@ export const SharedRoutineLibrary: React.FC = () => {
                                 <div className="flex items-center gap-2">
                                     <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden">
                                         {schedule.creatorAvatar ? (
-                                            <img src={schedule.creatorAvatar} alt="" className="w-full h-full object-cover" />
+                                            <img src={schedule.creatorAvatar} alt={schedule.creatorName || "프로필"} loading="lazy" className="w-full h-full object-cover" />
                                         ) : (
                                             <User className="w-3.5 h-3.5 text-zinc-500" />
                                         )}

@@ -4,6 +4,7 @@ import { getDrills, updateDrill } from '../../lib/api';
 import { deleteDrill } from '../../lib/api-admin';
 import { Drill, Difficulty } from '../../types';
 import { Button } from '../../components/Button';
+import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { Trash2, Eye, Search, Plus, ArrowLeft, PlayCircle, Edit } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -58,6 +59,8 @@ export const AdminDrillList: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const { success, error: toastError } = useToast();
+    const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; drillId: string | null }>({ isOpen: false, drillId: null });
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         fetchDrills();
@@ -87,18 +90,26 @@ export const AdminDrillList: React.FC = () => {
         }
     };
 
-    const handleDelete = async (drillId: string) => {
-        if (!window.confirm('정말로 이 드릴을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
+    const handleDeleteClick = (drillId: string) => {
+        setDeleteModal({ isOpen: true, drillId });
+    };
 
+    const handleDeleteConfirm = async () => {
+        if (!deleteModal.drillId) return;
+
+        setIsDeleting(true);
         try {
-            const { error } = await deleteDrill(drillId);
+            const { error } = await deleteDrill(deleteModal.drillId);
             if (error) throw error;
 
-            setDrills(drills.filter(d => d.id !== drillId));
+            setDrills(drills.filter(d => d.id !== deleteModal.drillId));
             success('드릴이 삭제되었습니다.');
+            setDeleteModal({ isOpen: false, drillId: null });
         } catch (error) {
             console.error('Error deleting drill:', error);
             toastError('삭제 중 오류가 발생했습니다.');
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -174,7 +185,7 @@ export const AdminDrillList: React.FC = () => {
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-16 h-10 bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden flex items-center justify-center text-zinc-600 group-hover:border-violet-500/30 transition-all">
                                                         {drill.thumbnailUrl ? (
-                                                            <img src={drill.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                                            <img src={drill.thumbnailUrl} alt={`${drill.title} 썸네일`} loading="lazy" className="w-full h-full object-cover" />
                                                         ) : (
                                                             <PlayCircle className="w-6 h-6" />
                                                         )}
@@ -200,7 +211,7 @@ export const AdminDrillList: React.FC = () => {
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] text-zinc-500 border border-zinc-700 overflow-hidden">
                                                         {drill.creatorProfileImage ? (
-                                                            <img src={drill.creatorProfileImage} className="w-full h-full object-cover" alt="" />
+                                                            <img src={drill.creatorProfileImage} loading="lazy" className="w-full h-full object-cover" alt="프로필" />
                                                         ) : (
                                                             drill.creatorName?.charAt(0) || 'U'
                                                         )}
@@ -232,7 +243,7 @@ export const AdminDrillList: React.FC = () => {
                                                         </button>
                                                     </Link>
                                                     <button
-                                                        onClick={() => handleDelete(drill.id)}
+                                                        onClick={() => handleDeleteClick(drill.id)}
                                                         className="p-2.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
                                                     >
                                                         <Trash2 className="w-4 h-4" />
@@ -261,7 +272,7 @@ export const AdminDrillList: React.FC = () => {
                                 <div className="flex gap-4 mb-4">
                                     <div className="w-20 h-20 bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden flex items-center justify-center text-zinc-600 flex-shrink-0">
                                         {drill.thumbnailUrl ? (
-                                            <img src={drill.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                            <img src={drill.thumbnailUrl} alt={`${drill.title} 썸네일`} loading="lazy" className="w-full h-full object-cover" />
                                         ) : (
                                             <PlayCircle className="w-8 h-8" />
                                         )}
@@ -282,7 +293,7 @@ export const AdminDrillList: React.FC = () => {
                                     <div className="flex items-center gap-2 text-xs text-zinc-400">
                                         <div className="w-5 h-5 rounded-full bg-zinc-800 flex items-center justify-center text-[8px] border border-zinc-700 overflow-hidden">
                                             {drill.creatorProfileImage ? (
-                                                <img src={drill.creatorProfileImage} className="w-full h-full object-cover" alt="" />
+                                                <img src={drill.creatorProfileImage} loading="lazy" className="w-full h-full object-cover" alt="프로필" />
                                             ) : (
                                                 drill.creatorName?.charAt(0) || 'U'
                                             )}
@@ -309,7 +320,7 @@ export const AdminDrillList: React.FC = () => {
                                         </button>
                                     </Link>
                                     <button
-                                        onClick={() => handleDelete(drill.id)}
+                                        onClick={() => handleDeleteClick(drill.id)}
                                         className="w-full py-2 bg-zinc-800 text-zinc-400 hover:text-red-400 rounded-xl text-xs font-bold transition-all"
                                     >
                                         Delete
@@ -324,6 +335,18 @@ export const AdminDrillList: React.FC = () => {
                     )}
                 </div>
             </div>
+
+            <ConfirmModal
+                isOpen={deleteModal.isOpen}
+                onClose={() => setDeleteModal({ isOpen: false, drillId: null })}
+                onConfirm={handleDeleteConfirm}
+                title="드릴 삭제"
+                message="정말로 이 드릴을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+                confirmText="삭제"
+                cancelText="취소"
+                variant="danger"
+                isLoading={isDeleting}
+            />
         </div>
     );
 };

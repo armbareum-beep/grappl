@@ -38,7 +38,6 @@ export const analyzeUserDashboard = async (
 ): Promise<GeminiDashboardResult | null> => {
     // Remove quotes and whitespace - common .env issue
     const cleanKey = apiKey.replace(/["']/g, '').trim();
-    console.log('[Gemini Debug] Using Key:', cleanKey.slice(0, 10) + '...'); // Check if key starts correctly
 
     // Upgrading to Gemini 2.0 Flash for best performance in 2026
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${cleanKey}`;
@@ -126,7 +125,6 @@ export const analyzeUserDashboard = async (
 export const analyzeSparringLogs = async (logs: TrainingLog[], apiKey: string): Promise<GeminiAnalysisResult[]> => {
     // Remove quotes and whitespace - common .env issue
     const cleanKey = apiKey.replace(/["']/g, '').trim();
-    console.log('[Gemini Debug] Using Key:', cleanKey.slice(0, 10) + '...'); // Check if key starts correctly
 
     // Upgrading to Gemini 2.0 Flash for best performance in 2026
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${cleanKey}`;

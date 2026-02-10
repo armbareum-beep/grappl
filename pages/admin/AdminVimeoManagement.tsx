@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { getVimeoOrphans, deleteVimeoVideo, VimeoOrphan } from '../../lib/api-admin';
 import { useToast } from '../../contexts/ToastContext';
 import { Button } from '../../components/Button';
+import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { format } from 'date-fns';
 
 export const AdminVimeoManagement: React.FC = () => {
@@ -17,6 +18,7 @@ export const AdminVimeoManagement: React.FC = () => {
     const [data, setData] = useState<{ count: number; total: number; orphans: VimeoOrphan[] } | null>(null);
     const { success, error: toastError } = useToast();
     const [searchTerm, setSearchTerm] = useState('');
+    const [confirmModal, setConfirmModal] = useState<{isOpen: boolean; action: () => void; title: string; message: string}>({isOpen: false, action: () => {}, title: '', message: ''});
 
     const loadOrphans = async () => {
         try {
@@ -36,22 +38,28 @@ export const AdminVimeoManagement: React.FC = () => {
     }, []);
 
     const handleDelete = async (videoId: string, name: string) => {
-        if (!window.confirm(`"${name}" 영상을 Vimeo에서 영구 삭제하시겠습니까?`)) return;
-
-        try {
-            setDeletingId(videoId);
-            await deleteVimeoVideo(videoId);
-            success('영상이 삭제되었습니다.');
-            setData(prev => prev ? {
-                ...prev,
-                count: prev.count - 1,
-                orphans: prev.orphans.filter(o => o.id !== videoId)
-            } : null);
-        } catch (err: any) {
-            toastError('삭제에 실패했습니다.');
-        } finally {
-            setDeletingId(null);
-        }
+        setConfirmModal({
+            isOpen: true,
+            title: '영상 삭제 확인',
+            message: `"${name}" 영상을 Vimeo에서 영구 삭제하시겠습니까?`,
+            action: async () => {
+                try {
+                    setDeletingId(videoId);
+                    await deleteVimeoVideo(videoId);
+                    success('영상이 삭제되었습니다.');
+                    setData(prev => prev ? {
+                        ...prev,
+                        count: prev.count - 1,
+                        orphans: prev.orphans.filter(o => o.id !== videoId)
+                    } : null);
+                } catch (err: any) {
+                    toastError('삭제에 실패했습니다.');
+                } finally {
+                    setDeletingId(null);
+                    setConfirmModal(prev => ({...prev, isOpen: false}));
+                }
+            }
+        });
     };
 
     const filteredOrphans = data?.orphans.filter(o =>
@@ -190,7 +198,7 @@ export const AdminVimeoManagement: React.FC = () => {
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-20 aspect-video bg-zinc-800 rounded-lg overflow-hidden shrink-0 border border-white/5">
                                                         {video.thumbnail ? (
-                                                            <img src={video.thumbnail} alt="" className="w-full h-full object-cover" />
+                                                            <img src={video.thumbnail} alt={video.name || "썸네일"} loading="lazy" className="w-full h-full object-cover" />
                                                         ) : (
                                                             <div className="w-full h-full flex items-center justify-center">
                                                                 <Video className="w-4 h-4 text-zinc-600" />
@@ -252,6 +260,15 @@ export const AdminVimeoManagement: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal(prev => ({...prev, isOpen: false}))}
+                onConfirm={confirmModal.action}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                variant="danger"
+            />
         </div>
     );
 };

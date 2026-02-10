@@ -13,6 +13,7 @@ import {
 import { ImageUploader } from '../ImageUploader';
 import { VideoEditor } from '../VideoEditor';
 import { Scissors } from 'lucide-react'; // Import Scissors
+import { useToast } from '../../contexts/ToastContext';
 
 // Content Types
 type ContentType = 'course' | 'routine' | 'sparring';
@@ -77,6 +78,7 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
 }) => {
     const config = CONTENT_CONFIG[contentType];
     const isEditMode = !!editingItem;
+    const { warning } = useToast();
 
     // Form State
     const [formData, setFormData] = useState({
@@ -316,7 +318,7 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
             if (validLesson?.thumbnailUrl) {
                 setFormData(prev => ({ ...prev, thumbnailUrl: validLesson.thumbnailUrl! }));
             } else {
-                alert('선택된 레슨 중 썸네일이 있는 레슨이 없습니다.');
+                warning('선택된 레슨 중 썸네일이 있는 레슨이 없습니다.');
             }
         } else if (contentType === 'routine' && selectedDrillIds.length > 0) {
             const validDrill = drills
@@ -326,7 +328,7 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
             if (validDrill?.thumbnailUrl) {
                 setFormData(prev => ({ ...prev, thumbnailUrl: validDrill.thumbnailUrl }));
             } else {
-                alert('선택된 드릴 중 썸네일이 있는 드릴이 없습니다.');
+                warning('선택된 드릴 중 썸네일이 있는 드릴이 없습니다.');
             }
         }
     };
@@ -849,7 +851,7 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                                             </div>
                                             <div className="w-16 h-12 rounded-lg bg-zinc-800 overflow-hidden flex-shrink-0">
                                                 {lesson.thumbnailUrl ? (
-                                                    <img src={lesson.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                                    <img src={lesson.thumbnailUrl} alt={lesson.title || "썸네일"} loading="lazy" className="w-full h-full object-cover" />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center">
                                                         <PlayCircle className="w-5 h-5 text-zinc-600" />
@@ -889,7 +891,7 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                                             </div>
                                             <div className="w-12 h-12 rounded-lg bg-zinc-800 overflow-hidden flex-shrink-0">
                                                 {drill.thumbnailUrl ? (
-                                                    <img src={drill.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                                    <img src={drill.thumbnailUrl} alt={drill.title || "썸네일"} loading="lazy" className="w-full h-full object-cover" />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center">
                                                         <Grid className="w-5 h-5 text-zinc-600" />
@@ -1024,7 +1026,7 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                                         >
                                             <div className="w-16 h-10 rounded-lg bg-zinc-800 overflow-hidden flex-shrink-0">
                                                 {video.thumbnailUrl ? (
-                                                    <img src={video.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                                    <img src={video.thumbnailUrl} alt={video.title || "썸네일"} loading="lazy" className="w-full h-full object-cover" />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center">
                                                         <Clapperboard className="w-4 h-4 text-zinc-600" />

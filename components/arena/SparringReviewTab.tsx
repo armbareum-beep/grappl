@@ -103,7 +103,6 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
     useEffect(() => {
         // Only trigger if shareModalData was JUST set (not on mount)
         if (shareModalData && !showQuestModal && !loading && !isCreating && !isShareModalOpen) {
-            console.log('[SparringReviewTab] Auto-opening ShareModal after quest completion');
             setIsShareModalOpen(true);
         }
     }, [shareModalData, showQuestModal, loading, isCreating, isShareModalOpen]);
@@ -191,9 +190,7 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
                 const xpResult = await awardTrainingXP(user.id, 'sparring_review', 20);
 
                 if (xpResult.data) {
-                    if (xpResult.data.alreadyCompletedToday) {
-                        console.log('Already completed training activity today');
-                    } else {
+                    if (!xpResult.data.alreadyCompletedToday) {
                         earnedXpResult = xpResult.data.xpEarned;
                         streak = xpResult.data.streak;
                         bonusXp = xpResult.data.bonusXP;

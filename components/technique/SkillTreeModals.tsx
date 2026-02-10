@@ -243,7 +243,7 @@ export const SaveModal: React.FC<SaveModalProps> = ({
                                 {/* Thumbnail Preview */}
                                 <div className="relative w-full aspect-video bg-zinc-950 rounded-2xl border border-zinc-800 overflow-hidden group">
                                     {thumbnailPreview ? (
-                                        <img src={thumbnailPreview} alt="Preview" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                                        <img src={thumbnailPreview} alt="Preview" loading="lazy" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                                     ) : (
                                         <div className="flex flex-col items-center justify-center h-full text-zinc-600">
                                             <Camera className="w-8 h-8 mb-2 animate-pulse" />
@@ -489,7 +489,7 @@ export const LoadModal: React.FC<LoadModalProps> = ({ isOpen, onClose, trees, on
                                     <div className="flex items-center gap-4">
                                         <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center overflow-hidden">
                                             {tree.thumbnailUrl ? (
-                                                <img src={tree.thumbnailUrl} alt="Thumbnail" className="w-full h-full object-cover" />
+                                                <img src={tree.thumbnailUrl} alt="Thumbnail" loading="lazy" className="w-full h-full object-cover" />
                                             ) : (
                                                 tree.isPublic ? <Globe className="w-4 h-4 text-violet-400" /> : <Lock className="w-4 h-4 text-zinc-600" />
                                             )}

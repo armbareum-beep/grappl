@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, Scissors, Trash2, Check, RotateCcw, Camera, ImagePlus } from 'lucide-react';
 import { Button } from './Button';
 import { ThumbnailCropper } from './ThumbnailCropper';
+import { useToast } from '../contexts/ToastContext';
 
 interface Cut {
     id: string;
@@ -20,6 +21,7 @@ interface VideoEditorProps {
 }
 
 export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCancel, aspectRatio = '16:9', maxDuration, maxCuts, thumbnailAspectRatio }) => {
+    const { warning } = useToast();
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
@@ -145,7 +147,7 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCa
             if (maxDuration) {
                 const currentSelectionDuration = currentTime - selectionStart;
                 if (totalCutsDuration + currentSelectionDuration > maxDuration) {
-                    alert(`총 미리보기 시간은 최대 ${maxDuration}초까지만 선택할 수 있습니다. (현재 총합: ${(totalCutsDuration + currentSelectionDuration).toFixed(1)}초)`);
+                    warning(`총 미리보기 시간은 최대 ${maxDuration}초까지만 선택할 수 있습니다. (현재 총합: ${(totalCutsDuration + currentSelectionDuration).toFixed(1)}초)`);
                     return;
                 }
             }
@@ -156,14 +158,14 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCa
     const handleAddCut = () => {
         // Check max cuts constraint
         if (maxCuts && cuts.length >= maxCuts) {
-            alert(`최대 ${maxCuts}개의 구간만 선택할 수 있습니다.`);
+            warning(`최대 ${maxCuts}개의 구간만 선택할 수 있습니다.`);
             return;
         }
 
         if (selectionStart !== null && selectionEnd !== null) {
             // Double check total duration before adding
             if (maxDuration && (totalCutsDuration + (selectionEnd - selectionStart)) > maxDuration) {
-                alert(`총 미리보기 시간은 최대 ${maxDuration}초까지만 선택할 수 있습니다.`);
+                warning(`총 미리보기 시간은 최대 ${maxDuration}초까지만 선택할 수 있습니다.`);
                 return;
             }
             setCuts([
@@ -265,7 +267,7 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCa
                             {formatTime(currentTime)} <span className="text-zinc-500">/</span> {formatTime(duration)}
                         </div>
                         <div className="flex gap-2">
-                            <button onClick={togglePlay} className="p-3 bg-white/10 backdrop-blur-md rounded-full hover:bg-white/20 text-white transition-all transform active:scale-95">
+                            <button onClick={togglePlay} aria-label="재생/일시정지" className="p-3 bg-white/10 backdrop-blur-md rounded-full hover:bg-white/20 text-white transition-all transform active:scale-95">
                                 {isPlaying ? <Pause size={24} className="fill-current" /> : <Play size={24} className="fill-current" />}
                             </button>
                         </div>
@@ -352,7 +354,7 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCa
 
                             {thumbnailPreview && (
                                 <div className="relative w-12 h-12 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-xl overflow-hidden border-2 border-violet-500 shadow-lg shadow-violet-500/20 flex-shrink-0 group">
-                                    <img src={thumbnailPreview} className="w-full h-full object-cover transition-transform group-hover:scale-110" alt="Thumbnail preview" />
+                                    <img src={thumbnailPreview} loading="lazy" className="w-full h-full object-cover transition-transform group-hover:scale-110" alt="Thumbnail preview" />
                                     <div className="absolute inset-0 bg-violet-500/30 flex items-center justify-center backdrop-blur-[1px]">
                                         <Check className="w-6 h-6 sm:w-8 sm:h-8 text-white drop-shadow-lg" />
                                     </div>
@@ -444,6 +446,7 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({ videoUrl, onSave, onCa
                                     </div>
                                     <button
                                         onClick={() => removeCut(cut.id)}
+                                        aria-label="구간 삭제"
                                         className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-white hover:bg-rose-500 transition-all opacity-0 group-hover:opacity-100"
                                     >
                                         <Trash2 className="w-4 h-4" />

@@ -35,7 +35,7 @@ export function RandomSparringShowcase({ title, subtitle }: { title?: string; su
 
     const vimeoIdToSend = video ? extractVimeoId(video.videoUrl) : null;
 
-    if (loading) return <div className="text-white p-4">DEBUG: Loading sparring...</div>;
+    if (loading) return null;
 
     if (!video || !vimeoIdToSend) {
         return null; // Silent hide if no data

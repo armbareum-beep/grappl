@@ -16,18 +16,11 @@ export interface VimeoUploadResult {
  * Supabase Storage에서 파일 다운로드 (Blob 반환)
  */
 export async function downloadFromSupabase(bucketName: string, filePath: string): Promise<Blob> {
-    console.log(`Downloading from Supabase: ${bucketName}/${filePath}`);
-
-    // Check session for debugging
-    const { data: { session } } = await supabase.auth.getSession();
-    console.log('[Process] Current Session:', session ? 'Active' : 'Missing');
-
     const { data, error } = await supabase.storage
         .from(bucketName)
         .download(filePath);
 
     if (error) {
-        console.error('[Process] Supabase Download Error:', error);
         throw new Error(`Supabase download failed: ${error.message || JSON.stringify(error)}`);
     }
 
@@ -58,8 +51,6 @@ export async function processAndUploadVideo(params: {
     try {
         if (onProgress) onProgress('upload', 100); // TUS upload is done
 
-        console.log(`[Process] Delegating to Backend Server at ${BACKEND_URL}/process`);
-
         // Prepare payload for backend /process
         const videoId = filePath.split('.')[0];
         // Ensure filename includes bucket prefix
@@ -80,8 +71,6 @@ export async function processAndUploadVideo(params: {
         else if (contentType === 'sparring') payload.sparringId = contentId;
         else if (contentType === 'course') payload.courseId = contentId;
 
-        console.log('[Process] Sending payload to backend:', payload);
-
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000); // 30초 타임아웃
 
@@ -100,8 +89,7 @@ export async function processAndUploadVideo(params: {
                 throw new Error(`백엔드 서버 응답 오류 (${response.status}): ${errorText}`);
             }
 
-            const result = await response.json();
-            console.log('[Process] Backend accepted job:', result);
+            await response.json();
 
             // Since processing is async, return processing status.
             return {
@@ -119,8 +107,6 @@ export async function processAndUploadVideo(params: {
 
 
     } catch (error: any) {
-        console.error('[Process] Failed:', error);
-
         // 에러 상태를 DB에 기록
         const errorUpdate: any = contentType === 'sparring'
             ? { video_url: 'error', thumbnail_url: 'https://placehold.co/600x800/ff0000/ffffff?text=Upload+Error' }

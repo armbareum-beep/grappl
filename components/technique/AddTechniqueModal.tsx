@@ -103,21 +103,6 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
     const filteredSavedLessons = safeArray(savedLessons).filter(filterItem);
     const filteredSavedDrills = safeArray(savedDrills).filter(filterItem);
 
-    // Debugging log to catch issues with props
-    useEffect(() => {
-        if (isOpen) {
-            console.log('AddTechniqueModal Props:', {
-                lessonsCount: safeArray(lessons).length,
-                drillsCount: safeArray(drills).length,
-                savedLessonsCount: safeArray(savedLessons).length,
-                savedDrillsCount: safeArray(savedDrills).length,
-                lessonsType: typeof lessons,
-                drillsType: typeof drills,
-                isLessonsArray: Array.isArray(lessons),
-                isDrillsArray: Array.isArray(drills)
-            });
-        }
-    }, [isOpen, lessons, drills, savedLessons, savedDrills]);
 
     const handleAddSelected = () => {
         if (selectedItems.length > 0) {
@@ -368,7 +353,7 @@ const ContentItemRow: React.FC<{
         {/* Left Visual */}
         <div className="relative w-16 h-16 md:w-20 md:h-20 bg-zinc-800 rounded-xl flex-shrink-0 overflow-hidden shadow-inner">
             {thumbnail ? (
-                <img src={thumbnail} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                <img src={thumbnail} alt={title || "썸네일"} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
             ) : (
                 <div className="w-full h-full flex items-center justify-center">
                     <GraduationCap className="w-8 h-8 text-zinc-700" />

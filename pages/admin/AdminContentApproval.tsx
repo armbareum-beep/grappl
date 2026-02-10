@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getPendingContent, PendingContent } from '../../lib/api-admin';
+import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { ArrowLeft, Check, X, Film, BookOpen, Swords, Clock, User, Eye } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -12,6 +13,8 @@ export const AdminContentApproval: React.FC = () => {
     const [processingId, setProcessingId] = useState<string | null>(null);
     const [rejectionModal, setRejectionModal] = useState<{ isOpen: boolean; itemId: string | null; itemType: any; }>({ isOpen: false, itemId: null, itemType: null });
     const [rejectionReason, setRejectionReason] = useState('');
+    const [approveModal, setApproveModal] = useState<{ isOpen: boolean; item: PendingContent | null }>({ isOpen: false, item: null });
+    const [isApproving, setIsApproving] = useState(false);
 
     useEffect(() => {
         fetchPending();
@@ -28,22 +31,29 @@ export const AdminContentApproval: React.FC = () => {
         }
     };
 
-    const handleApprove = async (item: PendingContent) => {
-        if (!window.confirm('해당 콘텐츠를 승인하고 게시하시겠습니까?')) return;
+    const handleApproveClick = (item: PendingContent) => {
+        setApproveModal({ isOpen: true, item });
+    };
 
-        setProcessingId(item.id);
+    const handleApproveConfirm = async () => {
+        if (!approveModal.item) return;
+
+        setIsApproving(true);
+        setProcessingId(approveModal.item.id);
         try {
             const { approveContent } = await import('../../lib/api-admin');
-            const { error } = await approveContent(item.id, item.type);
+            const { error } = await approveContent(approveModal.item.id, approveModal.item.type);
 
             if (error) throw error;
             success('콘텐츠가 승인되었습니다.');
-            setPendingItems(prev => prev.filter(p => p.id !== item.id));
+            setPendingItems(prev => prev.filter(p => p.id !== approveModal.item?.id));
+            setApproveModal({ isOpen: false, item: null });
         } catch (error) {
             console.error('Error approving content:', error);
             toastError('승인 처리에 실패했습니다.');
         } finally {
             setProcessingId(null);
+            setIsApproving(false);
         }
     };
 
@@ -161,7 +171,7 @@ export const AdminContentApproval: React.FC = () => {
                                             <X className="w-3.5 h-3.5" /> REJECT
                                         </button>
                                         <button
-                                            onClick={() => handleApprove(item)}
+                                            onClick={() => handleApproveClick(item)}
                                             disabled={processingId === item.id}
                                             className="py-3.5 rounded-2xl bg-violet-600 hover:bg-violet-500 text-white font-black uppercase tracking-widest text-[10px] transition-all shadow-lg shadow-violet-900/20 flex items-center justify-center gap-2"
                                         >
@@ -174,6 +184,18 @@ export const AdminContentApproval: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            <ConfirmModal
+                isOpen={approveModal.isOpen}
+                onClose={() => setApproveModal({ isOpen: false, item: null })}
+                onConfirm={handleApproveConfirm}
+                title="콘텐츠 승인"
+                message="해당 콘텐츠를 승인하고 게시하시겠습니까?"
+                confirmText="승인"
+                cancelText="취소"
+                variant="warning"
+                isLoading={isApproving}
+            />
 
             {/* Rejection Modal */}
             {rejectionModal.isOpen && (

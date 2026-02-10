@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { X, Image as ImageIcon } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext';
 
 interface ImageUploaderProps {
     onUploadComplete: (url: string) => void;
@@ -15,6 +16,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     bucketName = 'course-thumbnails',
     onValidityChange
 }) => {
+    const { error: toastError, warning } = useToast();
     const [isValid, setIsValid] = useState(true);
     const [previewUrl, setPreviewUrl] = useState<string | null>(currentImageUrl || null);
     const [uploading, setUploading] = useState(false);
@@ -31,7 +33,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
     const handleFileSelect = async (file: File) => {
         if (!file.type.startsWith('image/')) {
-            alert('이미지 파일만 업로드 가능합니다.');
+            warning('이미지 파일만 업로드 가능합니다.');
             return;
         }
 
@@ -68,7 +70,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
             onUploadComplete(publicUrl);
         } catch (error) {
             console.error('Error uploading image:', error);
-            alert(`이미지 업로드 중 오류가 발생했습니다: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
+            toastError(`이미지 업로드 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
             setPreviewUrl(currentImageUrl || null);
         } finally {
             setUploading(false);

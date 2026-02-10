@@ -1,14 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useBackgroundUpload } from '../contexts/BackgroundUploadContext';
 import { CheckCircle, AlertCircle, X, Upload, Sparkles } from 'lucide-react';
+import { ConfirmModal } from './common/ConfirmModal';
 
 export const GlobalUploadProgress: React.FC = () => {
     const { tasks, cancelUpload, retryUpload, dismissTask } = useBackgroundUpload();
+    const [cancelConfirmTaskId, setCancelConfirmTaskId] = useState<string | null>(null);
 
     // Filter out dismissed tasks
     const activeTasks = tasks.filter(task => !task.isDismissed);
-
-    console.log('[GlobalUploadProgress] Tasks:', tasks.length, 'Active:', activeTasks.length, tasks);
 
     // Only show if there are tasks
     if (activeTasks.length === 0) return null;
@@ -114,11 +114,7 @@ export const GlobalUploadProgress: React.FC = () => {
                                         화면을 끄거나 앱을 이탈하면 중단될 수 있습니다
                                     </p>
                                     <button
-                                        onClick={() => {
-                                            if (confirm('업로드를 정말 취소하시겠습니까?')) {
-                                                cancelUpload(task.id);
-                                            }
-                                        }}
+                                        onClick={() => setCancelConfirmTaskId(task.id)}
                                         className="text-xs text-zinc-500 hover:text-rose-400 font-medium transition-colors"
                                     >
                                         업로드 취소
@@ -155,6 +151,22 @@ export const GlobalUploadProgress: React.FC = () => {
                     )}
                 </div>
             ))}
+
+            <ConfirmModal
+                isOpen={cancelConfirmTaskId !== null}
+                onClose={() => setCancelConfirmTaskId(null)}
+                onConfirm={() => {
+                    if (cancelConfirmTaskId) {
+                        cancelUpload(cancelConfirmTaskId);
+                    }
+                    setCancelConfirmTaskId(null);
+                }}
+                title="업로드 취소"
+                message="업로드를 정말 취소하시겠습니까?"
+                confirmText="취소하기"
+                cancelText="돌아가기"
+                variant="warning"
+            />
         </div>
     );
 };

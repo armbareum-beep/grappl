@@ -4,6 +4,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { PayPalButtons, usePayPalScriptReducer } from '@paypal/react-paypal-js';
 import * as PortOne from '@portone/browser-sdk/v2';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabase';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
@@ -14,6 +15,7 @@ import { Ticket, Tag, Check, AlertCircle, ShieldCheck, CreditCard, Globe, ArrowL
 export const Checkout: React.FC = () => {
     const { type, id } = useParams<{ type: string; id: string }>();
     const { user } = useAuth();
+    const { success, error: toastError, warning } = useToast();
     const navigate = useNavigate();
     const location = useLocation();
     const [amount, setAmount] = useState(0);
@@ -182,7 +184,7 @@ export const Checkout: React.FC = () => {
             }
         } catch (err: any) {
             console.error('Success callback error:', err);
-            alert(err.message || '결제 완료 처리 중 오류가 발생했습니다. 고객센터로 문의해주세요.');
+            toastError(err.message || '결제 완료 처리 중 오류가 발생했습니다. 고객센터로 문의해주세요.', 5000);
         }
     };
 
@@ -395,7 +397,7 @@ export const Checkout: React.FC = () => {
                                         <button
                                             onClick={async () => {
                                                 if (!phoneNumber || !fullName) {
-                                                    alert('이름과 연락처를 모두 입력해주세요.');
+                                                    warning('이름과 연락처를 모두 입력해주세요.');
                                                     return;
                                                 }
 
@@ -450,9 +452,9 @@ export const Checkout: React.FC = () => {
                                                     if (response?.code != null) {
                                                         // 사용자가 결제를 취소한 경우
                                                         if (response.code === 'PAYMENT_CANCELLED') {
-                                                            alert('결제가 취소되었습니다.');
+                                                            warning('결제가 취소되었습니다.');
                                                         } else {
-                                                            alert(`결제 실패: ${response.message}`);
+                                                            toastError(`결제 실패: ${response.message}`, 5000);
 
                                                             // Payment Failed Notification (PG Error)
                                                             if (user?.id) {

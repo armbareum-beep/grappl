@@ -247,7 +247,7 @@ export const SparringCard: React.FC<SparringCardProps> = ({ video, rank, hasAcce
                     <img
                         src={(video.creator as any)?.avatar_url || (video.creator as any)?.image || (video.creator as any)?.profileImage || `https://ui-avatars.com/api/?name=${video.creator?.name || 'U'}`}
                         className="w-4 h-4 rounded-full object-cover"
-                        alt=""
+                        alt={video.creator?.name || "프로필"}
                     />
                     <span className="truncate">{video.creator?.name || 'Unknown User'}</span>
                     <span className="flex-shrink-0">•</span>

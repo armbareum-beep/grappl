@@ -135,7 +135,7 @@ export const LogDetailModal: React.FC<LogDetailModalProps> = ({ log, onClose, on
                                     <Edit2 className="w-5 h-5" />
                                 </button>
                             )}
-                            <button onClick={onClose} className="p-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-full transition-all">
+                            <button onClick={onClose} className="p-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-full transition-all" aria-label="닫기">
                                 <X className="w-6 h-6" />
                             </button>
                         </div>
