@@ -92,19 +92,28 @@ export function useHomeQueries(userId?: string) {
         return () => clearTimeout(timer);
     }, [queryClient, videoPreload]);
 
-    const results = useQueries({
+    const dailyResults = useQueries({
         queries: [
             { queryKey: ['daily', 'drill'], queryFn: getDailyFreeDrill, staleTime: 1000 * 60 * 60 },
             { queryKey: ['daily', 'lesson'], queryFn: getDailyFreeLesson, staleTime: 1000 * 60 * 60 },
             { queryKey: ['daily', 'sparring'], queryFn: getDailyFreeSparring, staleTime: 1000 * 60 * 60 },
-            { queryKey: ['trending', 'sparring'], queryFn: () => getTrendingSparring(10), staleTime: 1000 * 60 * 30 },
-            { queryKey: ['featured', 'routines'], queryFn: () => getFeaturedRoutines(20), staleTime: 1000 * 60 * 30 },
-            { queryKey: ['trending', 'courses'], queryFn: () => getTrendingCourses(10), staleTime: 1000 * 60 * 30 },
-            { queryKey: ['new', 'courses'], queryFn: () => getNewCourses(10), staleTime: 1000 * 60 * 30 },
-            { queryKey: ['new', 'routines'], queryFn: () => fetchRoutines(20), staleTime: 1000 * 60 * 30 },
-            { queryKey: ['new', 'sparring'], queryFn: () => getPublicSparringVideos(20), staleTime: 1000 * 60 * 30 },
         ]
     });
+
+    const isDailyLoading = dailyResults.some(r => r.isLoading);
+
+    const otherResults = useQueries({
+        queries: [
+            { queryKey: ['trending', 'sparring'], queryFn: () => getTrendingSparring(10), staleTime: 1000 * 60 * 30, enabled: !isDailyLoading },
+            { queryKey: ['featured', 'routines'], queryFn: () => getFeaturedRoutines(20), staleTime: 1000 * 60 * 30, enabled: !isDailyLoading },
+            { queryKey: ['trending', 'courses'], queryFn: () => getTrendingCourses(10), staleTime: 1000 * 60 * 30, enabled: !isDailyLoading },
+            { queryKey: ['new', 'courses'], queryFn: () => getNewCourses(10), staleTime: 1000 * 60 * 30, enabled: !isDailyLoading },
+            { queryKey: ['new', 'routines'], queryFn: () => fetchRoutines(20), staleTime: 1000 * 60 * 30, enabled: !isDailyLoading },
+            { queryKey: ['new', 'sparring'], queryFn: () => getPublicSparringVideos(20), staleTime: 1000 * 60 * 30, enabled: !isDailyLoading },
+        ]
+    });
+
+    const results = [...dailyResults, ...otherResults];
 
     const userActivity = useQuery({
         queryKey: ['user', 'activity', userId],
@@ -117,15 +126,15 @@ export function useHomeQueries(userId?: string) {
     const isError = results.some(r => r.isError) || userActivity.isError;
 
     return {
-        dailyDrill: results[0].data?.data,
-        dailyLesson: results[1].data?.data,
-        dailySparring: results[2].data?.data,
-        trendingSparring: results[3].data || [],
-        featuredRoutines: results[4].data || [],
-        trendingCourses: results[5].data || [],
-        newCourses: results[6].data || [],
-        newRoutines: results[7].data?.data || [],
-        newSparring: results[8].data || [],
+        dailyDrill: results[0]?.data?.data,
+        dailyLesson: results[1]?.data?.data,
+        dailySparring: results[2]?.data?.data,
+        trendingSparring: results[3]?.data || [],
+        featuredRoutines: results[4]?.data || [],
+        trendingCourses: results[5]?.data || [],
+        newCourses: results[6]?.data || [],
+        newRoutines: results[7]?.data?.data || [],
+        newSparring: results[8]?.data || [],
         continueItems: userActivity.data || [],
         isLoading,
         isError

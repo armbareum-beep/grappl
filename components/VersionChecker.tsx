@@ -4,11 +4,13 @@ import { Sparkles, RefreshCw, X } from 'lucide-react';
 import { hardReload } from '../lib/utils';
 
 const UPDATE_COOLDOWN = 10000; // 10 seconds safety cooldown
+const MIN_RELOAD_INTERVAL = 3600000; // 1 hour minimum between hard reloads
 const LAST_UPDATE_KEY = 'grapplay_last_update_attempt';
+const LAST_SUCCESSFUL_RELOAD_KEY = 'grapplay_last_successful_reload';
 
 export const VersionChecker: React.FC = () => {
     const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
-    const [latestVersion, setLatestVersion] = useState<string | null>(null);
+    const [latestVersion, _setLatestVersion] = useState<string | null>(null);
     const isUpdating = useRef(false);
 
     // 개발 환경 체크 - 훅 규칙 준수를 위해 상단 변수로 선언
@@ -25,18 +27,28 @@ export const VersionChecker: React.FC = () => {
 
         // Prevent infinite reload loops: check if we tried to update very recently
         const lastAttempt = localStorage.getItem(LAST_UPDATE_KEY);
+        const lastReload = localStorage.getItem(LAST_SUCCESSFUL_RELOAD_KEY);
         const now = Date.now();
+
         if (lastAttempt && now - parseInt(lastAttempt) < UPDATE_COOLDOWN) {
             console.warn('[VersionCheck] Update attempt blocked to prevent infinite loop');
             return;
         }
 
+        // Only force reload if 1 hour has passed since last reload
+        // OR if this is not a background visibility check
+        if (lastReload && now - parseInt(lastReload) < MIN_RELOAD_INTERVAL) {
+            console.log('[VersionCheck] Minor version diff ignored due to recent reload');
+            return;
+        }
+
         isUpdating.current = true;
         localStorage.setItem(LAST_UPDATE_KEY, now.toString());
+        localStorage.setItem(LAST_SUCCESSFUL_RELOAD_KEY, now.toString());
         console.log(`[VersionCheck] Updating to version: ${newVersion}...`);
 
         try {
-            await hardReload([LAST_UPDATE_KEY], true);
+            await hardReload([LAST_UPDATE_KEY, LAST_SUCCESSFUL_RELOAD_KEY], true);
         } catch (error) {
             console.error('[VersionCheck] Error during hard reload:', error);
             const url = new URL(window.location.href);
@@ -96,8 +108,15 @@ export const VersionChecker: React.FC = () => {
         checkVersion();
 
         // Check and AUTOMATICALLY reload on visibility change (when user comes back to tab)
+        let lastVisibilityCheck = 0;
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
+                const now = Date.now();
+                // Throttle visibility checks to once every 5 minutes
+                if (now - lastVisibilityCheck < 5 * 60 * 1000) {
+                    return;
+                }
+                lastVisibilityCheck = now;
                 console.log('[VersionChecker] 탭 포커스, 업데이트 확인 중...');
                 checkVersion();
             }

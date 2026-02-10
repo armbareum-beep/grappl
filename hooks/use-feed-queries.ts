@@ -62,11 +62,14 @@ export function useFeedPermissions() {
  * - 1분마다 자동 새로고침 (폴링 대체)
  */
 export function useDrillsFeed() {
-    const { user: _user } = useAuth();
+    const { user } = useAuth();
     const { data: permissions } = useFeedPermissions();
 
+    // Use default permissions while loading to prevent feed from being disabled
+    const effectivePermissions = permissions ?? { isSubscriber: false, purchasedItemIds: [] };
+
     return useQuery({
-        queryKey: ['drills-feed', permissions?.isSubscriber, permissions?.purchasedItemIds],
+        queryKey: ['drills-feed', user?.id, effectivePermissions.isSubscriber, effectivePermissions.purchasedItemIds],
         queryFn: async () => {
             console.log('[useDrillsFeed] Loading content...');
             const { fetchCreatorsByIds } = await import('../lib/api');
@@ -186,7 +189,7 @@ export function useDrillsFeed() {
             return mappedDrills;
         },
         staleTime: 1000 * 60 * 10, // 10분
-        enabled: !!permissions,
+        // Always enabled - uses default permissions while loading
         // refetchInterval: 1000 * 60 // REMOVED: 1분마다 자동 새로고침은 불필요한 부하를 발생시킴
     });
 }
@@ -201,8 +204,11 @@ export function useLessonsFeed() {
     const { user } = useAuth();
     const { data: permissions } = useFeedPermissions();
 
+    // Use default permissions while loading
+    const effectivePermissions = permissions ?? { isSubscriber: false, purchasedItemIds: [] };
+
     return useQuery({
-        queryKey: ['lessons-feed', permissions?.isSubscriber, permissions?.purchasedItemIds],
+        queryKey: ['lessons-feed', user?.id, effectivePermissions.isSubscriber, effectivePermissions.purchasedItemIds],
         queryFn: async () => {
             const { transformLesson, getDailyFreeLesson } = await import('../lib/api');
             const { canAccessContentSync } = await import('../lib/api-accessible-content');
@@ -233,8 +239,8 @@ export function useLessonsFeed() {
                 const canAccess = canAccessContentSync({
                     contentId: l.id,
                     isDailyFreeContent: isDailyFree,
-                    isSubscriber: permissions?.isSubscriber || false,
-                    purchasedItemIds: permissions?.purchasedItemIds || [],
+                    isSubscriber: effectivePermissions.isSubscriber,
+                    purchasedItemIds: effectivePermissions.purchasedItemIds,
                     isLoggedIn: !!user?.id
                 });
 
@@ -294,7 +300,7 @@ export function useLessonsFeed() {
             };
         },
         staleTime: 1000 * 60 * 10, // 10분
-        enabled: !!permissions
+        // Always enabled - uses default permissions while loading
     });
 }
 

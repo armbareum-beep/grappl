@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
+import { queryClient } from '../lib/react-query';
 
 // Extend Supabase User type to include our custom properties
 interface User extends SupabaseUser {
@@ -48,13 +49,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 cachedData = JSON.parse(cached);
                 const cacheAge = Date.now() - (cachedData._cachedAt || 0);
                 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+                const RECENT_TTL = 5 * 60 * 1000; // 5 minutes - trust cached data fully if very recent
 
-                // If it's initial load, we want to update state from cache for speed, 
-                // BUT we should NOT return early. We want to fall through to fetch fresh data
-                // to ensure subscription status is up to date (e.g. manual grants).
-                // Only return early if using non-initial check and cache is fresh.
+                // If it's initial load and cache is very fresh, return immediately
+                if (isInitial && cacheAge < RECENT_TTL) {
+                    console.log('[AuthContext] Cache is very fresh, using immediately');
+                    // Still trigger background update but don't wait
+                    setTimeout(() => checkUserStatus(userId, false, true), 1000);
+                    return { success: true, ...cachedData, usedCache: true };
+                }
+
+                // If not initial or cache is within TTL, we can safely return cached
                 if (!isInitial && cacheAge < CACHE_TTL) {
-                    // console.log('[AuthContext] Returning cached user status', cachedData);
                     return { success: true, ...cachedData, usedCache: true };
                 }
             } catch (e) {
@@ -220,6 +226,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
                 const baseUser = session?.user ?? null;
                 if (baseUser) {
+                    // Invalidate queries on login to refresh with new user context
+                    if (event === 'SIGNED_IN') {
+                        queryClient.invalidateQueries({ queryKey: ['user-permissions'] });
+                        queryClient.invalidateQueries({ queryKey: ['drills-feed'] });
+                        queryClient.invalidateQueries({ queryKey: ['lessons-feed'] });
+                        queryClient.invalidateQueries({ queryKey: ['user'] });
+                    }
+
                     // Set basic user info immediately
                     setUser(prev => {
                         if (prev?.id === baseUser.id) return prev;
@@ -254,6 +268,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     if (mounted) setLoading(false);
                 }
             } else if (event === 'SIGNED_OUT') {
+                // Invalidate all user-related queries on sign out
+                queryClient.invalidateQueries({ queryKey: ['user-permissions'] });
+                queryClient.invalidateQueries({ queryKey: ['drills-feed'] });
+                queryClient.invalidateQueries({ queryKey: ['lessons-feed'] });
+                queryClient.invalidateQueries({ queryKey: ['user'] });
+
                 // Clear state immediately on sign out - don't block on getSession()
                 // This prevents infinite loading when the session check fails or times out
                 if (mounted) {

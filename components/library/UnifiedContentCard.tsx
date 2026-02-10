@@ -204,6 +204,8 @@ export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, on
                                 e.currentTarget.nextElementSibling?.classList.remove('hidden');
                             }}
                             className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 opacity-90 group-hover:opacity-100 group-hover:scale-105"
+                            loading="lazy"
+                            decoding="async"
                         />
                     ) : null}
                     {/* Fallback pattern for missing/error images */}

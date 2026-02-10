@@ -24,7 +24,10 @@
       "Bash(node:*)",
       "Bash(npx supabase:*)",
       "Bash(supabase:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nDeploy: Add subscription management, payment processing, admin features, and comprehensive UI updates\n\n- Implement subscription payment processing with PortOne integration\n- Add subscription upgrade/downgrade functionality\n- Implement weekly routine planning system\n- Add admin activity feed and support system\n- Update components and pages with latest features\n- Add database migrations for subscription and routine management\n- Enhance API endpoints for user interactions and admin operations\n- Add VideoPreload context and FeedbackCenter page\n- Improve video player and feed functionality\n\nCo-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit:*)",
+      "Bash(npm run dev:*)"
     ]
   }
 }

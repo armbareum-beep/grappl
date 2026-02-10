@@ -12,8 +12,8 @@
 
 import { supabase } from './supabase';
 
-export type ContentType = 'drill' | 'lesson' | 'course' | 'routine' | 'sparring';
-export type InteractionType = 'save' | 'like' | 'view';
+export type ContentType = 'drill' | 'lesson' | 'course' | 'routine' | 'sparring' | 'creator';
+export type InteractionType = 'save' | 'like' | 'view' | 'follow';
 
 export interface UserInteraction {
     id: string;
@@ -27,13 +27,13 @@ export interface UserInteraction {
 }
 
 /**
- * Toggle an interaction (save/like) for a piece of content
+ * Toggle an interaction (save/like/follow) for a piece of content
  * @returns true if interaction was added, false if removed
  */
 export async function toggleInteraction(
     contentType: ContentType,
     contentId: string,
-    interactionType: 'save' | 'like'
+    interactionType: 'save' | 'like' | 'follow'
 ): Promise<boolean> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
@@ -453,60 +453,20 @@ export async function getContentInteractionStatus(contentType: string, contentId
 }
 
 /**
- * Creator Follow functions
+ * Creator Follow functions (unified with user_interactions)
  */
 export async function toggleCreatorFollow(userId: string, creatorId: string): Promise<{ followed: boolean }> {
-    // Check if already followed
-    const { data, error: fetchError } = await supabase
-        .from('creator_follows')
-        .select('id')
-        .eq('follower_id', userId)
-        .eq('creator_id', creatorId)
-        .maybeSingle();
-
-    if (fetchError) throw fetchError;
-
-    if (data) {
-        // Unfollow
-        const { error } = await supabase
-            .from('creator_follows')
-            .delete()
-            .eq('follower_id', userId)
-            .eq('creator_id', creatorId);
-        if (error) throw error;
-        return { followed: false };
-    } else {
-        // Follow
-        const { error } = await supabase
-            .from('creator_follows')
-            .insert({ follower_id: userId, creator_id: creatorId });
-        if (error) throw error;
-        return { followed: true };
-    }
+    const followed = await toggleInteraction('creator', creatorId, 'follow');
+    return { followed };
 }
 
 export async function checkCreatorFollowStatus(userId: string, creatorId: string): Promise<boolean> {
-    const { data } = await supabase
-        .from('creator_follows')
-        .select('id')
-        .eq('follower_id', userId)
-        .eq('creator_id', creatorId)
-        .maybeSingle();
-    return !!data;
+    return hasInteraction('creator', creatorId, 'follow');
 }
 
 export async function getUserFollowedCreators(userId: string): Promise<string[]> {
-    const { data, error } = await supabase
-        .from('creator_follows')
-        .select('creator_id')
-        .eq('follower_id', userId);
-
-    if (error) {
-        console.error('Error fetching followed creators:', error);
-        return [];
-    }
-
-    return (data || []).map((d: any) => d.creator_id);
+    const interactions = await getUserInteractions('follow', 'creator');
+    return interactions.map(i => i.content_id);
 }
 
 // Specialized status checkers for backward compatibility

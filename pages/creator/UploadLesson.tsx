@@ -5,15 +5,18 @@ import { VideoCategory, Difficulty, UniformType, Lesson } from '../../types';
 import { createLesson, getLessonById, updateLesson } from '../../lib/api-lessons';
 import { uploadThumbnail } from '../../lib/api';
 import { getCreators } from '../../lib/api-admin';
+import { extractVimeoId, extractVimeoHash } from '../../lib/vimeo';
 import { ArrowLeft, Upload, Loader, FileVideo, Camera, Trash2 } from 'lucide-react';
 import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 import { useToast } from '../../contexts/ToastContext';
 import { Creator } from '../../types';
 import { ThumbnailCropper } from '../../components/ThumbnailCropper';
+import Player from '@vimeo/player';
 
 type ProcessingState = {
     file: File | null;
     videoId: string | null;
+    vimeoUrl: string | null;
     filename: string | null;
     previewUrl: string | null;
     status: 'idle' | 'uploading' | 'previewing' | 'ready' | 'processing' | 'complete' | 'error';
@@ -24,6 +27,7 @@ type ProcessingState = {
 const initialProcessingState: ProcessingState = {
     file: null,
     videoId: null,
+    vimeoUrl: null,
     filename: null,
     previewUrl: null,
     status: 'idle',
@@ -57,6 +61,7 @@ export const UploadLesson: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const videoRef = useRef<HTMLVideoElement>(null);
+    const vimeoIframeRef = useRef<HTMLIFrameElement>(null);
     const [croppingImage, setCroppingImage] = useState<string | null>(null);
 
     useEffect(() => {
@@ -84,6 +89,22 @@ export const UploadLesson: React.FC = () => {
                     });
                     if (data.creatorId) setSelectedCreatorId(data.creatorId);
                     if (data.thumbnailUrl) setThumbnailUrl(data.thumbnailUrl);
+
+                    // Load existing video into videoState for editing
+                    if (data.vimeoUrl || data.videoUrl) {
+                        const targetUrl = (data.vimeoUrl || data.videoUrl) as string;
+                        const vId = extractVimeoId(targetUrl);
+                        const vHash = extractVimeoHash(targetUrl);
+                        let previewUrl = vId ? `https://player.vimeo.com/video/${vId}` : targetUrl;
+                        if (previewUrl && vHash && vId) previewUrl += `?h=${vHash}`;
+
+                        setVideoState(prev => ({
+                            ...prev,
+                            status: 'complete',
+                            vimeoUrl: data.vimeoUrl || null,
+                            previewUrl: previewUrl || null
+                        }));
+                    }
                 }
             } catch (err) {
                 console.error('Failed to fetch lesson:', err);
@@ -107,9 +128,41 @@ export const UploadLesson: React.FC = () => {
         }));
     };
 
-    const captureFromVideo = () => {
+    const captureFromVideo = async () => {
         try {
-            if (!videoRef.current) return;
+            // Vimeo 영상인 경우
+            if (videoState.vimeoUrl && vimeoIframeRef.current) {
+                const vimeoId = extractVimeoId(videoState.vimeoUrl);
+                if (!vimeoId) {
+                    toastError('Vimeo 영상 ID를 찾을 수 없습니다.');
+                    return;
+                }
+
+                // Vimeo Player 인스턴스 생성 및 현재 시간 가져오기
+                const player = new Player(vimeoIframeRef.current);
+                const currentTime = await player.getCurrentTime();
+
+                // vumbnail.com을 사용하여 해당 시간의 썸네일 가져오기
+                const thumbnailUrl = `https://vumbnail.com/${vimeoId}.jpg?time=${Math.floor(currentTime)}`;
+
+                // 이미지 다운로드
+                const response = await fetch(thumbnailUrl);
+                const blob = await response.blob();
+
+                // Blob을 Data URL로 변환
+                const reader = new FileReader();
+                reader.onload = () => {
+                    setCroppingImage(reader.result as string);
+                };
+                reader.readAsDataURL(blob);
+                return;
+            }
+
+            // 로컬 비디오인 경우
+            if (!videoRef.current) {
+                toastError('영상이 로드되지 않았습니다. 잠시 후 다시 시도해주세요.');
+                return;
+            }
             const video = videoRef.current;
             const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth;
@@ -120,7 +173,7 @@ export const UploadLesson: React.FC = () => {
             setCroppingImage(canvas.toDataURL('image/jpeg', 1.0));
         } catch (e: any) {
             console.error('Capture failed:', e);
-            toastError('화면 캡처에 실패했습니다. (CORS 문제일 수 있습니다)');
+            toastError('화면 캡처에 실패했습니다. 다시 시도해주세요.');
         }
     };
 
@@ -310,7 +363,37 @@ export const UploadLesson: React.FC = () => {
 
                     <div className="border-t border-zinc-800/50 pt-8">
                         <label className="block text-sm font-semibold text-zinc-400 mb-4">레슨 영상 <span className="text-rose-400">*</span></label>
-                        {videoState.status === 'idle' || videoState.status === 'error' ? (
+
+                        {/* Vimeo URL Input */}
+                        <div className="flex flex-col gap-2 mb-4">
+                            <label className="text-sm font-medium text-zinc-400">Vimeo URL (선택)</label>
+                            <input
+                                type="text"
+                                value={videoState.vimeoUrl || ''}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    const vId = extractVimeoId(val);
+                                    const vHash = extractVimeoHash(val);
+
+                                    let embedUrl = '';
+                                    if (vId) {
+                                        embedUrl = `https://player.vimeo.com/video/${vId}`;
+                                        if (vHash) embedUrl += `?h=${vHash}`;
+                                    }
+
+                                    setVideoState(prev => ({
+                                        ...prev,
+                                        vimeoUrl: val ? val : null,
+                                        status: val ? 'complete' : (prev.file ? 'ready' : 'idle'),
+                                        previewUrl: val ? embedUrl : (prev.file ? prev.previewUrl : null)
+                                    }));
+                                }}
+                                placeholder="Vimeo URL 또는 ID를 입력하세요"
+                                className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-zinc-300 focus:border-violet-500 outline-none"
+                            />
+                        </div>
+
+                        {(videoState.status === 'idle' || videoState.status === 'error') && !videoState.vimeoUrl && !videoState.previewUrl ? (
                             <div className="border-2 border-dashed border-zinc-800 rounded-2xl p-16 text-center hover:border-violet-500 hover:bg-zinc-900/50 transition-all cursor-pointer relative group">
                                 <input
                                     type="file"
@@ -322,37 +405,63 @@ export const UploadLesson: React.FC = () => {
                                 <p className="font-bold text-white text-lg">영상 파일 선택</p>
                             </div>
                         ) : (
-                            <div className="space-y-4">
-                                <div className="aspect-video rounded-2xl overflow-hidden bg-black relative border border-zinc-800">
-                                    <video ref={videoRef} src={videoState.previewUrl!} className="w-full h-full object-contain" crossOrigin="anonymous" controls autoPlay muted loop playsInline />
-                                    <div className="absolute top-4 right-4 flex gap-2">
-                                        <button onClick={captureFromVideo} className="px-4 py-2 bg-black/60 backdrop-blur rounded-xl text-white flex items-center gap-2 border border-white/10 hover:bg-white/10">
-                                            <Camera className="w-4 h-4" /> 화면 캡처
-                                        </button>
-                                        <button
-                                            onClick={() => setVideoState(initialProcessingState)}
-                                            className="p-2 bg-black/60 backdrop-blur rounded-xl text-rose-400 border border-white/10 hover:bg-rose-500/10"
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
+                            <div className="space-y-3">
+                                <div className="flex justify-end gap-2">
+                                    <button onClick={captureFromVideo} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 rounded-xl text-white text-sm flex items-center gap-2 transition-colors">
+                                        <Camera className="w-4 h-4" /> 썸네일 캡처
+                                    </button>
+                                    <button
+                                        onClick={() => setVideoState(initialProcessingState)}
+                                        className="px-4 py-2 bg-zinc-800 hover:bg-rose-500/20 rounded-xl text-rose-400 text-sm flex items-center gap-2 border border-zinc-700 transition-colors"
+                                    >
+                                        <Trash2 className="w-4 h-4" /> 삭제
+                                    </button>
+                                </div>
+                                <div className="aspect-video rounded-2xl overflow-hidden bg-black border border-zinc-800">
+                                    {videoState.vimeoUrl ? (
+                                        <iframe ref={vimeoIframeRef} src={videoState.previewUrl!} className="w-full h-full" frameBorder="0" allow="autoplay; fullscreen" allowFullScreen />
+                                    ) : (
+                                        <video ref={videoRef} src={videoState.previewUrl!} className="w-full h-full object-contain" crossOrigin="anonymous" controls autoPlay muted loop playsInline />
+                                    )}
+                                </div>
+                                {videoState.file && (
+                                    <div className="flex items-center gap-3 p-4 bg-zinc-950/50 border border-zinc-800 rounded-xl">
+                                        <FileVideo className="w-5 h-5 text-violet-400" />
+                                        <span className="text-zinc-400 truncate">{videoState.file?.name}</span>
                                     </div>
-                                </div>
-                                <div className="flex items-center gap-3 p-4 bg-zinc-950/50 border border-zinc-800 rounded-xl">
-                                    <FileVideo className="w-5 h-5 text-violet-400" />
-                                    <span className="text-zinc-400 truncate">{videoState.file?.name}</span>
-                                </div>
+                                )}
                             </div>
                         )}
                     </div>
 
-                    {thumbnailUrl && (
-                        <div className="pt-4">
-                            <p className="text-sm font-semibold text-zinc-400 mb-3">썸네일 미리보기</p>
+                    <div className="pt-4 border-t border-zinc-800/50">
+                        <div className="flex items-center justify-between mb-3">
+                            <p className="text-sm font-semibold text-zinc-400">썸네일</p>
+                            <label className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-sm font-medium cursor-pointer transition-colors">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                            const reader = new FileReader();
+                                            reader.onload = (event) => {
+                                                setCroppingImage(event.target?.result as string);
+                                            };
+                                            reader.readAsDataURL(file);
+                                        }
+                                    }}
+                                    className="hidden"
+                                />
+                                이미지 업로드
+                            </label>
+                        </div>
+                        {thumbnailUrl && (
                             <div className="w-48 aspect-video rounded-xl overflow-hidden border border-zinc-800">
                                 <img src={thumbnailUrl} alt="Thumbnail" className="w-full h-full object-cover" />
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
 
                     <div className="pt-8 border-t border-zinc-800/50 flex justify-end gap-3">
                         <button onClick={() => navigate('/creator')} className="px-6 py-3.5 bg-zinc-800 text-zinc-300 rounded-xl font-bold">취소</button>

@@ -22,6 +22,7 @@ import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 import { ThumbnailCropper } from '../../components/ThumbnailCropper';
 import { useToast } from '../../contexts/ToastContext';
 import { ImageUploader } from '../../components/ImageUploader';
+import Player from '@vimeo/player';
 
 type ContentType = 'drill' | 'lesson' | 'sparring';
 
@@ -103,6 +104,8 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
 
     const mainVideoRef = React.useRef<HTMLVideoElement>(null);
     const descVideoRef = React.useRef<HTMLVideoElement>(null);
+    const mainVimeoRef = React.useRef<HTMLIFrameElement>(null);
+    const descVimeoRef = React.useRef<HTMLIFrameElement>(null);
     const [croppingImage, setCroppingImage] = useState<string | null>(null);
     const [activeCropper, setActiveCropper] = useState<'main' | 'desc' | null>(null);
     const [activeTab, setActiveTab] = useState<'main' | 'desc'>('main');
@@ -324,10 +327,61 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         }));
     };
 
-    const captureFromVideo = (type: 'main' | 'desc') => {
+    const captureFromVideo = async (type: 'main' | 'desc') => {
         try {
+            const state = type === 'main' ? mainVideo : descVideo;
+            const vimeoRef = type === 'main' ? mainVimeoRef : descVimeoRef;
+
+            // Vimeo 영상인 경우
+            if (state.vimeoUrl) {
+                const vimeoId = extractVimeoId(state.vimeoUrl);
+                if (!vimeoId) {
+                    toastError('Vimeo 영상 ID를 찾을 수 없습니다.');
+                    return;
+                }
+
+                let currentTime = 0;
+
+                // iframe이 있으면 현재 시간 가져오기 시도
+                if (vimeoRef.current) {
+                    try {
+                        const player = new Player(vimeoRef.current);
+                        currentTime = await player.getCurrentTime();
+                    } catch (playerError) {
+                        console.warn('Could not get current time from player, using 0:', playerError);
+                    }
+                }
+
+                // vumbnail.com으로 썸네일 가져오기
+                const thumbnailUrl = currentTime > 0
+                    ? `https://vumbnail.com/${vimeoId}.jpg?time=${Math.floor(currentTime)}`
+                    : `https://vumbnail.com/${vimeoId}_large.jpg`;
+
+                try {
+                    const response = await fetch(thumbnailUrl);
+                    if (!response.ok) throw new Error('Thumbnail fetch failed');
+                    const blob = await response.blob();
+
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        setCroppingImage(reader.result as string);
+                        setActiveCropper(type);
+                    };
+                    reader.readAsDataURL(blob);
+                } catch (fetchError) {
+                    console.error('Fetch error:', fetchError);
+                    // 직접 URL을 썸네일로 설정
+                    toastError('썸네일을 가져올 수 없습니다. 아래 Vimeo 썸네일 선택기를 사용해주세요.');
+                }
+                return;
+            }
+
+            // 로컬 비디오인 경우
             const video = type === 'main' ? mainVideoRef.current : descVideoRef.current;
-            if (!video) return;
+            if (!video) {
+                toastError('영상이 로드되지 않았습니다.');
+                return;
+            }
             const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
@@ -338,7 +392,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
             setActiveCropper(type);
         } catch (e: any) {
             console.error('Capture failed:', e);
-            toastError('화면 캡처에 실패했습니다. (CORS 문제일 수 있습니다)');
+            toastError('화면 캡처에 실패했습니다. 아래 Vimeo 썸네일 선택기를 사용해주세요.');
         }
     };
 
@@ -596,42 +650,28 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                         )}
                     </div>
                 ) : (
-                    <div className="flex-1 min-h-[250px] border-2 border-zinc-700 bg-zinc-800/50 rounded-xl overflow-hidden relative group flex flex-col">
-                        {state.previewUrl ? (
-                            state.previewUrl.includes('vimeo') ? (
-                                <iframe src={state.previewUrl} className="w-full h-full flex-grow" frameBorder="0" allow="autoplay; fullscreen" allowFullScreen />
-                            ) : (
-                                <div className="absolute inset-0 bg-black">
-                                    <video ref={isMain ? mainVideoRef : descVideoRef} src={state.previewUrl} className="w-full h-full object-cover" crossOrigin="anonymous" controls autoPlay muted loop playsInline />
-                                </div>
-                            )
-                        ) : null}
-
-                        {!state.vimeoUrl && (
-                            <div className="relative z-10 p-4 flex flex-col h-full justify-between pointer-events-none">
-                                <div className="flex justify-between items-start pointer-events-auto">
-                                    <div className="bg-black/60 backdrop-blur rounded px-2 py-1">
-                                        <p className="text-sm text-white max-w-[150px] truncate">{state.file?.name || 'Uploaded Video'}</p>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        {state.file && (
-                                            <button onClick={() => captureFromVideo(type)} className="flex items-center gap-1.5 px-3 py-1.5 bg-black/60 backdrop-blur rounded-full text-zinc-300 hover:text-white transition-all text-[11px] font-bold border border-white/10 hover:bg-white/10">
-                                                <Camera className="w-3.5 h-3.5 text-violet-400" /> 화면 캡처
-                                            </button>
-                                        )}
-                                        <button onClick={() => setter(initialProcessingState)} className="p-2 bg-black/60 backdrop-blur rounded-full text-zinc-400 hover:text-rose-400 transition-all border border-white/10 hover:bg-rose-500/10">
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {state.vimeoUrl && (
-                            <div className="absolute top-4 right-4 z-10 pointer-events-auto">
-                                <button onClick={() => setter(initialProcessingState)} className="p-2 bg-black/60 backdrop-blur rounded-full text-zinc-400 hover:text-rose-400 transition-all border border-white/10 hover:bg-rose-500/10">
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
+                    <div className="flex-1 min-h-[250px] flex flex-col gap-3">
+                        {/* 캡처/삭제 버튼을 영상 위에 배치 */}
+                        <div className="flex justify-end gap-2">
+                            <button onClick={() => captureFromVideo(type)} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 rounded-xl text-white text-sm flex items-center gap-2 transition-colors">
+                                <Camera className="w-4 h-4" /> 썸네일 캡처
+                            </button>
+                            <button onClick={() => setter(initialProcessingState)} className="px-4 py-2 bg-zinc-800 hover:bg-rose-500/20 rounded-xl text-rose-400 text-sm flex items-center gap-2 border border-zinc-700 transition-colors">
+                                <Trash2 className="w-4 h-4" /> 삭제
+                            </button>
+                        </div>
+                        <div className="flex-1 border-2 border-zinc-700 bg-zinc-800/50 rounded-xl overflow-hidden relative">
+                            {state.previewUrl ? (
+                                state.previewUrl.includes('vimeo') ? (
+                                    <iframe ref={isMain ? mainVimeoRef : descVimeoRef} src={state.previewUrl} className="w-full h-full min-h-[250px]" frameBorder="0" allow="autoplay; fullscreen" allowFullScreen />
+                                ) : (
+                                    <video ref={isMain ? mainVideoRef : descVideoRef} src={state.previewUrl} className="w-full h-full object-cover min-h-[250px]" crossOrigin="anonymous" controls autoPlay muted loop playsInline />
+                                )
+                            ) : null}
+                        </div>
+                        {state.file && !state.vimeoUrl && (
+                            <div className="bg-black/60 backdrop-blur rounded-lg px-3 py-2">
+                                <p className="text-sm text-white truncate">{state.file?.name || 'Uploaded Video'}</p>
                             </div>
                         )}
                     </div>

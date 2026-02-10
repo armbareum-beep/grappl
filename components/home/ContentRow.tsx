@@ -161,11 +161,16 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
                                 src={getThumbnail(item)}
                                 className="absolute inset-0 !w-full !h-full !max-w-none !max-h-none object-cover !scale-[1.21] transition-transform duration-500 opacity-90 group-hover:opacity-100"
                                 alt={getTitle(item)}
+                                loading="lazy"
+                                decoding="async"
                             />
                         ) : (
-                            <div
-                                className="absolute inset-0 bg-cover bg-center"
-                                style={{ backgroundImage: `url(${getThumbnail(item)})` }}
+                            <img
+                                src={getThumbnail(item)}
+                                className="absolute inset-0 w-full h-full object-cover"
+                                alt={getTitle(item)}
+                                loading="lazy"
+                                decoding="async"
                             />
                         )}
                         <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors duration-300" />
@@ -179,11 +184,16 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
                             src={getThumbnail(item)}
                             className="absolute inset-0 !w-full !h-full !max-w-none !max-h-none object-cover !scale-[1.21] transition-transform duration-500 opacity-90 group-hover:opacity-100"
                             alt={getTitle(item)}
+                            loading="lazy"
+                            decoding="async"
                         />
                     ) : (
-                        <div
-                            className="absolute inset-0 bg-cover bg-center"
-                            style={{ backgroundImage: `url(${getThumbnail(item)})` }}
+                        <img
+                            src={getThumbnail(item)}
+                            className="absolute inset-0 w-full h-full object-cover"
+                            alt={getTitle(item)}
+                            loading="lazy"
+                            decoding="async"
                         />
                     )}
                     <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors duration-300" />

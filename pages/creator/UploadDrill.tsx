@@ -9,6 +9,7 @@ import { ArrowLeft, Upload, FileVideo, Trash2, Loader, Camera, Plus, X, Search }
 import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 import { useToast } from '../../contexts/ToastContext';
 import { ThumbnailCropper } from '../../components/ThumbnailCropper';
+import Player from '@vimeo/player';
 
 type ProcessingState = {
     file: File | null;
@@ -62,6 +63,8 @@ export const UploadDrill: React.FC = () => {
 
     const actionVideoRef = React.useRef<HTMLVideoElement>(null);
     const descVideoRef = React.useRef<HTMLVideoElement>(null);
+    const actionVimeoIframeRef = React.useRef<HTMLIFrameElement>(null);
+    const descVimeoIframeRef = React.useRef<HTMLIFrameElement>(null);
     const [croppingImage, setCroppingImage] = useState<string | null>(null);
     const [activeCropper, setActiveCropper] = useState<'action' | 'desc' | null>(null);
 
@@ -184,10 +187,46 @@ export const UploadDrill: React.FC = () => {
         };
     };
 
-    const captureFromVideo = (type: 'action' | 'desc') => {
+    const captureFromVideo = async (type: 'action' | 'desc') => {
         try {
+            const state = type === 'action' ? actionVideo : descVideo;
+            const vimeoIframeRef = type === 'action' ? actionVimeoIframeRef : descVimeoIframeRef;
+
+            // Vimeo 영상인 경우
+            if (state.vimeoUrl && vimeoIframeRef.current) {
+                const vimeoId = extractVimeoId(state.vimeoUrl);
+                if (!vimeoId) {
+                    toastError('Vimeo 영상 ID를 찾을 수 없습니다.');
+                    return;
+                }
+
+                // Vimeo Player 인스턴스 생성 및 현재 시간 가져오기
+                const player = new Player(vimeoIframeRef.current);
+                const currentTime = await player.getCurrentTime();
+
+                // vumbnail.com을 사용하여 해당 시간의 썸네일 가져오기
+                const thumbnailUrl = `https://vumbnail.com/${vimeoId}.jpg?time=${Math.floor(currentTime)}`;
+
+                // 이미지 다운로드
+                const response = await fetch(thumbnailUrl);
+                const blob = await response.blob();
+
+                // Blob을 Data URL로 변환
+                const reader = new FileReader();
+                reader.onload = () => {
+                    setCroppingImage(reader.result as string);
+                    setActiveCropper(type);
+                };
+                reader.readAsDataURL(blob);
+                return;
+            }
+
+            // 로컬 비디오인 경우
             const video = type === 'action' ? actionVideoRef.current : descVideoRef.current;
-            if (!video) return;
+            if (!video) {
+                toastError('영상이 로드되지 않았습니다. 잠시 후 다시 시도해주세요.');
+                return;
+            }
             const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
@@ -198,7 +237,7 @@ export const UploadDrill: React.FC = () => {
             setActiveCropper(type);
         } catch (e: any) {
             console.error('Capture failed:', e);
-            toastError('화면 캡처에 실패했습니다. (CORS 문제일 수 있습니다)');
+            toastError('화면 캡처에 실패했습니다. 다시 시도해주세요.');
         }
     };
 
@@ -304,6 +343,7 @@ export const UploadDrill: React.FC = () => {
         const isAction = type === 'action';
         const setter = isAction ? setActionVideo : setDescVideo;
         const ref = isAction ? actionVideoRef : descVideoRef;
+        const vimeoRef = isAction ? actionVimeoIframeRef : descVimeoIframeRef;
 
         return (
             <div className="h-full flex flex-col gap-4">
@@ -335,7 +375,7 @@ export const UploadDrill: React.FC = () => {
                     />
                 </div>
 
-                {state.status === 'idle' || state.status === 'error' ? (
+                {(state.status === 'idle' || state.status === 'error') && !state.vimeoUrl && !state.previewUrl ? (
                     <div className="border-2 border-dashed border-zinc-800 rounded-xl p-16 text-center hover:border-violet-500 hover:bg-zinc-900/50 transition-all cursor-pointer relative min-h-[300px] flex flex-col items-center justify-center group">
                         <input
                             type="file"
@@ -347,10 +387,15 @@ export const UploadDrill: React.FC = () => {
                         <p className="font-bold text-white">{label} 업로드</p>
                     </div>
                 ) : (
-                    <div className="space-y-4">
-                        <div className="aspect-[9/16] max-h-[500px] mx-auto rounded-xl overflow-hidden bg-black relative border border-zinc-800">
+                    <div className="space-y-3">
+                        <div className="flex justify-end gap-2">
+                            <button onClick={() => captureFromVideo(type)} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 rounded-xl text-white text-sm flex items-center gap-2 transition-colors">
+                                <Camera className="w-4 h-4" /> 썸네일 캡처
+                            </button>
+                        </div>
+                        <div className="aspect-[9/16] max-h-[500px] mx-auto rounded-xl overflow-hidden bg-black border border-zinc-800">
                             {state.vimeoUrl ? (
-                                <iframe src={state.previewUrl!} className="w-full h-full" frameBorder="0" allow="autoplay; fullscreen" allowFullScreen />
+                                <iframe ref={vimeoRef} src={state.previewUrl!} className="w-full h-full" frameBorder="0" allow="autoplay; fullscreen" allowFullScreen />
                             ) : (
                                 <video
                                     ref={ref}
@@ -363,16 +408,6 @@ export const UploadDrill: React.FC = () => {
                                     playsInline
                                 />
                             )}
-                            <div className="absolute top-4 right-4 flex gap-2">
-                                {!state.vimeoUrl && (
-                                    <button onClick={() => captureFromVideo(type)} className="px-4 py-2 bg-black/60 backdrop-blur rounded-xl text-white flex items-center gap-2 border border-white/10 hover:bg-white/10">
-                                        <Camera className="w-4 h-4" /> 화면 캡처
-                                    </button>
-                                )}
-                                <button onClick={() => setter(initialProcessingState)} className="p-2 bg-black/60 backdrop-blur rounded-xl text-rose-400 border border-white/10 hover:bg-rose-500/10">
-                                    <Trash2 className="w-5 h-5" />
-                                </button>
-                            </div>
                         </div>
                         {!state.vimeoUrl && (
                             <div className="flex items-center gap-3 p-4 bg-zinc-950/50 border border-zinc-800 rounded-xl">
@@ -478,14 +513,34 @@ export const UploadDrill: React.FC = () => {
                         </div>
                     </div>
 
-                    {thumbnailUrl && (
-                        <div className="pt-4">
-                            <p className="text-sm font-semibold text-zinc-400 mb-3">썸네일 미리보기</p>
+                    <div className="pt-4 border-t border-zinc-800/50">
+                        <div className="flex items-center justify-between mb-3">
+                            <p className="text-sm font-semibold text-zinc-400">썸네일</p>
+                            <label className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-sm font-medium cursor-pointer transition-colors">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                            const reader = new FileReader();
+                                            reader.onload = (event) => {
+                                                setCroppingImage(event.target?.result as string);
+                                            };
+                                            reader.readAsDataURL(file);
+                                        }
+                                    }}
+                                    className="hidden"
+                                />
+                                이미지 업로드
+                            </label>
+                        </div>
+                        {thumbnailUrl && (
                             <div className="w-32 aspect-[9/16] rounded-xl overflow-hidden border border-zinc-800">
                                 <img src={thumbnailUrl} alt="Thumbnail" className="w-full h-full object-cover" />
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
 
                     {/* Related Content Section */}
                     <div className="pt-8 border-t border-zinc-800/50">
