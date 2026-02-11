@@ -422,13 +422,20 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
                     if (!isMuted && shouldPlay && await player.getPaused()) await player.play();
                 } catch { }
             } else if (!useVimeo && videoEl) {
-                if (shouldPlay) await videoEl.play().catch(() => { });
-                else videoEl.pause();
+                if (shouldPlay) {
+                    // Reset to beginning if video ended
+                    if (videoEl.ended) {
+                        videoEl.currentTime = 0;
+                    }
+                    await videoEl.play().catch(() => { });
+                } else {
+                    videoEl.pause();
+                }
                 videoEl.muted = isMuted;
             }
         };
         sync();
-    }, [isActive, isVisible, ready, isMuted, isPaused]);
+    }, [isActive, isNext, isNext2, isVisible, ready, isMuted, isPaused]);
 
     if (!shouldLoad) return thumbnailUrl ? (
         <div className="absolute inset-0 w-full h-full">
