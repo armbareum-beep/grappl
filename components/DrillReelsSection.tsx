@@ -82,6 +82,8 @@ const DrillCard = ({ drill }: { drill: Drill }) => {
                     showControls={false}
                     isPaused={!isHovered || previewEnded}
                     fillContainer={true}
+                    muted={true}
+                    autoplay={false}
                 />
             </div>
 
