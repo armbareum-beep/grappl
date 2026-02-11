@@ -35,6 +35,7 @@ interface SingleVideoPlayerProps {
     onPlay?: () => void;
     onProgress: (percent: number, seconds: number) => void;
     onError: (msg: string) => void;
+    onBuffering?: (isBuffering: boolean) => void;
     isPreviewMode?: boolean;
     maxPreviewDuration?: number;
     onPreviewLimitReached?: () => void;
@@ -56,6 +57,7 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
     onPlay,
     onProgress,
     onError,
+    onBuffering,
     isPreviewMode = false,
     maxPreviewDuration,
     onPreviewLimitReached,
@@ -93,6 +95,11 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
         isPreviewModeRef.current = isPreviewMode;
         maxPreviewDurationRef.current = maxPreviewDuration;
     }, [isPreviewMode, maxPreviewDuration]);
+
+    // Notify parent of buffering state changes
+    useEffect(() => {
+        onBuffering?.(isBuffering);
+    }, [isBuffering, onBuffering]);
 
     useEffect(() => {
         if (!url || !shouldLoad) {
@@ -537,6 +544,7 @@ interface DrillReelItemProps {
     isDailyFreeDrill?: boolean;
     index: number;
     onVideoReady?: (index: number) => void;
+    onBufferingChange?: (index: number, isBuffering: boolean) => void;
     onProgressUpdate?: (percent: number, seconds: number, hasAccess: boolean) => void;
     isSessionExpired?: boolean;
     isCached?: boolean;
@@ -547,7 +555,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
     drill, isActive, isMuted, onToggleMute, isLiked, onLike, likeCount,
     isSaved, onSave, isFollowed, onFollow, onViewRoutine, offset,
     isSubscriber, purchasedItemIds, isLoggedIn, isDailyFreeDrill = false,
-    index, isCached = false, onVideoReady, onProgressUpdate, isSessionExpired = false, previewLimitReachedRef
+    index, isCached = false, onVideoReady, onBufferingChange, onProgressUpdate, isSessionExpired = false, previewLimitReachedRef
 }) => {
     const navigate = useNavigate();
     const containerRef = useRef<HTMLDivElement>(null);
@@ -568,6 +576,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [shouldLoadPlayer, setShouldLoadPlayer] = useState(false); // New: Deferred player load state
     const [localProgress, setLocalProgress] = useState({ percent: 0, seconds: 0, hasAccess: true });
+    const [isBuffering, setIsBuffering] = useState(false);
     const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Refs for stable callbacks (memo로 인한 stale closure 방지)
@@ -583,6 +592,13 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
     useEffect(() => {
         currentVideoTypeRef.current = currentVideoType;
     }, [currentVideoType]);
+
+    // Notify parent of buffering state (only for active item)
+    useEffect(() => {
+        if (isActive) {
+            onBufferingChange?.(index, isBuffering);
+        }
+    }, [isBuffering, isActive, index, onBufferingChange]);
 
     // Phase 2: Deferred Loading Strategy
     useEffect(() => {
@@ -694,6 +710,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
                             onProgressUpdateRef.current?.(p, s, hasAccessRef.current);
                         }}
                         onError={setMainError}
+                        onBuffering={currentVideoType === 'main' ? setIsBuffering : undefined}
                         isPreviewMode={!hasAccess || isSessionExpired}
                         maxPreviewDuration={30}
                         onPreviewLimitReached={() => setIsLoginModalOpen(true)}
@@ -718,6 +735,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
                                 onProgressUpdateRef.current?.(p, s, hasAccessRef.current);
                             }}
                             onError={setDescError}
+                            onBuffering={currentVideoType === 'description' ? setIsBuffering : undefined}
                             isPreviewMode={!hasAccess || isSessionExpired}
                             maxPreviewDuration={30}
                             onPreviewLimitReached={() => setIsLoginModalOpen(true)}

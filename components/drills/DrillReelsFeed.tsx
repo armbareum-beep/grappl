@@ -117,6 +117,14 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
         });
     }, []);
 
+    // Track buffering state for current item (block swipe during buffering)
+    const [isCurrentBuffering, setIsCurrentBuffering] = useState(false);
+    const handleBufferingChange = useCallback((index: number, isBuffering: boolean) => {
+        if (index === currentIndex) {
+            setIsCurrentBuffering(isBuffering);
+        }
+    }, [currentIndex]);
+
     // Clear stale ready states when scrolling far (items beyond ±2 get unmounted)
     useEffect(() => {
         setReadyItems(prev => {
@@ -287,20 +295,24 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
         };
     }, [drills, onDrillsUpdate]);
 
-    // Navigation handlers — allow swipe but block during loading
+    // Navigation handlers — allow swipe but block during buffering
     const goToNext = useCallback(() => {
+        if (isCurrentBuffering) return; // Block swipe during buffering
         const nextIdx = currentIndex + 1;
         if (nextIdx < drills.length) {
             setCurrentIndex(nextIdx);
+            setIsCurrentBuffering(true); // Assume buffering until new video signals otherwise
         }
-    }, [currentIndex, drills.length]);
+    }, [currentIndex, drills.length, isCurrentBuffering]);
 
     const goToPrevious = useCallback(() => {
+        if (isCurrentBuffering) return; // Block swipe during buffering
         const prevIdx = currentIndex - 1;
         if (prevIdx >= 0) {
             setCurrentIndex(prevIdx);
+            setIsCurrentBuffering(true); // Assume buffering until new video signals otherwise
         }
-    }, [currentIndex]);
+    }, [currentIndex, isCurrentBuffering]);
 
     // Session Timer Logic (30s limit) - Now handled by SessionProgressBar
     const handleSessionExpired = useCallback(() => {
@@ -556,6 +568,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
                             purchasedItemIds={userPermissions.purchasedItemIds}
                             isLoggedIn={!!user}
                             onVideoReady={markReady}
+                            onBufferingChange={handleBufferingChange}
                             onProgressUpdate={handleProgressUpdate}
                             isSessionExpired={isSessionExpired}
                             isCached={isCached}
