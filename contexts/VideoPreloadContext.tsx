@@ -120,7 +120,7 @@ export const VideoPreloadProvider: React.FC<VideoPreloadProviderProps> = ({ chil
             // iframe 생성
             const iframe = document.createElement('iframe');
             const params = new URLSearchParams({
-                autoplay: '1',
+                autoplay: '0',
                 loop: '1',
                 muted: '1',
                 autopause: '0',
@@ -150,6 +150,8 @@ export const VideoPreloadProvider: React.FC<VideoPreloadProviderProps> = ({ chil
                 // 음소거 및 음량 0으로 설정 (iOS 요구사항)
                 await player.setVolume(0).catch(() => { });
                 await player.setMuted(true).catch(() => { });
+                // 프리로드 완료 후 일시정지 - 홈화면에서 소리 방지
+                await player.pause().catch(() => { });
 
                 setPreloadState({
                     status: 'ready',
