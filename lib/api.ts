@@ -5147,7 +5147,8 @@ export async function updateDrill(drillId: string, drillData: Partial<Drill>) {
     if (drillData.difficulty) dbData.difficulty = drillData.difficulty;
     if (drillData.thumbnailUrl) dbData.thumbnail_url = drillData.thumbnailUrl;
     if (drillData.vimeoUrl) dbData.vimeo_url = drillData.vimeoUrl;
-    if (drillData.descriptionVideoUrl) dbData.description_video_url = drillData.descriptionVideoUrl;
+    // Allow explicit null to clear description video
+    if ('descriptionVideoUrl' in drillData) dbData.description_video_url = drillData.descriptionVideoUrl || null;
     if (drillData.durationMinutes !== undefined) dbData.duration_minutes = drillData.durationMinutes;
     if (drillData.uniformType) dbData.uniform_type = drillData.uniformType;
     // if (drillData.length || drillData.duration) dbData.duration = drillData.length || drillData.duration; // Column doesn't exist
@@ -5487,12 +5488,11 @@ export async function deleteSparringVideo(id: string) {
         if (countError) throw countError;
 
         if (count && count > 0) {
-            // 2. Soft Delete (Archive)
+            // 2. Soft Delete (Archive) - keep videos on Vimeo/Mux for purchased users
             const { error: updateError } = await supabase
                 .from('sparring_videos')
                 .update({
                     is_published: false,
-                    // We assume the user applied the migration to add deleted_at
                     deleted_at: new Date().toISOString()
                 } as any)
                 .eq('id', id);
@@ -5500,13 +5500,18 @@ export async function deleteSparringVideo(id: string) {
             if (updateError) throw updateError;
             return { error: null, archived: true };
         } else {
-            // 3. Hard Delete
-            const { error } = await supabase
-                .from('sparring_videos')
-                .delete()
-                .eq('id', id);
+            // 3. Hard Delete - also delete from Vimeo/Mux
+            const res = await fetch('/api/delete-content', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contentType: 'sparring', contentId: id })
+            });
 
-            if (error) throw error;
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to delete sparring video');
+            }
+
             return { error: null, archived: false };
         }
     } catch (error) {

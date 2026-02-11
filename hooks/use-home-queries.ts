@@ -12,11 +12,14 @@ export function useHomeQueries(userId?: string) {
     }, [queryClient]);
 
     // Single optimized query for all home data
+    // Enhanced retry settings for cold start scenarios
     const homeData = useQuery({
         queryKey: ['home', 'data'],
         queryFn: getHomePageData,
         staleTime: 1000 * 60 * 30, // 30 minutes - data doesn't change often
         gcTime: 1000 * 60 * 60, // 1 hour cache
+        retry: 2, // Retry up to 2 times on failure
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Exponential backoff: 1s, 2s, 4s... max 10s
     });
 
     // User activity - separate query (only when logged in)
@@ -24,7 +27,9 @@ export function useHomeQueries(userId?: string) {
         queryKey: ['user', 'activity', userId],
         queryFn: () => getRecentActivity(userId!),
         enabled: !!userId,
-        staleTime: 1000 * 60 * 5 // 5 minutes
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        retry: 2,
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
     });
 
     // Use cached data if loading to prevent flash

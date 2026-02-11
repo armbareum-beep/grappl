@@ -1,11 +1,16 @@
 /**
  * Optimized Home Page API
  * Combines multiple queries into efficient batches to reduce network overhead
+ * Includes retry logic for cold start scenarios (returning to app after being away)
  */
 
 import { supabase } from './supabase';
 import { withTimeout } from './api';
+import { warmupConnection } from './connection-manager';
 import { Course, DrillRoutine, SparringVideo, Drill } from '../types';
+
+// Longer timeout for cold start scenarios
+const API_TIMEOUT = 15000; // 15 seconds (was 3-5 seconds)
 
 // Helper to get KST date string
 function getKSTDateString() {
@@ -64,6 +69,9 @@ export interface HomePageData {
 export async function getHomePageData(): Promise<HomePageData> {
     const kstDate = getKSTDateString();
 
+    // Warm up connection before making requests (handles cold start)
+    await warmupConnection();
+
     // ===== BATCH 1: All featured content + raw data in parallel =====
     const [
         featuredResult,
@@ -79,7 +87,7 @@ export async function getHomePageData(): Promise<HomePageData> {
                 .from('daily_featured_content')
                 .select('featured_type, featured_id')
                 .eq('date', kstDate),
-            3000
+            API_TIMEOUT
         ),
         // Courses (both trending and new can share this)
         withTimeout(
@@ -89,7 +97,7 @@ export async function getHomePageData(): Promise<HomePageData> {
                 .eq('published', true)
                 .order('created_at', { ascending: false })
                 .limit(30),
-            5000
+            API_TIMEOUT
         ),
         // Routines
         withTimeout(
@@ -98,7 +106,7 @@ export async function getHomePageData(): Promise<HomePageData> {
                 .select('*')
                 .order('created_at', { ascending: false })
                 .limit(30),
-            5000
+            API_TIMEOUT
         ),
         // Sparring videos
         withTimeout(
@@ -109,7 +117,7 @@ export async function getHomePageData(): Promise<HomePageData> {
                 .is('deleted_at', null)
                 .order('created_at', { ascending: false })
                 .limit(30),
-            5000
+            API_TIMEOUT
         ),
         // Drills for daily selection
         withTimeout(
@@ -119,7 +127,7 @@ export async function getHomePageData(): Promise<HomePageData> {
                 .neq('drills.vimeo_url', '')
                 .not('drills.vimeo_url', 'like', 'ERROR%')
                 .limit(100),
-            5000
+            API_TIMEOUT
         ),
         // Lessons for daily selection
         withTimeout(
@@ -129,7 +137,7 @@ export async function getHomePageData(): Promise<HomePageData> {
                 .not('vimeo_url', 'is', null)
                 .neq('vimeo_url', '')
                 .limit(100),
-            5000
+            API_TIMEOUT
         )
     ]);
 

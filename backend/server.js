@@ -58,12 +58,23 @@ async function downloadFile(url, dest) {
 
 // Support both standard and VITE_ prefixed environment variables for flexibility
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+
+// IMPORTANT: Prefer SERVICE_ROLE_KEY for the backend to bypass RLS
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_SERVICE_KEY ||
+    process.env.SUPABASE_KEY ||
+    process.env.VITE_SUPABASE_ANON_KEY;
+
+// Mux Credentials
+const muxTokenId = process.env.MUX_TOKEN_ID;
+const muxTokenSecret = process.env.MUX_TOKEN_SECRET;
 
 console.log('[DEBUG] Env Loading Check:');
 console.log('SUPABASE_SERVICE_ROLE_KEY present:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
 console.log('SUPABASE_SERVICE_KEY present:', !!process.env.SUPABASE_SERVICE_KEY);
 console.log('VITE_SUPABASE_ANON_KEY present:', !!process.env.VITE_SUPABASE_ANON_KEY);
+console.log('MUX_TOKEN_ID present:', !!muxTokenId);
+console.log('MUX_TOKEN_SECRET present:', !!muxTokenSecret);
 console.log('Selected supabaseKey length:', supabaseKey ? supabaseKey.length : 0);
 
 let supabase = null;
@@ -71,6 +82,14 @@ let supabase = null;
 if (!supabaseUrl || !supabaseKey) {
     console.warn('CRITICAL WARNING: Missing Supabase Environment Variables');
     console.warn('Server starting in RESTRICTED MODE. Database operations will fail.');
+} else if (!muxTokenId || !muxTokenSecret) {
+    console.warn('CRITICAL WARNING: Missing MUX Environment Variables');
+    console.warn('Mux uploads will fail.');
+    try {
+        supabase = createClient(supabaseUrl, supabaseKey);
+    } catch (err) {
+        console.error('Failed to initialize Supabase client:', err.message);
+    }
 } else {
     try {
         supabase = createClient(supabaseUrl, supabaseKey);
@@ -1224,6 +1243,452 @@ app.delete('/api/admin/vimeo/:videoId', async (req, res) => {
         res.json({ success: true });
     } catch (err) {
         console.error('Vimeo deletion failed:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- Mux & Vimeo Upload API Ports ---
+
+function getMuxAuthHeader() {
+    const credentials = `${muxTokenId}:${muxTokenSecret}`;
+    return `Basic ${Buffer.from(credentials).toString('base64')}`;
+}
+
+// 1. Mux Upload API
+app.post('/api/upload-to-mux', async (req, res) => {
+    try {
+        const { action, contentType, contentId, videoType, fileSize, uploadId, assetId: directAssetId, playbackId: directPlaybackId } = req.body;
+        console.log('[API/Mux] Action:', action);
+
+        if (action === 'create_upload') {
+            // Prefer explicit corsOrigin from request body, fallback to headers
+            const { corsOrigin: explicitOrigin } = req.body;
+            const headerOrigin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || '';
+            let corsOrigin = explicitOrigin || headerOrigin || 'https://grapplay.com';
+
+            // Normalize origin for Mux (must be just the origin, no trailing slash)
+            try {
+                const url = new URL(corsOrigin);
+                corsOrigin = url.origin;
+            } catch (e) {
+                console.warn('[API/Mux] Failed to parse origin:', corsOrigin);
+                corsOrigin = 'https://grapplay.com';
+            }
+
+            console.log('[API/Mux] Using corsOrigin:', corsOrigin, '(explicit:', !!explicitOrigin, ')');
+
+            const payload = {
+                cors_origin: corsOrigin, // Mux requires exact origin, not wildcard
+                new_asset_settings: { playback_policy: ['public'] }
+            };
+            console.log('[API/Mux] Mux API Request Payload:', JSON.stringify(payload, null, 2));
+
+            const response = await fetch('https://api.mux.com/video/v1/uploads', {
+                method: 'POST',
+                headers: {
+                    Authorization: getMuxAuthHeader(),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('[API/Mux] Mux API Error:', errorText);
+                throw new Error(`Mux API Error: ${errorText}`);
+            }
+            const data = await response.json();
+            console.log('[API/Mux] Created upload:', data.data.id);
+            return res.json({
+                success: true,
+                uploadUrl: data.data.url,
+                uploadId: data.data.id,
+                videoId: data.data.id
+            });
+        }
+
+        if (action === 'complete_upload') {
+            let assetId = directAssetId;
+            if (!assetId && uploadId) {
+                const uploadRes = await fetch(`https://api.mux.com/video/v1/uploads/${uploadId}`, {
+                    headers: { Authorization: getMuxAuthHeader() }
+                });
+                if (uploadRes.ok) assetId = (await uploadRes.json()).data.asset_id;
+            }
+
+            if (!assetId) throw new Error('Could not determine Mux Asset ID');
+
+            let playbackId = null;
+            let durationSeconds = 0;
+
+            for (let i = 0; i < 20; i++) {
+                const assetRes = await fetch(`https://api.mux.com/video/v1/assets/${assetId}`, {
+                    headers: { Authorization: getMuxAuthHeader() }
+                });
+                if (assetRes.ok) {
+                    const data = (await assetRes.json()).data;
+                    playbackId = data.playback_ids?.[0]?.id;
+                    durationSeconds = data.duration || 0;
+                    if (playbackId) break;
+                }
+                await new Promise(r => setTimeout(r, 5000));
+            }
+
+            if (!playbackId) throw new Error('Asset processing timed out');
+
+            // DB Update Logic
+            const tableName = contentType === 'lesson' ? 'lessons' : (contentType === 'sparring' ? 'sparring_videos' : 'drills');
+            const updateData = {};
+            const formatDur = s => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+
+            if (contentType === 'lesson') {
+                updateData.length = formatDur(durationSeconds);
+                updateData.duration_minutes = Math.round(durationSeconds / 60);
+                updateData.vimeo_url = playbackId;
+                updateData.thumbnail_url = `https://image.mux.com/${playbackId}/thumbnail.jpg`;
+            } else if (contentType === 'drill') {
+                updateData.duration_minutes = Math.round(durationSeconds / 60);
+                const col = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
+                updateData[col] = playbackId;
+                if (videoType === 'action') updateData.thumbnail_url = `https://image.mux.com/${playbackId}/thumbnail.jpg`;
+            } else if (contentType === 'sparring') {
+                updateData.video_url = playbackId;
+                updateData.thumbnail_url = `https://image.mux.com/${playbackId}/thumbnail.jpg`;
+            }
+
+            await supabase.from(tableName).update(updateData).eq('id', contentId);
+            return res.json({ success: true, playbackId });
+        }
+
+        res.status(400).json({ error: 'Invalid action' });
+    } catch (err) {
+        console.error('[API/Mux] Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 2. Vimeo Upload API
+app.post('/api/upload-to-vimeo', async (req, res) => {
+    try {
+        const { action, vimeoId, contentType, contentId, videoType, fileSize, title, description, thumbnailUrl } = req.body;
+        const vimeoToken = process.env.VIMEO_ACCESS_TOKEN || process.env.VITE_VIMEO_ACCESS_TOKEN;
+        console.log('[API/Vimeo] Action:', action);
+
+        if (action === 'create_upload') {
+            const response = await fetch('https://api.vimeo.com/me/videos', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${vimeoToken}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/vnd.vimeo.*+json;version=3.4'
+                },
+                body: JSON.stringify({
+                    upload: { approach: 'tus', size: fileSize },
+                    name: title || 'Untitled',
+                    description: description || 'No description',
+                    privacy: {
+                        view: 'anybody', // Changed from 'disable' to 'anybody' for easier testing/viewing
+                        embed: 'public'
+                    }
+                })
+            });
+
+            if (!response.ok) throw new Error(`Vimeo Error: ${await response.text()}`);
+            const data = await response.json();
+            return res.json({
+                success: true,
+                uploadLink: data.upload.upload_link,
+                vimeoId: data.uri.split('/').pop()
+            });
+        }
+
+        if (action === 'complete_upload') {
+            let finalVimeoUrl = vimeoId;
+            let durationSeconds = 0;
+
+            for (let i = 0; i < 20; i++) {
+                const infoRes = await fetch(`https://api.vimeo.com/videos/${vimeoId}`, {
+                    headers: { 'Authorization': `Bearer ${vimeoToken}` }
+                });
+                if (infoRes.ok) {
+                    const data = await infoRes.json();
+                    durationSeconds = data.duration || 0;
+                    if (data.player_embed_url) {
+                        const hash = data.player_embed_url.match(/[?&]h=([a-z0-9]+)/i);
+                        if (hash) finalVimeoUrl = `${vimeoId}:${hash[1]}`;
+                    }
+                    if (durationSeconds > 0) break;
+                }
+                await new Promise(r => setTimeout(r, 5000));
+            }
+
+            const tableName = contentType === 'lesson' ? 'lessons' : (contentType === 'sparring' ? 'sparring_videos' : 'drills');
+            const updateData = {};
+            const formatDur = s => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+
+            if (contentType === 'lesson') {
+                updateData.length = formatDur(durationSeconds);
+                updateData.duration_minutes = Math.round(durationSeconds / 60);
+                updateData.vimeo_url = finalVimeoUrl;
+            } else if (contentType === 'drill') {
+                updateData.duration_minutes = Math.round(durationSeconds / 60);
+                const col = videoType === 'action' ? 'vimeo_url' : 'description_video_url';
+                updateData[col] = finalVimeoUrl;
+            } else if (contentType === 'sparring') {
+                updateData.video_url = finalVimeoUrl;
+            }
+
+            if (thumbnailUrl) updateData.thumbnail_url = thumbnailUrl;
+            else if (!updateData.thumbnail_url) updateData.thumbnail_url = `https://vumbnail.com/${vimeoId}.jpg`;
+
+            await supabase.from(tableName).update(updateData).eq('id', contentId);
+            return res.json({ success: true });
+        }
+
+        res.status(400).json({ error: 'Invalid action' });
+    } catch (err) {
+        console.error('[API/Vimeo] Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 3. Sync Vimeo Durations API
+app.post('/api/sync-vimeo-durations', async (req, res) => {
+    try {
+        const { action, table, items } = req.body;
+        const vimeoToken = process.env.VIMEO_ACCESS_TOKEN || process.env.VITE_VIMEO_ACCESS_TOKEN;
+        console.log('[API/Sync] Action:', action);
+
+        if (action === 'scan') {
+            const [lessonsRes, drillsRes, sparringRes] = await Promise.all([
+                supabase.from('lessons').select('id, title, vimeo_url, length, duration_minutes, thumbnail_url'),
+                supabase.from('drills').select('id, title, vimeo_url, length, duration_minutes, thumbnail_url'),
+                supabase.from('sparring_videos').select('id, title, video_url, length, duration_minutes, thumbnail_url'),
+            ]);
+
+            const needsUpdate = (item, urlField) => {
+                const val = item[urlField];
+                if (!val || val.toString().startsWith('ERROR')) return false;
+                return (!item.length || item.length === '0:00') || !item.thumbnail_url || item.thumbnail_url.includes('placeholder');
+            };
+
+            return res.json({
+                lessons: (lessonsRes.data || []).filter(i => needsUpdate(i, 'vimeo_url')),
+                drills: (drillsRes.data || []).filter(i => needsUpdate(i, 'vimeo_url')),
+                sparring: (sparringRes.data || []).filter(i => needsUpdate(i, 'video_url'))
+            });
+        }
+
+        if (action === 'sync') {
+            const results = [];
+            for (const item of items) {
+                let vId = item.vimeoUrl.split('/').pop().split(':')[0];
+                const infoRes = await fetch(`https://api.vimeo.com/videos/${vId}`, {
+                    headers: { 'Authorization': `Bearer ${vimeoToken}` }
+                });
+                if (infoRes.ok) {
+                    const data = await infoRes.json();
+                    const updates = {
+                        length: `${Math.floor(data.duration / 60)}:${(data.duration % 60).toString().padStart(2, '0')}`,
+                        duration_minutes: Math.floor(data.duration / 60),
+                        thumbnail_url: data.pictures?.base_link
+                    };
+                    await supabase.from(table).update(updates).eq('id', item.id);
+                    results.push({ id: item.id, status: 'success' });
+                } else {
+                    results.push({ id: item.id, status: 'failed' });
+                }
+            }
+            return res.json({ results });
+        }
+        res.status(400).json({ error: 'Invalid action' });
+    } catch (err) {
+        console.error('[API/Sync] Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 4. Delete Content API (with Vimeo/Mux cleanup)
+app.post('/api/delete-content', async (req, res) => {
+    try {
+        const { contentType, contentId } = req.body;
+        console.log('[API/Delete] Deleting:', contentType, contentId);
+
+        if (!contentType || !contentId) {
+            return res.status(400).json({ error: 'contentType and contentId are required' });
+        }
+
+        if (!['drill', 'lesson', 'sparring'].includes(contentType)) {
+            return res.status(400).json({ error: 'Invalid contentType. Must be drill, lesson, or sparring' });
+        }
+
+        const tableName = contentType === 'lesson' ? 'lessons' :
+                          contentType === 'sparring' ? 'sparring_videos' : 'drills';
+
+        // 1. Fetch the record to get video URLs
+        const { data: record, error: fetchError } = await supabase
+            .from(tableName)
+            .select('*')
+            .eq('id', contentId)
+            .single();
+
+        if (fetchError || !record) {
+            console.error('[API/Delete] Record not found:', fetchError);
+            return res.status(404).json({ error: 'Content not found' });
+        }
+
+        // 2. Collect video IDs to delete
+        const videosToDelete = [];
+
+        if (contentType === 'drill') {
+            // Drills use Mux (playback IDs in vimeo_url and description_video_url)
+            if (record.vimeo_url && !record.vimeo_url.startsWith('ERROR')) {
+                videosToDelete.push({ platform: 'mux', id: record.vimeo_url });
+            }
+            if (record.description_video_url && !record.description_video_url.startsWith('ERROR')) {
+                videosToDelete.push({ platform: 'mux', id: record.description_video_url });
+            }
+        } else if (contentType === 'lesson') {
+            // Lessons use Vimeo
+            if (record.vimeo_url && !record.vimeo_url.startsWith('ERROR')) {
+                // Extract Vimeo ID (might be in format "id:hash")
+                const vimeoId = record.vimeo_url.split(':')[0];
+                videosToDelete.push({ platform: 'vimeo', id: vimeoId });
+            }
+        } else if (contentType === 'sparring') {
+            // Sparring uses Vimeo (or Mux for newer uploads)
+            if (record.video_url && !record.video_url.startsWith('ERROR')) {
+                // Check if it's a Mux playback ID (shorter, no colons) or Vimeo ID
+                const isMux = record.video_url.length < 20 && !record.video_url.includes(':');
+                if (isMux) {
+                    videosToDelete.push({ platform: 'mux', id: record.video_url });
+                } else {
+                    const vimeoId = record.video_url.split(':')[0];
+                    videosToDelete.push({ platform: 'vimeo', id: vimeoId });
+                }
+            }
+            if (record.preview_vimeo_id && !record.preview_vimeo_id.startsWith('ERROR')) {
+                const vimeoId = record.preview_vimeo_id.split(':')[0];
+                videosToDelete.push({ platform: 'vimeo', id: vimeoId });
+            }
+        }
+
+        console.log('[API/Delete] Videos to delete:', videosToDelete);
+
+        // 2.5. Check for purchases before deletion
+        let hasPurchases = false;
+
+        if (contentType === 'drill') {
+            // Check user_drill_purchases for this drill
+            const { count } = await supabase
+                .from('user_drill_purchases')
+                .select('id', { count: 'exact', head: true })
+                .eq('drill_id', contentId);
+
+            if (count && count > 0) {
+                hasPurchases = true;
+                console.log(`[API/Delete] Drill ${contentId} has ${count} purchases - blocking deletion`);
+            }
+        } else if (contentType === 'lesson' && record.course_id) {
+            // Check user_courses for the lesson's course
+            const { count } = await supabase
+                .from('user_courses')
+                .select('id', { count: 'exact', head: true })
+                .eq('course_id', record.course_id);
+
+            if (count && count > 0) {
+                hasPurchases = true;
+                console.log(`[API/Delete] Lesson's course ${record.course_id} has ${count} purchases - blocking deletion`);
+            }
+        } else if (contentType === 'sparring') {
+            // Check purchases table for sparring video
+            const { count } = await supabase
+                .from('purchases')
+                .select('id', { count: 'exact', head: true })
+                .eq('product_id', contentId)
+                .eq('status', 'completed');
+
+            if (count && count > 0) {
+                hasPurchases = true;
+                console.log(`[API/Delete] Sparring ${contentId} has ${count} purchases - blocking deletion`);
+            }
+        }
+
+        if (hasPurchases) {
+            return res.status(400).json({
+                error: '구매 내역이 있는 콘텐츠는 삭제할 수 없습니다. 구매자가 있으므로 영상을 유지해야 합니다.',
+                hasPurchases: true
+            });
+        }
+
+        // 3. Delete videos from Vimeo/Mux
+        const vimeoToken = process.env.VIMEO_ACCESS_TOKEN || process.env.VITE_VIMEO_ACCESS_TOKEN;
+
+        for (const video of videosToDelete) {
+            try {
+                if (video.platform === 'vimeo') {
+                    // Delete from Vimeo
+                    console.log('[API/Delete] Deleting Vimeo video:', video.id);
+                    const vimeoRes = await fetch(`https://api.vimeo.com/videos/${video.id}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${vimeoToken}` }
+                    });
+                    if (vimeoRes.ok || vimeoRes.status === 404) {
+                        console.log('[API/Delete] Vimeo video deleted:', video.id);
+                    } else {
+                        console.warn('[API/Delete] Vimeo delete failed:', vimeoRes.status);
+                    }
+                } else if (video.platform === 'mux') {
+                    // Delete from Mux - need to get asset ID from playback ID first
+                    console.log('[API/Delete] Deleting Mux video with playback ID:', video.id);
+
+                    // Get asset ID from playback ID
+                    const playbackRes = await fetch(`https://api.mux.com/video/v1/playback-ids/${video.id}`, {
+                        headers: { Authorization: getMuxAuthHeader() }
+                    });
+
+                    if (playbackRes.ok) {
+                        const playbackData = await playbackRes.json();
+                        const assetId = playbackData.data?.object?.id;
+
+                        if (assetId) {
+                            // Delete the asset
+                            const deleteRes = await fetch(`https://api.mux.com/video/v1/assets/${assetId}`, {
+                                method: 'DELETE',
+                                headers: { Authorization: getMuxAuthHeader() }
+                            });
+                            if (deleteRes.ok || deleteRes.status === 404) {
+                                console.log('[API/Delete] Mux asset deleted:', assetId);
+                            } else {
+                                console.warn('[API/Delete] Mux delete failed:', deleteRes.status);
+                            }
+                        }
+                    } else if (playbackRes.status !== 404) {
+                        console.warn('[API/Delete] Could not find Mux asset for playback ID:', video.id);
+                    }
+                }
+            } catch (videoErr) {
+                console.error('[API/Delete] Error deleting video:', video, videoErr);
+                // Continue with other deletions even if one fails
+            }
+        }
+
+        // 4. Delete from database
+        const { error: deleteError } = await supabase
+            .from(tableName)
+            .delete()
+            .eq('id', contentId);
+
+        if (deleteError) {
+            console.error('[API/Delete] DB delete error:', deleteError);
+            return res.status(500).json({ error: 'Failed to delete from database' });
+        }
+
+        console.log('[API/Delete] Successfully deleted:', contentType, contentId);
+        res.json({ success: true, deletedVideos: videosToDelete.length });
+
+    } catch (err) {
+        console.error('[API/Delete] Error:', err);
         res.status(500).json({ error: err.message });
     }
 });

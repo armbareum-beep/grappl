@@ -111,11 +111,24 @@ export const getAdminSettlements = async (): Promise<SettlementStats[]> => {
 // ==================== Content Management ====================
 
 export async function deleteDrill(drillId: string) {
-    const { error } = await supabase
-        .from('drills')
-        .delete()
-        .eq('id', drillId);
-    return { error };
+    try {
+        // Use backend API to delete drill and associated Mux videos
+        const res = await fetch('/api/delete-content', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contentType: 'drill', contentId: drillId })
+        });
+
+        if (!res.ok) {
+            const data = await res.json();
+            return { error: new Error(data.error || 'Failed to delete drill') };
+        }
+
+        return { error: null };
+    } catch (err: any) {
+        console.error('Delete drill error:', err);
+        return { error: err };
+    }
 }
 
 export async function getRoutines() {
@@ -259,11 +272,24 @@ export async function getSparringVideosAdmin(): Promise<any[]> {
 }
 
 export async function deleteSparringVideoAdmin(videoId: string) {
-    const { error } = await supabase
-        .from('sparring_videos')
-        .delete()
-        .eq('id', videoId);
-    return { error };
+    try {
+        // Use backend API to delete sparring video and associated Vimeo/Mux videos
+        const res = await fetch('/api/delete-content', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contentType: 'sparring', contentId: videoId })
+        });
+
+        if (!res.ok) {
+            const data = await res.json();
+            return { error: new Error(data.error || 'Failed to delete sparring video') };
+        }
+
+        return { error: null };
+    } catch (err: any) {
+        console.error('Delete sparring video error:', err);
+        return { error: err };
+    }
 }
 
 // ==================== Report Management ====================

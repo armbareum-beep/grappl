@@ -27,7 +27,32 @@
       "Bash(npm install:*)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nDeploy: Add subscription management, payment processing, admin features, and comprehensive UI updates\n\n- Implement subscription payment processing with PortOne integration\n- Add subscription upgrade/downgrade functionality\n- Implement weekly routine planning system\n- Add admin activity feed and support system\n- Update components and pages with latest features\n- Add database migrations for subscription and routine management\n- Enhance API endpoints for user interactions and admin operations\n- Add VideoPreload context and FeedbackCenter page\n- Improve video player and feed functionality\n\nCo-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git commit:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(cd:*)",
+      "Bash(npx ts-node:*)",
+      "Bash(VIMEO_ACCESS_TOKEN=0292f0e1254b8ba77a0fca8ccb291396 npx ts-node:*)",
+      "Bash(npx cap init:*)",
+      "Bash(npx cap:*)",
+      "Bash(./sdkmanager.bat:*)",
+      "Bash(export JAVA_HOME=\"/c/Program Files/Android/Android Studio/jbr\")",
+      "Bash(ipconfig:*)",
+      "Read(//c/Users/armba/Documents/grapplay/**)",
+      "Bash(powershell -Command:*)",
+      "Bash(git -C c:/Users/armba/Documents/grapplay status)",
+      "Bash(git -C c:/Users/armba/Documents/grapplay add hooks/use-home-queries.ts lib/react-query.ts lib/prefetch.ts components/Layout.tsx components/GlobalDrillPreloader.tsx)",
+      "Bash(git -C c:/Users/armba/Documents/grapplay log --oneline -3)",
+      "Bash(git -C c:/Users/armba/Documents/grapplay commit -m \"$\\(cat <<''EOF''\nfeat: enhance caching and add navigation prefetching for faster page loads\n\n- Increase cache staleTime to 10min and gcTime to 30min\n- Add refetchOnMount: false to prevent redundant API calls\n- Implement route prefetching on hover/touch for instant navigation\n- Add parallel query loading instead of sequential\n- Preload critical route chunks on app startup\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git -C c:/Users/armba/Documents/grapplay push origin main)",
+      "Bash(npm run cap:build:*)",
+      "Bash(git -C c:/Users/armba/Documents/grapplay commit -m \"$\\(cat <<''EOF''\nfeat: comprehensive UI updates with improved loading states and user experience\n\n- Add loading spinners to feed and content sections\n- Improve error handling across components\n- Update video preload context and initialization\n- Enhance admin and creator dashboard components\n- Add Skeleton component for loading placeholders\n- Update API and utility functions\n- Fix various UI/UX issues across pages\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(npm search:*)",
+      "Bash(tr:*)",
+      "Read(//c/**)",
+      "Bash(npx netlify deploy:*)",
+      "Bash(netlify status:*)",
+      "Bash(git reset:*)",
+      "Bash(vercel:*)",
+      "WebFetch(domain:www.mux.com)"
     ]
   }
 }

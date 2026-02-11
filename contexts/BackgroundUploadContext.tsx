@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useWakeLock } from '../hooks/useWakeLock';
+import * as UpChunk from '@mux/upchunk';
 
 // Types
 export interface UploadTask {
@@ -112,7 +113,8 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                                 action: 'create_upload',
                                 fileSize: task.file.size,
                                 title: task.processingParams.title,
-                                description: task.processingParams.description
+                                description: task.processingParams.description,
+                                corsOrigin: window.location.origin // 명시적으로 현재 origin 전달
                             })
                         });
 
@@ -142,14 +144,78 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                 const videoId = uploadData.videoId;
                 const uploadId = uploadData.uploadId; // For Mux
 
+                // Use UpChunk for Mux uploads (recommended by Mux docs)
+                if (isMuxUpload) {
+                    console.log('[Mux] Starting UpChunk upload to:', uploadLink);
+
+                    const upload = UpChunk.createUpload({
+                        endpoint: uploadLink,
+                        file: task.file,
+                        chunkSize: 5120, // 5MB chunks
+                    });
+
+                    tusRefs.current[task.id] = upload;
+
+                    upload.on('error', (err: any) => {
+                        console.error('[Mux] UpChunk Error:', err.detail);
+                        updateTaskStatus(task.id, 'error', err.detail?.message || '업로드 실패');
+                    });
+
+                    upload.on('progress', (progress: any) => {
+                        updateTaskProgress(task.id, progress.detail);
+                    });
+
+                    upload.on('success', async () => {
+                        console.log('[Mux] UpChunk upload complete');
+                        updateTaskStatus(task.id, 'processing');
+
+                        try {
+                            const params = task.processingParams!;
+                            const contentType = params.courseId ? 'course' :
+                                (params.sparringId || params.videoType === 'sparring' ? 'sparring' :
+                                    (params.lessonId ? 'lesson' : 'drill'));
+                            const contentId = params.courseId || params.sparringId || params.lessonId || params.drillId || '';
+
+                            const completeRes = await fetch('/api/upload-to-mux', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    action: 'complete_upload',
+                                    uploadId,
+                                    contentId,
+                                    contentType,
+                                    videoType: params.videoType,
+                                    thumbnailUrl: params.thumbnailUrl
+                                })
+                            });
+
+                            if (!completeRes.ok) {
+                                const error = await completeRes.json();
+                                throw new Error(error.error || 'DB 업데이트 실패');
+                            }
+
+                            updateTaskStatus(task.id, 'completed');
+                            setTimeout(() => {
+                                setTasks(prev => prev.filter(t => t.id !== task.id));
+                            }, 3000);
+                        } catch (err: any) {
+                            console.error('❌ Mux Finalization Error:', err);
+                            updateTaskStatus(task.id, 'error', '완료 처리 실패: ' + err.message);
+                        }
+                    });
+
+                    return;
+                }
+
+                // Use tus-js-client for Vimeo uploads
                 const upload = new tus.Upload(task.file, {
                     uploadUrl: uploadLink,
-                    retryDelays: [0, 1000, 3000, 5000, 10000], // Retry configuration
+                    retryDelays: [0, 1000, 3000, 5000, 10000],
+                    storeFingerprintForResuming: false,
                     onError: (error) => {
                         console.error('Vimeo Upload Error:', error);
 
                         let message = error.message;
-                        // Handle generic network errors (often shows as [object ProgressEvent] in tus)
                         if (message.includes('object ProgressEvent') || message.includes('n/a') || message.includes('failed to upload chunk')) {
                             message = '네트워크 연결이 불안정하여 업로드가 중단되었습니다. (잠시 후 자동 재시도됨)';
                         }
@@ -168,33 +234,19 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                             const contentType = params.courseId ? 'course' :
                                 (params.sparringId || params.videoType === 'sparring' ? 'sparring' :
                                     (params.lessonId ? 'lesson' : 'drill'));
-
                             const contentId = params.courseId || params.sparringId || params.lessonId || params.drillId || '';
 
-                            // Determine which API to call for completion
-                            const completeApiUrl = isMuxUpload ? '/api/upload-to-mux' : '/api/upload-to-vimeo';
-                            const completeBody = isMuxUpload
-                                ? {
-                                    action: 'complete_upload',
-                                    uploadId,
-                                    contentId,
-                                    contentType,
-                                    videoType: params.videoType,
-                                    thumbnailUrl: params.thumbnailUrl
-                                }
-                                : {
+                            const completeRes = await fetch('/api/upload-to-vimeo', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
                                     action: 'complete_upload',
                                     vimeoId: videoId,
                                     contentId,
                                     contentType,
                                     videoType: params.videoType,
                                     thumbnailUrl: params.thumbnailUrl
-                                };
-
-                            const completeRes = await fetch(completeApiUrl, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(completeBody)
+                                })
                             });
 
                             if (!completeRes.ok) {
@@ -207,7 +259,7 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                                 setTasks(prev => prev.filter(t => t.id !== task.id));
                             }, 3000);
                         } catch (err: any) {
-                            console.error('❌ Finalization Error:', err);
+                            console.error('❌ Vimeo Finalization Error:', err);
                             updateTaskStatus(task.id, 'error', '완료 처리 실패: ' + err.message);
                         }
                     },

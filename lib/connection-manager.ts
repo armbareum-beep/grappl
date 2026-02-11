@@ -35,24 +35,24 @@ async function pingSupabase() {
 
 /**
  * Warm up the connection before making real requests
- * Call this when tab becomes visible
+ * Call this when tab becomes visible or before API calls
  */
 export async function warmupConnection(): Promise<void> {
     const timeSinceActivity = Date.now() - lastActivity;
 
-    // If recently active, skip warmup
-    if (timeSinceActivity < 60000) {
+    // If recently active (within 30 seconds), skip warmup
+    if (timeSinceActivity < 30000) {
         return;
     }
 
-    // Quick warmup ping
+    // Quick warmup ping with 5 second timeout
     try {
         await Promise.race([
             pingSupabase(),
-            new Promise(resolve => setTimeout(resolve, 2000)) // Max 2s warmup
+            new Promise(resolve => setTimeout(resolve, 5000)) // Max 5s warmup
         ]);
     } catch (e) {
-        // Warmup failed, proceed anyway
+        // Warmup failed, proceed anyway - the actual request will retry
     }
 }
 

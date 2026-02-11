@@ -47,3 +47,4 @@ nul
 _OLD_BACKUP/
 tmpclaude-*
 .claude/
+.env*.local

@@ -463,7 +463,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                 thumbnailUrl: thumbnailUrl || (mainVideo.vimeoUrl || descVideo.vimeoUrl ? undefined : `https://placehold.co/600x800/1e293b/ffffff?text=${contentType}`),
                 length: formData.length,
                 vimeoUrl: mainVideo.vimeoUrl || undefined,
-                descriptionVideoUrl: contentType === 'drill' ? (descVideo.vimeoUrl || undefined) : undefined,
+                descriptionVideoUrl: contentType === 'drill' ? (descVideo.vimeoUrl || null) : undefined,
                 relatedItems: (contentType === 'drill' || contentType === 'sparring') ? relatedItems : undefined,
             };
 

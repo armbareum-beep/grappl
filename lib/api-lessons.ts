@@ -109,12 +109,24 @@ export async function updateLesson(id: string, updates: Partial<Lesson>) {
 }
 
 export async function deleteLesson(id: string) {
-    const { error } = await supabase
-        .from('lessons')
-        .delete()
-        .eq('id', id);
+    try {
+        // Use backend API to delete lesson and associated Vimeo videos
+        const res = await fetch('/api/delete-content', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contentType: 'lesson', contentId: id })
+        });
 
-    return { error };
+        if (!res.ok) {
+            const data = await res.json();
+            return { error: new Error(data.error || 'Failed to delete lesson') };
+        }
+
+        return { error: null };
+    } catch (err: any) {
+        console.error('Delete lesson error:', err);
+        return { error: err };
+    }
 }
 
 export async function getLessonById(id: string) {

@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || '';
-const MUX_TOKEN_ID = process.env.VITE_MUX_TOKEN_ID || '';
-const MUX_TOKEN_SECRET = process.env.VITE_MUX_TOKEN_SECRET || '';
+const MUX_TOKEN_ID = process.env.MUX_TOKEN_ID || process.env.VITE_MUX_TOKEN_ID || '';
+const MUX_TOKEN_SECRET = process.env.MUX_TOKEN_SECRET || process.env.VITE_MUX_TOKEN_SECRET || '';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -49,7 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        const { action, title, description, contentId, contentType, videoType, fileSize } =
+        const { action, title: _title, description: _description, contentId, contentType, videoType, fileSize } =
             req.body;
 
         console.log('[Mux] Action:', action);
@@ -58,10 +58,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (action === 'create_upload') {
             console.log('[Mux] Creating upload link for size:', fileSize);
 
-            // Get origin from request headers for CORS
-            const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || 'https://grapplay.com';
+            // Get origin - prefer explicit corsOrigin from body, fallback to headers
+            const { corsOrigin: explicitOrigin } = req.body;
+            const headerOrigin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || '';
+            const origin = explicitOrigin || headerOrigin || 'https://grapplay.com';
             const corsOrigin = origin.startsWith('http') ? new URL(origin).origin : 'https://grapplay.com';
-            console.log('[Mux] Using CORS origin:', corsOrigin);
+            console.log('[Mux] Using CORS origin:', corsOrigin, '(explicit:', !!explicitOrigin, ')');
 
             const createResponse = await fetch('https://api.mux.com/video/v1/uploads', {
                 method: 'POST',
