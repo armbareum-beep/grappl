@@ -190,6 +190,7 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
                     muxVideo.setAttribute('autoplay', 'true');
                     muxVideo.setAttribute('muted', isMuted ? 'true' : 'false');
                     muxVideo.setAttribute('playsinline', 'true');
+                    muxVideo.setAttribute('preload', 'auto');
                     muxVideo.className = 'w-full h-full object-cover';
 
                     if (containerRef.current) {
@@ -210,6 +211,7 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
                         if (currentTime > 0.1) {
                             onPlay?.();
                             setReady(true);
+                            setIsBuffering(false);
                         }
 
                         if (isPreviewModeRef.current && maxPreviewDurationRef.current) {
@@ -228,6 +230,7 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
                         if (isMounted) {
                             onPlay?.();
                             setReady(true);
+                            setIsBuffering(false);
                         }
                     };
 
@@ -241,10 +244,23 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
                         onError('재생 오류');
                     };
 
+                    const handleWaiting = () => {
+                        if (isMounted) setIsBuffering(true);
+                    };
+
+                    const handleCanPlay = () => {
+                        if (isMounted) {
+                            setIsBuffering(false);
+                            setReady(true);
+                        }
+                    };
+
                     videoElement.addEventListener('timeupdate', handleTimeUpdate);
                     videoElement.addEventListener('play', handlePlay);
                     videoElement.addEventListener('ended', handleEnded);
                     videoElement.addEventListener('error', handleError);
+                    videoElement.addEventListener('waiting', handleWaiting);
+                    videoElement.addEventListener('canplay', handleCanPlay);
                     videoElement.addEventListener('loadedmetadata', () => {
                         if (isMounted) setReady(true);
                     });
@@ -258,6 +274,8 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
                             videoElement.removeEventListener('play', handlePlay);
                             videoElement.removeEventListener('ended', handleEnded);
                             videoElement.removeEventListener('error', handleError);
+                            videoElement.removeEventListener('waiting', handleWaiting);
+                            videoElement.removeEventListener('canplay', handleCanPlay);
                             videoElement.pause();
                         }
                         if (containerRef.current) containerRef.current.innerHTML = '';
