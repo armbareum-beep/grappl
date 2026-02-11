@@ -4,9 +4,11 @@ import { Sparkles, RefreshCw, X } from 'lucide-react';
 import { hardReload } from '../lib/utils';
 
 const UPDATE_COOLDOWN = 10000; // 10 seconds safety cooldown
-const MIN_RELOAD_INTERVAL = 3600000; // 1 hour minimum between hard reloads
+const MIN_RELOAD_INTERVAL = 600000; // 10 minutes minimum between hard reloads (reduced from 1 hour)
+const STALE_SESSION_THRESHOLD = 24 * 60 * 60 * 1000; // 24 hours - consider session stale after this
 const LAST_UPDATE_KEY = 'grapplay_last_update_attempt';
 const LAST_SUCCESSFUL_RELOAD_KEY = 'grapplay_last_successful_reload';
+const LAST_ACTIVE_KEY = 'grapplay_last_active';
 
 export const VersionChecker: React.FC = () => {
     const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
@@ -97,6 +99,46 @@ export const VersionChecker: React.FC = () => {
     useEffect(() => {
         if (isDev) return;
 
+        // Check if this is a stale session (user hasn't visited in a long time)
+        const checkStaleSession = () => {
+            const lastActive = localStorage.getItem(LAST_ACTIVE_KEY);
+            const now = Date.now();
+
+            if (lastActive) {
+                const timeSinceLastActive = now - parseInt(lastActive);
+                if (timeSinceLastActive > STALE_SESSION_THRESHOLD) {
+                    console.log('[VersionChecker] Stale session detected, forcing cache clear');
+                    // Force hard reload bypassing cooldown for stale sessions
+                    forceHardReloadStaleSession();
+                    return true;
+                }
+            }
+
+            // Update last active time
+            localStorage.setItem(LAST_ACTIVE_KEY, now.toString());
+            return false;
+        };
+
+        // Force reload for stale sessions - bypasses normal cooldown
+        const forceHardReloadStaleSession = async () => {
+            if (isUpdating.current) return;
+            isUpdating.current = true;
+
+            try {
+                // Clear the reload interval check for stale sessions
+                localStorage.removeItem(LAST_SUCCESSFUL_RELOAD_KEY);
+                await hardReload([LAST_UPDATE_KEY, LAST_ACTIVE_KEY], true);
+            } catch (error) {
+                console.error('[VersionCheck] Error during stale session reload:', error);
+                window.location.reload();
+            }
+        };
+
+        // Check for stale session first
+        if (checkStaleSession()) {
+            return; // Will reload, no need to continue
+        }
+
         // Initial check
         checkVersion();
 
@@ -105,6 +147,10 @@ export const VersionChecker: React.FC = () => {
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
                 const now = Date.now();
+
+                // Update last active time on every visibility
+                localStorage.setItem(LAST_ACTIVE_KEY, now.toString());
+
                 // Throttle visibility checks to once every 5 minutes
                 if (now - lastVisibilityCheck < 5 * 60 * 1000) {
                     return;

@@ -39,9 +39,45 @@ export default defineConfig({
                 skipWaiting: true,
                 clientsClaim: true,
                 cleanupOutdatedCaches: true,
-                maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // Increase to 10MB
-                navigateFallbackDenylist: [/^\/api/],
+                // CRITICAL: Minimize precache to prevent stale cache issues
+                // Only precache essential shell files, not all JS chunks
+                globPatterns: ['**/*.{ico,png,svg,webp}'], // Only icons/images
+                // Don't precache JS/CSS - use runtime caching instead
+                navigateFallback: null, // Disable offline fallback to index.html
+                navigateFallbackDenylist: [/^\/api/, /^\/__/],
                 runtimeCaching: [
+                    // HTML - Always fetch from network first
+                    {
+                        urlPattern: /^https:\/\/.*\/?$/i,
+                        handler: 'NetworkFirst',
+                        options: {
+                            cacheName: 'html-cache',
+                            expiration: {
+                                maxEntries: 10,
+                                maxAgeSeconds: 60 * 60 // 1 hour
+                            },
+                            networkTimeoutSeconds: 3,
+                            cacheableResponse: {
+                                statuses: [0, 200]
+                            }
+                        }
+                    },
+                    // JS/CSS - Stale while revalidate (use cache but update in background)
+                    {
+                        urlPattern: /\.(?:js|css)$/i,
+                        handler: 'StaleWhileRevalidate',
+                        options: {
+                            cacheName: 'static-resources',
+                            expiration: {
+                                maxEntries: 100,
+                                maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days
+                            },
+                            cacheableResponse: {
+                                statuses: [0, 200]
+                            }
+                        }
+                    },
+                    // Fonts - Cache first (rarely change)
                     {
                         urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
                         handler: 'CacheFirst',
@@ -69,6 +105,16 @@ export default defineConfig({
                                 statuses: [0, 200]
                             }
                         }
+                    },
+                    // API calls - Network only (never cache)
+                    {
+                        urlPattern: /\/api\//i,
+                        handler: 'NetworkOnly'
+                    },
+                    // Supabase - Network only
+                    {
+                        urlPattern: /supabase/i,
+                        handler: 'NetworkOnly'
                     }
                 ]
             },

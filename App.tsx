@@ -95,14 +95,57 @@ const DebugAccess = React.lazy(() => import('./pages/DebugAccess'));
 const RootRedirect: React.FC = () => {
   const { user, loading } = useAuth();
   const [forceLoad, setForceLoad] = React.useState(false);
+  const [recoveryAttempted, setRecoveryAttempted] = React.useState(false);
 
   React.useEffect(() => {
+    // First timeout: Force show landing page after 4s
     const timer = setTimeout(() => {
       setForceLoad(true);
       console.warn('[RootRedirect] Auth loading exceeded 4s, forcing landing page display');
     }, 4000);
-    return () => clearTimeout(timer);
-  }, []);
+
+    // Second timeout: If still loading after 8s, attempt auto-recovery
+    const recoveryTimer = setTimeout(async () => {
+      if (loading && !recoveryAttempted) {
+        console.warn('[RootRedirect] Auth still loading after 8s, attempting auto-recovery');
+        setRecoveryAttempted(true);
+
+        // Check if we already tried recovery recently
+        const lastRecovery = localStorage.getItem('app_infinite_loading_recovery');
+        const now = Date.now();
+        if (lastRecovery && now - parseInt(lastRecovery) < 60000) {
+          console.warn('[RootRedirect] Recovery attempted recently, skipping');
+          return;
+        }
+
+        localStorage.setItem('app_infinite_loading_recovery', now.toString());
+
+        // Clear auth data and reload
+        try {
+          // Clear auth-related storage
+          const keysToRemove: string[] = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (key.includes('supabase') || key.includes('auth') || key.startsWith('user_status'))) {
+              keysToRemove.push(key);
+            }
+          }
+          keysToRemove.forEach(k => localStorage.removeItem(k));
+          sessionStorage.clear();
+
+          // Reload after cleanup
+          window.location.reload();
+        } catch (e) {
+          console.error('[RootRedirect] Recovery failed:', e);
+        }
+      }
+    }, 8000);
+
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(recoveryTimer);
+    };
+  }, [loading, recoveryAttempted]);
 
   if (loading && !forceLoad) {
     return <LoadingScreen message="로그인 정보 확인 중..." />;

@@ -3,6 +3,50 @@ import { supabase } from '../lib/supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { queryClient } from '../lib/react-query';
 
+// Auto-recovery: clear stale auth data and reload
+async function autoRecoverAuth(reason: string) {
+    console.warn(`[AuthContext] Auto-recovery triggered: ${reason}`);
+
+    // Check if we already tried recovery recently (prevent infinite loops)
+    const lastRecovery = localStorage.getItem('auth_recovery_attempt');
+    const now = Date.now();
+    if (lastRecovery && now - parseInt(lastRecovery) < 30000) {
+        console.warn('[AuthContext] Recovery attempted recently, skipping to prevent loop');
+        return false;
+    }
+
+    localStorage.setItem('auth_recovery_attempt', now.toString());
+
+    try {
+        // Sign out from Supabase to clear server session
+        await supabase.auth.signOut();
+    } catch (e) {
+        console.warn('[AuthContext] signOut failed during recovery:', e);
+    }
+
+    // Clear auth-related localStorage keys
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (
+            key.includes('supabase') ||
+            key.includes('auth') ||
+            key.startsWith('user_status')
+        )) {
+            keysToRemove.push(key);
+        }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+
+    // Clear session storage
+    sessionStorage.clear();
+
+    // Invalidate all queries
+    queryClient.clear();
+
+    return true;
+}
+
 // Extend Supabase User type to include our custom properties
 interface User extends SupabaseUser {
     isSubscriber?: boolean;
@@ -169,17 +213,62 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
                 // Add timeout to getSession to prevent infinite loading on slow/failed network
                 const sessionPromise = supabase.auth.getSession();
-                const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) =>
+                const timeoutPromise = new Promise<{ data: { session: null }, error?: any }>((resolve) =>
                     setTimeout(() => {
                         console.warn('getSession timed out, proceeding without session');
-                        resolve({ data: { session: null } });
+                        resolve({ data: { session: null }, error: new Error('Session timeout') });
                     }, 8000)
                 );
 
-                const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
+                const result = await Promise.race([sessionPromise, timeoutPromise]);
                 if (!mounted) return;
 
+                const session = result.data?.session;
+
+                // Check for stale/invalid session that might cause infinite loading
                 if (session?.user) {
+                    // Verify token is not expired
+                    const expiresAt = session.expires_at;
+                    const now = Math.floor(Date.now() / 1000);
+
+                    if (expiresAt && expiresAt < now) {
+                        console.warn('[AuthContext] Session token expired, attempting refresh');
+                        const { data: refreshResult, error: refreshError } = await supabase.auth.refreshSession();
+
+                        if (refreshError || !refreshResult.session) {
+                            console.warn('[AuthContext] Token refresh failed, clearing stale session');
+                            await autoRecoverAuth('expired_token_refresh_failed');
+                            if (mounted) setLoading(false);
+                            return;
+                        }
+                        // Use refreshed session
+                        const refreshedSession = refreshResult.session;
+                        setUser({
+                            ...refreshedSession.user,
+                            isSubscriber: false,
+                        } as any);
+                        setLoading(false);
+
+                        checkUserStatus(refreshedSession.user.id, true).then(status => {
+                            if (mounted) {
+                                setUser({
+                                    ...refreshedSession.user,
+                                    isSubscriber: status.isSubscribed,
+                                    subscription_tier: status.subscriptionTier,
+                                    ownedVideoIds: status.ownedVideoIds,
+                                    profile_image_url: status.profile_image_url,
+                                    avatar_url: status.avatar_url
+                                });
+                                setIsAdmin(status.isAdmin);
+                                setIsCreator(status.isCreator);
+                                setIsSubscribed(status.isSubscribed);
+                            }
+                        }).catch(err => {
+                            console.warn('Background status check failed:', err);
+                        });
+                        return;
+                    }
+
                     // CRITICAL: Set user immediately from session to avoid flickering and unauthorized redirects
                     setUser({
                         ...session.user,
@@ -207,10 +296,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         console.warn('Background status check failed:', err);
                     });
                 } else {
+                    // No session - check if there's stale auth data causing issues
+                    const hasStaleAuthData = localStorage.getItem('supabase.auth.token');
+                    if (hasStaleAuthData) {
+                        console.warn('[AuthContext] No session but stale auth data found, cleaning up');
+                        await autoRecoverAuth('stale_auth_data_no_session');
+                    }
                     if (mounted) setLoading(false);
                 }
             } catch (error) {
                 console.error('Error initializing auth:', error);
+                // On error, try auto-recovery
+                await autoRecoverAuth('init_auth_error');
                 if (mounted) setLoading(false);
             }
         };
