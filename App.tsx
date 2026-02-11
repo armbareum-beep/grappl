@@ -16,6 +16,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminRoute } from './components/AdminRoute';
 import { VersionChecker } from './components/VersionChecker';
 import { initCacheMonitoring } from './lib/cache-monitor';
+import { startConnectionKeepalive, stopConnectionKeepalive } from './lib/connection-manager';
 
 // Lazy load essential pages
 const Home = React.lazy(() => import('./pages/Home').then(m => ({ default: m.Home })));
@@ -280,6 +281,12 @@ const App: React.FC = () => {
   React.useEffect(() => {
     const cleanup = initCacheMonitoring();
     return cleanup;
+  }, []);
+
+  // ✅ Supabase 연결 유지 (콜드 스타트 방지)
+  React.useEffect(() => {
+    startConnectionKeepalive();
+    return () => stopConnectionKeepalive();
   }, []);
 
   return (
