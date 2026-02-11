@@ -120,6 +120,42 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         playingRef.current = playing;
     }, [playing]);
 
+    // Cleanup on unmount: ensure video is fully stopped when navigating away
+    useEffect(() => {
+        return () => {
+            // Cleanup Mux video
+            if (muxVideoRef.current) {
+                try {
+                    muxVideoRef.current.pause();
+                    muxVideoRef.current.src = '';
+                    muxVideoRef.current.load();
+                } catch (e) {
+                    // Ignore cleanup errors
+                }
+                muxVideoRef.current = null;
+            }
+            // Cleanup Vimeo player
+            if (playerRef.current) {
+                try {
+                    playerRef.current.pause().catch(() => {});
+                    playerRef.current.destroy().catch(() => {});
+                } catch (e) {
+                    // Ignore cleanup errors
+                }
+                playerRef.current = null;
+            }
+            // Clear polling interval
+            if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+                pollingIntervalRef.current = null;
+            }
+            // Clear container
+            if (containerRef.current) {
+                containerRef.current.innerHTML = '';
+            }
+        };
+    }, []);
+
     useEffect(() => {
         if (!containerRef.current) return;
 
@@ -242,7 +278,14 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
                         muxVideoRef.current.removeEventListener('ended', handleEnded);
                         muxVideoRef.current.removeEventListener('error', handleError);
                         muxVideoRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
-                        muxVideoRef.current.pause();
+                        try {
+                            muxVideoRef.current.pause();
+                            // Clear source to fully stop audio
+                            muxVideoRef.current.src = '';
+                            muxVideoRef.current.load();
+                        } catch (e) {
+                            // Ignore cleanup errors
+                        }
                         muxVideoRef.current = null;
                     }
                     if (containerRef.current) {

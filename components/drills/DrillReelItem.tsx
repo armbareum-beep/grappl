@@ -101,6 +101,37 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
         onBuffering?.(isBuffering);
     }, [isBuffering, onBuffering]);
 
+    // Cleanup on unmount: ensure video is paused when navigating away
+    useEffect(() => {
+        return () => {
+            // Pause and cleanup any Mux video element
+            if (videoRef.current) {
+                try {
+                    videoRef.current.pause();
+                    videoRef.current.src = '';
+                    videoRef.current.load();
+                } catch (e) {
+                    // Ignore errors during cleanup
+                }
+                videoRef.current = null;
+            }
+            // Cleanup Vimeo player
+            if (playerRef.current) {
+                try {
+                    playerRef.current.pause().catch(() => {});
+                    playerRef.current.destroy().catch(() => {});
+                } catch (e) {
+                    // Ignore errors during cleanup
+                }
+                playerRef.current = null;
+            }
+            // Clear container
+            if (containerRef.current) {
+                containerRef.current.innerHTML = '';
+            }
+        };
+    }, []);
+
     useEffect(() => {
         if (!url || !shouldLoad) {
             if (!url && shouldLoad) onReady();
@@ -276,14 +307,23 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
 
                     return () => {
                         isMounted = false;
-                        if (videoElement) {
-                            videoElement.removeEventListener('timeupdate', handleTimeUpdate);
-                            videoElement.removeEventListener('play', handlePlay);
-                            videoElement.removeEventListener('ended', handleEnded);
-                            videoElement.removeEventListener('error', handleError);
-                            videoElement.removeEventListener('waiting', handleWaiting);
-                            videoElement.removeEventListener('canplay', handleCanPlay);
-                            videoElement.pause();
+                        // Use ref for more reliable cleanup
+                        const vid = videoRef.current;
+                        if (vid) {
+                            vid.removeEventListener('timeupdate', handleTimeUpdate);
+                            vid.removeEventListener('play', handlePlay);
+                            vid.removeEventListener('ended', handleEnded);
+                            vid.removeEventListener('error', handleError);
+                            vid.removeEventListener('waiting', handleWaiting);
+                            vid.removeEventListener('canplay', handleCanPlay);
+                            try {
+                                vid.pause();
+                                vid.src = '';
+                                vid.load();
+                            } catch (e) {
+                                // Ignore cleanup errors
+                            }
+                            videoRef.current = null;
                         }
                         if (containerRef.current) containerRef.current.innerHTML = '';
                         setReady(false);
