@@ -4,7 +4,8 @@ import { Lock, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { useWakeLock } from '../hooks/useWakeLock';
-import { parseVimeoId } from '../lib/api';
+import { parseVimeoId, isMuxPlaybackId } from '../lib/api';
+import '@mux/mux-video';
 
 export interface VideoPlayerRef {
     seekTo: (seconds: number) => void;
@@ -66,6 +67,12 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     // Expose seekTo method via ref
     useImperativeHandle(ref, () => ({
         seekTo: (seconds: number) => {
+            // Check Mux video first
+            if (muxVideoRef.current) {
+                muxVideoRef.current.currentTime = seconds;
+                return;
+            }
+            // Check Vimeo player
             if (playerRef.current) {
                 playerRef.current.setCurrentTime(seconds).catch(err => {
                     console.warn('[VideoPlayer] Seek failed:', err);
@@ -85,6 +92,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     }, [isPlaying, onPlayingChange]);
     const containerRef = useRef<HTMLDivElement>(null);
     const playerRef = useRef<Player | null>(null);
+    const muxVideoRef = useRef<HTMLVideoElement | null>(null);
     const [playerError, setPlayerError] = useState<any>(null);
     const [showUpgradeOverlay, setShowUpgradeOverlay] = useState(false);
     const [showLikeAnimation, setShowLikeAnimation] = useState(false);
@@ -123,6 +131,133 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
             containerRef.current.innerHTML = '';
         }
 
+        const vimeoIdStr = String(vimeoId || '').trim();
+
+        // Check if this is a Mux playback ID
+        if (isMuxPlaybackId(vimeoIdStr)) {
+            try {
+                const muxVideo = document.createElement('mux-video') as any;
+                muxVideo.setAttribute('playback-id', vimeoIdStr);
+                muxVideo.setAttribute('controls', showControls ? 'true' : 'false');
+                muxVideo.setAttribute('autoplay', autoplay ? 'true' : 'false');
+                muxVideo.setAttribute('muted', muted ? 'true' : 'false');
+                muxVideo.setAttribute('playsinline', 'true');
+                muxVideo.setAttribute('loop', 'true');
+                muxVideo.className = 'w-full h-full object-cover';
+                muxVideo.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
+
+                if (containerRef.current) {
+                    containerRef.current.innerHTML = '';
+                    containerRef.current.appendChild(muxVideo);
+                }
+
+                const videoElement = muxVideo as HTMLVideoElement;
+                let hasNotifiedReady = false;
+
+                const notifyParentReady = () => {
+                    if (!hasNotifiedReady) {
+                        hasNotifiedReady = true;
+                        onReady?.();
+                    }
+                };
+
+                // Set up event listeners for Mux video element
+                const handleTimeUpdate = () => {
+                    const duration = videoElement.duration || 1;
+                    const currentTime = videoElement.currentTime || 0;
+                    const percent = currentTime / duration;
+
+                    if (currentTime > 0.1) {
+                        notifyParentReady();
+                        setIsPlaying(true);
+                    }
+
+                    const max = maxPreviewDurationRef.current;
+                    const isPreview = isPreviewModeRef.current;
+
+                    let reportPercent = percent;
+                    if (isPreview && max) {
+                        reportPercent = Math.min(1, currentTime / max);
+                    }
+
+                    onProgressRef.current?.(currentTime, duration, reportPercent);
+
+                    // Preview limit check
+                    if (isPreview && max && currentTime >= max) {
+                        if (!hasReachedRef.current) {
+                            hasReachedRef.current = true;
+                            videoElement.pause();
+                            setIsPlaying(false);
+                            setShowUpgradeOverlay(true);
+                            onPreviewLimitReached?.();
+                            onPreviewEnded?.();
+                        }
+                    }
+                };
+
+                const handlePlay = () => {
+                    setIsPlaying(true);
+                    notifyParentReady();
+                };
+
+                const handlePause = () => setIsPlaying(false);
+
+                const handleEnded = () => {
+                    if (onEnded) onEnded();
+                };
+
+                const handleError = (e: any) => {
+                    console.error('Mux Player Error:', e);
+                    setPlayerError({ message: 'Mux video playback error' });
+                };
+
+                const handleLoadedMetadata = () => {
+                    notifyParentReady();
+                    // Detect aspect ratio
+                    if (videoElement.videoWidth && videoElement.videoHeight) {
+                        const ratio = videoElement.videoWidth / videoElement.videoHeight;
+                        setAspectRatio(ratio);
+                        onAspectRatioChange?.(ratio);
+                    }
+                    if (startTime && startTime > 0) {
+                        videoElement.currentTime = startTime;
+                    }
+                };
+
+                videoElement.addEventListener('timeupdate', handleTimeUpdate);
+                videoElement.addEventListener('play', handlePlay);
+                videoElement.addEventListener('pause', handlePause);
+                videoElement.addEventListener('ended', handleEnded);
+                videoElement.addEventListener('error', handleError);
+                videoElement.addEventListener('loadedmetadata', handleLoadedMetadata);
+
+                // Store video element ref for playback control
+                muxVideoRef.current = videoElement;
+
+                // Return cleanup function for Mux
+                return () => {
+                    if (muxVideoRef.current) {
+                        muxVideoRef.current.removeEventListener('timeupdate', handleTimeUpdate);
+                        muxVideoRef.current.removeEventListener('play', handlePlay);
+                        muxVideoRef.current.removeEventListener('pause', handlePause);
+                        muxVideoRef.current.removeEventListener('ended', handleEnded);
+                        muxVideoRef.current.removeEventListener('error', handleError);
+                        muxVideoRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
+                        muxVideoRef.current.pause();
+                        muxVideoRef.current = null;
+                    }
+                    if (containerRef.current) {
+                        containerRef.current.innerHTML = '';
+                    }
+                };
+            } catch (error) {
+                console.error('Mux video setup error:', error);
+                setPlayerError({ message: 'Mux 플레이어 초기화 실패' });
+                return;
+            }
+        }
+
+        // Vimeo handling continues below
         try {
             const options: any = {
                 autoplay: autoplay,
@@ -145,7 +280,6 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
                 share: false,
             };
 
-            const vimeoIdStr = String(vimeoId || '').trim();
             const vimeoInfo = parseVimeoId(vimeoIdStr);
 
             if (!vimeoInfo) {
@@ -417,6 +551,29 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
 
     // Control playback based on `playing` prop
     useEffect(() => {
+        // Handle Mux video playback control
+        if (muxVideoRef.current) {
+            try {
+                if (!playing) {
+                    muxVideoRef.current.pause();
+                } else {
+                    muxVideoRef.current.play().catch((error: any) => {
+                        if (error.name === 'NotAllowedError' && !muted) {
+                            console.warn('[VideoPlayer] Mux autoplay blocked. Muting and retrying.');
+                            muxVideoRef.current!.muted = true;
+                            onAutoplayBlocked?.();
+                            muxVideoRef.current!.play().catch(() => {});
+                        }
+                    });
+                }
+                muxVideoRef.current.muted = muted;
+            } catch (err) {
+                console.warn('[VideoPlayer] Mux playback sync error:', err);
+            }
+            return;
+        }
+
+        // Handle Vimeo player playback control
         if (!playerRef.current) return;
 
         const syncPlayback = async () => {

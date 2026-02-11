@@ -1,5 +1,21 @@
 /// <reference types="vite/client" />
 
+// Mux Video Web Component type declaration
+declare namespace JSX {
+    interface IntrinsicElements {
+        'mux-video': React.DetailedHTMLProps<React.HTMLAttributes<HTMLVideoElement>, HTMLVideoElement> & {
+            'playback-id'?: string;
+            autoplay?: boolean;
+            loop?: boolean;
+            muted?: boolean;
+            playsinline?: boolean;
+            controls?: boolean;
+            preload?: string;
+            poster?: string;
+        };
+    }
+}
+
 interface ImportMetaEnv {
     readonly VITE_SUPABASE_URL: string
     readonly VITE_SUPABASE_ANON_KEY: string

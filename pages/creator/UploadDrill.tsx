@@ -3,13 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { VideoCategory, Difficulty, Drill, UniformType, Lesson, SparringVideo } from '../../types';
 import { createDrill, getDrillById, updateDrill, uploadThumbnail, getPublicLessons, getSparringVideos } from '../../lib/api';
-import { formatDuration, extractVimeoId, extractVimeoHash } from '../../lib/vimeo';
+import { formatDuration } from '../../lib/vimeo';
 import { Button } from '../../components/Button';
 import { ArrowLeft, Upload, FileVideo, Trash2, Loader, Camera, Plus, X, Search } from 'lucide-react';
 import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 import { useToast } from '../../contexts/ToastContext';
 import { ThumbnailCropper } from '../../components/ThumbnailCropper';
-import Player from '@vimeo/player';
+import '@mux/mux-video';
 
 type ProcessingState = {
     file: File | null;
@@ -63,8 +63,6 @@ export const UploadDrill: React.FC = () => {
 
     const actionVideoRef = React.useRef<HTMLVideoElement>(null);
     const descVideoRef = React.useRef<HTMLVideoElement>(null);
-    const actionVimeoIframeRef = React.useRef<HTMLIFrameElement>(null);
-    const descVimeoIframeRef = React.useRef<HTMLIFrameElement>(null);
     const [croppingImage, setCroppingImage] = useState<string | null>(null);
     const [activeCropper, setActiveCropper] = useState<'action' | 'desc' | null>(null);
 
@@ -83,17 +81,12 @@ export const UploadDrill: React.FC = () => {
                         uniformType: (drill.uniformType as UniformType) || UniformType.Gi,
                     });
                     if (drill.vimeoUrl || drill.videoUrl) {
-                        const targetUrl = (drill.vimeoUrl || drill.videoUrl) as string;
-                        const vId = extractVimeoId(targetUrl);
-                        const vHash = extractVimeoHash(targetUrl);
-                        let previewUrl = vId ? `https://player.vimeo.com/video/${vId}` : null;
-                        if (previewUrl && vHash) previewUrl += `?h=${vHash}`;
-
+                        const playbackId = drill.vimeoUrl || drill.videoUrl;
                         setActionVideo(prev => ({
                             ...prev,
                             status: 'complete',
-                            vimeoUrl: drill.vimeoUrl || null,
-                            previewUrl: previewUrl || drill.videoUrl || null
+                            vimeoUrl: playbackId || null,
+                            previewUrl: playbackId || null
                         }));
                     }
                     if (drill.descriptionVideoUrl) {
@@ -190,25 +183,19 @@ export const UploadDrill: React.FC = () => {
     const captureFromVideo = async (type: 'action' | 'desc') => {
         try {
             const state = type === 'action' ? actionVideo : descVideo;
-            const vimeoIframeRef = type === 'action' ? actionVimeoIframeRef : descVimeoIframeRef;
 
-            // Vimeo 영상인 경우
-            if (state.vimeoUrl && vimeoIframeRef.current) {
-                const vimeoId = extractVimeoId(state.vimeoUrl);
-                if (!vimeoId) {
-                    toastError('Vimeo 영상 ID를 찾을 수 없습니다.');
-                    return;
-                }
-
-                // Vimeo Player 인스턴스 생성 및 현재 시간 가져오기
-                const player = new Player(vimeoIframeRef.current);
-                const currentTime = await player.getCurrentTime();
-
-                // vumbnail.com을 사용하여 해당 시간의 썸네일 가져오기
-                const thumbnailUrl = `https://vumbnail.com/${vimeoId}.jpg?time=${Math.floor(currentTime)}`;
+            // Mux Playback ID인 경우 - Mux 썸네일 API 사용
+            if (state.vimeoUrl) {
+                const playbackId = state.vimeoUrl;
+                // Mux 썸네일 URL 생성 (기본 0초 시점)
+                const thumbnailUrl = `https://image.mux.com/${playbackId}/thumbnail.jpg`;
 
                 // 이미지 다운로드
                 const response = await fetch(thumbnailUrl);
+                if (!response.ok) {
+                    toastError('썸네일을 가져올 수 없습니다. Playback ID를 확인해주세요.');
+                    return;
+                }
                 const blob = await response.blob();
 
                 // Blob을 Data URL로 변환
@@ -273,13 +260,14 @@ export const UploadDrill: React.FC = () => {
         setIsSubmitting(true);
         try {
             let drillId = id;
+
             const payload: any = {
                 title: formData.title,
                 description: formData.description,
                 category: formData.category,
                 difficulty: formData.difficulty,
                 uniformType: formData.uniformType,
-                // Don't use placeholder thumbnail if Vimeo URL exists - let API fetch it
+                // Don't use placeholder thumbnail if URL exists - let API fetch it
                 thumbnailUrl: thumbnailUrl || (actionVideo.vimeoUrl || descVideo.vimeoUrl ? undefined : 'https://placehold.co/600x800/1e293b/ffffff?text=Drill'),
                 durationMinutes: 0,
                 length: '0:00',
@@ -343,34 +331,24 @@ export const UploadDrill: React.FC = () => {
         const isAction = type === 'action';
         const setter = isAction ? setActionVideo : setDescVideo;
         const ref = isAction ? actionVideoRef : descVideoRef;
-        const vimeoRef = isAction ? actionVimeoIframeRef : descVimeoIframeRef;
 
         return (
             <div className="h-full flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-zinc-400">Vimeo URL (선택)</label>
+                    <label className="text-sm font-medium text-zinc-400">Mux Playback ID (선택)</label>
                     <input
                         type="text"
                         value={state.vimeoUrl || ''}
                         onChange={(e) => {
-                            const val = e.target.value;
-                            const vId = extractVimeoId(val);
-                            const vHash = extractVimeoHash(val);
-
-                            let embedUrl = '';
-                            if (vId) {
-                                embedUrl = `https://player.vimeo.com/video/${vId}`;
-                                if (vHash) embedUrl += `?h=${vHash}`;
-                            }
-
+                            const val = e.target.value.trim();
                             setter(prev => ({
                                 ...prev,
-                                vimeoUrl: val ? val : null,
+                                vimeoUrl: val || null,
                                 status: val ? 'complete' : (prev.file ? 'ready' : 'idle'),
-                                previewUrl: val ? embedUrl : (prev.file ? prev.previewUrl : null)
+                                previewUrl: val || (prev.file ? prev.previewUrl : null)
                             }));
                         }}
-                        placeholder="Vimeo URL 또는 ID를 입력하세요"
+                        placeholder="Mux Playback ID 입력 (예: abcd1234)"
                         className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-zinc-300 focus:border-violet-500 outline-none"
                     />
                 </div>
@@ -395,7 +373,16 @@ export const UploadDrill: React.FC = () => {
                         </div>
                         <div className="aspect-[9/16] max-h-[500px] mx-auto rounded-xl overflow-hidden bg-black border border-zinc-800">
                             {state.vimeoUrl ? (
-                                <iframe ref={vimeoRef} src={state.previewUrl!} className="w-full h-full" frameBorder="0" allow="autoplay; fullscreen" allowFullScreen />
+                                // Mux Playback ID - render mux-video element
+                                <mux-video
+                                    key={state.vimeoUrl}
+                                    playback-id={state.vimeoUrl}
+                                    muted
+                                    autoplay
+                                    loop
+                                    playsinline
+                                    style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain' }}
+                                />
                             ) : (
                                 <video
                                     ref={ref}

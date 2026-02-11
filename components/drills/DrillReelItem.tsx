@@ -14,12 +14,13 @@ import Player from '@vimeo/player';
 import { cn } from '../../lib/utils';
 import { ReelLoginModal } from '../auth/ReelLoginModal';
 import { useOrientationFullscreen } from '../../hooks/useOrientationFullscreen';
+import '@mux/mux-video';
 
 // Lazy load ShareModal
 const ShareModal = React.lazy(() => import('../social/ShareModal'));
 
 // --- Helper Functions ---
-import { extractVimeoId } from '../../lib/api';
+import { extractVimeoId, isMuxPlaybackId } from '../../lib/api';
 
 // --- Sub-Component: Single Video Player ---
 interface SingleVideoPlayerProps {
@@ -64,7 +65,7 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
     previewLimitReachedRef: externalPreviewLimitReachedRef
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
-    const videoRef = useRef<HTMLVideoElement>(null);
+    const videoRef = useRef<HTMLVideoElement | null>(null);
     const playerRef = useRef<Player | null>(null);
     const [ready, setReady] = useState(false);
     const [isBuffering, setIsBuffering] = useState(false);
@@ -74,7 +75,8 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
     const videoPreload = useVideoPreloadSafe();
 
     const vimeoId = useMemo(() => extractVimeoId(url), [url]);
-    const useVimeo = !!vimeoId;
+    const isMux = useMemo(() => isMuxPlaybackId(url), [url]);
+    const useVimeo = !!vimeoId && !isMux;
 
     const onProgressRef = useRef(onProgress);
     const isPreviewModeRef = useRef(isPreviewMode);
@@ -171,12 +173,103 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
         }
 
         if (!playerRef.current) {
-            const fullId = extractVimeoId(url);
+            // Check if it's a Mux playback ID
+            const isMux = isMuxPlaybackId(url);
+            const fullId = isMux ? url : extractVimeoId(url);
+
             if (!fullId) {
                 onError('비디오 ID 오류');
                 return;
             }
 
+            // Handle Mux video
+            if (isMux) {
+                try {
+                    const muxVideo = document.createElement('mux-video') as any;
+                    muxVideo.setAttribute('playback-id', fullId);
+                    muxVideo.setAttribute('muted', isMuted ? 'true' : 'false');
+                    muxVideo.setAttribute('playsinline', 'true');
+                    muxVideo.className = 'w-full h-full object-cover';
+
+                    if (containerRef.current) {
+                        containerRef.current.innerHTML = '';
+                        containerRef.current.appendChild(muxVideo);
+                    }
+
+                    const videoElement = muxVideo as HTMLVideoElement;
+                    videoRef.current = videoElement;
+
+                    // Set up event listeners for HTMLVideoElement
+                    const handleTimeUpdate = () => {
+                        if (!isMounted) return;
+                        const duration = videoElement.duration || 1;
+                        const currentTime = videoElement.currentTime || 0;
+                        const percent = (currentTime / duration) * 100;
+
+                        if (currentTime > 0.1) {
+                            onPlay?.();
+                            setReady(true);
+                        }
+
+                        if (isPreviewModeRef.current && maxPreviewDurationRef.current) {
+                            const calcPercent = (currentTime / maxPreviewDurationRef.current) * 100;
+                            onProgressRef.current(calcPercent, currentTime);
+                            if (currentTime >= maxPreviewDurationRef.current) {
+                                videoElement.pause();
+                                onPreviewLimitReachedRef.current?.();
+                            }
+                        } else {
+                            onProgressRef.current(percent, currentTime);
+                        }
+                    };
+
+                    const handlePlay = () => {
+                        if (isMounted) {
+                            onPlay?.();
+                            setReady(true);
+                        }
+                    };
+
+                    const handleEnded = () => {
+                        if (isPreviewModeRef.current) {
+                            onPreviewLimitReachedRef.current?.();
+                        }
+                    };
+
+                    const handleError = () => {
+                        onError('재생 오류');
+                    };
+
+                    videoElement.addEventListener('timeupdate', handleTimeUpdate);
+                    videoElement.addEventListener('play', handlePlay);
+                    videoElement.addEventListener('ended', handleEnded);
+                    videoElement.addEventListener('error', handleError);
+                    videoElement.addEventListener('loadedmetadata', () => {
+                        if (isMounted) setReady(true);
+                    });
+
+                    onReady();
+
+                    return () => {
+                        isMounted = false;
+                        if (videoElement) {
+                            videoElement.removeEventListener('timeupdate', handleTimeUpdate);
+                            videoElement.removeEventListener('play', handlePlay);
+                            videoElement.removeEventListener('ended', handleEnded);
+                            videoElement.removeEventListener('error', handleError);
+                            videoElement.pause();
+                        }
+                        if (containerRef.current) containerRef.current.innerHTML = '';
+                        setReady(false);
+                    };
+                } catch (error) {
+                    console.error('Mux video setup error:', error);
+                    onError('Mux 플레이어 초기화 실패');
+                    return;
+                }
+            }
+
+            // Handle Vimeo video
             const options: any = {
                 autoplay: false,
                 loop: !isPreviewMode,
@@ -354,7 +447,8 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
                     <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin" />
                 </div>
             )}
-            {!useVimeo && url && (
+            {/* Only render HTML5 video for direct video URLs (not Vimeo or Mux) */}
+            {!useVimeo && !isMux && url && (
                 <video
                     ref={videoRef}
                     src={url}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getVimeoThumbnails } from '../lib/api';
+import { getVimeoThumbnails, isMuxPlaybackId } from '../lib/api';
 import { getVimeoVideoInfo } from '../lib/vimeo';
 import { Loader2, AlertCircle, Check, RefreshCw } from 'lucide-react';
 
@@ -32,6 +32,13 @@ export const VimeoThumbnailSelector: React.FC<VimeoThumbnailSelectorProps> = ({
         setError(null);
         setProcessing(false);
         try {
+            // Skip Mux playback IDs - they don't have Vimeo thumbnails
+            if (isMuxPlaybackId(vimeoId)) {
+                setError('Mux 영상은 썸네일 선택이 지원되지 않습니다.');
+                setLoading(false);
+                return;
+            }
+
             // 1. Try backend API first (better quality, multiple options)
             const result = await getVimeoThumbnails(vimeoId);
 

@@ -196,7 +196,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Navigation */}
       {!isFullScreenMode && (
         <nav className={cn(
-          "sticky top-0 w-full transition-all duration-300",
+          "sticky top-0 w-full transition-all duration-300 safe-area-pt",
           mobileMenuOpen ? "z-[99999]" : "z-[11000]",
           location.pathname === '/pricing'
             ? "bg-zinc-950"

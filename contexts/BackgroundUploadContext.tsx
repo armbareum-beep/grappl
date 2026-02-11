@@ -82,18 +82,30 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
             const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
             const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-            // Direct Vimeo Upload for Videos
+            // Determine content type for Mux vs Vimeo decision
+            const params = task.processingParams;
+            const contentType = params?.courseId ? 'course' :
+                (params?.sparringId || params?.videoType === 'sparring' ? 'sparring' :
+                    (params?.lessonId ? 'lesson' : 'drill'));
+
+            // Direct Mux Upload for Drills (faster feed videos)
+            const isMuxUpload = contentType === 'drill' && ['action', 'desc'].includes(task.type);
+
+            // Direct Vimeo Upload for Videos (non-drill types)
             const isVideoType = ['action', 'desc', 'sparring'].includes(task.type);
 
             if (isVideoType && task.processingParams) {
-                // Retry logic for obtaining upload link (Vimeo API or network can be flaky)
+                // Determine which API to use
+                const uploadApiUrl = isMuxUpload ? '/api/upload-to-mux' : '/api/upload-to-vimeo';
+
+                // Retry logic for obtaining upload link
                 let initResponse;
                 let lastError;
-                let vimeoUploadData;
+                let uploadData;
 
                 for (let attempt = 1; attempt <= 3; attempt++) {
                     try {
-                        initResponse = await fetch('/api/upload-to-vimeo', {
+                        initResponse = await fetch(uploadApiUrl, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -105,16 +117,16 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                         });
 
                         if (initResponse.ok) {
-                            vimeoUploadData = await initResponse.json();
+                            uploadData = await initResponse.json();
                             break;
                         } else {
                             const error = await initResponse.json();
                             lastError = error.error || `HTTP ${initResponse.status}`;
-                            console.warn(`[DirectVimeo] Attempt ${attempt} failed:`, lastError);
+                            console.warn(`[Upload] Attempt ${attempt} failed:`, lastError);
                         }
                     } catch (err: any) {
                         lastError = err.message || '네트워크 오류';
-                        console.warn(`[DirectVimeo] Attempt ${attempt} networking error:`, lastError);
+                        console.warn(`[Upload] Attempt ${attempt} networking error:`, lastError);
                     }
 
                     if (attempt < 3) {
@@ -122,11 +134,13 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                     }
                 }
 
-                if (!vimeoUploadData) {
+                if (!uploadData) {
                     throw new Error(`업로드 준비 실패 (재시도 3회): ${lastError}`);
                 }
 
-                const { uploadLink, vimeoId } = vimeoUploadData;
+                const uploadLink = uploadData.uploadUrl || uploadData.uploadLink;
+                const videoId = uploadData.videoId;
+                const uploadId = uploadData.uploadId; // For Mux
 
                 const upload = new tus.Upload(task.file, {
                     uploadUrl: uploadLink,
@@ -157,17 +171,30 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
 
                             const contentId = params.courseId || params.sparringId || params.lessonId || params.drillId || '';
 
-                            const completeRes = await fetch('/api/upload-to-vimeo', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
+                            // Determine which API to call for completion
+                            const completeApiUrl = isMuxUpload ? '/api/upload-to-mux' : '/api/upload-to-vimeo';
+                            const completeBody = isMuxUpload
+                                ? {
                                     action: 'complete_upload',
-                                    vimeoId,
+                                    uploadId,
                                     contentId,
                                     contentType,
                                     videoType: params.videoType,
                                     thumbnailUrl: params.thumbnailUrl
-                                })
+                                }
+                                : {
+                                    action: 'complete_upload',
+                                    vimeoId: videoId,
+                                    contentId,
+                                    contentType,
+                                    videoType: params.videoType,
+                                    thumbnailUrl: params.thumbnailUrl
+                                };
+
+                            const completeRes = await fetch(completeApiUrl, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(completeBody)
                             });
 
                             if (!completeRes.ok) {

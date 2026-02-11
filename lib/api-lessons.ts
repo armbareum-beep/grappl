@@ -24,6 +24,7 @@ export function transformLesson(data: any): Lesson {
         createdAt: data.created_at,
         isSubscriptionExcluded: data.is_subscription_excluded ?? data.course?.is_subscription_excluded ?? false,
         isPreview: !!data.is_preview,
+        isHidden: data.is_hidden ?? false,
         uniformType: data.uniform_type,
         price: data.price ?? data.course?.price ?? 0,
         likes: data.likes || 0,

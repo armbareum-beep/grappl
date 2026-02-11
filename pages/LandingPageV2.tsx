@@ -140,7 +140,7 @@ export const LandingPageV2: React.FC = () => {
     return (
         <div className="min-h-screen bg-black text-zinc-100 font-sans overflow-x-hidden selection:bg-indigo-500/30 selection:text-indigo-200">
             {/* Navigation Header */}
-            <header className="fixed top-0 left-0 right-0 z-50 px-4 md:px-6 py-4 bg-black/80 backdrop-blur-md border-b border-white/5">
+            <header className="fixed top-0 left-0 right-0 z-50 px-4 md:px-6 py-4 bg-black/80 backdrop-blur-md border-b border-white/5 safe-area-pt">
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <div className="flex items-center cursor-pointer" onClick={() => window.location.reload()}>
                         <img

@@ -78,6 +78,56 @@ export function extractVimeoId(url?: string | null): string | undefined {
     return undefined;
 }
 
+/**
+ * Check if URL is a Mux playback ID
+ * Mux IDs: alphanumeric (20+ chars), can start with number or letter
+ * Vimeo IDs: all digits only
+ */
+export function isMuxPlaybackId(id?: string | null): boolean {
+    if (!id || typeof id !== 'string') return false;
+    const trimmed = id.trim();
+    // Not a URL
+    if (trimmed.includes('/') || trimmed.includes('http')) return false;
+    // Not all digits (which would be Vimeo ID)
+    if (/^\d+$/.test(trimmed)) return false;
+    // Mux playback IDs: alphanumeric, 20+ chars, must contain at least one letter
+    return /^[a-zA-Z0-9]{20,}$/.test(trimmed) && /[a-zA-Z]/.test(trimmed);
+}
+
+/**
+ * Get video info from Mux by playback ID
+ * Returns duration in seconds and aspect ratio
+ */
+export async function getMuxVideoInfo(playbackId: string): Promise<{ durationSeconds: number; aspectRatio: string } | null> {
+    try {
+        const response = await fetch('/api/upload-to-mux', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'get_video_info',
+                playbackId
+            })
+        });
+
+        if (!response.ok) {
+            console.warn('[getMuxVideoInfo] API call failed:', response.status);
+            return null;
+        }
+
+        const result = await response.json();
+        if (result.success) {
+            return {
+                durationSeconds: result.durationSeconds || 0,
+                aspectRatio: result.aspectRatio || '9:16'
+            };
+        }
+        return null;
+    } catch (err) {
+        console.warn('[getMuxVideoInfo] Failed to get Mux video info:', err);
+        return null;
+    }
+}
+
 // Helper for VideoPlayer to get decomposed info
 export function parseVimeoId(vimeoIdStr?: string | null): VimeoInfo | null {
     const fullId = extractVimeoId(vimeoIdStr);
@@ -170,6 +220,7 @@ function transformCourse(data: CourseData): Course {
         createdAt: data.created_at || '',
         uniformType: data.uniform_type as any,
         isSubscriptionExcluded: data.is_subscription_excluded || false,
+        isHidden: (data as any).is_hidden || false,
         published: data.published || false,
         previewVimeoId: data.preview_vimeo_id || undefined,
     };
@@ -1351,6 +1402,7 @@ export async function updateCourse(courseId: string, courseData: Partial<Course>
     if (courseData.thumbnailUrl) dbData.thumbnail_url = courseData.thumbnailUrl;
     if (courseData.price !== undefined) dbData.price = courseData.price;
     if (courseData.isSubscriptionExcluded !== undefined) dbData.is_subscription_excluded = courseData.isSubscriptionExcluded;
+    if (courseData.isHidden !== undefined) dbData.is_hidden = courseData.isHidden;
     if (courseData.uniformType) dbData.uniform_type = courseData.uniformType;
     if (courseData.previewVimeoId) dbData.preview_vimeo_id = courseData.previewVimeoId;
 
@@ -5023,19 +5075,35 @@ export async function createDrill(drillData: Partial<Drill>) {
         related_lesson_id: drillData.relatedLessonId,
     };
 
-    // Auto-fetch Vimeo info if vimeo_url exists and thumbnail is missing
-    // Only fetch if we actually need the info (thumbnail or duration is missing)
-    if (dbData.vimeo_url && (!dbData.thumbnail_url || !dbData.duration_minutes)) {
-        try {
-            const videoInfo = await getVimeoVideoInfo(dbData.vimeo_url);
-            if (videoInfo) {
-                if (!dbData.thumbnail_url) dbData.thumbnail_url = videoInfo.thumbnail;
-                if (!dbData.duration_minutes) dbData.duration_minutes = Math.floor(videoInfo.duration / 60);
-                // if (!dbData.duration) dbData.duration = formatDuration(videoInfo.duration); // Column doesn't exist
+    // Auto-fetch video info based on the video source
+    if (dbData.vimeo_url) {
+        if (isMuxPlaybackId(dbData.vimeo_url)) {
+            // Mux video - fetch duration from Mux API
+            if (!dbData.duration_minutes) {
+                try {
+                    const muxInfo = await getMuxVideoInfo(dbData.vimeo_url);
+                    if (muxInfo) {
+                        dbData.duration_minutes = Math.ceil(muxInfo.durationSeconds / 60);
+                        // Auto-set thumbnail if not provided
+                        if (!dbData.thumbnail_url) {
+                            dbData.thumbnail_url = `https://image.mux.com/${dbData.vimeo_url}/thumbnail.jpg?width=720&height=1280&fit_mode=crop`;
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Failed to auto-fetch Mux info for drill:', err);
+                }
             }
-        } catch (err) {
-            console.warn('Failed to auto-fetch Vimeo info for drill:', err);
-            // Don't fail the entire operation if Vimeo API fails
+        } else if (!dbData.thumbnail_url || !dbData.duration_minutes) {
+            // Vimeo video - fetch info from Vimeo API
+            try {
+                const videoInfo = await getVimeoVideoInfo(dbData.vimeo_url);
+                if (videoInfo) {
+                    if (!dbData.thumbnail_url) dbData.thumbnail_url = videoInfo.thumbnail;
+                    if (!dbData.duration_minutes) dbData.duration_minutes = Math.floor(videoInfo.duration / 60);
+                }
+            } catch (err) {
+                console.warn('Failed to auto-fetch Vimeo info for drill:', err);
+            }
         }
     }
 
@@ -5086,19 +5154,35 @@ export async function updateDrill(drillId: string, drillData: Partial<Drill>) {
     if (drillData.relatedItems !== undefined) dbData.related_items = drillData.relatedItems;
     if (drillData.relatedLessonId !== undefined) dbData.related_lesson_id = drillData.relatedLessonId || null;
 
-    // If vimeoUrl changed and we need video info, fetch it
-    // Only fetch if we actually need the info (thumbnail or duration is missing)
-    if (drillData.vimeoUrl && (!drillData.thumbnailUrl || !drillData.durationMinutes)) {
-        try {
-            const videoInfo = await getVimeoVideoInfo(drillData.vimeoUrl);
-            if (videoInfo) {
-                if (!drillData.thumbnailUrl) dbData.thumbnail_url = videoInfo.thumbnail;
-                if (!drillData.durationMinutes) dbData.duration_minutes = Math.floor(videoInfo.duration / 60);
-                // if (!drillData.length && !drillData.duration) dbData.duration = formatDuration(videoInfo.duration); // Column doesn't exist
+    // Auto-fetch video info based on the video source
+    if (drillData.vimeoUrl) {
+        if (isMuxPlaybackId(drillData.vimeoUrl)) {
+            // Mux video - fetch duration from Mux API
+            if (!drillData.durationMinutes) {
+                try {
+                    const muxInfo = await getMuxVideoInfo(drillData.vimeoUrl);
+                    if (muxInfo) {
+                        dbData.duration_minutes = Math.ceil(muxInfo.durationSeconds / 60);
+                        // Auto-set thumbnail if not provided
+                        if (!drillData.thumbnailUrl) {
+                            dbData.thumbnail_url = `https://image.mux.com/${drillData.vimeoUrl}/thumbnail.jpg?width=720&height=1280&fit_mode=crop`;
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Failed to auto-fetch Mux info for drill update:', err);
+                }
             }
-        } catch (err) {
-            console.warn('Failed to auto-fetch updated drill Vimeo info:', err);
-            // Don't fail the entire operation if Vimeo API fails
+        } else if (!drillData.thumbnailUrl || !drillData.durationMinutes) {
+            // Vimeo video - fetch info from Vimeo API
+            try {
+                const videoInfo = await getVimeoVideoInfo(drillData.vimeoUrl);
+                if (videoInfo) {
+                    if (!drillData.thumbnailUrl) dbData.thumbnail_url = videoInfo.thumbnail;
+                    if (!drillData.durationMinutes) dbData.duration_minutes = Math.floor(videoInfo.duration / 60);
+                }
+            } catch (err) {
+                console.warn('Failed to auto-fetch updated drill Vimeo info:', err);
+            }
         }
     }
 
@@ -5169,6 +5253,7 @@ export function transformSparringVideo(data: any): SparringVideo {
         difficulty: data.difficulty,
         price: Number(data.price) || 0,
         isPublished: data.is_published ?? false,
+        isHidden: data.is_hidden ?? false,
         previewVimeoId: data.preview_vimeo_id || data.preview_vimeo_url
     };
 }
@@ -5490,6 +5575,7 @@ export async function updateSparringVideo(id: string, updates: Partial<SparringV
     if (updates.uniformType) dbData.uniform_type = updates.uniformType;
     if (updates.price !== undefined) dbData.price = updates.price;
     if (updates.isPublished !== undefined) dbData.is_published = updates.isPublished;
+    if (updates.isHidden !== undefined) dbData.is_hidden = updates.isHidden;
     if (updates.previewVimeoId !== undefined) dbData.preview_vimeo_id = updates.previewVimeoId;
     if (updates.durationMinutes !== undefined) dbData.duration_minutes = updates.durationMinutes;
     if (updates.length) dbData.length = updates.length;
@@ -6235,6 +6321,7 @@ export async function updateRoutine(id: string, updates: Partial<DrillRoutine>, 
     if (updates.relatedItems) dbData.related_items = updates.relatedItems;
     if (updates.uniformType) dbData.uniform_type = updates.uniformType;
     if (updates.creatorId) dbData.creator_id = updates.creatorId;
+    if (updates.isHidden !== undefined) dbData.is_hidden = updates.isHidden;
     if (drillIds) dbData.drill_count = drillIds.length;
 
     const { data: routine, error: routineError } = await withTimeout(
@@ -6533,6 +6620,7 @@ export function transformDrill(data: any): Drill {
         price: Number(data.price) || 0,
         createdAt: data.created_at,
         uniformType: data.uniform_type,
+        isHidden: data.is_hidden ?? false,
     };
     return result;
 }
@@ -6559,6 +6647,7 @@ function transformDrillRoutine(data: any): DrillRoutine {
         drills: [],
         relatedItems: data.related_items || [],
         uniformType: data.uniform_type,
+        isHidden: data.is_hidden ?? false,
         createdAt: data.created_at
     };
 }
@@ -8533,6 +8622,11 @@ export async function getVimeoThumbnails(vimeoId: string): Promise<{
     message?: string,
     error?: string
 }> {
+    // Skip Mux playback IDs - they don't have Vimeo thumbnails
+    if (isMuxPlaybackId(vimeoId)) {
+        return { error: 'Mux playback ID - not a Vimeo video' };
+    }
+
     try {
         const response = await fetch('/api/upload-to-vimeo', {
             method: 'POST',

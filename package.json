@@ -27,6 +27,7 @@
         "@dnd-kit/modifiers": "^9.0.0",
         "@dnd-kit/sortable": "^10.0.0",
         "@dnd-kit/utilities": "^3.2.2",
+        "@mux/mux-video": "^0.29.2",
         "@paypal/react-paypal-js": "^8.9.2",
         "@portone/browser-sdk": "^0.1.1",
         "@radix-ui/react-slot": "^1.2.4",

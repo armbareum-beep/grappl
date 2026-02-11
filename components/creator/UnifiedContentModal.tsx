@@ -90,6 +90,7 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
         price: 0,
         thumbnailUrl: '',
         isSubscriptionExcluded: false,
+        isHidden: false,
         sparringType: 'Sparring' as 'Sparring' | 'Competition',
         creatorId: '',
     });
@@ -150,6 +151,7 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                 price: (editingItem as any).price || 0,
                 thumbnailUrl: editingItem.thumbnailUrl || '',
                 isSubscriptionExcluded: (editingItem as any).isSubscriptionExcluded || false,
+                isHidden: (editingItem as any).isHidden || false,
                 sparringType: (editingItem as any).category === 'Competition' ? 'Competition' : 'Sparring',
                 creatorId: (editingItem as any).creatorId || '',
             });
@@ -216,6 +218,7 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                 thumbnailUrl: '',
                 published: true,
                 isSubscriptionExcluded: false,
+                isHidden: false,
                 sparringType: 'Sparring',
                 creatorId: '',
             });
@@ -371,7 +374,7 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
         try {
             const finalSaveData = {
                 ...pendingSaveData,
-                publishingRequested, // Flag to request publishing
+                publishingRequested: publishRequested, // Flag to request publishing
             };
             await onSave(finalSaveData);
             setShowPublishingModal(false);
@@ -634,8 +637,8 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                                 />
                             </div>
 
-                            {/* Course/Sparring specific options - Publishing */}
-                            {(contentType === 'course' || contentType === 'sparring') && (
+                            {/* Course/Routine/Sparring specific options - Publishing */}
+                            {(contentType === 'course' || contentType === 'routine' || contentType === 'sparring') && (
                                 <div className="space-y-3 pt-4 border-t border-zinc-800">
                                     <label className="flex items-start gap-4 p-4 rounded-xl border border-zinc-800 bg-zinc-950/30 hover:bg-zinc-800/20 transition-all cursor-pointer">
                                         <input
@@ -647,6 +650,18 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                                         <div>
                                             <span className="block font-semibold text-zinc-200">구독 제외 상품</span>
                                             <span className="block text-sm text-zinc-500 mt-1">체크하면 구독권 사용자도 별도 구매가 필요합니다.</span>
+                                        </div>
+                                    </label>
+                                    <label className="flex items-start gap-4 p-4 rounded-xl border border-zinc-800 bg-zinc-950/30 hover:bg-zinc-800/20 transition-all cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.isHidden}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, isHidden: e.target.checked }))}
+                                            className="mt-1 h-5 w-5 text-violet-600 border-zinc-700 rounded-md bg-zinc-900"
+                                        />
+                                        <div>
+                                            <span className="block font-semibold text-zinc-200">공개 안함</span>
+                                            <span className="block text-sm text-zinc-500 mt-1">체크하면 콘텐츠가 비공개 처리됩니다. 삭제하지 않고 숨길 수 있습니다.</span>
                                         </div>
                                     </label>
                                 </div>

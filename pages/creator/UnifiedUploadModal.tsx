@@ -22,6 +22,7 @@ import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 import { ThumbnailCropper } from '../../components/ThumbnailCropper';
 import { useToast } from '../../contexts/ToastContext';
 import { ImageUploader } from '../../components/ImageUploader';
+import '@mux/mux-video';
 
 type ContentType = 'drill' | 'lesson' | 'sparring';
 
@@ -347,6 +348,33 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         }
     };
 
+    // Mux 썸네일 가져오기 (드릴 전용 - 9:16 세로 비율, 현재 재생 위치)
+    const captureFromMux = async (playbackId: string, type: 'main' | 'desc') => {
+        try {
+            // 현재 비디오의 재생 위치 가져오기
+            const muxVideo = document.querySelector(`mux-video[playback-id="${playbackId}"]`) as any;
+            const currentTime = muxVideo?.currentTime || 0;
+
+            // 9:16 세로 비율 (720x1280), 현재 재생 위치에서 캡처
+            const thumbnailUrl = `https://image.mux.com/${playbackId}/thumbnail.jpg?width=720&height=1280&fit_mode=crop&time=${currentTime}`;
+            const response = await fetch(thumbnailUrl);
+            if (!response.ok) {
+                toastError('썸네일을 가져올 수 없습니다. Playback ID를 확인해주세요.');
+                return;
+            }
+            const blob = await response.blob();
+            const reader = new FileReader();
+            reader.onload = () => {
+                setCroppingImage(reader.result as string);
+                setActiveCropper(type);
+            };
+            reader.readAsDataURL(blob);
+        } catch (e: any) {
+            console.error('Mux thumbnail fetch failed:', e);
+            toastError('Mux 썸네일을 가져오는데 실패했습니다.');
+        }
+    };
+
     const handleCropComplete = async (blob: Blob) => {
         setIsSubmitting(true);
         try {
@@ -540,36 +568,70 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
     const renderVideoBox = (type: 'main' | 'desc', state: ProcessingState, label: string) => {
         const isMain = type === 'main';
         const setter = isMain ? setMainVideo : setDescVideo;
+        const isDrillType = contentType === 'drill';
+
         return (
             <div className="flex flex-col gap-4 h-full">
                 <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-zinc-400">Vimeo URL/ID (선택)</label>
+                    <label className="text-sm font-medium text-zinc-400">
+                        {isDrillType ? 'Mux Playback ID (선택)' : 'Vimeo URL/ID (선택)'}
+                    </label>
                     <input
                         type="text"
                         value={state.vimeoUrl || ''}
                         onChange={(e) => {
-                            const val = e.target.value;
-                            const vId = extractVimeoId(val);
-                            const vHash = extractVimeoHash(val);
+                            let val = e.target.value.trim();
 
-                            // Construct proper embed URL
-                            let embedUrl = '';
-                            if (vId) {
-                                embedUrl = `https://player.vimeo.com/video/${vId}`;
-                                if (vHash) embedUrl += `?h=${vHash}`;
+                            if (isDrillType) {
+                                // Drill: Use Mux - extract playback ID from URL if needed
+                                // Handle formats:
+                                // - https://stream.mux.com/PLAYBACK_ID
+                                // - https://stream.mux.com/PLAYBACK_ID.m3u8
+                                // - https://image.mux.com/PLAYBACK_ID/thumbnail.jpg
+                                // - Just PLAYBACK_ID
+                                if (val.includes('stream.mux.com/')) {
+                                    const match = val.match(/stream\.mux\.com\/([a-zA-Z0-9]+)/);
+                                    if (match) val = match[1];
+                                } else if (val.includes('image.mux.com/')) {
+                                    const match = val.match(/image\.mux\.com\/([a-zA-Z0-9]+)/);
+                                    if (match) val = match[1];
+                                }
+                                // Remove any file extension
+                                val = val.replace(/\.(m3u8|mp4|jpg|png).*$/, '');
+
+                                setter(prev => ({
+                                    ...prev,
+                                    vimeoUrl: val || null,
+                                    status: val ? 'complete' : (prev.file ? 'ready' : 'idle'),
+                                    previewUrl: val || (prev.file ? prev.previewUrl : null)
+                                }));
+
+                                // Auto-set thumbnail from Mux (9:16 세로 비율)
+                                if (val && !thumbnailUrl) {
+                                    setThumbnailUrl(`https://image.mux.com/${val}/thumbnail.jpg?width=720&height=1280&fit_mode=crop`);
+                                }
+                            } else {
+                                // Lesson/Sparring: Use Vimeo
+                                const vId = extractVimeoId(val);
+                                const vHash = extractVimeoHash(val);
+                                let embedUrl = '';
+                                if (vId) {
+                                    embedUrl = `https://player.vimeo.com/video/${vId}`;
+                                    if (vHash) embedUrl += `?h=${vHash}`;
+                                }
+                                setter(prev => ({
+                                    ...prev,
+                                    vimeoUrl: val || null,
+                                    status: val ? 'complete' : (prev.file ? 'ready' : 'idle'),
+                                    previewUrl: val ? embedUrl : (prev.file ? prev.previewUrl : null)
+                                }));
                             }
-
-                            setter(prev => ({
-                                ...prev,
-                                vimeoUrl: val ? val : null,
-                                status: val ? 'complete' : (prev.file ? 'ready' : 'idle'),
-                                previewUrl: val ? embedUrl : (prev.file ? prev.previewUrl : null)
-                            }));
                         }}
-                        placeholder="Vimeo URL 또는 ID를 입력하세요"
+                        placeholder={isDrillType ? 'Mux Playback ID 또는 URL 입력' : 'Vimeo URL 또는 ID를 입력하세요'}
                         className="w-full px-4 py-2 bg-zinc-950 border border-zinc-700/50 rounded-lg text-sm text-zinc-300 focus:outline-none focus:border-violet-500/50"
                     />
-                    {isMain && state.vimeoUrl && (
+                    {/* Vimeo duration refresh button - only for non-drill content */}
+                    {!isDrillType && isMain && state.vimeoUrl && (
                         <button
                             type="button"
                             onClick={handleRefreshDuration}
@@ -596,15 +658,21 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                         </div>
                         <p className="font-bold text-white text-lg mb-2">{label} 업로드</p>
                         <p className="text-sm text-zinc-500">탭하여 동영상 선택</p>
-                        {contentType === 'drill' && (
+                        {isDrillType && (
                             <p className="text-xs text-amber-500 mt-2 font-medium">⏱ 최대 1분 30초 이하 영상만 가능</p>
                         )}
                     </div>
                 ) : (
                     <div className="flex-1 min-h-[250px] flex flex-col gap-3">
-                        {/* 캡처/삭제 버튼을 영상 위에 배치 */}
+                        {/* 캡처/삭제 버튼 */}
                         <div className="flex justify-end gap-2">
-                            {/* 로컬 비디오일 때만 캡쳐 버튼 표시 (Vimeo는 아래 썸네일 선택기 사용) */}
+                            {/* Mux 드릴: 썸네일 캡처 버튼 표시 */}
+                            {isDrillType && state.vimeoUrl && (
+                                <button onClick={() => captureFromMux(state.vimeoUrl!, type)} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 rounded-xl text-white text-sm flex items-center gap-2 transition-colors">
+                                    <Camera className="w-4 h-4" /> 현재 장면 캡처
+                                </button>
+                            )}
+                            {/* 로컬 비디오일 때만 캡쳐 버튼 표시 */}
                             {!state.vimeoUrl && (
                                 <button onClick={() => captureFromVideo(type)} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 rounded-xl text-white text-sm flex items-center gap-2 transition-colors">
                                     <Camera className="w-4 h-4" /> 썸네일 캡처
@@ -615,7 +683,17 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                             </button>
                         </div>
                         <div className="flex-1 border-2 border-zinc-700 bg-zinc-800/50 rounded-xl overflow-hidden relative">
-                            {state.previewUrl ? (
+                            {isDrillType && state.vimeoUrl ? (
+                                // Drill with Mux Playback ID
+                                <mux-video
+                                    key={state.vimeoUrl}
+                                    playback-id={state.vimeoUrl}
+                                    controls
+                                    muted
+                                    playsinline
+                                    style={{ width: '100%', height: '100%', minHeight: '250px', display: 'block', objectFit: 'contain' }}
+                                />
+                            ) : state.previewUrl ? (
                                 state.previewUrl.includes('vimeo') ? (
                                     <iframe ref={isMain ? mainVimeoRef : descVimeoRef} src={state.previewUrl} className="w-full h-full min-h-[250px]" frameBorder="0" allow="autoplay; fullscreen" allowFullScreen />
                                 ) : (
@@ -765,7 +843,8 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
 
                         <div className="pt-4 border-t border-zinc-800/50">
                             <label className="block text-sm font-semibold text-zinc-400 mb-3">썸네일</label>
-                            {mainVideo.vimeoUrl && (
+                            {/* VimeoThumbnailSelector: 레슨/스파링 전용 (드릴은 Mux 사용) */}
+                            {contentType !== 'drill' && mainVideo.vimeoUrl && (
                                 <div className="mb-8 p-6 bg-violet-500/5 rounded-2xl border border-violet-500/20">
                                     <VimeoThumbnailSelector
                                         vimeoId={extractVimeoId(mainVideo.vimeoUrl) || mainVideo.vimeoUrl}

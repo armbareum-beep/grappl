@@ -81,6 +81,7 @@ export interface Course {
   previewVideoUrl?: string; // URL of the first lesson for preview
   previewVimeoId?: string; // Dedicated 1-minute preview vimeo ID
   published?: boolean;
+  isHidden?: boolean; // Creator can hide content without deleting
   rank?: number;
   isDailyFree?: boolean;
 }
@@ -104,6 +105,7 @@ export interface Lesson {
   createdAt: string;
   isSubscriptionExcluded?: boolean;
   isPreview?: boolean;
+  isHidden?: boolean; // Creator can hide content without deleting
   courseTitle?: string;
   creatorName?: string; // Added for reel display
   creatorProfileImage?: string; // Added for reel display
@@ -263,6 +265,7 @@ export interface SparringVideo {
   difficulty?: Difficulty | ContentLevel; // Deprecated for Sparring
   price: number; // Price in cents (0 = free)
   isPublished?: boolean; // Visibility on Reels/Feed
+  isHidden?: boolean; // Creator can hide content without deleting
   previewVimeoId?: string; // Dedicated preview vimeo ID
   length?: string; // Formatted duration e.g. "2:30"
   durationMinutes?: number; // Duration in minutes
@@ -466,6 +469,7 @@ export interface Drill {
   views: number;
   creatorProfileImage?: string;
   createdAt: string;
+  isHidden?: boolean; // Creator can hide content without deleting
   // Related lesson for Instagram-style thumbnail link
   relatedLessonId?: string;
   relatedLesson?: {
@@ -509,6 +513,7 @@ export interface DrillRoutine {
   totalDurationMinutes?: number;
   likes?: number; // Added for algorithm
   creatorProfileImage?: string;
+  isHidden?: boolean; // Creator can hide content without deleting
   rank?: number;
   isDailyFree?: boolean;
 }

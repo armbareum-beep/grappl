@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { createRoutine, getDrills, getRoutineById, updateRoutine } from '../../lib/api';
-import { VideoCategory, Difficulty, Drill, UniformType, QuantentPosition, ContentLevel } from '../../types';
+import { createRoutine, getDrills, getRoutineById, updateRoutine, getCreators } from '../../lib/api';
+import { VideoCategory, Difficulty, Drill, UniformType, QuantentPosition, ContentLevel, Creator } from '../../types';
 import { Image as ImageIcon, DollarSign, Type, AlignLeft, X, CheckCircle, ArrowLeft, Dumbbell, Clock, RefreshCw, Clapperboard } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -25,8 +25,11 @@ export const CreateRoutine: React.FC = () => {
         difficulty: Difficulty.Beginner as Difficulty | ContentLevel,
         category: VideoCategory.Standing as VideoCategory | QuantentPosition,
         uniformType: UniformType.Gi,
-        totalDurationMinutes: 0
+        totalDurationMinutes: 0,
+        creatorId: ''
     });
+
+    const [creators, setCreators] = useState<Creator[]>([]);
 
     // New state for related items
     const [lessons, setLessons] = useState<any[]>([]);
@@ -43,6 +46,13 @@ export const CreateRoutine: React.FC = () => {
 
     useEffect(() => {
         if (!user) return;
+
+        // Load creators list (for admin to change instructor)
+        const loadCreatorsList = async () => {
+            const creatorsList = await getCreators();
+            setCreators(creatorsList);
+        };
+        loadCreatorsList();
 
         if (isEditMode && id) {
             // 편집 모드: 루틴 먼저 로드 후 추가 컨텐츠 로드
@@ -79,7 +89,8 @@ export const CreateRoutine: React.FC = () => {
                 difficulty: data.difficulty || Difficulty.Beginner,
                 category: data.category || VideoCategory.Standing,
                 uniformType: (data.uniformType as UniformType) || UniformType.Gi,
-                totalDurationMinutes: data.totalDurationMinutes || 0
+                totalDurationMinutes: data.totalDurationMinutes || 0,
+                creatorId: data.creatorId || ''
             });
 
             if (data.drills && data.drills.length > 0) {
@@ -349,6 +360,26 @@ export const CreateRoutine: React.FC = () => {
                             />
                         </div>
                     </div>
+
+                    {/* Instructor Selection - Only show for admin */}
+                    {isAdmin && (
+                        <div>
+                            <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">인스트럭터 (Instructor)</label>
+                            <select
+                                name="creatorId"
+                                value={formData.creatorId}
+                                onChange={handleChange}
+                                className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
+                            >
+                                <option value="">인스트럭터 선택...</option>
+                                {creators.map(creator => (
+                                    <option key={creator.id} value={creator.id}>
+                                        {creator.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {/* Category */}

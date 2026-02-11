@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Player from '@vimeo/player';
 import { updateMasteryFromWatch } from '../lib/api-technique-mastery';
-import { getDrillById, calculateDrillPrice, toggleDrillLike, checkDrillLiked, toggleDrillSave, checkDrillSaved, checkDrillRoutineOwnership, recordDrillView, incrementDrillViews } from '../lib/api';
+import { getDrillById, calculateDrillPrice, toggleDrillLike, checkDrillLiked, toggleDrillSave, checkDrillSaved, checkDrillRoutineOwnership, recordDrillView, incrementDrillViews, isMuxPlaybackId } from '../lib/api';
 import { Drill } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
@@ -14,6 +14,7 @@ import { ErrorScreen } from '../components/ErrorScreen';
 
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import '@mux/mux-video';
 
 const ShareModal = React.lazy(() => import('../components/social/ShareModal'));
 
@@ -42,6 +43,7 @@ export const DrillDetail: React.FC = () => {
     const [isFollowing, setIsFollowing] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
     const iframeRef = useRef<HTMLIFrameElement>(null);
+    const muxVideoRef = useRef<HTMLVideoElement>(null);
     const [muted, setMuted] = useState(true);
 
     const [canAccessDescription, setCanAccessDescription] = useState(false);
@@ -181,8 +183,10 @@ export const DrillDetail: React.FC = () => {
         ? `https://player.vimeo.com/video/${vimeoId}`
         : (fallbackUrl || 'https://placehold.co/video/placeholder.mp4');
 
-    // Detect Processing State
-    const isProcessing = canViewCurrentVideo && !useVimeo && drill && (!drill.videoUrl || drill.videoUrl.includes('placeholder') || drill.videoUrl.includes('placehold.co'));
+    // Detect Processing State - check for Mux playback ID in both vimeoUrl and videoUrl
+    const muxPlaybackId = drill && (isMuxPlaybackId(drill.vimeoUrl || '') ? drill.vimeoUrl : isMuxPlaybackId(drill.videoUrl || '') ? drill.videoUrl : null);
+    const hasMuxVideo = !!muxPlaybackId;
+    const isProcessing = canViewCurrentVideo && !useVimeo && !hasMuxVideo && drill && (!drill.videoUrl || drill.videoUrl.includes('placeholder') || drill.videoUrl.includes('placehold.co'));
     // -------------------------------------------------------------
 
     // ... (existing state)
@@ -462,12 +466,61 @@ export const DrillDetail: React.FC = () => {
             }
         }
     }, [useVimeo, vimeoId, currentVideoType, contextUser, drill]);
+
+    // Initialize Mux Video Player for events
+    useEffect(() => {
+        if (hasMuxVideo && muxVideoRef.current) {
+            const video = muxVideoRef.current;
+
+            const handlePlaying = () => setIsVideoReady(true);
+            const handleCanPlay = () => setIsVideoReady(true);
+            const handleLoadedMetadata = () => {
+                // Get aspect ratio from Mux video
+                if (video.videoWidth && video.videoHeight) {
+                    setAspectRatio(video.videoWidth / video.videoHeight);
+                }
+            };
+            const handleTimeUpdate = () => {
+                if (video.duration > 0) {
+                    const percent = video.currentTime / video.duration;
+                    handleMasteryUpdate(percent, false);
+                }
+            };
+            const handleEnded = () => {
+                handleMasteryUpdate(1, true);
+            };
+
+            video.addEventListener('playing', handlePlaying);
+            video.addEventListener('canplay', handleCanPlay);
+            video.addEventListener('loadedmetadata', handleLoadedMetadata);
+            video.addEventListener('timeupdate', handleTimeUpdate);
+            video.addEventListener('ended', handleEnded);
+
+            return () => {
+                video.removeEventListener('playing', handlePlaying);
+                video.removeEventListener('canplay', handleCanPlay);
+                video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+                video.removeEventListener('timeupdate', handleTimeUpdate);
+                video.removeEventListener('ended', handleEnded);
+            };
+        }
+    }, [hasMuxVideo, muxPlaybackId, currentVideoType, contextUser, drill]);
+
     const applyPlaybackState = (playing: boolean) => {
         if (useVimeo) {
             const iframe = iframeRef.current;
             if (iframe && iframe.contentWindow) {
                 const message = playing ? '{"method":"play"}' : '{"method":"pause"}';
                 iframe.contentWindow.postMessage(message, '*');
+            }
+        } else if (hasMuxVideo) {
+            const video = muxVideoRef.current;
+            if (video) {
+                if (playing) {
+                    video.play().catch(() => { });
+                } else {
+                    video.pause();
+                }
             }
         } else {
             const video = videoRef.current;
@@ -483,7 +536,7 @@ export const DrillDetail: React.FC = () => {
 
     useEffect(() => {
         applyPlaybackState(isPlaying);
-    }, [isPlaying, currentVideoType, owns, id, useVimeo]); // useVimeo is now safe to use
+    }, [isPlaying, currentVideoType, owns, id, useVimeo, hasMuxVideo]);
 
     // Update progress
     useEffect(() => {
@@ -720,6 +773,45 @@ export const DrillDetail: React.FC = () => {
                                 allow="autoplay; fullscreen; picture-in-picture"
                                 allowFullScreen
                             />
+                        ) : hasMuxVideo ? (
+                            <>
+                                <mux-video
+                                    key={`mux-${muxPlaybackId}-${currentVideoType}-${muted}`}
+                                    ref={muxVideoRef}
+                                    playback-id={muxPlaybackId}
+                                    muted={muted ? true : undefined}
+                                    autoplay
+                                    loop
+                                    playsinline
+                                    className="absolute inset-0 w-full h-full object-cover"
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    onPlaying={() => setIsVideoReady(true)}
+                                    onCanPlay={() => setIsVideoReady(true)}
+                                />
+
+                                {/* Thumbnail Overlay (Smooth Transition) */}
+                                {!isVideoReady && drill && (
+                                    <div className="absolute inset-0 z-20">
+                                        <img
+                                            src={drill.thumbnailUrl}
+                                            className="w-full h-full object-cover"
+                                            alt={drill.title + " 썸네일"}
+                                        />
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[2px]">
+                                            <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Play/Pause Overlay */}
+                                {!isPlaying && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
+                                        <div className="w-20 h-20 rounded-full bg-white/90 flex items-center justify-center">
+                                            <Play className="w-10 h-10 text-black ml-1" />
+                                        </div>
+                                    </div>
+                                )}
+                            </>
                         ) : (
                             <>
                                 <video

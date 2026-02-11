@@ -122,6 +122,21 @@ export const CreatorDashboard: React.FC = () => {
                         return;
                     }
                     success('클래스가 수정되었습니다.');
+
+                    // Request publishing if user chose to publish (edit mode)
+                    if (data.publishingRequested && courseId) {
+                        try {
+                            const { error: publishError } = await requestCoursePublishing(courseId);
+                            if (publishError) {
+                                console.error('Publishing request error:', publishError);
+                                toastError('공개 요청 중 오류가 발생했습니다.');
+                            } else {
+                                success('관리자 승인 대기열에 올라갔습니다. 승인 후 웹사이트에 공개됩니다.');
+                            }
+                        } catch (err) {
+                            console.error('Publishing request error:', err);
+                        }
+                    }
                 } else {
                     const result = await createCourse({
                         title: data.title,
@@ -208,6 +223,21 @@ export const CreatorDashboard: React.FC = () => {
                         return; // Stop execution on error
                     }
                     success('루틴이 수정되었습니다.');
+
+                    // Request publishing if user chose to publish (edit mode)
+                    if (data.publishingRequested && editingContent?.id) {
+                        try {
+                            const { error: publishError } = await requestRoutinePublishing(editingContent.id);
+                            if (publishError) {
+                                console.error('Publishing request error:', publishError);
+                                toastError('공개 요청 중 오류가 발생했습니다.');
+                            } else {
+                                success('관리자 승인 대기열에 올라갔습니다. 승인 후 웹사이트에 공개됩니다.');
+                            }
+                        } catch (err) {
+                            console.error('Publishing request error:', err);
+                        }
+                    }
                 } else {
                     const result = await createRoutine({
                         title: data.title,
@@ -273,6 +303,21 @@ export const CreatorDashboard: React.FC = () => {
                     }
 
                     success('스파링 정보가 수정되었습니다.');
+
+                    // Request publishing if user chose to publish (edit mode)
+                    if (data.publishingRequested && editingContent?.id) {
+                        try {
+                            const { error: publishError } = await requestSparringPublishing(editingContent.id);
+                            if (publishError) {
+                                console.error('Publishing request error:', publishError);
+                                toastError('공개 요청 중 오류가 발생했습니다.');
+                            } else {
+                                success('관리자 승인 대기열에 올라갔습니다. 승인 후 웹사이트에 공개됩니다.');
+                            }
+                        } catch (err) {
+                            console.error('Publishing request error:', err);
+                        }
+                    }
                 } else {
                     // Create New Sparring
                     const result = await createSparringVideo({
