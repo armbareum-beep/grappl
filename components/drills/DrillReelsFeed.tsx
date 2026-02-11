@@ -67,7 +67,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
     const [liked, setLiked] = useState<Set<string>>(new Set());
     const [saved, setSaved] = useState<Set<string>>(new Set());
     const [following, setFollowing] = useState<Set<string>>(new Set());
-    const [isMuted, setIsMuted] = useState(true); // Start muted for autoplay policy compliance
+    const [isMuted, setIsMuted] = useState(false); // Start with sound on
     const handleToggleMute = useCallback(() => setIsMuted(prev => !prev), []);
     const [userPermissions, setUserPermissions] = useState({
         isSubscriber: false,
