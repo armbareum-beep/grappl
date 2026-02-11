@@ -601,6 +601,8 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
     const containerRef = useRef<HTMLDivElement>(null);
     const actionUrl = drill.vimeoUrl || drill.videoUrl;
     const finalDescUrl = drill.descriptionVideoUrl;
+    // Only show indicator when BOTH videos actually exist (non-empty strings)
+    const hasBothVideos = !!(actionUrl && actionUrl.trim() && finalDescUrl && finalDescUrl.trim());
 
     const [currentVideoType, setCurrentVideoType] = useState<'main' | 'description'>(actionUrl ? 'main' : 'description');
     const [mainVideoStarted, setMainVideoStarted] = useState(false);
@@ -618,6 +620,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
     const [localProgress, setLocalProgress] = useState({ percent: 0, seconds: 0, hasAccess: true });
     const [isBuffering, setIsBuffering] = useState(false);
     const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const isDraggingRef = useRef(false); // Track if drag occurred to prevent tap-pause
 
     // Refs for stable callbacks (memo로 인한 stale closure 방지)
     const isActiveRef = useRef(isActive);
@@ -673,6 +676,12 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
     }, [hasAccess]);
 
     const handleTap = useCallback(() => {
+        // Ignore tap if we just finished dragging
+        if (isDraggingRef.current) {
+            isDraggingRef.current = false;
+            return;
+        }
+
         if (clickTimeoutRef.current) {
             clearTimeout(clickTimeoutRef.current);
             clickTimeoutRef.current = null;
@@ -724,15 +733,21 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
             <div className="w-full h-full relative flex items-center justify-center">
                 <motion.div
                     className="relative z-10 w-full h-full md:max-w-[56.25vh] md:rounded-lg overflow-hidden flex items-center justify-center bg-zinc-900"
-                    drag={actionUrl && finalDescUrl ? "x" : false}
+                    drag={hasBothVideos ? "x" : false}
                     dragConstraints={{ left: 0, right: 0 }}
                     dragElastic={0.1}
                     onTap={handleTap}
+                    onDragStart={() => {
+                        isDraggingRef.current = true;
+                    }}
                     onDragEnd={(_, info) => {
-                        if (info.offset.x > 80 && currentVideoType === 'main' && finalDescUrl) {
+                        // Mark that a drag happened to prevent tap from firing
+                        isDraggingRef.current = true;
+
+                        if (info.offset.x > 80 && currentVideoType === 'main' && hasBothVideos) {
                             setCurrentVideoType('description');
                             setUserPaused(false); // Ensure video plays when switching
-                        } else if (info.offset.x < -80 && currentVideoType === 'description' && actionUrl) {
+                        } else if (info.offset.x < -80 && currentVideoType === 'description' && hasBothVideos) {
                             setCurrentVideoType('main');
                             setUserPaused(false); // Ensure video plays when switching
                         }
@@ -762,8 +777,8 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
                         previewLimitReachedRef={previewLimitReachedRef}
                     />
 
-                    {/* Description Video */}
-                    {finalDescUrl && (
+                    {/* Description Video - Only render if URL actually exists */}
+                    {finalDescUrl && finalDescUrl.trim() && (
                         <SingleVideoPlayer
                             url={finalDescUrl}
                             isActive={isActive}
@@ -815,8 +830,8 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
                         )}
                     </AnimatePresence>
 
-                    {/* Video Type Indicator */}
-                    {actionUrl && finalDescUrl && (
+                    {/* Video Type Indicator - Only show when BOTH videos exist */}
+                    {hasBothVideos && (
                         <div className="absolute top-10 left-1/2 -translate-x-1/2 z-30 flex gap-2">
                             <div className={`w-8 h-1 rounded-full bg-white transition-opacity ${currentVideoType === 'main' ? 'opacity-100' : 'opacity-30'}`} />
                             <div className={`w-8 h-1 rounded-full bg-white transition-opacity ${currentVideoType === 'description' ? 'opacity-100' : 'opacity-30'}`} />
@@ -871,7 +886,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
                                     </button>
                                 </Link>
                                 <h3 className="font-black text-xl mb-1 drop-shadow-md line-clamp-2">{drill.title}</h3>
-                                {currentVideoType === 'description' && <p className="text-xs text-white/60 mb-2 italic">설명 영상 재생 중...</p>}
+                                {hasBothVideos && currentVideoType === 'description' && <p className="text-xs text-white/60 mb-2 italic">설명 영상 재생 중...</p>}
 
                                 {drill.relatedLesson && (
                                     <div className="mt-4 max-w-[200px] overflow-hidden">
