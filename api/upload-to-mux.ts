@@ -79,8 +79,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
 
             const createData = await createResponse.json();
-            const uploadUrl = createData.url;
-            const uploadId = createData.id;
+            const uploadUrl = createData.data?.url;
+            const uploadId = createData.data?.id;
+
+            if (!uploadUrl || !uploadId) {
+                console.error('[Mux] Invalid response structure:', JSON.stringify(createData));
+                throw new Error('Mux API returned invalid response');
+            }
 
             return res.status(200).json({
                 success: true,
