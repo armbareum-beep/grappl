@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { getRoutineById, checkDrillRoutineOwnership, getDrillById, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime, getRelatedCourseByCategory, getRelatedRoutines, incrementRoutineView, recordDrillView, toggleRoutineSave, checkRoutineSaved } from '../lib/api';
 import { Drill, DrillRoutine, Course } from '../types';
 import { Button } from '../components/Button';
-import { ChevronLeft, Heart, Bookmark, Share2, Play, Lock, Volume2, VolumeX, List, ListVideo, Zap, MessageCircle, X, Clock, CheckCircle, PlayCircle, RefreshCw } from 'lucide-react';
+import { ChevronLeft, Heart, Bookmark, Share2, Play, Lock, Volume2, VolumeX, List, ListVideo, Zap, X, Clock, CheckCircle, PlayCircle, RefreshCw } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
 import ShareModal from '../components/social/ShareModal';
 import { useAuth } from '../contexts/AuthContext';
@@ -733,41 +733,14 @@ export const RoutineDetail: React.FC = () => {
                     </>
                 ) : (
                     <div className="w-full h-full fixed inset-0 z-50 bg-black overflow-hidden">
-                        {/* Top-Left Group: Back Button & Toggles */}
-                        <div className="absolute top-6 left-4 z-[250] pointer-events-none">
-                            <div className="flex flex-col gap-3 items-start pointer-events-auto">
-                                <button
-                                    onClick={() => setViewMode('landing')}
-                                    aria-label="뒤로 가기"
-                                    className="p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all"
-                                >
-                                    <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
-                                </button>
-
-                                {/* Video Type Toggle (Vertical) */}
-                                <div className="flex flex-col gap-2 bg-black/30 backdrop-blur-sm p-1.5 rounded-full border border-white/10">
-                                    <button
-                                        onClick={() => setVideoType('main')}
-                                        className={`p-2 md:p-2.5 rounded-full transition-all ${videoType === 'main' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
-                                    >
-                                        <Zap className="w-5 h-5 md:w-6 md:h-6" fill={videoType === 'main' ? "currentColor" : "none"} />
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            if (hasDescriptionAccess) {
-                                                setVideoType('description');
-                                            } else {
-                                                handlePurchase();
-                                            }
-                                        }}
-                                        className={`p-2 md:p-2.5 rounded-full transition-all relative ${videoType === 'description' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
-                                    >
-                                        <MessageCircle className="w-5 h-5 md:w-6 md:h-6" fill={videoType === 'description' ? "currentColor" : "none"} />
-                                        {!hasDescriptionAccess && <Lock className="w-2.5 h-2.5 absolute top-0.5 right-0.5 text-white" />}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                        {/* Back Button */}
+                        <button
+                            onClick={() => setViewMode('landing')}
+                            aria-label="뒤로 가기"
+                            className="absolute top-6 left-4 z-[250] p-2 md:p-2.5 rounded-full bg-zinc-950/20 backdrop-blur-sm text-zinc-100 hover:bg-zinc-950/40 transition-all"
+                        >
+                            <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
+                        </button>
 
                         {/* Mobile Player Content */}
                         <div className="relative w-full h-full bg-black flex flex-col">
@@ -1157,41 +1130,14 @@ export const RoutineDetail: React.FC = () => {
                                         </div>
                                     )}
 
-                                    {/* Back Button & Video Type Toggle - Inside Video */}
-                                    <div className="absolute top-6 left-6 z-[100] pointer-events-none">
-                                        <div className="flex flex-col gap-4 items-start pointer-events-auto">
-                                            <button
-                                                onClick={() => setViewMode('landing')}
-                                                aria-label="뒤로 가기"
-                                                className="p-2.5 md:p-3.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all hover:bg-black/60 shadow-xl"
-                                            >
-                                                <ChevronLeft className="w-5 h-5 md:w-7 md:h-7" />
-                                            </button>
-
-                                            {/* Video Type Toggle (Vertical) */}
-                                            <div className="flex flex-col gap-2 bg-black/30 backdrop-blur-sm p-1.5 rounded-full border border-white/10">
-                                                <button
-                                                    onClick={() => setVideoType('main')}
-                                                    className={`p-2 md:p-3 rounded-full transition-all ${videoType === 'main' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
-                                                >
-                                                    <Zap className="w-5 h-5 md:w-6 md:h-6" fill={videoType === 'main' ? "currentColor" : "none"} />
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        if (hasDescriptionAccess) {
-                                                            setVideoType('description');
-                                                        } else {
-                                                            handlePurchase();
-                                                        }
-                                                    }}
-                                                    className={`p-2 md:p-3 rounded-full transition-all relative ${videoType === 'description' ? 'bg-white text-black shadow-lg scale-110' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
-                                                >
-                                                    <MessageCircle className="w-5 h-5 md:w-6 md:h-6" fill={videoType === 'description' ? "currentColor" : "none"} />
-                                                    {!hasDescriptionAccess && <Lock className="w-3 h-3 absolute top-0.5 right-0.5 text-white" />}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    {/* Back Button */}
+                                    <button
+                                        onClick={() => setViewMode('landing')}
+                                        aria-label="뒤로 가기"
+                                        className="absolute top-6 left-6 z-[100] p-2.5 md:p-3.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all hover:bg-black/60 shadow-xl"
+                                    >
+                                        <ChevronLeft className="w-5 h-5 md:w-7 md:h-7" />
+                                    </button>
 
                                     {/* Bottom Info - Left side (matches Drill style) */}
                                     <div className="absolute bottom-10 left-6 right-6 z-40 pointer-events-none">
