@@ -724,13 +724,18 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
             <div className="w-full h-full relative flex items-center justify-center">
                 <motion.div
                     className="relative z-10 w-full h-full md:max-w-[56.25vh] md:rounded-lg overflow-hidden flex items-center justify-center bg-zinc-900"
-                    drag="x"
+                    drag={actionUrl && finalDescUrl ? "x" : false}
                     dragConstraints={{ left: 0, right: 0 }}
                     dragElastic={0.1}
                     onTap={handleTap}
                     onDragEnd={(_, info) => {
-                        if (info.offset.x > 80 && currentVideoType === 'main' && finalDescUrl) setCurrentVideoType('description');
-                        else if (info.offset.x < -80 && currentVideoType === 'description' && actionUrl) setCurrentVideoType('main');
+                        if (info.offset.x > 80 && currentVideoType === 'main' && finalDescUrl) {
+                            setCurrentVideoType('description');
+                            setUserPaused(false); // Ensure video plays when switching
+                        } else if (info.offset.x < -80 && currentVideoType === 'description' && actionUrl) {
+                            setCurrentVideoType('main');
+                            setUserPaused(false); // Ensure video plays when switching
+                        }
                     }}
                 >
                     {/* Main Video */}
