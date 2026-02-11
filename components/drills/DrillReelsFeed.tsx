@@ -119,11 +119,33 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
 
     // Track buffering state for current item (block swipe during buffering)
     const [isCurrentBuffering, setIsCurrentBuffering] = useState(false);
+    const bufferingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     const handleBufferingChange = useCallback((index: number, isBuffering: boolean) => {
         if (index === currentIndex) {
             setIsCurrentBuffering(isBuffering);
+            // Clear any existing timeout when buffering state changes
+            if (bufferingTimeoutRef.current) {
+                clearTimeout(bufferingTimeoutRef.current);
+                bufferingTimeoutRef.current = null;
+            }
         }
     }, [currentIndex]);
+
+    // Auto-reset buffering state after timeout to prevent stuck swipe
+    useEffect(() => {
+        if (isCurrentBuffering) {
+            bufferingTimeoutRef.current = setTimeout(() => {
+                console.log('[DrillReelsFeed] Buffering timeout - auto-resetting');
+                setIsCurrentBuffering(false);
+            }, 1500); // 1.5초 후 자동 해제
+        }
+        return () => {
+            if (bufferingTimeoutRef.current) {
+                clearTimeout(bufferingTimeoutRef.current);
+            }
+        };
+    }, [isCurrentBuffering]);
 
     // Clear stale ready states when scrolling far (items beyond ±2 get unmounted)
     useEffect(() => {

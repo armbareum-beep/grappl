@@ -637,11 +637,27 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
     }, [currentVideoType]);
 
     // Notify parent of buffering state (only for active item)
+    // Also notify immediately when becoming active to unblock swipe
     useEffect(() => {
         if (isActive) {
             onBufferingChange?.(index, isBuffering);
         }
     }, [isBuffering, isActive, index, onBufferingChange]);
+
+    // When becoming active, immediately report current buffering state
+    // This ensures swipe is unblocked if video is already ready
+    useEffect(() => {
+        if (isActive) {
+            // Small delay to ensure state is settled after becoming active
+            const timer = setTimeout(() => {
+                const videoReady = currentVideoType === 'main' ? mainVideoReady : descVideoReady;
+                if (videoReady) {
+                    onBufferingChange?.(index, false);
+                }
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [isActive, index, mainVideoReady, descVideoReady, currentVideoType, onBufferingChange]);
 
     // Phase 2: Deferred Loading Strategy
     useEffect(() => {

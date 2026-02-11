@@ -553,7 +553,19 @@ export const RoutineDetail: React.FC = () => {
 
 
 
-    const effectiveUrl = videoType === 'main' ? (currentDrill.videoUrl || currentDrill.vimeoUrl) : (currentDrill.descriptionVideoUrl || currentDrill.videoUrl || currentDrill.vimeoUrl);
+    // Note: vimeoUrl comes first because Mux playback IDs are stored in vimeoUrl field
+    const effectiveUrl = videoType === 'main' ? (currentDrill.vimeoUrl || currentDrill.videoUrl) : (currentDrill.descriptionVideoUrl || currentDrill.vimeoUrl || currentDrill.videoUrl);
+
+    // Debug log for video URL issues
+    console.log('[RoutineDetail] Video URL debug:', {
+        drillId: currentDrill.id,
+        drillTitle: currentDrill.title,
+        vimeoUrl: currentDrill.vimeoUrl,
+        videoUrl: currentDrill.videoUrl,
+        descriptionVideoUrl: currentDrill.descriptionVideoUrl,
+        videoType,
+        effectiveUrl
+    });
 
 
     const formatTime = (seconds: number) => {

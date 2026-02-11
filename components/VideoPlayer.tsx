@@ -167,7 +167,8 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
             containerRef.current.innerHTML = '';
         }
 
-        const vimeoIdStr = String(vimeoId || '').trim();
+        // Remove ALL whitespace (including spaces in the middle) - some DB entries have corrupted IDs with spaces
+        const vimeoIdStr = String(vimeoId || '').replace(/\s+/g, '');
 
         // Check if this is a Mux playback ID
         if (isMuxPlaybackId(vimeoIdStr)) {
@@ -243,7 +244,22 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
 
                 const handleError = (e: any) => {
                     console.error('Mux Player Error:', e);
-                    setPlayerError({ message: 'Mux video playback error' });
+                    // Extract detailed error info from MediaError
+                    const mediaError = (e.target as HTMLVideoElement)?.error;
+                    let errorMessage = 'Mux video playback error';
+
+                    if (mediaError) {
+                        const errorCodes: Record<number, string> = {
+                            1: '영상 로딩이 중단되었습니다',
+                            2: '네트워크 오류가 발생했습니다',
+                            3: '영상 디코딩 오류가 발생했습니다',
+                            4: '영상을 찾을 수 없습니다 (삭제되었거나 ID가 잘못됨)'
+                        };
+                        errorMessage = errorCodes[mediaError.code] || `오류 코드: ${mediaError.code}`;
+                        console.error('MediaError code:', mediaError.code, 'message:', mediaError.message);
+                    }
+
+                    setPlayerError({ message: errorMessage });
                 };
 
                 const handleLoadedMetadata = () => {

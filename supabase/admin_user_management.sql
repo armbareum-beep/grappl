@@ -48,10 +48,11 @@ AS $$
 DECLARE
   v_user_name text;
   v_user_email text;
+  v_creator_name text;
 BEGIN
   -- Check if the requesting user is an admin
   IF NOT EXISTS (
-    SELECT 1 FROM public.users 
+    SELECT 1 FROM public.users
     WHERE id = auth.uid() AND is_admin = true
   ) THEN
     RAISE EXCEPTION 'Access denied. Admin privileges required.';
@@ -66,6 +67,9 @@ BEGIN
     RAISE EXCEPTION 'User not found';
   END IF;
 
+  -- Use name if available, otherwise use email (required: name NOT NULL in creators table)
+  v_creator_name := COALESCE(NULLIF(TRIM(v_user_name), ''), v_user_email, 'New Instructor');
+
   -- Check if already exists in creators
   IF EXISTS (SELECT 1 FROM public.creators WHERE id = target_user_id) THEN
     -- Update existing record
@@ -76,11 +80,11 @@ BEGIN
     -- Insert new record
     INSERT INTO public.creators (id, name, bio, profile_image, subscriber_count, approved)
     VALUES (
-      target_user_id, 
-      v_user_name, 
-      'New Creator', 
+      target_user_id,
+      v_creator_name,
+      'New Creator',
       'https://via.placeholder.com/150', -- Default placeholder
-      0, 
+      0,
       true
     );
   END IF;

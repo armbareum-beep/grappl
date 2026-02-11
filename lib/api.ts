@@ -2097,20 +2097,64 @@ export async function calculateCreatorEarnings(creatorId: string) {
     const directShare = creator.direct_share ?? DIRECT_PRODUCT_CREATOR_SHARE;
     const subShare = creator.subscription_share ?? SUBSCRIPTION_CREATOR_SHARE;
 
-    // 1. Calculate Direct Sales Revenue (Courses)
+    // 1. Calculate Direct Sales Revenue (Courses, Drills, Routines, Sparring)
+    let directRevenue = 0;
+
+    // 1a. Course Sales
     const { data: courses } = await supabase.from('courses').select('id').eq('creator_id', creatorId);
     const courseIds = courses?.map((c: { id: string }) => c.id) || [];
-
-    let directRevenue = 0;
     if (courseIds.length > 0) {
-        const { data: sales } = await supabase
+        const { data: courseSales } = await supabase
             .from('user_courses')
             .select('price_paid')
             .in('course_id', courseIds);
-
-        const totalSales = sales?.reduce((sum: number, sale: { price_paid: number }) => sum + (sale.price_paid || 0), 0) || 0;
-        directRevenue = totalSales * directShare;
+        directRevenue += courseSales?.reduce((sum: number, sale: { price_paid: number }) => sum + (sale.price_paid || 0), 0) || 0;
     }
+
+    // 1b. Drill Sales
+    const { data: drills } = await supabase.from('drills').select('id').eq('creator_id', creatorId);
+    const drillIds = drills?.map((d: { id: string }) => d.id) || [];
+    if (drillIds.length > 0) {
+        const { data: drillSales } = await supabase
+            .from('user_drills')
+            .select('price_paid')
+            .in('drill_id', drillIds);
+        directRevenue += drillSales?.reduce((sum: number, sale: { price_paid: number }) => sum + (sale.price_paid || 0), 0) || 0;
+    }
+
+    // 1c. Routine Sales
+    const { data: routines } = await supabase
+        .from('routines')
+        .select('id, price')
+        .eq('creator_id', creatorId);
+    if (routines && routines.length > 0) {
+        const routineIds = routines.map((r: { id: string }) => r.id);
+        const { data: routineSales } = await supabase
+            .from('user_routine_purchases')
+            .select('routine_id')
+            .in('routine_id', routineIds);
+        // Routine purchases don't have price_paid, so use routine's price
+        const routinePriceMap = new Map(routines.map((r: { id: string; price: number }) => [r.id, r.price || 0]));
+        directRevenue += routineSales?.reduce((sum: number, sale: { routine_id: string }) => sum + (routinePriceMap.get(sale.routine_id) || 0), 0) || 0;
+    }
+
+    // 1d. Sparring Video Sales
+    const { data: sparringVideos } = await supabase
+        .from('sparring_videos')
+        .select('id, price')
+        .eq('creator_id', creatorId);
+    if (sparringVideos && sparringVideos.length > 0) {
+        const sparringIds = sparringVideos.map((v: { id: string }) => v.id);
+        const { data: sparringSales } = await supabase
+            .from('user_videos')
+            .select('video_id')
+            .in('video_id', sparringIds);
+        const sparringPriceMap = new Map(sparringVideos.map((v: { id: string; price: number }) => [v.id, v.price || 0]));
+        directRevenue += sparringSales?.reduce((sum: number, sale: { video_id: string }) => sum + (sparringPriceMap.get(sale.video_id) || 0), 0) || 0;
+    }
+
+    // Apply creator share (80%)
+    directRevenue = directRevenue * directShare;
 
     // 1.5 Calculate Bundle Revenue (Advanced Split Logic)
     let bundleRevenue = 0;
@@ -5274,7 +5318,6 @@ export async function createSparringVideo(videoData: Partial<SparringVideo>) {
         is_published: false,
         duration_minutes: videoData.durationMinutes,
         length: videoData.length,
-        status: 'draft',
     };
 
     // Auto-fetch Vimeo info
