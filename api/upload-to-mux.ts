@@ -58,6 +58,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (action === 'create_upload') {
             console.log('[Mux] Creating upload link for size:', fileSize);
 
+            // Get origin from request headers for CORS
+            const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || 'https://grapplay.com';
+            const corsOrigin = origin.startsWith('http') ? new URL(origin).origin : 'https://grapplay.com';
+            console.log('[Mux] Using CORS origin:', corsOrigin);
+
             const createResponse = await fetch('https://api.mux.com/video/v1/uploads', {
                 method: 'POST',
                 headers: {
@@ -65,7 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    cors_origin: '*',
+                    cors_origin: corsOrigin,
                     new_asset_settings: {
                         playback_policy: ['public']
                     }
