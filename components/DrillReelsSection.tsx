@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import useEmblaCarousel from 'embla-carousel-react';
 import { Play, Clapperboard, ChevronUp, ChevronDown } from 'lucide-react';
 import { Drill } from '../types';
-import { getDailyFreeDrill } from '../lib/api';
+import { getDailyFreeDrill, isMuxPlaybackId } from '../lib/api';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import { VideoPlayer } from './VideoPlayer';
@@ -17,20 +17,25 @@ const DrillCard = ({ drill }: { drill: Drill }) => {
     const { user } = useAuth();
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
-    const getVimeoId = (url?: string) => {
+    // Get video ID - supports both Mux playback IDs and Vimeo IDs
+    const getVideoId = (url?: string) => {
         if (!url) return null;
+        // If it's a Mux playback ID, return it directly
+        if (isMuxPlaybackId(url)) return url;
+        // Vimeo: pure numeric ID
         if (/^\d+$/.test(url)) return url;
-        // Handle ID:HASH or ID/HASH format
+        // Vimeo: ID:HASH or ID/HASH format
         if (url.includes(':') || url.includes('/')) {
             const separator = url.includes(':') ? ':' : '/';
             const [idPart] = url.split(separator);
             if (/^\d+$/.test(idPart)) return idPart;
         }
+        // Vimeo URL format
         const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
         return match ? match[1] : null;
     };
 
-    const vimeoId = getVimeoId(drill.vimeoUrl);
+    const videoId = getVideoId(drill.vimeoUrl) || getVideoId(drill.videoUrl);
 
     useEffect(() => {
         if (!isHovered) {
@@ -64,7 +69,7 @@ const DrillCard = ({ drill }: { drill: Drill }) => {
                 isHovered && !previewEnded ? "opacity-100" : "opacity-0"
             )}>
                 <VideoPlayer
-                    vimeoId={vimeoId || ''}
+                    vimeoId={videoId || ''}
                     title={drill.title}
                     playing={isHovered}
                     maxPreviewDuration={30} // 30s preview for guests on landing page

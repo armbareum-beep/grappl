@@ -187,6 +187,7 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
                 try {
                     const muxVideo = document.createElement('mux-video') as any;
                     muxVideo.setAttribute('playback-id', fullId);
+                    muxVideo.setAttribute('autoplay', 'true');
                     muxVideo.setAttribute('muted', isMuted ? 'true' : 'false');
                     muxVideo.setAttribute('playsinline', 'true');
                     muxVideo.className = 'w-full h-full object-cover';

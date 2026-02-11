@@ -142,7 +142,6 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
                 muxVideo.setAttribute('autoplay', autoplay ? 'true' : 'false');
                 muxVideo.setAttribute('muted', muted ? 'true' : 'false');
                 muxVideo.setAttribute('playsinline', 'true');
-                muxVideo.setAttribute('loop', 'true');
                 muxVideo.className = 'w-full h-full object-cover';
                 muxVideo.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
 
