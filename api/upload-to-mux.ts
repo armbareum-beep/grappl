@@ -65,7 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    cors_origin: 'https://grapplay.com',
+                    cors_origin: '*',
                     new_asset_settings: {
                         playback_policy: ['public']
                     }
