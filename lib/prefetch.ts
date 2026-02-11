@@ -1,36 +1,20 @@
 import { queryClient } from './react-query';
+import { getHomePageData } from './api-home';
 import {
-    getDailyFreeDrill,
-    getDailyFreeLesson,
-    getDailyFreeSparring,
-    getTrendingSparring,
-    getFeaturedRoutines,
     getTrendingCourses,
     getNewCourses,
-    fetchRoutines,
-    getPublicSparringVideos,
+    getFeaturedRoutines,
 } from './api';
 
 // 페이지별 프리페치 함수들
 const prefetchFunctions: Record<string, () => Promise<void>> = {
     '/home': async () => {
-        // 홈페이지 데이터 프리페치 (캐시가 없을 때만)
-        const queries = [
-            { queryKey: ['daily', 'drill'], queryFn: getDailyFreeDrill },
-            { queryKey: ['daily', 'lesson'], queryFn: getDailyFreeLesson },
-            { queryKey: ['daily', 'sparring'], queryFn: getDailyFreeSparring },
-            { queryKey: ['trending', 'courses'], queryFn: () => getTrendingCourses(10) },
-        ];
-
-        await Promise.all(
-            queries.map(q =>
-                queryClient.prefetchQuery({
-                    queryKey: q.queryKey,
-                    queryFn: q.queryFn,
-                    staleTime: 1000 * 60 * 30, // 30분
-                })
-            )
-        );
+        // 홈페이지 데이터 통합 프리페치 (새 최적화된 API 사용)
+        await queryClient.prefetchQuery({
+            queryKey: ['home', 'data'],
+            queryFn: getHomePageData,
+            staleTime: 1000 * 60 * 30, // 30분
+        });
     },
 
     '/library': async () => {
