@@ -771,6 +771,14 @@ export const RoutineDetail: React.FC = () => {
 
                         {/* Mobile Player Content */}
                         <div className="relative w-full h-full bg-black flex flex-col">
+                            {/* Video Type Indicator (like DrillReelItem) */}
+                            {(currentDrill.videoUrl || currentDrill.vimeoUrl) && currentDrill.descriptionVideoUrl && (
+                                <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[260] flex gap-2">
+                                    <div className={`w-8 h-1 rounded-full bg-white transition-opacity ${videoType === 'main' ? 'opacity-100' : 'opacity-30'}`} />
+                                    <div className={`w-8 h-1 rounded-full bg-white transition-opacity ${videoType === 'description' ? 'opacity-100' : 'opacity-30'}`} />
+                                </div>
+                            )}
+
                             {/* Video Layer */}
                             <div className="absolute inset-0 z-0">
                                 {hasAccess ? (
@@ -781,7 +789,7 @@ export const RoutineDetail: React.FC = () => {
                                             autoplay={true}
                                             playing={isPlaying}
                                             muted={muted}
-                                            showControls={false}
+                                            showControls={true}
                                             fillContainer={true}
                                             onProgress={handleProgress}
                                             onEnded={() => handleDrillComplete()}
@@ -1073,6 +1081,14 @@ export const RoutineDetail: React.FC = () => {
                             <div className="relative h-full flex">
                                 {/* Video */}
                                 <div className="relative h-full aspect-[9/16] shadow-2xl overflow-hidden ring-1 ring-white/10 bg-zinc-900 rounded-lg">
+                                    {/* Video Type Indicator (like DrillReelItem) */}
+                                    {(currentDrill?.videoUrl || currentDrill?.vimeoUrl) && currentDrill?.descriptionVideoUrl && (
+                                        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[110] flex gap-2">
+                                            <div className={`w-8 h-1 rounded-full bg-white transition-opacity ${videoType === 'main' ? 'opacity-100' : 'opacity-30'}`} />
+                                            <div className={`w-8 h-1 rounded-full bg-white transition-opacity ${videoType === 'description' ? 'opacity-100' : 'opacity-30'}`} />
+                                        </div>
+                                    )}
+
                                     {hasAccess ? (
                                         <>
                                             <VideoPlayer
@@ -1082,7 +1098,7 @@ export const RoutineDetail: React.FC = () => {
                                                 playing={isPlaying}
                                                 muted={muted}
                                                 isPaused={isLoginModalOpen}
-                                                showControls={false}
+                                                showControls={true}
                                                 fillContainer={true}
                                                 onProgress={handleProgress}
                                                 onDoubleTap={() => handleLikeDrill()}
@@ -1090,6 +1106,26 @@ export const RoutineDetail: React.FC = () => {
                                                 maxPreviewDuration={user ? undefined : 15}
                                                 onPreviewLimitReached={() => setIsLoginModalOpen(true)}
                                             />
+                                            {/* Interaction Layer for Desktop */}
+                                            <div
+                                                className="absolute inset-0 z-10"
+                                                onMouseDown={onMouseDown}
+                                                onMouseMove={onMouseMove}
+                                                onMouseUp={onMouseUp}
+                                                onMouseLeave={onMouseUp}
+                                                onClick={handleLayerClick}
+                                            >
+                                                <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60 pointer-events-none" />
+                                                {/* Like Animation Heart */}
+                                                {showInteractHeart && (
+                                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                        <Heart
+                                                            className="w-24 h-24 text-violet-500 fill-violet-500 animate-ping"
+                                                            style={{ animationDuration: '0.8s', animationIterationCount: '1' }}
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
                                         </>
                                     ) : (
                                         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md p-8 text-center">
