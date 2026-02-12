@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, ChevronRight, Activity } from 'lucide-react';
 import { getDailyFreeSparring, extractVimeoId } from '../lib/api';
@@ -11,6 +11,26 @@ export function RandomSparringShowcase({ title, subtitle }: { title?: string; su
     const [video, setVideo] = useState<SparringVideo | null>(null);
     const [loading, setLoading] = useState(true);
     const [isPaused, setIsPaused] = useState(false);
+    const [isInView, setIsInView] = useState(false);
+    const sectionRef = useRef<HTMLElement>(null);
+
+    // Intersection Observer: 섹션이 뷰포트에 들어오면 비디오 재생 시작
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    setIsInView(true);
+                }
+            },
+            { threshold: 0.3 } // 30% 이상 보이면 시작
+        );
+
+        if (sectionRef.current) {
+            observer.observe(sectionRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, []);
 
     // Use exported extractVimeoId from lib/api
 
@@ -42,7 +62,7 @@ export function RandomSparringShowcase({ title, subtitle }: { title?: string; su
     }
 
     return (
-        <section className="py-24 relative overflow-hidden">
+        <section ref={sectionRef} className="py-24 relative overflow-hidden">
             <div className="max-w-7xl mx-auto px-4 relative z-10">
                 <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
 
@@ -95,8 +115,8 @@ export function RandomSparringShowcase({ title, subtitle }: { title?: string; su
                                 maxPreviewDuration={60}
                                 showControls={false}
                                 fillContainer={true}
-                                playing={!isPaused}
-                                autoplay={true}
+                                playing={isInView && !isPaused}
+                                autoplay={isInView}
                                 isPaused={isPaused}
                                 forceSquareRatio={true}
                                 muted={true}
