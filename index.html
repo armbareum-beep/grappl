@@ -70,6 +70,67 @@
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" /></noscript>
 
   <script>
+    // ============================================
+    // 🔥 강제 캐시 클리어 (버전이 바뀌면 실행)
+    // 이 버전을 바꾸면 모든 사용자의 캐시가 강제로 클리어됩니다
+    // ============================================
+    (function() {
+      var CACHE_BUST_VERSION = '20260212_v1'; // 배포할 때마다 이 값을 변경
+      var CACHE_KEY = 'grapplay_cache_version';
+
+      try {
+        var savedVersion = localStorage.getItem(CACHE_KEY);
+
+        if (savedVersion !== CACHE_BUST_VERSION) {
+          console.log('[CacheBust] New version detected:', CACHE_BUST_VERSION, '(was:', savedVersion, ')');
+
+          // 즉시 버전 저장 (무한 루프 방지)
+          localStorage.setItem(CACHE_KEY, CACHE_BUST_VERSION);
+
+          // Service Worker 해제 및 캐시 삭제
+          var clearPromises = [];
+
+          // 1. Service Worker 해제
+          if ('serviceWorker' in navigator) {
+            clearPromises.push(
+              navigator.serviceWorker.getRegistrations().then(function(regs) {
+                return Promise.all(regs.map(function(reg) {
+                  console.log('[CacheBust] Unregistering SW:', reg.scope);
+                  return reg.unregister();
+                }));
+              }).catch(function(e) { console.warn('[CacheBust] SW error:', e); })
+            );
+          }
+
+          // 2. Cache Storage 삭제
+          if ('caches' in window) {
+            clearPromises.push(
+              caches.keys().then(function(keys) {
+                return Promise.all(keys.map(function(key) {
+                  console.log('[CacheBust] Deleting cache:', key);
+                  return caches.delete(key);
+                }));
+              }).catch(function(e) { console.warn('[CacheBust] Cache error:', e); })
+            );
+          }
+
+          // 캐시 클리어 후 리로드
+          Promise.all(clearPromises).then(function() {
+            console.log('[CacheBust] Cache cleared, reloading...');
+            // 짧은 대기 후 리로드 (캐시 삭제가 반영되도록)
+            setTimeout(function() {
+              window.location.reload();
+            }, 300);
+          });
+
+          // 이 시점에서 스크립트 실행 중단 (리로드 대기)
+          return;
+        }
+      } catch(e) {
+        console.warn('[CacheBust] Error:', e);
+      }
+    })();
+
     // 핀치 줌 비활성화 (두 손가락 확대 방지)
     document.addEventListener('touchstart', function (event) {
       if (event.touches.length > 1) {
