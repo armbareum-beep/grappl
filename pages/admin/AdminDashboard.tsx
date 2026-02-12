@@ -167,7 +167,28 @@ export const AdminDashboard: React.FC = () => {
             ]
         },
         {
-            title: "시스템 및 매출",
+            title: "외부 통계 및 인프라",
+            items: [
+                {
+                    title: "Google Analytics",
+                    desc: "방문자 행태 및 유입 경로 상세 분석",
+                    icon: TrendingUp,
+                    bg: "bg-orange-400/10",
+                    link: "https://analytics.google.com/",
+                    isExternal: true
+                },
+                {
+                    title: "Vercel Analytics",
+                    desc: "웹 성능 및 실제 사용자 경험(Web Vitals) 지표",
+                    icon: Activity,
+                    bg: "bg-zinc-400/10",
+                    link: "https://vercel.com/dashboard",
+                    isExternal: true
+                }
+            ]
+        },
+        {
+            title: "시스템 관리",
             items: [
                 {
                     title: "사이트 설정",
@@ -469,30 +490,43 @@ export const AdminDashboard: React.FC = () => {
                                 {section.items.map((item, itemIdx) => {
                                     const Icon = item.icon;
                                     const isAlert = 'alert' in item && item.alert;
+                                    const isExternal = (item as any).isExternal;
+
+                                    const content = (
+                                        <div className="group bg-zinc-900/30 rounded-2xl border border-zinc-800/50 p-6 hover:border-violet-500/40 hover:bg-zinc-900/60 transition-all cursor-pointer relative overflow-hidden h-full">
+                                            <div className="absolute -inset-x-20 -inset-y-20 bg-violet-500/5 blur-[80px] opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                                            {isAlert && (
+                                                <span className="absolute top-6 right-6 flex h-3 w-3">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-violet-500"></span>
+                                                </span>
+                                            )}
+
+                                            <div className={`w-14 h-14 ${item.bg} rounded-2xl flex items-center justify-center mb-6 border border-white/5 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3`}>
+                                                <Icon className="w-7 h-7" />
+                                            </div>
+
+                                            <h3 className="text-xl font-bold text-white mb-2 group-hover:text-violet-400 transition-colors">
+                                                {item.title}
+                                            </h3>
+                                            <p className="text-zinc-500 text-sm leading-relaxed group-hover:text-zinc-400 transition-colors">
+                                                {item.desc}
+                                            </p>
+                                        </div>
+                                    );
+
+                                    if (isExternal) {
+                                        return (
+                                            <a href={item.link} key={itemIdx} target="_blank" rel="noopener noreferrer">
+                                                {content}
+                                            </a>
+                                        );
+                                    }
 
                                     return (
                                         <Link to={item.link} key={itemIdx}>
-                                            <div className="group bg-zinc-900/30 rounded-2xl border border-zinc-800/50 p-6 hover:border-violet-500/40 hover:bg-zinc-900/60 transition-all cursor-pointer relative overflow-hidden h-full">
-                                                <div className="absolute -inset-x-20 -inset-y-20 bg-violet-500/5 blur-[80px] opacity-0 group-hover:opacity-100 transition-opacity" />
-
-                                                {isAlert && (
-                                                    <span className="absolute top-6 right-6 flex h-3 w-3">
-                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
-                                                        <span className="relative inline-flex rounded-full h-3 w-3 bg-violet-500"></span>
-                                                    </span>
-                                                )}
-
-                                                <div className={`w-14 h-14 ${item.bg} rounded-2xl flex items-center justify-center mb-6 border border-white/5 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3`}>
-                                                    <Icon className="w-7 h-7" />
-                                                </div>
-
-                                                <h3 className="text-xl font-bold text-white mb-2 group-hover:text-violet-400 transition-colors">
-                                                    {item.title}
-                                                </h3>
-                                                <p className="text-zinc-500 text-sm leading-relaxed group-hover:text-zinc-400 transition-colors">
-                                                    {item.desc}
-                                                </p>
-                                            </div>
+                                            {content}
                                         </Link>
                                     );
                                 })}

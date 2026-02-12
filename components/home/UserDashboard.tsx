@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import { useNavigate } from 'react-router-dom';
+import { getOptimizedThumbnail } from '../../lib/utils';
 import { ChevronRight, MoreHorizontal } from 'lucide-react';
 import { ActionMenuModal } from '../library/ActionMenuModal';
 import { useAuth as useAuthContext } from '../../contexts/AuthContext';
@@ -166,7 +167,7 @@ const DashboardItem = ({ item, onContinue, user }: { item: ActivityItem, onConti
             <div className="relative aspect-[16/9] overflow-hidden rounded-lg bg-[#121215] transition-all duration-300 group-hover:scale-[1.03] transform-gpu">
                 <div
                     className="absolute inset-0 bg-cover bg-center opacity-70 group-hover:opacity-90 transition-opacity"
-                    style={{ backgroundImage: `url(${item.thumbnail || 'https://images.unsplash.com/photo-1555597673-b21d5c935865?q=80&w=2000&auto=format&fit=crop'})` }}
+                    style={{ backgroundImage: `url(${getOptimizedThumbnail(item.thumbnail, 'small')})` }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
             </div>

@@ -20,6 +20,9 @@ interface VideoPreloadContextType {
     consumePreloadedPlayer: () => { player: Player; iframe: HTMLIFrameElement } | { muxVideo: HTMLVideoElement } | null;
     isPreloadedFor: (drillId: string) => boolean;
     preloadContainerRef: React.RefObject<HTMLDivElement>;
+    // Global muted state for reels-like experience (unmute once, stay unmuted)
+    globalMuted: boolean;
+    setGlobalMuted: (muted: boolean) => void;
 }
 
 const initialState: PreloadState = {
@@ -56,6 +59,9 @@ export const VideoPreloadProvider: React.FC<VideoPreloadProviderProps> = ({ chil
     const preloadContainerRef = useRef<HTMLDivElement>(null);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isPreloadingRef = useRef(false);
+
+    // Global muted state - starts muted, stays unmuted once user unmutes (like Reels/Shorts)
+    const [globalMuted, setGlobalMuted] = useState(true);
 
     // Cleanup timeout on unmount
     useEffect(() => {
@@ -369,6 +375,8 @@ export const VideoPreloadProvider: React.FC<VideoPreloadProviderProps> = ({ chil
                 consumePreloadedPlayer,
                 isPreloadedFor,
                 preloadContainerRef,
+                globalMuted,
+                setGlobalMuted,
             }}
         >
             {children}

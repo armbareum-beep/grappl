@@ -3,7 +3,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Bookmark, Share2, MoreHorizontal } from 'lucide-react';
 import { ActionMenuModal } from '../library/ActionMenuModal';
-import { cn } from '../../lib/utils';
+import { cn, getOptimizedThumbnail } from '../../lib/utils';
 import { useAuth as useAuthContext } from '../../contexts/AuthContext';
 import {
     toggleCourseSave, checkCourseSaved,
@@ -307,7 +307,8 @@ export const ContentRow: React.FC<ContentRowProps> = ({
     };
 
     const getThumbnail = (item: any) => {
-        return item.thumbnailUrl || (item as any).thumbnail || '';
+        const url = item.thumbnailUrl || (item as any).thumbnail || '';
+        return getOptimizedThumbnail(url, 'small'); // Use smaller thumbnails for carousel cards
     };
 
     const getTitle = (item: any) => {

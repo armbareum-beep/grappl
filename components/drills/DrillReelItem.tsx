@@ -942,7 +942,7 @@ export const DrillReelItem: React.FC<DrillReelItemProps> = memo(({
 
                 {/* --- UI Controls Layer --- */}
                 <div className="absolute inset-0 pointer-events-none z-40 flex justify-center">
-                    <div className="relative w-full h-full md:max-w-[56.25vh] p-4">
+                    <div className="relative w-full h-full md:max-w-[56.25vh] p-4 safe-area-pt safe-area-pb">
                         {/* Header: Back & Mute */}
                         <div className="absolute top-6 left-4 right-4 flex justify-between pointer-events-none items-start">
                             <button onClick={(e) => { e.stopPropagation(); navigate(-1); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white pointer-events-auto active:scale-95 shadow-xl">

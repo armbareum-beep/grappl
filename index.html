@@ -53,13 +53,21 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="/favicon.png?v=20260207" />
   <link rel="apple-touch-icon" href="/pwa-192x192.png?v=20260207" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 
-  <!-- Vimeo Player SDK Preload (피드 로딩 최적화) -->
-  <link rel="preconnect" href="https://player.vimeo.com" crossorigin>
-  <link rel="preconnect" href="https://i.vimeocdn.com" crossorigin>
-  <link rel="dns-prefetch" href="https://player.vimeo.com">
-  <link rel="dns-prefetch" href="https://i.vimeocdn.com">
+  <!-- Preconnect to critical third-party origins -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://player.vimeo.com" crossorigin />
+  <link rel="preconnect" href="https://i.vimeocdn.com" crossorigin />
+  <link rel="preconnect" href="https://pkvhioaywghghmttnyec.supabase.co" crossorigin />
+  <link rel="dns-prefetch" href="https://player.vimeo.com" />
+  <link rel="dns-prefetch" href="https://i.vimeocdn.com" />
+  <link rel="dns-prefetch" href="https://pkvhioaywghghmttnyec.supabase.co" />
+
+  <!-- Google Fonts - Non-blocking with preload -->
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" media="print" onload="this.media='all'" />
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" /></noscript>
 
   <script>
     // 핀치 줌 비활성화 (두 손가락 확대 방지)

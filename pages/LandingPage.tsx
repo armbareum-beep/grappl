@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLandingPageData } from '../hooks/use-landing-queries';
+import { useVideoPreloadSafe } from '../contexts/VideoPreloadContext';
 
 import { Star, Search, Award, Quote, Zap } from 'lucide-react';
 import { InstructorCarousel } from '../components/InstructorCarousel';
@@ -34,6 +35,27 @@ export const LandingPage: React.FC = () => {
     const [isScrolled, setIsScrolled] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [loadingTimedOut, setLoadingTimedOut] = useState(false);
+
+    // Preload first drill video with delay to not block initial render
+    const videoPreload = useVideoPreloadSafe();
+    useEffect(() => {
+        if (!videoPreload || !dailyDrill) return;
+
+        // 2초 딜레이: 페이지 초기 렌더링 후 프리로드
+        const timer = setTimeout(() => {
+            const url = dailyDrill.vimeoUrl || dailyDrill.videoUrl;
+            if (url) {
+                console.log('[LandingPage] Preloading daily drill:', dailyDrill.id);
+                videoPreload.startPreload({
+                    id: dailyDrill.id,
+                    vimeoUrl: dailyDrill.vimeoUrl,
+                    videoUrl: dailyDrill.videoUrl,
+                });
+            }
+        }, 2000);
+
+        return () => clearTimeout(timer);
+    }, [dailyDrill, videoPreload]);
 
     // 3초 타임아웃: 무한 로딩 방지 (랜딩 페이지는 빨리 보여야 함)
     useEffect(() => {

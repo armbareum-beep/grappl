@@ -138,46 +138,36 @@ export const ContentCard: React.FC<ContentCardProps> = ({
 
             {/* Content Body */}
             <div className="p-4 flex flex-col flex-1">
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 min-h-[60px]">
                     <h3 className="font-bold text-white group-hover:text-violet-400 transition-colors mb-1" title={title}>
                         {title}
                     </h3>
-                    {creatorName && (
-                        <p className="text-[11px] text-violet-400/80 font-medium mb-1">
-                            {creatorName}
-                        </p>
-                    )}
-                    {description && (
-                        <p className="text-xs text-zinc-500 mb-3">
-                            {description}
-                        </p>
-                    )}
+                    <p className={cn("text-[11px] text-violet-400/80 font-medium mb-1", !creatorName && "invisible")}>
+                        {creatorName || '\u00A0'}
+                    </p>
+                    <p className={cn("text-xs text-zinc-500 mb-3 line-clamp-2", !description && "invisible")}>
+                        {description || '\u00A0'}
+                    </p>
                 </div>
 
                 {/* Stats & Metadata */}
-                <div className="flex items-center justify-between mt-auto pt-3 border-t border-zinc-800/50">
+                <div className="flex items-center justify-between mt-auto pt-3 border-t border-zinc-800/50 min-h-[44px]">
                     <div className="flex items-center gap-3 text-[11px] text-zinc-500 font-medium">
                         <span className="flex items-center gap-1">
                             <Eye className="w-3 h-3" />
                             {views.toLocaleString()}
                         </span>
-                        {count !== undefined && countLabel && (
-                            <span className="flex items-center gap-1">
-                                <Icon className="w-3 h-3" />
-                                {count} {countLabel}
-                            </span>
-                        )}
-                        {duration !== undefined && (
-                            <span className="flex items-center gap-1">
-                                <PlayCircle className="w-3 h-3" />
-                                {duration}분
-                            </span>
-                        )}
-                        {createdAt && (
-                            <span className="hidden sm:inline">
-                                {new Date(createdAt).toLocaleDateString()}
-                            </span>
-                        )}
+                        <span className={cn("flex items-center gap-1", (count === undefined || !countLabel) && "hidden")}>
+                            <Icon className="w-3 h-3" />
+                            {count} {countLabel}
+                        </span>
+                        <span className={cn("flex items-center gap-1", duration === undefined && "hidden")}>
+                            <PlayCircle className="w-3 h-3" />
+                            {duration}분
+                        </span>
+                        <span className={cn("hidden sm:inline", !createdAt && "sm:hidden")}>
+                            {createdAt ? new Date(createdAt).toLocaleDateString() : ''}
+                        </span>
                     </div>
 
                     {/* Action Buttons */}
@@ -213,21 +203,15 @@ export const ContentCard: React.FC<ContentCardProps> = ({
                     </div>
                 </div>
 
-                {/* Secondary Info (Optional) */}
-                {(category || uniformType) && (
-                    <div className="mt-2 flex items-center gap-2">
-                        {category && (
-                            <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-tighter bg-zinc-800/30 px-1.5 py-0.5 rounded">
-                                {category}
-                            </span>
-                        )}
-                        {uniformType && (
-                            <span className="text-[10px] text-zinc-600 font-medium italic">
-                                {uniformType}
-                            </span>
-                        )}
-                    </div>
-                )}
+                {/* Secondary Info - Always reserve space to prevent CLS */}
+                <div className={cn("mt-2 flex items-center gap-2 min-h-[20px]", !(category || uniformType) && "invisible")}>
+                    <span className={cn("text-[10px] text-zinc-600 font-bold uppercase tracking-tighter bg-zinc-800/30 px-1.5 py-0.5 rounded", !category && "hidden")}>
+                        {category || ''}
+                    </span>
+                    <span className={cn("text-[10px] text-zinc-600 font-medium italic", !uniformType && "hidden")}>
+                        {uniformType || ''}
+                    </span>
+                </div>
             </div>
         </div>
     );

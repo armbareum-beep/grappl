@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { Star } from 'lucide-react';
 
 export const Terms: React.FC = () => {
     return (
@@ -16,8 +17,10 @@ export const Terms: React.FC = () => {
 
                     <div className="relative z-10">
                         <h1 className="text-4xl font-bold text-white mb-2">이용약관</h1>
-                        <p className="text-slate-400 mb-8">Grapplay 서비스 이용을 위한 약관입니다.</p>
-
+                        <div className="flex items-center gap-2 text-slate-400 text-sm mb-8">
+                            <Star className="w-4 h-4 text-violet-400" />
+                            <span>시행일자: 2026년 2월 12일</span>
+                        </div>
                         <div className="space-y-8 text-slate-300">
                             <section>
                                 <h2 className="text-xl font-semibold text-violet-400 mb-3 flex items-center gap-2">

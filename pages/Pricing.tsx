@@ -14,6 +14,7 @@ export const Pricing: React.FC = () => {
   const [loading] = React.useState(false);
   const [currentTier, setCurrentTier] = React.useState<SubscriptionTier | null>(null);
   const [isSubscribed, setIsSubscribed] = React.useState(false);
+  const [subscriptionLoaded, setSubscriptionLoaded] = React.useState(false);
 
   // Get return URL from location state
   const returnUrl = (location.state as any)?.returnUrl;
@@ -21,11 +22,16 @@ export const Pricing: React.FC = () => {
   React.useEffect(() => {
     if (user) {
       fetchSubscriptionStatus();
+    } else {
+      setSubscriptionLoaded(true);
     }
   }, [user?.id]);
 
   const fetchSubscriptionStatus = async () => {
-    if (!user) return;
+    if (!user) {
+      setSubscriptionLoaded(true);
+      return;
+    }
     const { data } = await supabase
       .from('users')
       .select('is_subscriber, is_complimentary_subscription, is_admin, subscription_tier')
@@ -41,6 +47,7 @@ export const Pricing: React.FC = () => {
       setIsSubscribed(hasSub);
       setCurrentTier(data.subscription_tier || null);
     }
+    setSubscriptionLoaded(true);
   };
 
   // Pricing data with Stripe Price IDs
@@ -77,8 +84,18 @@ export const Pricing: React.FC = () => {
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Current Subscription Status */}
-        {isSubscribed && currentTier && (
+        {/* Current Subscription Status - Reserve space to prevent CLS */}
+        {user && !subscriptionLoaded ? (
+          <div className="mb-12 bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 backdrop-blur-md animate-pulse">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-zinc-800 rounded-full" />
+              <div className="flex-1">
+                <div className="h-6 w-48 bg-zinc-800 rounded mb-2" />
+                <div className="h-4 w-72 bg-zinc-800 rounded" />
+              </div>
+            </div>
+          </div>
+        ) : isSubscribed && currentTier ? (
           <div className="mb-12 bg-zinc-900/60 border border-violet-500/30 rounded-2xl p-6 backdrop-blur-md">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center gap-3">
@@ -94,7 +111,7 @@ export const Pricing: React.FC = () => {
               </div>
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Header & Title */}
         <div className="text-center space-y-4">

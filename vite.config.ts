@@ -98,15 +98,19 @@ export default defineConfig({
         rollupOptions: {
             output: {
                 manualChunks: (id) => {
-                    // React 관련 라이브러리
-                    if (id.includes('node_modules/react') ||
-                        id.includes('node_modules/react-dom') ||
-                        id.includes('node_modules/react-router')) {
-                        return 'react-vendor';
+                    // React core - split for better caching
+                    if (id.includes('node_modules/react-dom')) {
+                        return 'react-dom';
+                    }
+                    if (id.includes('node_modules/react/') || id.includes('node_modules/scheduler')) {
+                        return 'react';
+                    }
+                    if (id.includes('react-router')) {
+                        return 'react-router';
                     }
 
-                    // Supabase 클라이언트
-                    if (id.includes('@supabase/supabase-js')) {
+                    // Supabase - needed early but can be separate
+                    if (id.includes('@supabase')) {
                         return 'supabase';
                     }
 
@@ -115,40 +119,58 @@ export default defineConfig({
                         return 'react-query';
                     }
 
-                    // 비디오 관련
+                    // Sentry - deferred loading
+                    if (id.includes('@sentry')) {
+                        return 'sentry';
+                    }
+
+                    // PayPal - only for checkout
+                    if (id.includes('@paypal')) {
+                        return 'paypal';
+                    }
+
+                    // Video players - only when watching
                     if (id.includes('@vimeo/player') || id.includes('tus-js-client')) {
                         return 'video';
                     }
 
-                    // 무거운 라이브러리들 - 별도 청크로 분리
+                    // Heavy animation/visualization
                     if (id.includes('framer-motion')) {
                         return 'framer-motion';
                     }
-
                     if (id.includes('reactflow')) {
                         return 'reactflow';
                     }
-
                     if (id.includes('recharts')) {
                         return 'recharts';
                     }
 
-                    // DnD Kit
+                    // DnD Kit - creator/admin only
                     if (id.includes('@dnd-kit')) {
                         return 'dnd-kit';
                     }
 
-                    // UI 라이브러리
-                    if (id.includes('lucide-react') || id.includes('date-fns')) {
-                        return 'ui';
+                    // Embla Carousel
+                    if (id.includes('embla-carousel')) {
+                        return 'embla';
                     }
 
-                    // Admin 페이지들 - 별도 청크
+                    // Icons - frequently used
+                    if (id.includes('lucide-react')) {
+                        return 'icons';
+                    }
+
+                    // Date utilities
+                    if (id.includes('date-fns')) {
+                        return 'date-fns';
+                    }
+
+                    // Admin pages
                     if (id.includes('/pages/admin/')) {
                         return 'admin-pages';
                     }
 
-                    // Creator 페이지들 - 별도 청크
+                    // Creator pages
                     if (id.includes('/pages/creator/')) {
                         return 'creator-pages';
                     }

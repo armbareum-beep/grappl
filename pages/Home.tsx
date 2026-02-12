@@ -10,6 +10,8 @@ import { Lesson, SparringVideo } from '../types';
 import { UserDashboard } from '../components/home/UserDashboard';
 import { ContentRow } from '../components/home/ContentRow';
 import { useHomeQueries } from '../hooks/use-home-queries';
+import { useVideoPreloadSafe } from '../contexts/VideoPreloadContext';
+import { getOptimizedThumbnail } from '../lib/utils';
 
 export const Home: React.FC = () => {
     const navigate = useNavigate();
@@ -29,6 +31,23 @@ export const Home: React.FC = () => {
         newSparring,
         isLoading: loading // Aliased to loading to match existing code
     } = useHomeQueries(user?.id);
+
+    // Preload first drill video for instant playback when navigating to /drills
+    const videoPreload = useVideoPreloadSafe();
+    useEffect(() => {
+        if (!videoPreload || !dailyDrill) return;
+
+        // Preload the daily drill video so it's ready when user clicks "훈련 시작"
+        const url = dailyDrill.vimeoUrl || dailyDrill.videoUrl;
+        if (url) {
+            console.log('[Home] Preloading daily drill:', dailyDrill.id);
+            videoPreload.startPreload({
+                id: dailyDrill.id,
+                vimeoUrl: dailyDrill.vimeoUrl,
+                videoUrl: dailyDrill.videoUrl,
+            });
+        }
+    }, [dailyDrill, videoPreload]);
 
     const [currentSlide, setCurrentSlide] = useState(0);
 
@@ -137,9 +156,12 @@ export const Home: React.FC = () => {
                                                     {/* Full-bleed Background Thumbnail */}
                                                     {drill.thumbnailUrl ? (
                                                         <img
-                                                            src={drill.thumbnailUrl}
+                                                            src={getOptimizedThumbnail(drill.thumbnailUrl, idx === 0 ? 'large' : 'medium')}
                                                             className="absolute inset-0 !w-full !h-full !max-w-none !max-h-none object-cover !scale-[1.21] transition-transform duration-500"
                                                             alt={drill.title}
+                                                            fetchPriority={idx === 0 ? "high" : "low"}
+                                                            loading={idx === 0 ? "eager" : "lazy"}
+                                                            decoding={idx === 0 ? "sync" : "async"}
                                                         />
                                                     ) : (
                                                         <div className="absolute inset-0 bg-zinc-900" />
@@ -191,7 +213,14 @@ export const Home: React.FC = () => {
                                                 <div className="relative w-full h-full">
                                                     {/* Full-bleed Background Thumbnail */}
                                                     {lesson.thumbnailUrl ? (
-                                                        <img src={lesson.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover" alt={lesson.title} />
+                                                        <img
+                                                            src={getOptimizedThumbnail(lesson.thumbnailUrl, idx === 0 ? 'large' : 'medium')}
+                                                            className="absolute inset-0 w-full h-full object-cover"
+                                                            alt={lesson.title}
+                                                            fetchPriority={idx === 0 ? "high" : "low"}
+                                                            loading={idx === 0 ? "eager" : "lazy"}
+                                                            decoding={idx === 0 ? "sync" : "async"}
+                                                        />
                                                     ) : (
                                                         <div className="absolute inset-0 bg-zinc-900" />
                                                     )}
@@ -242,7 +271,14 @@ export const Home: React.FC = () => {
                                                 <div className="relative w-full h-full">
                                                     {/* Full-bleed Background Thumbnail */}
                                                     {sparring.thumbnailUrl ? (
-                                                        <img src={sparring.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover" alt={sparring.title} />
+                                                        <img
+                                                            src={getOptimizedThumbnail(sparring.thumbnailUrl, idx === 0 ? 'large' : 'medium')}
+                                                            className="absolute inset-0 w-full h-full object-cover"
+                                                            alt={sparring.title}
+                                                            fetchPriority={idx === 0 ? "high" : "low"}
+                                                            loading={idx === 0 ? "eager" : "lazy"}
+                                                            decoding={idx === 0 ? "sync" : "async"}
+                                                        />
                                                     ) : (
                                                         <div className="absolute inset-0 bg-zinc-900" />
                                                     )}

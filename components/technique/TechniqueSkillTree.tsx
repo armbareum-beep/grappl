@@ -2673,7 +2673,7 @@ export const TechniqueSkillTree: React.FC = () => {
 
     if (error) {
         return (
-            <div className="h-[calc(100vh-320px)] min-h-[600px] bg-slate-950 flex items-center justify-center p-4 rounded-2xl border border-red-900/30">
+            <div className="h-[calc(100dvh-320px)] min-h-[600px] bg-slate-950 flex items-center justify-center p-4 rounded-2xl border border-red-900/30">
                 <div className="text-center max-w-md">
                     <div className="w-16 h-16 bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Trash2 className="w-8 h-8 text-red-500" />

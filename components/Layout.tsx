@@ -1,14 +1,15 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, BookOpen, DollarSign, Upload, LogOut, Settings, Clapperboard, HelpCircle, Network, Dumbbell, Home, Bookmark, Users, MessageSquare } from 'lucide-react';
 import { Button } from './Button';
 import { useAuth as useAuthContext } from '../contexts/AuthContext';
-import { NotificationDropdown } from './NotificationDropdown';
-
-import { LevelUpModal } from './LevelUpModal';
-import { TitleEarnedModal } from './TitleEarnedModal';
-import { GlobalSearch } from '../pages/GlobalSearch';
 import { cn } from '../lib/utils';
+
+// Lazy load heavy components - they're not needed on initial render
+const NotificationDropdown = lazy(() => import('./NotificationDropdown').then(m => ({ default: m.NotificationDropdown })));
+const LevelUpModal = lazy(() => import('./LevelUpModal').then(m => ({ default: m.LevelUpModal })));
+const TitleEarnedModal = lazy(() => import('./TitleEarnedModal').then(m => ({ default: m.TitleEarnedModal })));
+const GlobalSearch = lazy(() => import('../pages/GlobalSearch').then(m => ({ default: m.GlobalSearch })));
 import { getSiteSettings } from '../lib/api-admin';
 import { SiteSettings } from '../types';
 import { onNavHover, preloadCriticalRoutes } from '../lib/prefetch';
@@ -261,7 +262,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
               {/* Right side buttons */}
               <div className="hidden md:flex items-center space-x-2 lg:space-x-3">
-                {user && <NotificationDropdown />}
+                {user && <Suspense fallback={<div className="w-9 h-9" />}><NotificationDropdown /></Suspense>}
 
 
                 {user && isCreator && (
@@ -395,7 +396,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
               {/* Mobile menu button and notifications */}
               <div className="md:hidden flex items-center space-x-1">
-                {user && <NotificationDropdown />}
+                {user && <Suspense fallback={<div className="w-9 h-9" />}><NotificationDropdown /></Suspense>}
                 <button
                   ref={mobileMenuButtonRef}
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -626,26 +627,28 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </footer>
         )}
 
-      {/* Global Modals */}
-      {levelUpData && (
-        <LevelUpModal
-          isOpen={!!levelUpData}
-          onClose={() => setLevelUpData(null)}
-          oldLevel={levelUpData.oldLevel}
-          newLevel={levelUpData.newLevel}
-          beltLevel={levelUpData.beltLevel}
-        />
-      )}
+      {/* Global Modals - Lazy loaded */}
+      <Suspense fallback={null}>
+        {levelUpData && (
+          <LevelUpModal
+            isOpen={!!levelUpData}
+            onClose={() => setLevelUpData(null)}
+            oldLevel={levelUpData.oldLevel}
+            newLevel={levelUpData.newLevel}
+            beltLevel={levelUpData.beltLevel}
+          />
+        )}
 
-      {titleEarnedData && (
-        <TitleEarnedModal
-          isOpen={!!titleEarnedData}
-          onClose={() => setTitleEarnedData(null)}
-          titleName={titleEarnedData.titleName}
-          description={titleEarnedData.description}
-          rarity={titleEarnedData.rarity}
-        />
-      )}
+        {titleEarnedData && (
+          <TitleEarnedModal
+            isOpen={!!titleEarnedData}
+            onClose={() => setTitleEarnedData(null)}
+            titleName={titleEarnedData.titleName}
+            description={titleEarnedData.description}
+            rarity={titleEarnedData.rarity}
+          />
+        )}
+      </Suspense>
 
       {/* Mobile Bottom Navigation (Global, 5 Tabs) - Adjusted Z to stay below progress bars but top of normal content */}
       {!isLandingPage && !isFullScreenMode && (
@@ -714,8 +717,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       )}
 
-      {/* Global Search Modal */}
-      <GlobalSearch isOpen={searchModalOpen} onClose={() => setSearchModalOpen(false)} />
+      {/* Global Search Modal - Lazy loaded */}
+      <Suspense fallback={null}>
+        <GlobalSearch isOpen={searchModalOpen} onClose={() => setSearchModalOpen(false)} />
+      </Suspense>
 
     </div>
   );

@@ -11,6 +11,7 @@ import { useWakeLock } from '../hooks/useWakeLock';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { cn } from '../lib/utils';
 import { ReelLoginModal } from '../components/auth/ReelLoginModal';
+import { useVideoPreloadSafe } from '../contexts/VideoPreloadContext';
 
 // Internal component for Vimeo tracking (Removed - integrated into VideoPlayer)
 
@@ -166,7 +167,7 @@ export const RoutineDetail: React.FC = () => {
     useEffect(() => {
         if (viewMode === 'player') {
             document.body.style.overflow = 'hidden';
-            document.body.style.height = '100vh';
+            document.body.style.height = '100dvh';
         } else {
             document.body.style.overflow = '';
             document.body.style.height = '';
@@ -313,6 +314,30 @@ export const RoutineDetail: React.FC = () => {
             loadRoutineAndPermissions();
         }
     }, [id, authLoading, authTimedOut, user?.id]);
+
+    // Preload first drill video for instant playback when starting training
+    const videoPreload = useVideoPreloadSafe();
+    useEffect(() => {
+        if (!videoPreload || !routine?.drills?.length) return;
+
+        // 1초 딜레이: 루틴 데이터 로드 후 프리로드
+        const timer = setTimeout(() => {
+            const firstDrill = routine.drills[0];
+            if (firstDrill && typeof firstDrill !== 'string') {
+                const url = firstDrill.vimeoUrl || firstDrill.videoUrl;
+                if (url) {
+                    console.log('[RoutineDetail] Preloading first drill:', firstDrill.id);
+                    videoPreload.startPreload({
+                        id: firstDrill.id,
+                        vimeoUrl: firstDrill.vimeoUrl,
+                        videoUrl: firstDrill.videoUrl,
+                    });
+                }
+            }
+        }, 1000);
+
+        return () => clearTimeout(timer);
+    }, [routine?.drills, videoPreload]);
 
     // Note: Routine views are calculated as the sum of all drill views within the routine
     // Drill views are recorded in DrillDetail when users watch drills
@@ -917,7 +942,7 @@ export const RoutineDetail: React.FC = () => {
             </div>
 
             {/* DESKTOP VIEW */}
-            <div className={`hidden lg:block w-full ${viewMode === 'player' ? 'h-[calc(100vh-80px)] overflow-hidden' : 'min-h-screen'} pl-28 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-900/20 via-zinc-950/80 to-zinc-950`}>
+            <div className={`hidden lg:block w-full ${viewMode === 'player' ? 'h-[calc(100dvh-80px)] overflow-hidden' : 'min-h-screen'} pl-28 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-900/20 via-zinc-950/80 to-zinc-950`}>
                 {viewMode === 'landing' ? (
                     <div className="flex flex-col w-full pb-20 max-w-7xl mx-auto">
                         <button onClick={() => navigate(-1)} aria-label="뒤로 가기" className="fixed top-6 left-6 z-[100] p-3 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all group hover:bg-black/60 shadow-2xl"><ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /></button>
@@ -1075,7 +1100,7 @@ export const RoutineDetail: React.FC = () => {
                         )}
                     </div>
                 ) : (
-                    <div className="flex flex-row w-full h-[calc(100vh-80px)] bg-black relative overflow-hidden">
+                    <div className="flex flex-row w-full h-[calc(100dvh-80px)] bg-black relative overflow-hidden">
                         <div className="flex-1 relative flex items-center justify-center p-4">
                             {/* Video Container with Actions Outside */}
                             <div className="relative h-full flex">

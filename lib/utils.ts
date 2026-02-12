@@ -25,6 +25,30 @@ export function upgradeThumbnailQuality(url?: string | null): string {
 }
 
 /**
+ * Optimizes thumbnail size for faster loading.
+ * Use 'small' for cards/lists, 'medium' for featured, 'large' for hero/fullscreen
+ */
+export function getOptimizedThumbnail(url?: string | null, size: 'small' | 'medium' | 'large' = 'medium'): string {
+    if (!url) return '/placeholder-thumbnail.png';
+
+    const sizeMap = {
+        small: '640',    // Cards, list items (~150KB)
+        medium: '960',   // Featured sections (~300KB)
+        large: '1280'    // Hero, fullscreen (~500KB)
+    };
+
+    const targetSize = sizeMap[size];
+
+    if (url.includes('vimeocdn.com')) {
+        return url
+            .replace(/_\d+x\d+\./, `_${targetSize}.`)
+            .replace(/_\d+\./, `_${targetSize}.`);
+    }
+
+    return url;
+}
+
+/**
  * Simple helper to check if a string contains highlighted markers
  */
 export function hasHighlight(text: string | null | undefined): boolean {

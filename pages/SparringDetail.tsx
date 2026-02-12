@@ -417,7 +417,7 @@ export const SparringDetail: React.FC = () => {
                 <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/60 pointer-events-none z-30" />
 
                 {/* Overlay Contents */}
-                <div className="absolute inset-0 pointer-events-none z-40 flex items-start justify-center">
+                <div className="absolute inset-0 pointer-events-none z-40 flex items-start justify-center safe-area-pt safe-area-pb">
                     {/* Top Controls */}
                     <div className="absolute top-6 left-1/2 -translate-x-1/2 w-full max-w-[min(100vw,calc(100vh-140px))] flex justify-between px-4 pointer-events-none">
                         <div className="pointer-events-auto">

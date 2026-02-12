@@ -18,6 +18,7 @@ import { VersionChecker } from './components/VersionChecker';
 import { initCacheMonitoring } from './lib/cache-monitor';
 import { startConnectionKeepalive, stopConnectionKeepalive } from './lib/connection-manager';
 import { clearErrorQueries } from './lib/react-query';
+import { useVisualViewport } from './hooks/useVisualViewport';
 
 // Lazy load essential pages
 const Home = React.lazy(() => import('./pages/Home').then(m => ({ default: m.Home })));
@@ -285,6 +286,9 @@ const CourseRedirect: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  // ✅ iOS Safari 키보드 뷰포트 대응 (CSS 변수 --keyboard-height 설정)
+  useVisualViewport();
+
   // ✅ 앱 시작 시 에러 상태의 쿼리 클리어 (무한 로딩/에러 복구)
   React.useEffect(() => {
     clearErrorQueries();

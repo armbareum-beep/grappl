@@ -67,8 +67,6 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
     const [liked, setLiked] = useState<Set<string>>(new Set());
     const [saved, setSaved] = useState<Set<string>>(new Set());
     const [following, setFollowing] = useState<Set<string>>(new Set());
-    const [isMuted, setIsMuted] = useState(false); // Start with sound on
-    const handleToggleMute = useCallback(() => setIsMuted(prev => !prev), []);
     const [userPermissions, setUserPermissions] = useState({
         isSubscriber: false,
         purchasedItemIds: [] as string[]
@@ -195,6 +193,12 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
     // Initial Preload: Load first 3 videos on mount for instant first play
     const videoPreload = useVideoPreloadSafe();
 
+    // Use global muted state from context (starts muted for iOS autoplay, stays unmuted once user unmutes)
+    const globalMuted = videoPreload?.globalMuted ?? true;
+    const setGlobalMuted = videoPreload?.setGlobalMuted;
+    const handleToggleMute = useCallback(() => {
+        setGlobalMuted?.(!globalMuted);
+    }, [globalMuted, setGlobalMuted]);
 
     useEffect(() => {
         if (!videoPreload || drills.length === 0) return;
@@ -576,7 +580,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
                             drill={drill}
                             index={index} // Pass index to let item call back with it
                             isActive={isActive}
-                            isMuted={isMuted}
+                            isMuted={globalMuted}
                             onToggleMute={handleToggleMute}
                             isLiked={liked.has(drill.id)}
                             onLike={handleLike}

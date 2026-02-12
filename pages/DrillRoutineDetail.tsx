@@ -8,6 +8,7 @@ import { PlayCircle, Eye, ArrowLeft, Clock, Share2 } from 'lucide-react';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { ReelLoginModal } from '../components/auth/ReelLoginModal';
+import { useVideoPreloadSafe } from '../contexts/VideoPreloadContext';
 
 const ShareModal = React.lazy(() => import('../components/social/ShareModal'));
 

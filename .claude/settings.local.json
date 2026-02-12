@@ -53,7 +53,8 @@
       "Bash(git reset:*)",
       "Bash(vercel:*)",
       "WebFetch(domain:www.mux.com)",
-      "Bash(git show:*)"
+      "Bash(git show:*)",
+      "WebFetch(domain:pagespeed.web.dev)"
     ]
   }
 }
