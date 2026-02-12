@@ -96,7 +96,19 @@ export default defineConfig({
     },
     build: {
         rollupOptions: {
-            // manualChunks 제거 - Vite 기본 청크 분리 사용 (React 인스턴스 문제 방지)
+            output: {
+                manualChunks: (id) => {
+                    // React 사용하지 않는 순수 JS 라이브러리만 분리 (안전)
+                    if (id.includes('@supabase')) return 'supabase';
+                    if (id.includes('@sentry') && !id.includes('@sentry/react')) return 'sentry';
+                    if (id.includes('date-fns')) return 'date-fns';
+                    if (id.includes('@vimeo/player')) return 'vimeo';
+                    if (id.includes('tus-js-client')) return 'tus';
+
+                    // React 관련 모든 것은 기본 청크로 (분리하지 않음)
+                    // react, react-dom, react-query, framer-motion, reactflow 등
+                }
+            }
         },
         chunkSizeWarningLimit: 1000, // 경고 임계값 상향 (1MB)
         minify: 'terser', // 더 강력한 압축
