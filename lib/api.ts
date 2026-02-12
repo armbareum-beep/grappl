@@ -5318,6 +5318,7 @@ export async function createSparringVideo(videoData: Partial<SparringVideo>) {
         is_published: false,
         duration_minutes: videoData.durationMinutes,
         length: videoData.length,
+        status: 'pending',
     };
 
     // Auto-fetch Vimeo info
