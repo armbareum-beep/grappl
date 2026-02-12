@@ -16,6 +16,15 @@ export const AdminContentApproval: React.FC = () => {
     const [approveModal, setApproveModal] = useState<{ isOpen: boolean; item: PendingContent | null }>({ isOpen: false, item: null });
     const [isApproving, setIsApproving] = useState(false);
 
+    const getPreviewUrl = (item: PendingContent) => {
+        switch (item.type) {
+            case 'course': return `/courses/${item.id}`;
+            case 'drill': return `/drills/${item.id}`;
+            case 'sparring': return `/sparring/${item.id}`;
+            default: return '#';
+        }
+    };
+
     useEffect(() => {
         fetchPending();
     }, []);
@@ -138,7 +147,10 @@ export const AdminContentApproval: React.FC = () => {
 
                                     {/* Preview Overlay Button */}
                                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-[2px]">
-                                        <button className="px-5 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-white font-bold text-xs backdrop-blur-md transition-all flex items-center gap-2">
+                                        <button
+                                            onClick={() => window.open(getPreviewUrl(item), '_blank')}
+                                            className="px-5 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-white font-bold text-xs backdrop-blur-md transition-all flex items-center gap-2"
+                                        >
                                             <Eye className="w-4 h-4" /> Preview
                                         </button>
                                     </div>

@@ -12,8 +12,10 @@ import {
 } from '../../types';
 import { ImageUploader } from '../ImageUploader';
 import { VideoEditor } from '../VideoEditor';
+import { VimeoThumbnailSelector } from '../VimeoThumbnailSelector';
 import { Scissors } from 'lucide-react'; // Import Scissors
 import { useToast } from '../../contexts/ToastContext';
+import { extractVimeoId } from '../../lib/api';
 
 // Content Types
 type ContentType = 'course' | 'routine' | 'sparring';
@@ -354,12 +356,16 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                 mainVideoFile,
             };
 
-            // Show publishing modal for course, routine, sparring (not for drills/lessons)
-            if (['course', 'routine', 'sparring'].includes(contentType)) {
+            // Show publishing modal only for NEW content (not edits)
+            const shouldShowPublishingModal =
+                (contentType === 'course' || contentType === 'routine' || contentType === 'sparring') && !isEditMode;
+
+            if (shouldShowPublishingModal) {
                 setPendingSaveData(saveData);
                 setShowPublishingModal(true);
                 setSaving(false);
             } else {
+                // Direct save without publishing modal (drills, lessons, sparring-edit)
                 await onSave(saveData);
                 onClose();
             }
@@ -623,18 +629,31 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                             <div>
                                 <div className="flex items-center justify-between mb-2">
                                     <label className="block text-sm font-semibold text-zinc-400">썸네일</label>
-                                    <button
-                                        type="button"
-                                        onClick={handleAutoThumbnail}
-                                        className="text-xs text-violet-400 hover:text-violet-300 font-semibold"
-                                    >
-                                        {config.primaryLabel}에서 자동 선택
-                                    </button>
+                                    {contentType !== 'sparring' && (
+                                        <button
+                                            type="button"
+                                            onClick={handleAutoThumbnail}
+                                            className="text-xs text-violet-400 hover:text-violet-300 font-semibold"
+                                        >
+                                            {config.primaryLabel}에서 자동 선택
+                                        </button>
+                                    )}
                                 </div>
                                 <ImageUploader
                                     currentImageUrl={formData.thumbnailUrl}
                                     onUploadComplete={(url) => setFormData(prev => ({ ...prev, thumbnailUrl: url }))}
                                 />
+
+                                {/* Vimeo Thumbnail Selector for Sparring */}
+                                {contentType === 'sparring' && isEditMode && (editingItem as SparringVideo)?.videoUrl && (
+                                    <div className="mt-6 pt-6 border-t border-zinc-800">
+                                        <VimeoThumbnailSelector
+                                            vimeoId={extractVimeoId((editingItem as SparringVideo).videoUrl) || (editingItem as SparringVideo).videoUrl}
+                                            onSelect={(url) => setFormData(prev => ({ ...prev, thumbnailUrl: url }))}
+                                            currentThumbnailUrl={formData.thumbnailUrl}
+                                        />
+                                    </div>
+                                )}
                             </div>
 
                             {/* Course/Routine/Sparring specific options - Publishing */}
@@ -1207,30 +1226,18 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowPublishingModal(false)} />
                     <div className="relative bg-zinc-900 border border-zinc-800 rounded-3xl p-8 max-w-lg w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-                        <h3 className="text-2xl font-bold text-white mb-3">콘텐츠 공개</h3>
+                        <h3 className="text-2xl font-bold text-white mb-3">콘텐츠 업로드</h3>
                         <p className="text-zinc-400 mb-6">
-                            이 {contentType === 'course' ? '강좌' : contentType === 'routine' ? '루틴' : '스파링'}를 공개하시겠습니까?<br/>
-                            <span className="text-sm mt-2 block">
-                                💡 공개를 요청하시면 관리자 승인 후 웹사이트에 공개됩니다.
-                            </span>
+                            관리자 승인 후 업로드 됩니다.
                         </p>
 
-                        <div className="space-y-3">
-                            <button
-                                onClick={() => handlePublishingChoice(false)}
-                                disabled={saving}
-                                className="w-full py-3.5 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-sm hover:bg-zinc-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                임시저장 (비공개)
-                            </button>
-                            <button
-                                onClick={() => handlePublishingChoice(true)}
-                                disabled={saving}
-                                className="w-full py-3.5 rounded-xl bg-violet-600 text-white font-bold text-sm hover:bg-violet-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-violet-900/20"
-                            >
-                                {saving ? '저장 중...' : '공개 요청'}
-                            </button>
-                        </div>
+                        <button
+                            onClick={() => handlePublishingChoice(true)}
+                            disabled={saving}
+                            className="w-full py-3.5 rounded-xl bg-violet-600 text-white font-bold text-sm hover:bg-violet-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-violet-900/20"
+                        >
+                            {saving ? '저장 중...' : '확인'}
+                        </button>
                     </div>
                 </div>
             )}

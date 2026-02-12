@@ -267,9 +267,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 updateData.thumbnail_url = finalThumbnailUrl;
             }
 
-            await supabase.from(tableName).update(updateData).eq('id', contentId);
+            // Validate contentId before update
+            if (!contentId) {
+                console.error('[Vercel] ERROR: contentId is empty or undefined!');
+                return res.status(400).json({ error: 'contentId가 없습니다. 레슨/드릴이 먼저 생성되어야 합니다.' });
+            }
 
-            console.log('[Vercel] DB Updated:', { vimeoUrlWithHash, contentId });
+            const { error: updateError, count } = await supabase
+                .from(tableName)
+                .update(updateData)
+                .eq('id', contentId);
+
+            if (updateError) {
+                console.error('[Vercel] DB Update Error:', updateError);
+                return res.status(500).json({ error: `DB 업데이트 실패: ${updateError.message}` });
+            }
+
+            console.log('[Vercel] DB Updated:', { vimeoUrlWithHash, contentId, tableName, updateData });
             return res.status(200).json({ success: true });
         }
 

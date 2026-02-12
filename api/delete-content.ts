@@ -61,12 +61,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const videosToDelete: { platform: string; id: string }[] = [];
 
         if (contentType === 'drill') {
-            // Drills use Mux
+            // Drills can use either Vimeo or Mux
+            // Vimeo URLs contain ':', Mux playback IDs don't
             if (record.vimeo_url && !record.vimeo_url.startsWith('ERROR')) {
-                videosToDelete.push({ platform: 'mux', id: record.vimeo_url });
+                const isVimeo = record.vimeo_url.includes(':');
+                if (isVimeo) {
+                    const vimeoId = record.vimeo_url.split(':')[0];
+                    videosToDelete.push({ platform: 'vimeo', id: vimeoId });
+                } else {
+                    videosToDelete.push({ platform: 'mux', id: record.vimeo_url });
+                }
             }
             if (record.description_video_url && !record.description_video_url.startsWith('ERROR')) {
-                videosToDelete.push({ platform: 'mux', id: record.description_video_url });
+                const isVimeo = record.description_video_url.includes(':');
+                if (isVimeo) {
+                    const vimeoId = record.description_video_url.split(':')[0];
+                    videosToDelete.push({ platform: 'vimeo', id: vimeoId });
+                } else {
+                    videosToDelete.push({ platform: 'mux', id: record.description_video_url });
+                }
             }
         } else if (contentType === 'lesson') {
             // Lessons use Vimeo

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { extractVimeoId } from '../../lib/api';
+import { extractVimeoId, getSparringVideos } from '../../lib/api';
 import { SparringVideo } from '../../types';
-import { Heart, Share2, ChevronLeft, Volume2, VolumeX, Bookmark, ArrowUpRight } from 'lucide-react';
+import { Heart, Share2, ChevronLeft, Volume2, VolumeX, Bookmark, ArrowUpRight, LayoutGrid, X, Play } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { cn } from '../../lib/utils';
 import { VideoPlayer } from '../VideoPlayer';
@@ -49,6 +49,8 @@ export const SparringVideoItem = React.forwardRef<VideoItemRef, {
     const [localLikes, setLocalLikes] = useState(video.likes || 0);
     const [localProgress, setLocalProgress] = useState({ seconds: 0, duration: 45, percent: 0, hasAccess: true });
     const [shouldLoadPlayer, setShouldLoadPlayer] = useState(false);
+    const [showMoreSparring, setShowMoreSparring] = useState(false);
+    const [moreSparring, setMoreSparring] = useState<SparringVideo[]>([]);
     const navigate = useNavigate();
     const playerRef = useRef<any>(null);
 
@@ -95,6 +97,16 @@ export const SparringVideoItem = React.forwardRef<VideoItemRef, {
             }
         }
     }));
+
+    const handleMoreSparring = async () => {
+        if (moreSparring.length === 0 && video.creatorId) {
+            const { data: videos } = await getSparringVideos(10, video.creatorId, true);
+            if (videos) {
+                setMoreSparring(videos.filter((v: SparringVideo) => v.id !== video.id));
+            }
+        }
+        setShowMoreSparring(true);
+    };
 
     const handleFollow = async () => {
         if (!user) { navigate('/login'); return; }
@@ -289,6 +301,9 @@ export const SparringVideoItem = React.forwardRef<VideoItemRef, {
                             </button>
                             <span className="text-[11px] md:text-sm font-bold text-white drop-shadow-md">{localLikes.toLocaleString()}</span>
                         </div>
+                        <button onClick={(e) => { e.stopPropagation(); handleMoreSparring(); }} className="p-2 md:p-2.5 rounded-full bg-zinc-800/80 backdrop-blur-sm text-zinc-100 hover:bg-zinc-700 transition-all active:scale-90 shadow-2xl" aria-label="More Sparring">
+                            <LayoutGrid className="w-5 h-5 md:w-6 md:h-6" />
+                        </button>
                         <button onClick={(e) => { e.stopPropagation(); handleSave(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl" aria-label="저장">
                             <Bookmark className={cn("w-5 h-5 md:w-6 md:h-6", isSaved && "fill-white")} />
                         </button>
@@ -469,6 +484,59 @@ export const SparringVideoItem = React.forwardRef<VideoItemRef, {
                     </div>
                 )}
             </React.Suspense>
+
+            {/* More Sparring Sheet */}
+            {showMoreSparring && (
+                <div className="fixed inset-0 z-[200002] bg-black/80 backdrop-blur-sm flex justify-end" onClick={() => setShowMoreSparring(false)}>
+                    <div
+                        className="w-full max-w-sm h-full bg-zinc-900 border-l border-zinc-800 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="p-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50 backdrop-blur-xl">
+                            <div>
+                                <h3 className="text-lg font-black text-white flex items-center gap-2">
+                                    More Sparring
+                                </h3>
+                                <p className="text-xs text-zinc-500 mt-0.5">{video.creator?.name}님의 다른 스파링 영상</p>
+                            </div>
+                            <button onClick={() => setShowMoreSparring(false)} className="p-2 hover:bg-zinc-800 rounded-full transition-colors">
+                                <X className="w-5 h-5 text-zinc-400" />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-zinc-700">
+                            {moreSparring.length === 0 ? (
+                                <div className="flex items-center justify-center h-32 text-zinc-500 text-sm">
+                                    다른 스파링 영상이 없습니다.
+                                </div>
+                            ) : (
+                                moreSparring.map((v) => (
+                                    <div
+                                        key={v.id}
+                                        onClick={() => { navigate(`/sparring/${v.id}`); setShowMoreSparring(false); }}
+                                        className="group flex gap-3 p-3 rounded-xl bg-black/40 border border-zinc-800/50 hover:bg-zinc-800/50 hover:border-zinc-700 transition-all cursor-pointer items-center"
+                                    >
+                                        <div className="w-24 aspect-[9/16] rounded-lg overflow-hidden bg-zinc-900 border border-zinc-800 group-hover:border-zinc-600 shrink-0 relative">
+                                            {v.thumbnailUrl ? (
+                                                <img src={v.thumbnailUrl} loading="lazy" className="w-full h-full object-cover" alt={v.title || "썸네일"} />
+                                            ) : (
+                                                <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-zinc-700"><Play className="w-6 h-6" /></div>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="text-sm font-bold text-zinc-200 group-hover:text-white truncate transition-colors leading-tight line-clamp-2">{v.title}</h4>
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <span className="text-[10px] text-zinc-500 font-medium px-1.5 py-0.5 bg-zinc-800 rounded border border-zinc-700">{v.views || 0} views</span>
+                                                {v.price > 0 && <span className="text-[10px] text-violet-400 font-bold">Paid</span>}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 });

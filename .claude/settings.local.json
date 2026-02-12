@@ -52,7 +52,8 @@
       "Bash(netlify status:*)",
       "Bash(git reset:*)",
       "Bash(vercel:*)",
-      "WebFetch(domain:www.mux.com)"
+      "WebFetch(domain:www.mux.com)",
+      "Bash(git show:*)"
     ]
   }
 }

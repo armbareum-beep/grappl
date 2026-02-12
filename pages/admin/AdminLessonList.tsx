@@ -242,7 +242,7 @@ export const AdminLessonList = () => {
                                             {(lesson.views || 0).toLocaleString()}
                                         </td>
                                         <td className="p-4 text-zinc-500 text-sm">
-                                            {new Date(lesson.createdAt).toLocaleDateString()}
+                                            {new Date(lesson.created_at || lesson.createdAt).toLocaleDateString()}
                                         </td>
                                         <td className="p-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
@@ -303,7 +303,7 @@ export const AdminLessonList = () => {
                                                 {lesson.difficulty}
                                             </span>
                                             <span className="text-[10px] text-zinc-500">
-                                                {new Date(lesson.createdAt).toLocaleDateString()}
+                                                {new Date(lesson.created_at || lesson.createdAt).toLocaleDateString()}
                                             </span>
                                         </div>
                                     </div>

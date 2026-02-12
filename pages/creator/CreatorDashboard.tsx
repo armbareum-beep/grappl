@@ -286,6 +286,7 @@ export const CreatorDashboard: React.FC = () => {
                 }
             } else if (contentModalType === 'sparring') {
                 if (editingContent) {
+                    // Update sparring video - does NOT change status (no re-pending on edit)
                     const { error } = await updateSparringVideo(editingContent.id, {
                         title: data.title,
                         description: data.description,
@@ -293,6 +294,7 @@ export const CreatorDashboard: React.FC = () => {
                         difficulty: data.difficulty,
                         uniformType: data.uniformType,
                         price: data.price,
+                        thumbnailUrl: data.thumbnailUrl,
                         relatedItems: data.relatedItems,
                         creatorId: data.creatorId,
                     });
@@ -303,21 +305,6 @@ export const CreatorDashboard: React.FC = () => {
                     }
 
                     success('스파링 정보가 수정되었습니다.');
-
-                    // Request publishing if user chose to publish (edit mode)
-                    if (data.publishingRequested && editingContent?.id) {
-                        try {
-                            const { error: publishError } = await requestSparringPublishing(editingContent.id);
-                            if (publishError) {
-                                console.error('Publishing request error:', publishError);
-                                toastError('공개 요청 중 오류가 발생했습니다.');
-                            } else {
-                                success('관리자 승인 대기열에 올라갔습니다. 승인 후 웹사이트에 공개됩니다.');
-                            }
-                        } catch (err) {
-                            console.error('Publishing request error:', err);
-                        }
-                    }
                 } else {
                     // Create New Sparring
                     const result = await createSparringVideo({
@@ -1076,6 +1063,7 @@ export const CreatorDashboard: React.FC = () => {
                                                 thumbnailUrl={video.thumbnailUrl}
                                                 price={video.price}
                                                 views={video.views}
+                                                onClick={() => navigate(`/sparring/${video.id}`)}
                                                 onEdit={() => openSparringModal(video)}
                                                 onDelete={() => handleDeleteSparringVideo(video.id, video.title)}
                                             />

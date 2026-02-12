@@ -55,17 +55,33 @@ export interface PendingContent {
 }
 
 export async function getPendingContent(): Promise<PendingContent[]> {
+    // Note: drills and sparring_videos don't have FK relationship to creators, so we fetch creator_id and look up names separately
     const [courses, drills, sparring] = await Promise.all([
         withTimeout(supabase.from('courses').select('id, title, creator:creators(name), created_at, thumbnail_url').eq('status', 'pending')),
-        withTimeout(supabase.from('drills').select('id, title, creator:creators(name), created_at, thumbnail_url').eq('status', 'pending')),
-        withTimeout(supabase.from('sparring_videos').select('id, title, creator:creators(name), created_at, thumbnail_url').eq('status', 'pending'))
+        withTimeout(supabase.from('drills').select('id, title, creator_id, created_at, thumbnail_url').eq('status', 'pending')),
+        withTimeout(supabase.from('sparring_videos').select('id, title, creator_id, created_at, thumbnail_url').eq('status', 'pending'))
     ]);
+
+    // Collect all creator_ids that need lookup
+    const creatorIds = new Set<string>();
+    drills.data?.forEach(d => d.creator_id && creatorIds.add(d.creator_id));
+    sparring.data?.forEach(s => s.creator_id && creatorIds.add(s.creator_id));
+
+    // Fetch creator names
+    const creatorMap = new Map<string, string>();
+    if (creatorIds.size > 0) {
+        const { data: creators } = await supabase
+            .from('creators')
+            .select('id, name')
+            .in('id', Array.from(creatorIds));
+        creators?.forEach(c => creatorMap.set(c.id, c.name));
+    }
 
     const results: PendingContent[] = [];
 
     courses.data?.forEach(c => results.push({ id: c.id, type: 'course', title: c.title, creatorName: (c.creator as any)?.name, createdAt: c.created_at, thumbnailUrl: c.thumbnail_url }));
-    drills.data?.forEach(d => results.push({ id: d.id, type: 'drill', title: d.title, creatorName: (d.creator as any)?.name, createdAt: d.created_at, thumbnailUrl: d.thumbnail_url }));
-    sparring.data?.forEach(s => results.push({ id: s.id, type: 'sparring', title: s.title, creatorName: (s.creator as any)?.name, createdAt: s.created_at, thumbnailUrl: s.thumbnail_url }));
+    drills.data?.forEach(d => results.push({ id: d.id, type: 'drill', title: d.title, creatorName: creatorMap.get(d.creator_id) || 'Unknown', createdAt: d.created_at, thumbnailUrl: d.thumbnail_url }));
+    sparring.data?.forEach(s => results.push({ id: s.id, type: 'sparring', title: s.title, creatorName: creatorMap.get(s.creator_id) || 'Unknown', createdAt: s.created_at, thumbnailUrl: s.thumbnail_url }));
 
     return results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
@@ -198,6 +214,7 @@ export async function getLessonsAdmin() {
         .from('lessons')
         .select(`
             *,
+            creator:creators(name),
             course:courses(
                 title,
                 creator:creators(name)
@@ -1006,13 +1023,17 @@ export async function rejectContent(id: string, type: 'course' | 'drill' | 'spar
         'sparring': 'sparring_videos'
     };
 
+    // Different tables have different column structures
+    // Note: rejection_reason is stored in notification, not all tables have this column
+    const updateDataMap = {
+        'course': { status: 'rejected', published: false },
+        'drill': { status: 'rejected' },
+        'sparring': { status: 'rejected', is_published: false }
+    };
+
     const { data, error } = await supabase
         .from(tableMap[type])
-        .update({
-            approved: false,
-            status: 'rejected',
-            rejection_reason: reason
-        })
+        .update(updateDataMap[type])
         .eq('id', id)
         .select()
         .single();
@@ -1045,13 +1066,17 @@ export async function approveContent(id: string, type: 'course' | 'drill' | 'spa
         'sparring': 'sparring_videos'
     };
 
+    // Different tables have different column structures
+    const updateDataMap = {
+        'course': { status: 'approved', published: true },
+        'drill': { status: 'approved' },
+        'sparring': { status: 'approved', is_published: true }
+    };
+    const updateData = updateDataMap[type];
+
     const { data, error } = await supabase
         .from(tableMap[type])
-        .update({
-            approved: true,
-            status: 'published',
-            rejection_reason: null // Clear reason on approval
-        })
+        .update(updateData)
         .eq('id', id)
         .select()
         .single();
