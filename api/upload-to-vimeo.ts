@@ -104,11 +104,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             const createData = await createResponse.json();
 
+            const vimeoId = createData.uri.split('/').pop();
             return res.status(200).json({
                 success: true,
                 uploadLink: createData.upload.upload_link,
                 vimeoUri: createData.uri,
-                vimeoId: createData.uri.split('/').pop()
+                vimeoId: vimeoId,
+                videoId: vimeoId  // For client compatibility
             });
         }
 
