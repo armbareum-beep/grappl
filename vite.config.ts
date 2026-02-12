@@ -98,12 +98,11 @@ export default defineConfig({
         rollupOptions: {
             output: {
                 manualChunks: (id) => {
-                    // React core - split for better caching
-                    if (id.includes('node_modules/react-dom')) {
-                        return 'react-dom';
-                    }
-                    if (id.includes('node_modules/react/') || id.includes('node_modules/scheduler')) {
-                        return 'react';
+                    // React core - MUST be in the same chunk to avoid internal state issues
+                    if (id.includes('node_modules/react/') ||
+                        id.includes('node_modules/react-dom/') ||
+                        id.includes('node_modules/scheduler/')) {
+                        return 'react-vendor';
                     }
                     if (id.includes('react-router')) {
                         return 'react-router';
