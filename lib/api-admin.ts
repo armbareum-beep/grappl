@@ -214,7 +214,6 @@ export async function getLessonsAdmin() {
         .from('lessons')
         .select(`
             *,
-            creator:creators(name),
             course:courses(
                 title,
                 creator:creators(name)
@@ -226,7 +225,25 @@ export async function getLessonsAdmin() {
         console.error('Error fetching lessons:', error);
         return [];
     }
-    return data || [];
+
+    // Lessons table doesn't have FK to creators, so lookup separately
+    const creatorIds = new Set<string>();
+    data?.forEach(lesson => lesson.creator_id && creatorIds.add(lesson.creator_id));
+
+    const creatorMap = new Map<string, string>();
+    if (creatorIds.size > 0) {
+        const { data: creators } = await supabase
+            .from('creators')
+            .select('id, name')
+            .in('id', Array.from(creatorIds));
+        creators?.forEach(c => creatorMap.set(c.id, c.name));
+    }
+
+    // Enrich lessons with creator name
+    return (data || []).map(lesson => ({
+        ...lesson,
+        creator: lesson.creator_id ? { name: creatorMap.get(lesson.creator_id) } : null
+    }));
 }
 
 export async function deleteLessonAdmin(lessonId: string) {

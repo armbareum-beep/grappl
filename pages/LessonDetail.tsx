@@ -8,6 +8,7 @@ import {
     recordWatchTime,
     updateLastWatched,
     recordLessonView,
+    incrementLessonViews,
     getLessonProgress,
     toggleLessonLike,
     checkLessonLiked,
@@ -235,6 +236,7 @@ export const LessonDetail: React.FC = () => {
 
         const timer = setTimeout(() => {
             recordLessonView(id).catch(console.error);
+            incrementLessonViews(id).catch(console.error);
         }, 10000); // 10 seconds
 
         return () => clearTimeout(timer);
@@ -346,6 +348,7 @@ export const LessonDetail: React.FC = () => {
                                             }}
                                             onProgress={handleProgress}
                                             startTime={initialStartTime}
+                                            watermarkText={user?.email}
                                         />
                                     ) : (
                                         <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-zinc-400">

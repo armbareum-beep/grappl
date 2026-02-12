@@ -887,8 +887,15 @@ export async function incrementSparringViews(videoId: string): Promise<void> {
     }
 }
 
+export async function incrementLessonViews(lessonId: string): Promise<void> {
+    const { error } = await supabase.rpc('increment_lesson_views', {
+        lesson_id: lessonId,
+    });
 
-
+    if (error) {
+        console.error('Error incrementing lesson views:', error);
+    }
+}
 
 
 

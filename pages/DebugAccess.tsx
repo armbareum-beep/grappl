@@ -8,6 +8,20 @@ export default function DebugAccess() {
     const [error, setError] = useState<string | null>(null);
     const [fetchStatus, setFetchStatus] = useState<string>('대기 중');
 
+    // loading 타임아웃: 5초 후에도 loading이면 강제로 진행
+    const [loadingTimedOut, setLoadingTimedOut] = useState(false);
+    useEffect(() => {
+        if (!loading) {
+            setLoadingTimedOut(false);
+            return;
+        }
+        const timer = setTimeout(() => {
+            console.warn('[DebugAccess] Auth loading timed out after 5s');
+            setLoadingTimedOut(true);
+        }, 5000);
+        return () => clearTimeout(timer);
+    }, [loading]);
+
     useEffect(() => {
         async function fetchDebugInfo() {
             if (!user) {
@@ -98,7 +112,8 @@ export default function DebugAccess() {
         fetchDebugInfo();
     }, [user?.id, isSubscribed, isAdmin]);
 
-    if (loading) return <div className="p-8 bg-gray-900 text-yellow-400 min-h-screen">AuthContext 로딩 중...</div>;
+    // 로딩 중이고 타임아웃 안 됐으면 로딩 화면 (최대 5초)
+    if (loading && !loadingTimedOut) return <div className="p-8 bg-gray-900 text-yellow-400 min-h-screen">AuthContext 로딩 중...</div>;
     if (!user) return <div className="p-8 bg-gray-900 text-white min-h-screen">로그인이 필요합니다.</div>;
     if (error) return <div className="p-8 bg-gray-900 text-red-400 min-h-screen">{error}</div>;
     if (!debugInfo) return (

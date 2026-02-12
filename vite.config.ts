@@ -33,63 +33,25 @@ export default defineConfig({
     plugins: [
         react(),
         VitePWA({
+            // ✅ 간소화: 앱 설치 기능만 유지, 캐싱은 비활성화
             registerType: 'autoUpdate',
             injectRegister: 'auto',
             workbox: {
                 skipWaiting: true,
                 clientsClaim: true,
                 cleanupOutdatedCaches: true,
-                // CRITICAL: Minimize precache to prevent stale cache issues
-                // Only precache essential shell files, not all JS chunks
-                globPatterns: ['**/*.{ico,png,svg,webp}'], // Only icons/images
-                // Don't precache JS/CSS - use runtime caching instead
-                navigateFallback: null, // Disable offline fallback to index.html
-                navigateFallbackDenylist: [/^\/api/, /^\/__/],
+                // ❌ JS/CSS/HTML 캐싱 완전 비활성화 - 브라우저 기본 캐싱만 사용
+                globPatterns: [], // 아무것도 precache 안 함
+                navigateFallback: null,
+                // ✅ 런타임 캐싱도 최소화: 폰트만 캐시
                 runtimeCaching: [
-                    // HTML - Always fetch from network first
-                    {
-                        urlPattern: /^https:\/\/.*\/?$/i,
-                        handler: 'NetworkFirst',
-                        options: {
-                            cacheName: 'html-cache',
-                            expiration: {
-                                maxEntries: 10,
-                                maxAgeSeconds: 60 * 60 // 1 hour
-                            },
-                            networkTimeoutSeconds: 3,
-                            cacheableResponse: {
-                                statuses: [0, 200]
-                            }
-                        }
-                    },
-                    // JS/CSS - Stale while revalidate (use cache but update in background)
-                    {
-                        urlPattern: /\.(?:js|css)$/i,
-                        handler: 'StaleWhileRevalidate',
-                        options: {
-                            cacheName: 'static-resources',
-                            expiration: {
-                                maxEntries: 100,
-                                maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days
-                            },
-                            cacheableResponse: {
-                                statuses: [0, 200]
-                            }
-                        }
-                    },
-                    // Fonts - Cache first (rarely change)
+                    // Fonts만 캐시 (거의 안 바뀜)
                     {
                         urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
                         handler: 'CacheFirst',
                         options: {
                             cacheName: 'google-fonts-cache',
-                            expiration: {
-                                maxEntries: 10,
-                                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
-                            },
-                            cacheableResponse: {
-                                statuses: [0, 200]
-                            }
+                            expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 }
                         }
                     },
                     {
@@ -97,25 +59,10 @@ export default defineConfig({
                         handler: 'CacheFirst',
                         options: {
                             cacheName: 'gstatic-fonts-cache',
-                            expiration: {
-                                maxEntries: 20,
-                                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
-                            },
-                            cacheableResponse: {
-                                statuses: [0, 200]
-                            }
+                            expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 }
                         }
-                    },
-                    // API calls - Network only (never cache)
-                    {
-                        urlPattern: /\/api\//i,
-                        handler: 'NetworkOnly'
-                    },
-                    // Supabase - Network only
-                    {
-                        urlPattern: /supabase/i,
-                        handler: 'NetworkOnly'
                     }
+                    // 나머지는 모두 브라우저 기본 동작 (네트워크 요청)
                 ]
             },
             includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],

@@ -17,6 +17,7 @@ import { AdminRoute } from './components/AdminRoute';
 import { VersionChecker } from './components/VersionChecker';
 import { initCacheMonitoring } from './lib/cache-monitor';
 import { startConnectionKeepalive, stopConnectionKeepalive } from './lib/connection-manager';
+import { clearErrorQueries } from './lib/react-query';
 
 // Lazy load essential pages
 const Home = React.lazy(() => import('./pages/Home').then(m => ({ default: m.Home })));
@@ -111,15 +112,19 @@ const RootRedirect: React.FC = () => {
         console.warn('[RootRedirect] Auth still loading after 8s, attempting auto-recovery');
         setRecoveryAttempted(true);
 
-        // Check if we already tried recovery recently
+        // Check if we already tried recovery recently (10초로 단축, 60초 → 10초)
         const lastRecovery = localStorage.getItem('app_infinite_loading_recovery');
         const now = Date.now();
-        if (lastRecovery && now - parseInt(lastRecovery) < 60000) {
-          console.warn('[RootRedirect] Recovery attempted recently, skipping');
+        if (lastRecovery && now - parseInt(lastRecovery) < 10000) {
+          // 10초 내 재시도면 단순 리로드만 (스킵하지 않음)
+          console.warn('[RootRedirect] Recovery attempted recently, doing simple reload');
+          window.location.reload();
           return;
         }
 
-        localStorage.setItem('app_infinite_loading_recovery', now.toString());
+        try {
+          localStorage.setItem('app_infinite_loading_recovery', now.toString());
+        } catch { /* Safari Private Mode 예외 무시 */ }
 
         // Clear auth data and reload
         try {
@@ -131,13 +136,16 @@ const RootRedirect: React.FC = () => {
               keysToRemove.push(key);
             }
           }
-          keysToRemove.forEach(k => localStorage.removeItem(k));
-          sessionStorage.clear();
+          keysToRemove.forEach(k => {
+            try { localStorage.removeItem(k); } catch { }
+          });
+          try { sessionStorage.clear(); } catch { }
 
           // Reload after cleanup
           window.location.reload();
         } catch (e) {
-          console.error('[RootRedirect] Recovery failed:', e);
+          console.error('[RootRedirect] Recovery failed, forcing reload:', e);
+          window.location.reload(); // 실패해도 무조건 리로드
         }
       }
     }, 8000);
@@ -277,6 +285,11 @@ const CourseRedirect: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  // ✅ 앱 시작 시 에러 상태의 쿼리 클리어 (무한 로딩/에러 복구)
+  React.useEffect(() => {
+    clearErrorQueries();
+  }, []);
+
   // ✅ 캐시 모니터링 초기화 (프로덕션 로깅 활성화)
   React.useEffect(() => {
     const cleanup = initCacheMonitoring();

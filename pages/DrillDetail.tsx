@@ -104,15 +104,30 @@ export const DrillDetail: React.FC = () => {
         setMuted(prev => !prev);
     };
 
+    // authLoading 타임아웃: 5초 후에도 authLoading이면 강제로 데이터 로드
+    const [authTimedOut, setAuthTimedOut] = useState(false);
     useEffect(() => {
-        if (authLoading) return;
+        if (!authLoading) {
+            setAuthTimedOut(false);
+            return;
+        }
+        const timer = setTimeout(() => {
+            console.warn('[DrillDetail] Auth loading timed out after 5s, proceeding anyway');
+            setAuthTimedOut(true);
+        }, 5000);
+        return () => clearTimeout(timer);
+    }, [authLoading]);
+
+    useEffect(() => {
+        // authLoading이 false거나 타임아웃됐으면 진행
+        if (authLoading && !authTimedOut) return;
 
         if (id) {
             fetchDrill();
             checkUser();
             checkRoutine();
         }
-    }, [id, authLoading]);
+    }, [id, authLoading, authTimedOut]);
 
     // Increment view count after 10 seconds of watching (only for authorized users)
     useEffect(() => {

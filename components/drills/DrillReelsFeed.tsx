@@ -124,8 +124,9 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
     const handleBufferingChange = useCallback((index: number, isBuffering: boolean) => {
         if (index === currentIndex) {
             setIsCurrentBuffering(isBuffering);
-            // Clear any existing timeout when buffering state changes
-            if (bufferingTimeoutRef.current) {
+            // Only clear timeout when unblocking (isBuffering=false) to prevent race condition
+            // where setting true clears the auto-reset timeout without restarting it
+            if (!isBuffering && bufferingTimeoutRef.current) {
                 clearTimeout(bufferingTimeoutRef.current);
                 bufferingTimeoutRef.current = null;
             }
@@ -408,7 +409,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [currentIndex]);
+    }, [goToNext, goToPrevious]);
 
     // Mouse wheel navigation
     const lastScrollTime = useRef(0);
@@ -432,7 +433,7 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
         };
         window.addEventListener('wheel', handleWheel, { passive: false });
         return () => window.removeEventListener('wheel', handleWheel);
-    }, [currentIndex, readyItems, drills.length]); // Added readyItems dependency since goToNext uses it
+    }, [goToNext, goToPrevious]);
 
     // Interaction Handlers
     const handleLike = useCallback(async (drill: Drill) => {

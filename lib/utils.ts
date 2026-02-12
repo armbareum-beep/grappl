@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { queryClient } from './react-query'
 
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs))
@@ -103,6 +104,13 @@ export async function hardReload(preserveKeys: string[] = [], forceAll: boolean 
 
         // 4. SessionStorage 완전 삭제
         sessionStorage.clear();
+
+        // 4.5. React Query 캐시 완전 삭제 (에러 상태 포함)
+        try {
+            queryClient.clear(); // 모든 쿼리 캐시 삭제
+        } catch (e) {
+            console.warn('[hardReload] Failed to clear React Query cache:', e);
+        }
 
         // 5. 최종 대기 (모바일 환경 안정성)
         await new Promise(resolve => setTimeout(resolve, 200));

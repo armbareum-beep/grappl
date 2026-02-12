@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getRoutineById, checkDrillRoutineOwnership, getDrillById, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime, getRelatedCourseByCategory, getRelatedRoutines, incrementRoutineView, recordDrillView, toggleRoutineSave, checkRoutineSaved } from '../lib/api';
+import { getRoutineById, checkDrillRoutineOwnership, getDrillById, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime, getRelatedCourseByCategory, getRelatedRoutines, recordDrillView, toggleRoutineSave, checkRoutineSaved } from '../lib/api';
 import { Drill, DrillRoutine, Course } from '../types';
 import { Button } from '../components/Button';
 import { ChevronLeft, Heart, Bookmark, Share2, Play, Lock, Volume2, VolumeX, List, ListVideo, Zap, X, Clock, CheckCircle, PlayCircle, RefreshCw } from 'lucide-react';
@@ -213,9 +213,23 @@ export const RoutineDetail: React.FC = () => {
         return Math.ceil(totalSeconds / 60);
     }, [routine]);
 
+    // authLoading 타임아웃: 5초 후에도 authLoading이면 강제로 데이터 로드
+    const [authTimedOut, setAuthTimedOut] = useState(false);
+    useEffect(() => {
+        if (!authLoading) {
+            setAuthTimedOut(false);
+            return;
+        }
+        const timer = setTimeout(() => {
+            console.warn('[RoutineDetail] Auth loading timed out after 5s, proceeding anyway');
+            setAuthTimedOut(true);
+        }, 5000);
+        return () => clearTimeout(timer);
+    }, [authLoading]);
 
     useEffect(() => {
-        if (authLoading) return;
+        // authLoading이 false거나 타임아웃됐으면 진행
+        if (authLoading && !authTimedOut) return;
 
         const loadRoutineAndPermissions = async () => {
             if (!id) return;
@@ -298,7 +312,7 @@ export const RoutineDetail: React.FC = () => {
         if (id) {
             loadRoutineAndPermissions();
         }
-    }, [id, authLoading, user?.id]);
+    }, [id, authLoading, authTimedOut, user?.id]);
 
     // Note: Routine views are calculated as the sum of all drill views within the routine
     // Drill views are recorded in DrillDetail when users watch drills
@@ -781,6 +795,7 @@ export const RoutineDetail: React.FC = () => {
                                             maxPreviewDuration={user ? undefined : 60}
                                             onPreviewLimitReached={() => setIsLoginModalOpen(true)}
                                             isPaused={isLoginModalOpen}
+                                            watermarkText={user?.email}
                                         />
                                         <div
                                             className="absolute inset-0 z-10"
@@ -1090,6 +1105,7 @@ export const RoutineDetail: React.FC = () => {
                                                 onEnded={() => handleDrillComplete()}
                                                 maxPreviewDuration={user ? undefined : 15}
                                                 onPreviewLimitReached={() => setIsLoginModalOpen(true)}
+                                                watermarkText={user?.email}
                                             />
                                             {/* Interaction Layer for Desktop */}
                                             <div

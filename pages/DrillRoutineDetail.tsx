@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getDrillRoutineById, checkDrillRoutineOwnership, incrementDrillRoutineViews, calculateRoutinePrice } from '../lib/api';
+import { getDrillRoutineById, checkDrillRoutineOwnership, calculateRoutinePrice } from '../lib/api';
 import { DrillRoutine } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
@@ -47,9 +47,7 @@ export const DrillRoutineDetail: React.FC = () => {
 
             if (routineData) {
                 setRoutine(routineData);
-                // Increment views
-                incrementDrillRoutineViews(id);
-                // Record View History
+                // Record View History (루틴 조회수는 드릴들의 views 합계로 계산)
                 if (user) {
                     import('../lib/api').then(({ recordRoutineView }) => {
                         recordRoutineView(id).catch(console.error);

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useRef, useCallback, useEffect } from 'react';
 import Player from '@vimeo/player';
-import { extractVimeoId } from '../lib/api';
+import { extractVimeoId, isMuxPlaybackId } from '../lib/api';
+import '@mux/mux-video';
 
 interface PreloadState {
     status: 'idle' | 'loading' | 'ready' | 'error';
@@ -8,12 +9,15 @@ interface PreloadState {
     vimeoUrl: string | null;
     playerRef: Player | null;
     iframeRef: HTMLIFrameElement | null;
+    // Mux video preload support
+    muxVideoRef: HTMLVideoElement | null;
+    isMux: boolean;
 }
 
 interface VideoPreloadContextType {
     preloadState: PreloadState;
     startPreload: (drill: { id: string; vimeoUrl?: string; videoUrl?: string }) => void;
-    consumePreloadedPlayer: () => { player: Player; iframe: HTMLIFrameElement } | null;
+    consumePreloadedPlayer: () => { player: Player; iframe: HTMLIFrameElement } | { muxVideo: HTMLVideoElement } | null;
     isPreloadedFor: (drillId: string) => boolean;
     preloadContainerRef: React.RefObject<HTMLDivElement>;
 }
@@ -24,6 +28,8 @@ const initialState: PreloadState = {
     vimeoUrl: null,
     playerRef: null,
     iframeRef: null,
+    muxVideoRef: null,
+    isMux: false,
 };
 
 const VideoPreloadContext = createContext<VideoPreloadContextType | null>(null);
@@ -79,12 +85,21 @@ export const VideoPreloadProvider: React.FC<VideoPreloadProviderProps> = ({ chil
         if (preloadState.playerRef) {
             preloadState.playerRef.destroy().catch(() => { });
         }
+        if (preloadState.muxVideoRef) {
+            try {
+                preloadState.muxVideoRef.pause();
+                preloadState.muxVideoRef.src = '';
+                preloadState.muxVideoRef.load();
+            } catch (e) {
+                // Ignore cleanup errors
+            }
+        }
         if (preloadContainerRef.current) {
             preloadContainerRef.current.innerHTML = '';
         }
         setPreloadState(initialState);
         isPreloadingRef.current = false;
-    }, [preloadState.playerRef]);
+    }, [preloadState.playerRef, preloadState.muxVideoRef]);
 
     const startPreload = useCallback((drill: { id: string; vimeoUrl?: string; videoUrl?: string }) => {
         // 이미 프리로딩 중이거나, 같은 영상이 로드되어 있으면 스킵
@@ -94,12 +109,25 @@ export const VideoPreloadProvider: React.FC<VideoPreloadProviderProps> = ({ chil
         const url = drill.vimeoUrl || drill.videoUrl;
         if (!url) return;
 
-        const vimeoId = extractVimeoId(url);
-        if (!vimeoId) return;
+        // Check if it's a Mux playback ID
+        const isMux = isMuxPlaybackId(url);
+        const vimeoId = !isMux ? extractVimeoId(url) : null;
+
+        // Must be either Mux or valid Vimeo ID
+        if (!isMux && !vimeoId) return;
 
         // 기존 프리로드 정리
         if (preloadState.playerRef) {
             preloadState.playerRef.destroy().catch(() => { });
+        }
+        if (preloadState.muxVideoRef) {
+            try {
+                preloadState.muxVideoRef.pause();
+                preloadState.muxVideoRef.src = '';
+                preloadState.muxVideoRef.load();
+            } catch (e) {
+                // Ignore cleanup errors
+            }
         }
         if (preloadContainerRef.current) {
             preloadContainerRef.current.innerHTML = '';
@@ -112,10 +140,96 @@ export const VideoPreloadProvider: React.FC<VideoPreloadProviderProps> = ({ chil
             vimeoUrl: url,
             playerRef: null,
             iframeRef: null,
+            muxVideoRef: null,
+            isMux,
         });
 
+        // Handle Mux video preload
+        if (isMux) {
+            try {
+                console.log('[VideoPreload] Creating Mux video element for:', drill.id);
+                const muxVideo = document.createElement('mux-video') as any;
+                muxVideo.setAttribute('playback-id', url);
+                muxVideo.setAttribute('preload', 'auto');
+                muxVideo.setAttribute('muted', 'true');
+                muxVideo.setAttribute('playsinline', 'true');
+                muxVideo.className = 'w-full h-full object-cover';
+                muxVideo.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
+
+                if (preloadContainerRef.current) {
+                    preloadContainerRef.current.appendChild(muxVideo);
+                }
+
+                const videoElement = muxVideo as HTMLVideoElement;
+
+                const handleCanPlay = () => {
+                    console.log('[VideoPreload] Mux video ready for:', drill.id);
+                    setPreloadState({
+                        status: 'ready',
+                        drillId: drill.id,
+                        vimeoUrl: url,
+                        playerRef: null,
+                        iframeRef: null,
+                        muxVideoRef: videoElement,
+                        isMux: true,
+                    });
+                    isPreloadingRef.current = false;
+                };
+
+                const handleError = () => {
+                    console.error('[VideoPreload] Mux video error for:', drill.id);
+                    setPreloadState({
+                        status: 'error',
+                        drillId: drill.id,
+                        vimeoUrl: url,
+                        playerRef: null,
+                        iframeRef: null,
+                        muxVideoRef: null,
+                        isMux: true,
+                    });
+                    isPreloadingRef.current = false;
+                };
+
+                // Listen for loadeddata instead of canplay for faster readiness
+                videoElement.addEventListener('loadeddata', handleCanPlay, { once: true });
+                videoElement.addEventListener('error', handleError, { once: true });
+
+                // Fallback timeout - mark as ready after 3 seconds even if not fully loaded
+                setTimeout(() => {
+                    if (isPreloadingRef.current && preloadState.drillId === drill.id) {
+                        console.log('[VideoPreload] Mux video timeout, marking ready:', drill.id);
+                        setPreloadState({
+                            status: 'ready',
+                            drillId: drill.id,
+                            vimeoUrl: url,
+                            playerRef: null,
+                            iframeRef: null,
+                            muxVideoRef: videoElement,
+                            isMux: true,
+                        });
+                        isPreloadingRef.current = false;
+                    }
+                }, 3000);
+
+            } catch (err) {
+                console.error('[VideoPreload] Failed to create Mux video:', err);
+                setPreloadState({
+                    status: 'error',
+                    drillId: drill.id,
+                    vimeoUrl: url,
+                    playerRef: null,
+                    iframeRef: null,
+                    muxVideoRef: null,
+                    isMux: true,
+                });
+                isPreloadingRef.current = false;
+            }
+            return;
+        }
+
+        // Handle Vimeo video preload (existing logic)
         try {
-            const [baseId, hash] = vimeoId.includes(':') ? vimeoId.split(':') : [vimeoId, null];
+            const [baseId, hash] = vimeoId!.includes(':') ? vimeoId!.split(':') : [vimeoId, null];
 
             // iframe 생성
             const iframe = document.createElement('iframe');
@@ -159,6 +273,8 @@ export const VideoPreloadProvider: React.FC<VideoPreloadProviderProps> = ({ chil
                     vimeoUrl: url,
                     playerRef: player,
                     iframeRef: iframe,
+                    muxVideoRef: null,
+                    isMux: false,
                 });
                 isPreloadingRef.current = false;
 
@@ -176,6 +292,8 @@ export const VideoPreloadProvider: React.FC<VideoPreloadProviderProps> = ({ chil
                     vimeoUrl: url,
                     playerRef: null,
                     iframeRef: null,
+                    muxVideoRef: null,
+                    isMux: false,
                 });
                 isPreloadingRef.current = false;
             });
@@ -187,13 +305,38 @@ export const VideoPreloadProvider: React.FC<VideoPreloadProviderProps> = ({ chil
                 vimeoUrl: url,
                 playerRef: null,
                 iframeRef: null,
+                muxVideoRef: null,
+                isMux: false,
             });
             isPreloadingRef.current = false;
         }
-    }, [preloadState.drillId, preloadState.status, preloadState.playerRef]);
+    }, [preloadState.drillId, preloadState.status, preloadState.playerRef, preloadState.muxVideoRef]);
 
     const consumePreloadedPlayer = useCallback(() => {
-        if (preloadState.status !== 'ready' || !preloadState.playerRef || !preloadState.iframeRef) {
+        if (preloadState.status !== 'ready') {
+            return null;
+        }
+
+        // Handle Mux video
+        if (preloadState.isMux && preloadState.muxVideoRef) {
+            const result = {
+                muxVideo: preloadState.muxVideoRef,
+            };
+
+            // 타임아웃 클리어
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+            }
+
+            // 상태 초기화 (비디오 요소는 소비자에게 넘김)
+            setPreloadState(initialState);
+            isPreloadingRef.current = false;
+
+            return result;
+        }
+
+        // Handle Vimeo player
+        if (!preloadState.playerRef || !preloadState.iframeRef) {
             return null;
         }
 

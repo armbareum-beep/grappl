@@ -140,13 +140,98 @@ const SingleVideoPlayer: React.FC<SingleVideoPlayerProps> = ({
 
         let isMounted = true;
 
-        // 프리로드된 플레이어 확인 및 소비
-        if (!playerRef.current && drillId && videoPreload && !preloadConsumedRef.current) {
+        // 프리로드된 플레이어 확인 및 소비 (Vimeo or Mux)
+        if (!playerRef.current && !videoRef.current && drillId && videoPreload && !preloadConsumedRef.current) {
             if (videoPreload.isPreloadedFor(drillId)) {
                 const preloaded = videoPreload.consumePreloadedPlayer();
                 if (preloaded && containerRef.current) {
-                    console.log('[SingleVideoPlayer] Using preloaded player for drill:', drillId, '- Should play instantly!');
                     preloadConsumedRef.current = true;
+
+                    // Check if it's a preloaded Mux video
+                    if ('muxVideo' in preloaded) {
+                        console.log('[SingleVideoPlayer] Using preloaded Mux video for drill:', drillId, '- Should play instantly!');
+
+                        // mux-video 요소를 현재 컨테이너로 이동
+                        containerRef.current.innerHTML = '';
+                        containerRef.current.appendChild(preloaded.muxVideo);
+
+                        videoRef.current = preloaded.muxVideo;
+                        setReady(true);
+                        onReady();
+
+                        // Set up event listeners for preloaded Mux video
+                        const handleTimeUpdate = () => {
+                            if (!isMounted) return;
+                            const duration = preloaded.muxVideo.duration || 1;
+                            const currentTime = preloaded.muxVideo.currentTime || 0;
+                            const percent = (currentTime / duration) * 100;
+
+                            if (currentTime > 0.1) {
+                                onPlay?.();
+                                setReady(true);
+                                setIsBuffering(false);
+                            }
+
+                            if (isPreviewModeRef.current && maxPreviewDurationRef.current) {
+                                const calcPercent = (currentTime / maxPreviewDurationRef.current) * 100;
+                                onProgressRef.current(calcPercent, currentTime);
+                                if (currentTime >= maxPreviewDurationRef.current) {
+                                    preloaded.muxVideo.pause();
+                                    onPreviewLimitReachedRef.current?.();
+                                }
+                            } else {
+                                onProgressRef.current(percent, currentTime);
+                            }
+                        };
+
+                        const handlePlay = () => {
+                            if (isMounted) {
+                                onPlay?.();
+                                setReady(true);
+                                setIsBuffering(false);
+                            }
+                        };
+
+                        const handleEnded = () => {
+                            if (isPreviewModeRef.current) {
+                                onPreviewLimitReachedRef.current?.();
+                            }
+                        };
+
+                        const handleWaiting = () => { if (isMounted) setIsBuffering(true); };
+                        const handleCanPlay = () => { if (isMounted) setIsBuffering(false); };
+
+                        preloaded.muxVideo.addEventListener('timeupdate', handleTimeUpdate);
+                        preloaded.muxVideo.addEventListener('play', handlePlay);
+                        preloaded.muxVideo.addEventListener('ended', handleEnded);
+                        preloaded.muxVideo.addEventListener('waiting', handleWaiting);
+                        preloaded.muxVideo.addEventListener('canplay', handleCanPlay);
+
+                        return () => {
+                            isMounted = false;
+                            const vid = videoRef.current;
+                            if (vid) {
+                                vid.removeEventListener('timeupdate', handleTimeUpdate);
+                                vid.removeEventListener('play', handlePlay);
+                                vid.removeEventListener('ended', handleEnded);
+                                vid.removeEventListener('waiting', handleWaiting);
+                                vid.removeEventListener('canplay', handleCanPlay);
+                                try {
+                                    vid.pause();
+                                    vid.src = '';
+                                    vid.load();
+                                } catch (e) {
+                                    // Ignore cleanup errors
+                                }
+                                videoRef.current = null;
+                            }
+                            if (containerRef.current) containerRef.current.innerHTML = '';
+                            setReady(false);
+                        };
+                    }
+
+                    // Preloaded Vimeo player
+                    console.log('[SingleVideoPlayer] Using preloaded Vimeo player for drill:', drillId, '- Should play instantly!');
 
                     // iframe을 현재 컨테이너로 이동
                     containerRef.current.innerHTML = '';

@@ -7,44 +7,62 @@ import { queryClient } from '../lib/react-query';
 async function autoRecoverAuth(reason: string) {
     console.warn(`[AuthContext] Auto-recovery triggered: ${reason}`);
 
-    // Check if we already tried recovery recently (prevent infinite loops)
-    const lastRecovery = localStorage.getItem('auth_recovery_attempt');
-    const now = Date.now();
-    if (lastRecovery && now - parseInt(lastRecovery) < 30000) {
-        console.warn('[AuthContext] Recovery attempted recently, skipping to prevent loop');
+    try {
+        // Check if we already tried recovery recently (prevent infinite loops)
+        const lastRecovery = localStorage.getItem('auth_recovery_attempt');
+        const now = Date.now();
+        if (lastRecovery && now - parseInt(lastRecovery) < 30000) {
+            console.warn('[AuthContext] Recovery attempted recently, skipping to prevent loop');
+            return false;
+        }
+
+        try {
+            localStorage.setItem('auth_recovery_attempt', now.toString());
+        } catch { /* Safari Private Mode 등에서 예외 발생 가능 */ }
+
+        try {
+            // Sign out from Supabase to clear server session
+            await supabase.auth.signOut();
+        } catch (e) {
+            console.warn('[AuthContext] signOut failed during recovery:', e);
+        }
+
+        // Clear auth-related localStorage keys (각각 try-catch로 감싸서 예외 방지)
+        try {
+            const keysToRemove: string[] = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (
+                    key.includes('supabase') ||
+                    key.includes('auth') ||
+                    key.startsWith('user_status')
+                )) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(k => {
+                try { localStorage.removeItem(k); } catch { }
+            });
+        } catch (e) {
+            console.warn('[AuthContext] localStorage cleanup failed:', e);
+        }
+
+        // Clear session storage
+        try {
+            sessionStorage.clear();
+        } catch { }
+
+        // Invalidate all queries
+        try {
+            queryClient.clear();
+        } catch { }
+
+        return true;
+    } catch (e) {
+        // 최외곽 예외 처리 - 어떤 오류가 발생해도 함수가 정상 종료되도록
+        console.error('[AuthContext] autoRecoverAuth failed:', e);
         return false;
     }
-
-    localStorage.setItem('auth_recovery_attempt', now.toString());
-
-    try {
-        // Sign out from Supabase to clear server session
-        await supabase.auth.signOut();
-    } catch (e) {
-        console.warn('[AuthContext] signOut failed during recovery:', e);
-    }
-
-    // Clear auth-related localStorage keys
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && (
-            key.includes('supabase') ||
-            key.includes('auth') ||
-            key.startsWith('user_status')
-        )) {
-            keysToRemove.push(key);
-        }
-    }
-    keysToRemove.forEach(k => localStorage.removeItem(k));
-
-    // Clear session storage
-    sessionStorage.clear();
-
-    // Invalidate all queries
-    queryClient.clear();
-
-    return true;
 }
 
 // Extend Supabase User type to include our custom properties
@@ -210,6 +228,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         let mounted = true;
 
         const initAuth = async () => {
+            let loadingHandled = false; // 중복 setLoading(false) 방지용 플래그
+
             try {
                 // Add timeout to getSession to prevent infinite loading on slow/failed network
                 const sessionPromise = supabase.auth.getSession();
@@ -238,7 +258,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         if (refreshError || !refreshResult.session) {
                             console.warn('[AuthContext] Token refresh failed, clearing stale session');
                             await autoRecoverAuth('expired_token_refresh_failed');
-                            if (mounted) setLoading(false);
+                            if (mounted) { setLoading(false); loadingHandled = true; }
                             return;
                         }
                         // Use refreshed session
@@ -248,6 +268,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             isSubscriber: false,
                         } as any);
                         setLoading(false);
+                        loadingHandled = true;
 
                         checkUserStatus(refreshedSession.user.id, true).then(status => {
                             if (mounted) {
@@ -276,6 +297,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     } as any);
                     // Set loading false immediately after setting user - don't wait for full status
                     setLoading(false);
+                    loadingHandled = true;
 
                     // Fetch full status in background (non-blocking)
                     checkUserStatus(session.user.id, true).then(status => {
@@ -297,18 +319,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     });
                 } else {
                     // No session - check if there's stale auth data causing issues
-                    const hasStaleAuthData = localStorage.getItem('supabase.auth.token');
-                    if (hasStaleAuthData) {
-                        console.warn('[AuthContext] No session but stale auth data found, cleaning up');
-                        await autoRecoverAuth('stale_auth_data_no_session');
-                    }
-                    if (mounted) setLoading(false);
+                    try {
+                        const hasStaleAuthData = localStorage.getItem('supabase.auth.token');
+                        if (hasStaleAuthData) {
+                            console.warn('[AuthContext] No session but stale auth data found, cleaning up');
+                            await autoRecoverAuth('stale_auth_data_no_session');
+                        }
+                    } catch { /* localStorage 예외 무시 */ }
+                    if (mounted) { setLoading(false); loadingHandled = true; }
                 }
             } catch (error) {
                 console.error('Error initializing auth:', error);
                 // On error, try auto-recovery
                 await autoRecoverAuth('init_auth_error');
-                if (mounted) setLoading(false);
+                if (mounted) { setLoading(false); loadingHandled = true; }
+            } finally {
+                // ✅ 최후의 방어선: 어떤 경로로든 여기까지 왔는데 loading이 아직 true면 강제로 false
+                if (mounted && !loadingHandled) {
+                    console.warn('[AuthContext] initAuth finally: forcing loading to false');
+                    setLoading(false);
+                }
             }
         };
 

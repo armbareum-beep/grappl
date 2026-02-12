@@ -137,6 +137,7 @@ export const VideoDetail: React.FC = () => {
             playing={true}
             onProgress={handleProgress}
             onEnded={handleVideoComplete}
+            watermarkText={user?.email}
           />
         </div>
       ) : (

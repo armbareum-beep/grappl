@@ -15,6 +15,22 @@ export const LandingPageV2: React.FC = () => {
     // Force redeploy check
     const navigate = useNavigate();
     const { user, loading } = useAuth();
+    const [loadingTimedOut, setLoadingTimedOut] = useState(false);
+
+    // 3초 타임아웃: 무한 로딩 방지
+    useEffect(() => {
+        if (!loading) {
+            setLoadingTimedOut(false);
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            console.warn('[LandingPageV2] Auth loading timed out after 3s, showing page anyway');
+            setLoadingTimedOut(true);
+        }, 3000);
+
+        return () => clearTimeout(timer);
+    }, [loading]);
 
     // 로그인한 사용자는 /browse로 리다이렉트
     useEffect(() => {
@@ -124,7 +140,8 @@ export const LandingPageV2: React.FC = () => {
         setStats(platformStats);
     };
 
-    if (loading) {
+    // 로딩 중이고 타임아웃 안 됐으면 로딩 화면 (최대 3초)
+    if (loading && !loadingTimedOut) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-black text-white">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>

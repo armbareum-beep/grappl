@@ -51,8 +51,24 @@ export const SparringVideoItem = React.forwardRef<VideoItemRef, {
     const [shouldLoadPlayer, setShouldLoadPlayer] = useState(false);
     const [showMoreSparring, setShowMoreSparring] = useState(false);
     const [moreSparring, setMoreSparring] = useState<SparringVideo[]>([]);
+    const [isLandscape, setIsLandscape] = useState(false);
     const navigate = useNavigate();
     const playerRef = useRef<any>(null);
+
+    // Detect landscape mode for mobile
+    useEffect(() => {
+        const checkOrientation = () => {
+            const isLandscapeMode = window.innerWidth > window.innerHeight;
+            setIsLandscape(isLandscapeMode);
+        };
+        checkOrientation();
+        window.addEventListener('resize', checkOrientation);
+        window.addEventListener('orientationchange', checkOrientation);
+        return () => {
+            window.removeEventListener('resize', checkOrientation);
+            window.removeEventListener('orientationchange', checkOrientation);
+        };
+    }, []);
 
     useEffect(() => {
         if (!isActive && Math.abs(offset) > 1) {
@@ -229,7 +245,7 @@ export const SparringVideoItem = React.forwardRef<VideoItemRef, {
                 muted={muted}
                 showControls={false}
                 fillContainer={true}
-                forceSquareRatio={true}
+                forceSquareRatio={!isLandscape}
                 onProgress={(seconds, duration, percent) => {
                     if (isActive) {
                         const reportSec = seconds || 0;
@@ -270,7 +286,7 @@ export const SparringVideoItem = React.forwardRef<VideoItemRef, {
                 {renderVideoContent()}
             </div>
             <div className="absolute inset-0 pointer-events-none z-40">
-                <div className="relative w-full h-full mx-auto max-w-[min(100vw,calc(100vh-140px))]">
+                <div className="relative w-full h-full mx-auto max-w-[min(100vw,calc(100vh-140px))] md:max-w-none">
                     <div className="absolute top-4 left-4 z-[100] pointer-events-auto">
                         <button
                             onClick={() => navigate(-1)}
@@ -301,11 +317,11 @@ export const SparringVideoItem = React.forwardRef<VideoItemRef, {
                             </button>
                             <span className="text-[11px] md:text-sm font-bold text-white drop-shadow-md">{localLikes.toLocaleString()}</span>
                         </div>
-                        <button onClick={(e) => { e.stopPropagation(); handleMoreSparring(); }} className="p-2 md:p-2.5 rounded-full bg-zinc-800/80 backdrop-blur-sm text-zinc-100 hover:bg-zinc-700 transition-all active:scale-90 shadow-2xl" aria-label="More Sparring">
-                            <LayoutGrid className="w-5 h-5 md:w-6 md:h-6" />
-                        </button>
                         <button onClick={(e) => { e.stopPropagation(); handleSave(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl" aria-label="저장">
                             <Bookmark className={cn("w-5 h-5 md:w-6 md:h-6", isSaved && "fill-white")} />
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); handleMoreSparring(); }} className="p-2 md:p-2.5 rounded-full bg-zinc-800/80 backdrop-blur-sm text-zinc-100 hover:bg-zinc-700 transition-all active:scale-90 shadow-2xl" aria-label="More Sparring">
+                            <LayoutGrid className="w-5 h-5 md:w-6 md:h-6" />
                         </button>
                         <button onClick={(e) => { e.stopPropagation(); handleShare(); }} className="p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 hover:bg-black/60 transition-all active:scale-90 shadow-2xl" aria-label="공유">
                             <Share2 className="w-5 h-5 md:w-6 md:h-6" />
@@ -313,7 +329,7 @@ export const SparringVideoItem = React.forwardRef<VideoItemRef, {
                     </div>
 
                     <div className="absolute bottom-10 left-0 right-0 w-full px-6 z-[60] text-white pointer-events-none">
-                        <div className="w-full max-w-xl mx-auto flex flex-col items-start gap-4">
+                        <div className="w-full max-w-xl mx-auto md:mx-0 md:max-w-none md:pr-24 flex flex-col items-start gap-4">
                             <div className="w-full pointer-events-auto pr-24">
                                 {(video as any).category && (
                                     <div className="flex items-center gap-3">

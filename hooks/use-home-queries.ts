@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { getHomePageData, HomePageData } from '../lib/api-home';
 import { getRecentActivity } from '../lib/api';
 
@@ -8,7 +8,10 @@ export function useHomeQueries(userId?: string) {
 
     // Check for cached data (for instant render on mount)
     const hasCachedData = useMemo(() => {
-        return !!queryClient.getQueryData(['home', 'data']);
+        const cached = queryClient.getQueryData(['home', 'data']);
+        // 캐시가 있어도 에러 상태면 캐시 없는 것으로 처리
+        const queryState = queryClient.getQueryState(['home', 'data']);
+        return !!cached && queryState?.status !== 'error';
     }, [queryClient]);
 
     // Single optimized query for all home data
@@ -18,7 +21,7 @@ export function useHomeQueries(userId?: string) {
         queryFn: getHomePageData,
         staleTime: 1000 * 60 * 30, // 30 minutes - data doesn't change often
         gcTime: 1000 * 60 * 60, // 1 hour cache
-        retry: 2, // Retry up to 2 times on failure
+        retry: 3, // Retry up to 3 times on failure (2 → 3)
         retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Exponential backoff: 1s, 2s, 4s... max 10s
     });
 
@@ -28,9 +31,20 @@ export function useHomeQueries(userId?: string) {
         queryFn: () => getRecentActivity(userId!),
         enabled: !!userId,
         staleTime: 1000 * 60 * 5, // 5 minutes
-        retry: 2,
+        retry: 3, // (2 → 3)
         retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
     });
+
+    // 에러 상태에서 자동 복구: 10초 후 자동 재시도
+    useEffect(() => {
+        if (homeData.isError) {
+            const timer = setTimeout(() => {
+                console.warn('[useHomeQueries] Auto-recovering from error state');
+                queryClient.invalidateQueries({ queryKey: ['home', 'data'] });
+            }, 10000);
+            return () => clearTimeout(timer);
+        }
+    }, [homeData.isError, queryClient]);
 
     // Use cached data if loading to prevent flash
     const isLoading = hasCachedData

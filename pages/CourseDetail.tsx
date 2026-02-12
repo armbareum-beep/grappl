@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCourse, useCourseLessons, useCourseDrills, useCourseSparring, useRelatedCourses } from '../hooks/use-queries';
-import { getCreatorById, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, toggleCourseLike, checkCourseLiked, getCourseLikeCount, incrementCourseViews, toggleCreatorFollow, checkCreatorFollowStatus, toggleCourseSave, checkCourseSaved } from '../lib/api';
+import { getCreatorById, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, toggleCourseLike, checkCourseLiked, getCourseLikeCount, toggleCreatorFollow, checkCreatorFollowStatus, toggleCourseSave, checkCourseSaved } from '../lib/api';
 import { Course, Lesson, Creator } from '../types';
 import { Button } from '../components/Button';
 import { VideoPlayer } from '../components/VideoPlayer';
@@ -635,6 +635,7 @@ export const CourseDetail: React.FC = () => {
                                 isPaused={isPaywallOpen}
                                 onDoubleTap={handleLike}
                                 muted={false}
+                                watermarkText={user?.email}
                             />
 
                             {/* 프리뷰 카운트다운 (부모 관리) */}

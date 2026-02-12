@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -18,8 +18,25 @@ interface AdminRouteProps {
 
 export const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
     const { user, loading, isAdmin } = useAuth();
+    const [loadingTimedOut, setLoadingTimedOut] = useState(false);
 
-    if (loading) {
+    // 5초 타임아웃: 무한 로딩 방지
+    useEffect(() => {
+        if (!loading) {
+            setLoadingTimedOut(false);
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            console.warn('[AdminRoute] Auth loading timed out after 5s');
+            setLoadingTimedOut(true);
+        }, 5000);
+
+        return () => clearTimeout(timer);
+    }, [loading]);
+
+    // 로딩 중이고 타임아웃 안 됐으면 로딩 화면 표시
+    if (loading && !loadingTimedOut) {
         return <AdminLoadingFallback />;
     }
 

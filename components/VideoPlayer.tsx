@@ -36,6 +36,7 @@ interface VideoPlayerProps {
     onAutoplayBlocked?: () => void;
     hideInternalOverlay?: boolean;
     thumbnailUrl?: string; // New prop for loading placeholder
+    watermarkText?: string; // User email/ID for anti-piracy watermark (desktop only)
 }
 
 export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
@@ -59,10 +60,24 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     onAspectRatioChange,
     onAutoplayBlocked,
     hideInternalOverlay = false,
+    watermarkText,
 }, ref) => {
     const [isPlaying, setIsPlaying] = useState(false);
     useWakeLock(isPlaying);
     const [aspectRatio, setAspectRatio] = useState(16 / 9); // Default to 16:9
+    const [isDesktop, setIsDesktop] = useState(false);
+
+    // Detect desktop for watermark (mobile has OS-level protection)
+    useEffect(() => {
+        const checkDesktop = () => {
+            const isLargeScreen = window.innerWidth >= 1024;
+            const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            setIsDesktop(isLargeScreen && !isTouchDevice);
+        };
+        checkDesktop();
+        window.addEventListener('resize', checkDesktop);
+        return () => window.removeEventListener('resize', checkDesktop);
+    }, []);
 
     // Expose seekTo method via ref
     useImperativeHandle(ref, () => ({
@@ -956,6 +971,24 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
                             </Link>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {/* Anti-piracy watermark (desktop only) */}
+            {watermarkText && isDesktop && (
+                <div
+                    className="absolute inset-0 z-[3] pointer-events-none select-none flex items-center justify-center"
+                    aria-hidden="true"
+                >
+                    <span
+                        className="text-white/[0.07] text-sm font-medium tracking-wider"
+                        style={{
+                            transform: 'rotate(-20deg)',
+                            textShadow: '0 0 2px rgba(0,0,0,0.3)'
+                        }}
+                    >
+                        {watermarkText}
+                    </span>
                 </div>
             )}
 
