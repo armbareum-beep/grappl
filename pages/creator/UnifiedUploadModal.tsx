@@ -537,8 +537,8 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
             if (contentType === 'drill') updateResult = await updateDrill(contentId, commonData);
             else if (contentType === 'lesson') updateResult = await updateLesson(contentId, commonData);
             else if (contentType === 'sparring') {
-                // sparring_videos doesn't have duration_minutes column
-                const { durationMinutes, vimeoUrl, descriptionVideoUrl, ...sparringData } = commonData;
+                // sparring_videos doesn't have duration_minutes or length columns
+                const { durationMinutes, length, vimeoUrl, descriptionVideoUrl, ...sparringData } = commonData;
                 updateResult = await updateSparringVideo(contentId, { ...sparringData, price: formData.price });
             }
 

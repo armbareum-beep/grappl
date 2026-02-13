@@ -5634,17 +5634,15 @@ export async function updateSparringVideo(id: string, updates: Partial<SparringV
     if (updates.isPublished !== undefined) dbData.is_published = updates.isPublished;
     if (updates.isHidden !== undefined) dbData.is_hidden = updates.isHidden;
     if (updates.previewVimeoId !== undefined) dbData.preview_vimeo_id = updates.previewVimeoId;
-    // Note: sparring_videos table doesn't have duration_minutes column
-    if (updates.length) dbData.length = updates.length;
+    // Note: sparring_videos table doesn't have duration_minutes or length columns
     if (updates.creatorId) dbData.creator_id = updates.creatorId;
 
-    // If videoUrl changed, fetch info (skip duration_minutes - column doesn't exist)
+    // If videoUrl changed, fetch thumbnail only (sparring_videos has no duration/length columns)
     if (updates.videoUrl) {
         try {
             const videoInfo = await getVimeoVideoInfo(updates.videoUrl);
             if (videoInfo) {
                 if (!updates.thumbnailUrl) dbData.thumbnail_url = videoInfo.thumbnail;
-                if (!updates.length) dbData.length = formatDuration(videoInfo.duration);
             }
         } catch (err) {
             console.warn('Failed to auto-fetch updated sparring Vimeo info:', err);
