@@ -76,6 +76,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
     const [selectedCreatorId, setSelectedCreatorId] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isUpdatingDuration, setIsUpdatingDuration] = useState(false);
+    const [isCapturing, setIsCapturing] = useState(false);
 
     const [formData, setFormData] = useState({
         title: '',
@@ -380,6 +381,9 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
 
     // Vimeo 썸네일 가져오기 (레슨/스파링 전용 - 백엔드 API 사용)
     const captureFromVimeo = async (type: 'main' | 'desc') => {
+        if (isCapturing) return;
+        setIsCapturing(true);
+
         try {
             const iframeRef = type === 'main' ? mainVimeoRef : descVimeoRef;
             const state = type === 'main' ? mainVideo : descVideo;
@@ -417,6 +421,8 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         } catch (e: any) {
             console.error('Vimeo thumbnail fetch failed:', e);
             toastError('화면 캡처에 실패했습니다. 다시 시도해주세요.');
+        } finally {
+            setIsCapturing(false);
         }
     };
 
@@ -719,8 +725,16 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                             )}
                             {/* Vimeo 레슨/스파링: 썸네일 캡처 버튼 표시 */}
                             {!isDrillType && state.vimeoUrl && state.previewUrl?.includes('vimeo') && (
-                                <button onClick={() => captureFromVimeo(type)} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 rounded-xl text-white text-sm flex items-center gap-2 transition-colors">
-                                    <Camera className="w-4 h-4" /> 현재 화면 캡처
+                                <button
+                                    onClick={() => captureFromVimeo(type)}
+                                    disabled={isCapturing}
+                                    className="px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:bg-violet-600/50 disabled:cursor-wait rounded-xl text-white text-sm flex items-center gap-2 transition-colors"
+                                >
+                                    {isCapturing ? (
+                                        <><Loader className="w-4 h-4 animate-spin" /> 캡처 중...</>
+                                    ) : (
+                                        <><Camera className="w-4 h-4" /> 현재 화면 캡처</>
+                                    )}
                                 </button>
                             )}
                             {/* 로컬 비디오일 때만 캡쳐 버튼 표시 */}

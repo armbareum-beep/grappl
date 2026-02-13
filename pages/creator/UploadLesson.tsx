@@ -59,6 +59,7 @@ export const UploadLesson: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [videoState, setVideoState] = useState<ProcessingState>(initialProcessingState);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isCapturing, setIsCapturing] = useState(false);
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const vimeoIframeRef = useRef<HTMLIFrameElement>(null);
@@ -129,6 +130,9 @@ export const UploadLesson: React.FC = () => {
     };
 
     const captureFromVideo = async () => {
+        if (isCapturing) return;
+        setIsCapturing(true);
+
         try {
             // Vimeo 영상인 경우
             if (videoState.vimeoUrl && vimeoIframeRef.current) {
@@ -175,6 +179,8 @@ export const UploadLesson: React.FC = () => {
         } catch (e: any) {
             console.error('Capture failed:', e);
             toastError('화면 캡처에 실패했습니다. 다시 시도해주세요.');
+        } finally {
+            setIsCapturing(false);
         }
     };
 
@@ -408,8 +414,16 @@ export const UploadLesson: React.FC = () => {
                         ) : (
                             <div className="space-y-3">
                                 <div className="flex justify-end gap-2">
-                                    <button onClick={captureFromVideo} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 rounded-xl text-white text-sm flex items-center gap-2 transition-colors">
-                                        <Camera className="w-4 h-4" /> 썸네일 캡처
+                                    <button
+                                        onClick={captureFromVideo}
+                                        disabled={isCapturing}
+                                        className="px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:bg-violet-600/50 disabled:cursor-wait rounded-xl text-white text-sm flex items-center gap-2 transition-colors"
+                                    >
+                                        {isCapturing ? (
+                                            <><Loader className="w-4 h-4 animate-spin" /> 캡처 중...</>
+                                        ) : (
+                                            <><Camera className="w-4 h-4" /> 썸네일 캡처</>
+                                        )}
                                     </button>
                                     <button
                                         onClick={() => setVideoState(initialProcessingState)}
