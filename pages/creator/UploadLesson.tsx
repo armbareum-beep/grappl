@@ -486,6 +486,7 @@ export const UploadLesson: React.FC = () => {
                                     vimeoId={extractVimeoId(videoState.vimeoUrl) || videoState.vimeoUrl}
                                     vimeoHash={extractVimeoHash(videoState.vimeoUrl)}
                                     onSelect={(url) => setThumbnailUrl(url)}
+                                    onSelectForCrop={(base64) => setCroppingImage(base64)}
                                     currentThumbnailUrl={thumbnailUrl}
                                     refreshKey={thumbnailSelectorKey}
                                 />

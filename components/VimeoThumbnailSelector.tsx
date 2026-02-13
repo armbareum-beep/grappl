@@ -13,6 +13,7 @@ interface VimeoThumbnailSelectorProps {
     vimeoId: string;
     vimeoHash?: string | null;
     onSelect: (url: string) => void;
+    onSelectForCrop?: (base64: string) => void; // Opens cropper with this image
     currentThumbnailUrl?: string;
     refreshKey?: number; // Increment to trigger refresh
 }
@@ -21,6 +22,7 @@ export const VimeoThumbnailSelector: React.FC<VimeoThumbnailSelectorProps> = ({
     vimeoId,
     vimeoHash,
     onSelect,
+    onSelectForCrop,
     currentThumbnailUrl,
     refreshKey = 0
 }) => {
@@ -28,6 +30,7 @@ export const VimeoThumbnailSelector: React.FC<VimeoThumbnailSelectorProps> = ({
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [processing, setProcessing] = useState(false);
+    const [fetchingForCrop, setFetchingForCrop] = useState<string | null>(null);
 
     const fetchThumbnails = async () => {
         setLoading(true);
@@ -92,6 +95,38 @@ export const VimeoThumbnailSelector: React.FC<VimeoThumbnailSelectorProps> = ({
         }
     }, [vimeoId, vimeoHash, refreshKey]);
 
+    const handleThumbnailClick = async (thumb: VimeoThumbnail) => {
+        // If crop callback is provided, fetch image and open cropper
+        if (onSelectForCrop) {
+            setFetchingForCrop(thumb.id);
+            try {
+                // Use backend proxy to bypass CORS
+                const response = await fetch('/api/upload-to-vimeo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'proxy_image',
+                        imageUrl: thumb.url
+                    })
+                });
+                const data = await response.json();
+                if (data.base64) {
+                    onSelectForCrop(data.base64);
+                } else {
+                    // Fallback to direct selection
+                    onSelect(thumb.url);
+                }
+            } catch (e) {
+                console.error('Failed to fetch image for crop:', e);
+                onSelect(thumb.url);
+            } finally {
+                setFetchingForCrop(null);
+            }
+        } else {
+            onSelect(thumb.url);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center py-8 text-zinc-500 gap-3">
@@ -142,29 +177,36 @@ export const VimeoThumbnailSelector: React.FC<VimeoThumbnailSelectorProps> = ({
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {thumbnails.map((thumb) => {
                     const isSelected = currentThumbnailUrl === thumb.url;
+                    const isFetching = fetchingForCrop === thumb.id;
                     return (
                         <button
                             key={thumb.id}
                             type="button"
-                            onClick={() => onSelect(thumb.url)}
+                            disabled={isFetching}
+                            onClick={() => handleThumbnailClick(thumb)}
                             className={`relative aspect-video rounded-lg overflow-hidden border-2 transition-all group ${isSelected
                                 ? 'border-violet-500 ring-2 ring-violet-500/20'
                                 : 'border-zinc-800 hover:border-zinc-600'
-                                }`}
+                                } ${isFetching ? 'opacity-70 cursor-wait' : ''}`}
                         >
                             <img
                                 src={thumb.url}
                                 alt="Vimeo thumbnail"
-                                className={`w-full h-full object-cover transition-transform duration-500 ${!isSelected && 'group-hover:scale-105'}`}
+                                className={`w-full h-full object-cover transition-transform duration-500 ${!isSelected && !isFetching && 'group-hover:scale-105'}`}
                             />
-                            {isSelected && (
+                            {isFetching && (
+                                <div className="absolute inset-0 bg-zinc-950/50 flex items-center justify-center">
+                                    <Loader2 className="w-6 h-6 animate-spin text-violet-500" />
+                                </div>
+                            )}
+                            {isSelected && !isFetching && (
                                 <div className="absolute inset-0 bg-violet-600/20 flex items-center justify-center backdrop-blur-[1px]">
                                     <div className="bg-violet-500 rounded-full p-1 shadow-lg shadow-violet-500/50">
                                         <Check className="w-4 h-4 text-white" />
                                     </div>
                                 </div>
                             )}
-                            {!isSelected && (
+                            {!isSelected && !isFetching && (
                                 <div className="absolute inset-0 bg-zinc-950/0 group-hover:bg-zinc-950/20 transition-colors" />
                             )}
                         </button>
@@ -172,7 +214,7 @@ export const VimeoThumbnailSelector: React.FC<VimeoThumbnailSelectorProps> = ({
                 })}
             </div>
             <p className="text-[10px] text-zinc-500 mt-3 text-center">
-                이미지를 선택하면 즉시 반영됩니다. (저장 버튼을 눌러야 최종 저장됩니다)
+                {onSelectForCrop ? '이미지를 클릭하면 크롭 화면이 열립니다.' : '이미지를 선택하면 즉시 반영됩니다.'} (저장 버튼을 눌러야 최종 저장됩니다)
             </p>
         </div>
     );

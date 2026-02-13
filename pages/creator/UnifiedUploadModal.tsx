@@ -921,6 +921,10 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                                         vimeoId={extractVimeoId(mainVideo.vimeoUrl) || mainVideo.vimeoUrl}
                                         vimeoHash={extractVimeoHash(mainVideo.vimeoUrl)}
                                         onSelect={(url) => setThumbnailUrl(url)}
+                                        onSelectForCrop={(base64) => {
+                                            setCroppingImage(base64);
+                                            setActiveCropper('main');
+                                        }}
                                         currentThumbnailUrl={thumbnailUrl}
                                         refreshKey={thumbnailSelectorKey}
                                     />
