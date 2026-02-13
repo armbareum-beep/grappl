@@ -7,6 +7,37 @@ import { initCapacitor } from './lib/capacitor-init';
 // Capacitor 네이티브 플러그인 초기화
 initCapacitor();
 
+// ============================================
+// 🔄 Service Worker 업데이트 감지 + 자동 리로드
+// PWA 사용자도 앱 업데이트 시 자동으로 새 버전 적용
+// ============================================
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.ready.then((registration) => {
+    // SW 업데이트 체크 (페이지 로드 시)
+    registration.update();
+
+    // 새 SW가 설치되면 감지
+    registration.addEventListener('updatefound', () => {
+      const newWorker = registration.installing;
+      if (!newWorker) return;
+
+      newWorker.addEventListener('statechange', () => {
+        // 새 SW가 활성화되면 자동 리로드
+        if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
+          console.log('[SW] New version activated, reloading...');
+          window.location.reload();
+        }
+      });
+    });
+
+    // 다른 탭에서 SW가 업데이트되면 이 탭도 리로드
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      console.log('[SW] Controller changed, reloading...');
+      window.location.reload();
+    });
+  });
+}
+
 // Sentry 에러 모니터링 - 지연 초기화 (FCP 개선)
 if (import.meta.env.PROD) {
   // Defer Sentry loading until after initial render
