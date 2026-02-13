@@ -5634,17 +5634,16 @@ export async function updateSparringVideo(id: string, updates: Partial<SparringV
     if (updates.isPublished !== undefined) dbData.is_published = updates.isPublished;
     if (updates.isHidden !== undefined) dbData.is_hidden = updates.isHidden;
     if (updates.previewVimeoId !== undefined) dbData.preview_vimeo_id = updates.previewVimeoId;
-    if (updates.durationMinutes !== undefined) dbData.duration_minutes = updates.durationMinutes;
+    // Note: sparring_videos table doesn't have duration_minutes column
     if (updates.length) dbData.length = updates.length;
     if (updates.creatorId) dbData.creator_id = updates.creatorId;
 
-    // If videoUrl changed, fetch info
+    // If videoUrl changed, fetch info (skip duration_minutes - column doesn't exist)
     if (updates.videoUrl) {
         try {
             const videoInfo = await getVimeoVideoInfo(updates.videoUrl);
             if (videoInfo) {
                 if (!updates.thumbnailUrl) dbData.thumbnail_url = videoInfo.thumbnail;
-                if (!updates.durationMinutes) dbData.duration_minutes = Math.floor(videoInfo.duration / 60);
                 if (!updates.length) dbData.length = formatDuration(videoInfo.duration);
             }
         } catch (err) {
