@@ -452,37 +452,59 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 console.log('[Vimeo] vumbnail.com failed:', e.message);
             }
 
-            // Method 2: Fall back to existing Vimeo thumbnails
-            console.log('[Vimeo] Falling back to Vimeo API thumbnails');
+            // Method 2: Create thumbnail at specific time via Vimeo API
+            console.log('[Vimeo] Creating thumbnail at time via Vimeo API');
             const vimeoHeaders = {
                 'Authorization': `Bearer ${VIMEO_TOKEN}`,
-                'Accept': 'application/vnd.vimeo.*+json;version=3.4'
+                'Accept': 'application/vnd.vimeo.*+json;version=3.4',
+                'Content-Type': 'application/json'
             };
 
-            const picturesRes = await fetch(`https://api.vimeo.com/videos/${cleanId}/pictures?per_page=10`, {
-                headers: vimeoHeaders
+            // Create a new picture at the specified time
+            const createRes = await fetch(`https://api.vimeo.com/videos/${cleanId}/pictures`, {
+                method: 'POST',
+                headers: vimeoHeaders,
+                body: JSON.stringify({ time: Number(time), active: false })
             });
 
-            if (!picturesRes.ok) {
-                const errorText = await picturesRes.text();
-                console.error('[Vimeo] Pictures API failed:', errorText);
-                throw new Error('비공개 영상은 썸네일 캡처가 지원되지 않습니다. 이미지를 직접 업로드해주세요.');
+            if (!createRes.ok) {
+                const errorText = await createRes.text();
+                console.error('[Vimeo] Create picture failed:', errorText);
+                throw new Error('썸네일 생성에 실패했습니다. 이미지를 직접 업로드해주세요.');
             }
 
-            const picturesData = await picturesRes.json();
-            const pictures = picturesData.data || [];
+            const pictureData = await createRes.json();
+            const pictureUri = pictureData.uri;
+            console.log('[Vimeo] Picture created:', pictureUri);
 
-            if (pictures.length === 0) {
-                throw new Error('썸네일을 찾을 수 없습니다. 이미지를 직접 업로드해주세요.');
+            // Poll for the thumbnail to be ready (Vimeo processes async)
+            let thumbnailUrl: string | null = null;
+            const maxAttempts = 20; // ~30 seconds total
+
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                await new Promise(resolve => setTimeout(resolve, 1500));
+
+                const checkRes = await fetch(`https://api.vimeo.com${pictureUri}`, {
+                    headers: {
+                        'Authorization': `Bearer ${VIMEO_TOKEN}`,
+                        'Accept': 'application/vnd.vimeo.*+json;version=3.4'
+                    }
+                });
+
+                if (checkRes.ok) {
+                    const checkData = await checkRes.json();
+                    const sizes = [...(checkData.sizes || [])].sort((a: any, b: any) => b.width - a.width);
+                    if (sizes.length > 0 && sizes[0].link) {
+                        thumbnailUrl = sizes[0].link;
+                        console.log('[Vimeo] Thumbnail ready after', (attempt + 1) * 1.5, 'seconds');
+                        break;
+                    }
+                }
+                console.log('[Vimeo] Polling attempt', attempt + 1);
             }
-
-            // Get largest thumbnail from first picture
-            const firstPic = pictures[0];
-            const sizes = [...(firstPic.sizes || [])].sort((a: any, b: any) => b.width - a.width);
-            const thumbnailUrl = sizes[0]?.link;
 
             if (!thumbnailUrl) {
-                throw new Error('썸네일 URL을 찾을 수 없습니다.');
+                throw new Error('썸네일 생성 시간이 초과되었습니다. 다시 시도해주세요.');
             }
 
             const imageResponse = await fetch(thumbnailUrl);
@@ -492,7 +514,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const base64 = Buffer.from(arrayBuffer).toString('base64');
             const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
 
-            console.log('[Vimeo] Using Vimeo API thumbnail');
+            console.log('[Vimeo] Successfully captured thumbnail at time:', timeInSeconds);
             return res.status(200).json({
                 success: true,
                 thumbnailUrl,
