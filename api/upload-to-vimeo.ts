@@ -424,72 +424,75 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (time === undefined || time === null) throw new Error('time is required');
 
             const cleanId = vimeoId.toString().split(':')[0];
+            const timeInSeconds = Math.floor(Number(time));
+
+            console.log('[Vimeo] Fetching thumbnail at time:', timeInSeconds, 'for video:', cleanId);
+
+            // Method 1: Try vumbnail.com (proxied through backend to bypass CORS)
+            try {
+                const vumbnailUrl = `https://vumbnail.com/${cleanId}.jpg?time=${timeInSeconds}`;
+                console.log('[Vimeo] Trying vumbnail.com:', vumbnailUrl);
+
+                const vumbnailRes = await fetch(vumbnailUrl);
+                if (vumbnailRes.ok) {
+                    const arrayBuffer = await vumbnailRes.arrayBuffer();
+                    // Check if we got a valid image (not an error page - should be > 1KB)
+                    if (arrayBuffer.byteLength > 1000) {
+                        const base64 = Buffer.from(arrayBuffer).toString('base64');
+                        const contentType = vumbnailRes.headers.get('content-type') || 'image/jpeg';
+                        console.log('[Vimeo] vumbnail.com succeeded, size:', arrayBuffer.byteLength);
+                        return res.status(200).json({
+                            success: true,
+                            base64: `data:${contentType};base64,${base64}`
+                        });
+                    }
+                    console.log('[Vimeo] vumbnail.com returned small/invalid response:', arrayBuffer.byteLength);
+                }
+            } catch (e: any) {
+                console.log('[Vimeo] vumbnail.com failed:', e.message);
+            }
+
+            // Method 2: Fall back to existing Vimeo thumbnails
+            console.log('[Vimeo] Falling back to Vimeo API thumbnails');
             const vimeoHeaders = {
                 'Authorization': `Bearer ${VIMEO_TOKEN}`,
-                'Accept': 'application/vnd.vimeo.*+json;version=3.4',
-                'Content-Type': 'application/json'
+                'Accept': 'application/vnd.vimeo.*+json;version=3.4'
             };
 
-            console.log('[Vimeo] Creating thumbnail at time:', time, 'for video:', cleanId);
-
-            // Create picture at the specified time
-            const createRes = await fetch(`https://api.vimeo.com/videos/${cleanId}/pictures`, {
-                method: 'POST',
-                headers: vimeoHeaders,
-                body: JSON.stringify({ time: Number(time), active: false })
+            const picturesRes = await fetch(`https://api.vimeo.com/videos/${cleanId}/pictures?per_page=10`, {
+                headers: vimeoHeaders
             });
 
-            if (!createRes.ok) {
-                const errorText = await createRes.text();
-                console.error('[Vimeo] Create picture failed:', errorText);
-                throw new Error(`Failed to create thumbnail: ${errorText}`);
+            if (!picturesRes.ok) {
+                const errorText = await picturesRes.text();
+                console.error('[Vimeo] Pictures API failed:', errorText);
+                throw new Error('비공개 영상은 썸네일 캡처가 지원되지 않습니다. 이미지를 직접 업로드해주세요.');
             }
 
-            const pictureData = await createRes.json();
-            const pictureUri = pictureData.uri;
-            console.log('[Vimeo] Picture created:', pictureUri);
+            const picturesData = await picturesRes.json();
+            const pictures = picturesData.data || [];
 
-            // Vimeo processes thumbnails asynchronously - poll until ready
-            let thumbnailUrl: string | null = null;
-            const maxAttempts = 10;
-
-            for (let attempt = 0; attempt < maxAttempts; attempt++) {
-                // Wait before checking (longer for first attempt to give Vimeo time)
-                await new Promise(resolve => setTimeout(resolve, attempt === 0 ? 2000 : 1000));
-
-                // Fetch the picture details
-                const checkRes = await fetch(`https://api.vimeo.com${pictureUri}`, {
-                    headers: {
-                        'Authorization': `Bearer ${VIMEO_TOKEN}`,
-                        'Accept': 'application/vnd.vimeo.*+json;version=3.4'
-                    }
-                });
-
-                if (checkRes.ok) {
-                    const checkData = await checkRes.json();
-                    const sizes = [...(checkData.sizes || [])].sort((a: any, b: any) => b.width - a.width);
-                    if (sizes.length > 0 && sizes[0].link) {
-                        thumbnailUrl = sizes[0].link;
-                        console.log('[Vimeo] Thumbnail ready after', attempt + 1, 'attempts:', thumbnailUrl);
-                        break;
-                    }
-                }
-
-                console.log('[Vimeo] Thumbnail not ready, attempt', attempt + 1);
+            if (pictures.length === 0) {
+                throw new Error('썸네일을 찾을 수 없습니다. 이미지를 직접 업로드해주세요.');
             }
+
+            // Get largest thumbnail from first picture
+            const firstPic = pictures[0];
+            const sizes = [...(firstPic.sizes || [])].sort((a: any, b: any) => b.width - a.width);
+            const thumbnailUrl = sizes[0]?.link;
 
             if (!thumbnailUrl) {
-                throw new Error('Thumbnail generation timed out. Please try again.');
+                throw new Error('썸네일 URL을 찾을 수 없습니다.');
             }
 
-            // Fetch the image and return as base64 (to bypass CORS)
             const imageResponse = await fetch(thumbnailUrl);
-            if (!imageResponse.ok) throw new Error('Failed to fetch generated thumbnail');
+            if (!imageResponse.ok) throw new Error('썸네일 이미지 다운로드 실패');
 
             const arrayBuffer = await imageResponse.arrayBuffer();
             const base64 = Buffer.from(arrayBuffer).toString('base64');
             const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
 
+            console.log('[Vimeo] Using Vimeo API thumbnail');
             return res.status(200).json({
                 success: true,
                 thumbnailUrl,
