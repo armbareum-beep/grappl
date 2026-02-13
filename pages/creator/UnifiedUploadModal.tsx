@@ -436,10 +436,14 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         setIsSubmitting(true);
         try {
             const { url, error } = await uploadThumbnail(blob);
+            console.log('[DEBUG] handleCropComplete - uploadThumbnail result:', { url, error });
             if (error) throw error;
             if (url) {
+                console.log('[DEBUG] handleCropComplete - Setting thumbnailUrl to:', url);
                 setThumbnailUrl(url);
                 success('썸네일이 캡처되었습니다.');
+            } else {
+                console.warn('[DEBUG] handleCropComplete - No URL returned from uploadThumbnail');
             }
         } catch (err) {
             console.error('Thumbnail upload failed:', err);
@@ -520,9 +524,14 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                 thumbnailUrl: thumbnailUrl || (mainVideo.vimeoUrl || descVideo.vimeoUrl ? undefined : `https://placehold.co/600x800/1e293b/ffffff?text=${contentType}`),
                 length: formData.length,
                 vimeoUrl: mainVideo.vimeoUrl || undefined,
+                // Sparring uses videoUrl instead of vimeoUrl
+                videoUrl: contentType === 'sparring' ? mainVideo.vimeoUrl : undefined,
                 descriptionVideoUrl: contentType === 'drill' ? (descVideo.vimeoUrl || null) : undefined,
                 relatedItems: (contentType === 'drill' || contentType === 'sparring') ? relatedItems : undefined,
             };
+
+            console.log('[DEBUG] handleSubmit - thumbnailUrl state:', thumbnailUrl);
+            console.log('[DEBUG] handleSubmit - commonData.thumbnailUrl:', commonData.thumbnailUrl);
 
             if (contentType === 'drill') await updateDrill(contentId, commonData);
             else if (contentType === 'lesson') await updateLesson(contentId, commonData);
