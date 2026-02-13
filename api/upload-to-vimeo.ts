@@ -452,51 +452,76 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 console.log('[Vimeo] vumbnail.com failed:', e.message);
             }
 
-            // Method 2: Create thumbnail and fetch from Vimeo API
-            console.log('[Vimeo] Using Vimeo API for thumbnail');
+            // Method 2: Create thumbnail via Vimeo API and poll quickly
+            console.log('[Vimeo] Creating thumbnail via Vimeo API at time:', timeInSeconds);
             const vimeoHeaders = {
                 'Authorization': `Bearer ${VIMEO_TOKEN}`,
                 'Accept': 'application/vnd.vimeo.*+json;version=3.4',
                 'Content-Type': 'application/json'
             };
 
-            // Fire-and-forget: Create a new picture at the specified time (for future requests)
-            fetch(`https://api.vimeo.com/videos/${cleanId}/pictures`, {
+            // Create a new picture at the specified time
+            const createRes = await fetch(`https://api.vimeo.com/videos/${cleanId}/pictures`, {
                 method: 'POST',
                 headers: vimeoHeaders,
                 body: JSON.stringify({ time: Number(time), active: false })
-            }).then(() => console.log('[Vimeo] Background thumbnail creation started'))
-              .catch(e => console.log('[Vimeo] Background creation failed:', e.message));
-
-            // Wait a moment for any recent thumbnails to be available
-            await new Promise(resolve => setTimeout(resolve, 2000));
-
-            // Fetch all existing pictures and return the best one
-            const picturesRes = await fetch(`https://api.vimeo.com/videos/${cleanId}/pictures?per_page=20`, {
-                headers: {
-                    'Authorization': `Bearer ${VIMEO_TOKEN}`,
-                    'Accept': 'application/vnd.vimeo.*+json;version=3.4'
-                }
             });
 
-            if (!picturesRes.ok) {
-                throw new Error('썸네일을 가져오는데 실패했습니다.');
+            if (!createRes.ok) {
+                const errorText = await createRes.text();
+                console.error('[Vimeo] Create picture failed:', errorText);
+                throw new Error('썸네일 생성 요청에 실패했습니다.');
             }
 
-            const picturesData = await picturesRes.json();
-            const pictures = picturesData.data || [];
+            const pictureData = await createRes.json();
+            const pictureUri = pictureData.uri;
+            console.log('[Vimeo] Picture created:', pictureUri);
 
-            if (pictures.length === 0) {
-                throw new Error('사용 가능한 썸네일이 없습니다. 이미지를 직접 업로드해주세요.');
+            // Quick poll for the thumbnail (8 seconds total, every 500ms)
+            let thumbnailUrl: string | null = null;
+            for (let i = 0; i < 16; i++) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                const checkRes = await fetch(`https://api.vimeo.com${pictureUri}`, {
+                    headers: {
+                        'Authorization': `Bearer ${VIMEO_TOKEN}`,
+                        'Accept': 'application/vnd.vimeo.*+json;version=3.4'
+                    }
+                });
+
+                if (checkRes.ok) {
+                    const checkData = await checkRes.json();
+                    const sizes = [...(checkData.sizes || [])].sort((a: any, b: any) => b.width - a.width);
+                    if (sizes.length > 0 && sizes[0].link) {
+                        thumbnailUrl = sizes[0].link;
+                        console.log('[Vimeo] Thumbnail ready after', (i + 1) * 0.5, 'seconds');
+                        break;
+                    }
+                }
             }
-
-            // Get the most recently created picture (first in list is usually newest)
-            const latestPic = pictures[0];
-            const sizes = [...(latestPic.sizes || [])].sort((a: any, b: any) => b.width - a.width);
-            const thumbnailUrl = sizes[0]?.link;
 
             if (!thumbnailUrl) {
-                throw new Error('썸네일 URL을 찾을 수 없습니다.');
+                // Fallback: return first existing thumbnail
+                console.log('[Vimeo] Timeout, falling back to existing thumbnail');
+                const picturesRes = await fetch(`https://api.vimeo.com/videos/${cleanId}/pictures?per_page=5`, {
+                    headers: {
+                        'Authorization': `Bearer ${VIMEO_TOKEN}`,
+                        'Accept': 'application/vnd.vimeo.*+json;version=3.4'
+                    }
+                });
+
+                if (picturesRes.ok) {
+                    const picturesData = await picturesRes.json();
+                    const pictures = picturesData.data || [];
+                    if (pictures.length > 0) {
+                        const sizes = [...(pictures[0].sizes || [])].sort((a: any, b: any) => b.width - a.width);
+                        thumbnailUrl = sizes[0]?.link;
+                    }
+                }
+            }
+
+            if (!thumbnailUrl) {
+                throw new Error('썸네일을 가져올 수 없습니다. 이미지를 직접 업로드해주세요.');
             }
 
             const imageResponse = await fetch(thumbnailUrl);
@@ -506,12 +531,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const base64 = Buffer.from(arrayBuffer).toString('base64');
             const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
 
-            console.log('[Vimeo] Returning thumbnail, pictures available:', pictures.length);
+            console.log('[Vimeo] Returning thumbnail');
             return res.status(200).json({
                 success: true,
                 thumbnailUrl,
-                base64: `data:${contentType};base64,${base64}`,
-                note: '요청한 시간의 썸네일이 생성 중입니다. 다시 캡처하면 더 정확한 시간의 썸네일을 받을 수 있습니다.'
+                base64: `data:${contentType};base64,${base64}`
             });
         }
 
