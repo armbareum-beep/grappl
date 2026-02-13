@@ -533,9 +533,16 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
             console.log('[DEBUG] handleSubmit - thumbnailUrl state:', thumbnailUrl);
             console.log('[DEBUG] handleSubmit - commonData.thumbnailUrl:', commonData.thumbnailUrl);
 
-            if (contentType === 'drill') await updateDrill(contentId, commonData);
-            else if (contentType === 'lesson') await updateLesson(contentId, commonData);
-            else if (contentType === 'sparring') await updateSparringVideo(contentId, { ...commonData, price: formData.price });
+            let updateResult: any;
+            if (contentType === 'drill') updateResult = await updateDrill(contentId, commonData);
+            else if (contentType === 'lesson') updateResult = await updateLesson(contentId, commonData);
+            else if (contentType === 'sparring') updateResult = await updateSparringVideo(contentId, { ...commonData, price: formData.price });
+
+            if (updateResult?.error) {
+                console.error('[DEBUG] Update failed:', updateResult.error);
+                toastError(`저장 실패: ${updateResult.error.message || JSON.stringify(updateResult.error)}`);
+                return;
+            }
 
             if (mainVideo.file && !mainVideo.isBackgroundUploading && !mainVideo.videoId) {
                 const vId = `${crypto.randomUUID()}-${Date.now()}`;
