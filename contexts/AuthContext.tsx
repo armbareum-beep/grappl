@@ -111,17 +111,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 cachedData = JSON.parse(cached);
                 const cacheAge = Date.now() - (cachedData._cachedAt || 0);
                 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
-                const RECENT_TTL = 5 * 60 * 1000; // 5 minutes - trust cached data fully if very recent
 
-                // If it's initial load and cache is very fresh, return immediately
-                if (isInitial && cacheAge < RECENT_TTL) {
-                    // Still trigger background update but don't wait
-                    setTimeout(() => checkUserStatus(userId, false, true), 1000);
-                    return { success: true, ...cachedData, usedCache: true };
-                }
-
-                // If not initial or cache is within TTL, we can safely return cached
-                if (!isInitial && cacheAge < CACHE_TTL) {
+                // ✅ 개선: 초기 로드 시에도 30분 캐시 신뢰 (기존 5분 → 30분)
+                // 이렇게 하면 오랜만에 돌아온 사용자도 캐시 활용 가능
+                if (cacheAge < CACHE_TTL) {
+                    // 초기 로드면 백그라운드 업데이트 예약
+                    if (isInitial) {
+                        setTimeout(() => checkUserStatus(userId, false, true), 1000);
+                    }
                     return { success: true, ...cachedData, usedCache: true };
                 }
             } catch (e) {
@@ -134,8 +131,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         while (attempt < maxAttempts) {
             try {
+                // ✅ 개선: 재시도 대기시간 단축 (500ms*2^n → 200ms*n)
                 if (attempt > 0) {
-                    await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt - 1)));
+                    await new Promise(r => setTimeout(r, 200 * attempt));
                 }
 
                 const queriesPromise = Promise.all([
@@ -143,8 +141,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     supabase.from('creators').select('approved, profile_image').eq('id', userId).maybeSingle()
                 ]);
 
-                // Wait with timeout (increase timeout per attempt)
-                const timeoutMs = 4000 + (attempt * 2000);
+                // ✅ 개선: 타임아웃 단축 (4/6/8초 → 3/4/5초, 총 18초 → 12초)
+                const timeoutMs = 3000 + (attempt * 1000);
                 const resultPromise = Promise.race([
                     queriesPromise,
                     new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout after ${timeoutMs}ms`)), timeoutMs))
@@ -231,13 +229,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             let loadingHandled = false; // 중복 setLoading(false) 방지용 플래그
 
             try {
-                // Add timeout to getSession to prevent infinite loading on slow/failed network
+                // ✅ 개선: getSession 타임아웃 단축 (8초 → 4초)
                 const sessionPromise = supabase.auth.getSession();
                 const timeoutPromise = new Promise<{ data: { session: null }, error?: any }>((resolve) =>
                     setTimeout(() => {
                         console.warn('getSession timed out, proceeding without session');
                         resolve({ data: { session: null }, error: new Error('Session timeout') });
-                    }, 8000)
+                    }, 4000)
                 );
 
                 const result = await Promise.race([sessionPromise, timeoutPromise]);

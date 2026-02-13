@@ -7,7 +7,7 @@ export const queryClient = new QueryClient({
             gcTime: 1000 * 60 * 30, // 30분으로 줄임 (2시간 → 30분)
             retry: 3,
             retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
-            refetchOnWindowFocus: true, // 탭 돌아올 때 새 데이터 확인 (false → true)
+            refetchOnWindowFocus: false, // ✅ 탭 돌아올 때 불필요한 재요청 방지 (true → false)
             refetchOnMount: true, // 컴포넌트 마운트 시 stale이면 refetch
             refetchOnReconnect: true,
             networkMode: 'online', // 오프라인 모드 비활성화 - 항상 네트워크 우선 (offlineFirst → online)

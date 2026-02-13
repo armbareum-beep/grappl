@@ -101,16 +101,16 @@ const RootRedirect: React.FC = () => {
   const [recoveryAttempted, setRecoveryAttempted] = React.useState(false);
 
   React.useEffect(() => {
-    // First timeout: Force show landing page after 4s
+    // ✅ 개선: 3초 후 강제 표시 (4초 → 3초, 빠른 피드백)
     const timer = setTimeout(() => {
       setForceLoad(true);
-      console.warn('[RootRedirect] Auth loading exceeded 4s, forcing landing page display');
-    }, 4000);
+      console.warn('[RootRedirect] Auth loading exceeded 3s, forcing landing page display');
+    }, 3000);
 
-    // Second timeout: If still loading after 8s, attempt auto-recovery
+    // ✅ 개선: 6초 후 복구 시도 (8초 → 6초, 타임아웃 단축과 맞춤)
     const recoveryTimer = setTimeout(async () => {
       if (loading && !recoveryAttempted) {
-        console.warn('[RootRedirect] Auth still loading after 8s, attempting auto-recovery');
+        console.warn('[RootRedirect] Auth still loading after 6s, attempting auto-recovery');
         setRecoveryAttempted(true);
 
         // Check if we already tried recovery recently (10초로 단축, 60초 → 10초)
@@ -149,7 +149,7 @@ const RootRedirect: React.FC = () => {
           window.location.reload(); // 실패해도 무조건 리로드
         }
       }
-    }, 8000);
+    }, 6000);
 
     return () => {
       clearTimeout(timer);
