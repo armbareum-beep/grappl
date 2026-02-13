@@ -324,7 +324,7 @@ export const Home: React.FC = () => {
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 if (sparring.id && sparring.id !== 'undefined') {
-                                                                    navigate(`/sparring/${sparring.id}`);
+                                                                    navigate(`/sparring?id=${sparring.id}`);
                                                                 }
                                                             }}
                                                             className="bg-white text-black font-black rounded-full px-14 py-5 h-16 hover:bg-violet-500 hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-center gap-3 text-xl tracking-tight group/btn">

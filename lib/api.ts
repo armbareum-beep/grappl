@@ -8743,8 +8743,9 @@ export async function proxyImageFetch(imageUrl: string): Promise<{ base64?: stri
 }
 
 export async function createVimeoThumbnailAtTime(vimeoId: string, time: number): Promise<{
-    base64?: string;
-    thumbnailUrl?: string;
+    success?: boolean;
+    message?: string;
+    requestedTime?: number;
     error?: string;
 }> {
     // Skip Mux playback IDs
@@ -8770,8 +8771,9 @@ export async function createVimeoThumbnailAtTime(vimeoId: string, time: number):
         }
 
         return {
-            base64: data.base64,
-            thumbnailUrl: data.thumbnailUrl
+            success: data.success,
+            message: data.message,
+            requestedTime: data.requestedTime
         };
     } catch (error: any) {
         console.error('Error creating Vimeo thumbnail:', error);

@@ -417,43 +417,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
         }
 
-        // --- Action 5: Create thumbnail at specific time ---
+        // --- Action 5: Create thumbnail at specific time (fire-and-forget) ---
         if (action === 'create_thumbnail_at_time') {
             const { time } = req.body;
             if (!vimeoId) throw new Error('vimeoId is required');
             if (time === undefined || time === null) throw new Error('time is required');
 
             const cleanId = vimeoId.toString().split(':')[0];
-            const timeInSeconds = Math.floor(Number(time));
+            const timeInSeconds = Number(time);
 
-            console.log('[Vimeo] Fetching thumbnail at time:', timeInSeconds, 'for video:', cleanId);
+            console.log('[Vimeo] Creating thumbnail at time:', timeInSeconds, 'for video:', cleanId);
 
-            // Method 1: Try vumbnail.com (proxied through backend to bypass CORS)
-            try {
-                const vumbnailUrl = `https://vumbnail.com/${cleanId}.jpg?time=${timeInSeconds}`;
-                console.log('[Vimeo] Trying vumbnail.com:', vumbnailUrl);
-
-                const vumbnailRes = await fetch(vumbnailUrl);
-                if (vumbnailRes.ok) {
-                    const arrayBuffer = await vumbnailRes.arrayBuffer();
-                    // Real video thumbnails are typically > 10KB. Smaller = placeholder/error image
-                    if (arrayBuffer.byteLength > 10000) {
-                        const base64 = Buffer.from(arrayBuffer).toString('base64');
-                        const contentType = vumbnailRes.headers.get('content-type') || 'image/jpeg';
-                        console.log('[Vimeo] vumbnail.com succeeded, size:', arrayBuffer.byteLength);
-                        return res.status(200).json({
-                            success: true,
-                            base64: `data:${contentType};base64,${base64}`
-                        });
-                    }
-                    console.log('[Vimeo] vumbnail.com returned placeholder image:', arrayBuffer.byteLength, 'bytes');
-                }
-            } catch (e: any) {
-                console.log('[Vimeo] vumbnail.com failed:', e.message);
-            }
-
-            // Method 2: Create thumbnail via Vimeo API and poll quickly
-            console.log('[Vimeo] Creating thumbnail via Vimeo API at time:', timeInSeconds);
             const vimeoHeaders = {
                 'Authorization': `Bearer ${VIMEO_TOKEN}`,
                 'Accept': 'application/vnd.vimeo.*+json;version=3.4',
@@ -464,7 +438,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const createRes = await fetch(`https://api.vimeo.com/videos/${cleanId}/pictures`, {
                 method: 'POST',
                 headers: vimeoHeaders,
-                body: JSON.stringify({ time: Number(time), active: false })
+                body: JSON.stringify({ time: timeInSeconds, active: false })
             });
 
             if (!createRes.ok) {
@@ -474,55 +448,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
 
             const pictureData = await createRes.json();
-            const pictureUri = pictureData.uri;
-            console.log('[Vimeo] Picture created:', pictureUri);
+            console.log('[Vimeo] Picture creation requested:', pictureData.uri);
 
-            // Quick poll - 3 attempts, 1.5s each (total ~5s to stay under Vercel 10s limit)
-            let thumbnailUrl: string | null = null;
-            let validBase64: string | null = null;
-
-            for (let i = 0; i < 3; i++) {
-                await new Promise(resolve => setTimeout(resolve, 1500));
-
-                const checkRes = await fetch(`https://api.vimeo.com${pictureUri}`, {
-                    headers: {
-                        'Authorization': `Bearer ${VIMEO_TOKEN}`,
-                        'Accept': 'application/vnd.vimeo.*+json;version=3.4'
-                    }
-                });
-
-                if (checkRes.ok) {
-                    const checkData = await checkRes.json();
-                    const sizes = [...(checkData.sizes || [])].sort((a: any, b: any) => b.width - a.width);
-
-                    if (sizes.length > 0 && sizes[0].link) {
-                        const testUrl = sizes[0].link;
-                        try {
-                            const imgRes = await fetch(testUrl);
-                            if (imgRes.ok) {
-                                const buffer = await imgRes.arrayBuffer();
-                                // Accept if > 5KB (lower threshold for faster response)
-                                if (buffer.byteLength > 5000) {
-                                    thumbnailUrl = testUrl;
-                                    const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
-                                    validBase64 = `data:${contentType};base64,${Buffer.from(buffer).toString('base64')}`;
-                                    console.log('[Vimeo] Thumbnail ready after', (i + 1) * 1.5, 's, size:', buffer.byteLength);
-                                    break;
-                                }
-                            }
-                        } catch (imgErr) {
-                            console.log('[Vimeo] Image fetch failed, attempt', i + 1);
-                        }
-                    }
-                }
-            }
-
-            if (validBase64 && thumbnailUrl) {
-                return res.status(200).json({ success: true, thumbnailUrl, base64: validBase64 });
-            }
-
-            // Timeout - return error
-            throw new Error('Vimeo 처리 중입니다. 5초 후 다시 시도해주세요.');
+            // Return immediately - thumbnail will be available in VimeoThumbnailSelector
+            return res.status(200).json({
+                success: true,
+                message: '썸네일 생성이 요청되었습니다.',
+                pictureUri: pictureData.uri,
+                requestedTime: timeInSeconds
+            });
         }
 
         return res.status(400).json({ error: 'Invalid action' });

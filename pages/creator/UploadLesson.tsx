@@ -11,6 +11,7 @@ import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 import { useToast } from '../../contexts/ToastContext';
 import { Creator } from '../../types';
 import { ThumbnailCropper } from '../../components/ThumbnailCropper';
+import { VimeoThumbnailSelector } from '../../components/VimeoThumbnailSelector';
 import Player from '@vimeo/player';
 
 type ProcessingState = {
@@ -60,6 +61,7 @@ export const UploadLesson: React.FC = () => {
     const [videoState, setVideoState] = useState<ProcessingState>(initialProcessingState);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isCapturing, setIsCapturing] = useState(false);
+    const [thumbnailSelectorKey, setThumbnailSelectorKey] = useState(0);
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const vimeoIframeRef = useRef<HTMLIFrameElement>(null);
@@ -146,7 +148,7 @@ export const UploadLesson: React.FC = () => {
                 const player = new Player(vimeoIframeRef.current);
                 const currentTime = await player.getCurrentTime();
 
-                // 백엔드 API를 통해 해당 시간의 썸네일 생성
+                // 백엔드 API를 통해 해당 시간의 썸네일 생성 요청
                 const result = await createVimeoThumbnailAtTime(vimeoId, currentTime);
 
                 if (result.error) {
@@ -155,10 +157,16 @@ export const UploadLesson: React.FC = () => {
                     return;
                 }
 
-                if (result.base64) {
-                    setCroppingImage(result.base64);
+                if (result.success) {
+                    const mins = Math.floor(currentTime / 60);
+                    const secs = Math.floor(currentTime % 60);
+                    success(`${mins}:${secs.toString().padStart(2, '0')} 시점 썸네일 생성 요청됨. 아래 목록에서 선택하세요.`);
+                    // 5초 후 VimeoThumbnailSelector 새로고침
+                    setTimeout(() => {
+                        setThumbnailSelectorKey(k => k + 1);
+                    }, 5000);
                 } else {
-                    toastError('썸네일을 가져오지 못했습니다.');
+                    toastError('썸네일 생성 요청에 실패했습니다.');
                 }
                 return;
             }
@@ -471,6 +479,18 @@ export const UploadLesson: React.FC = () => {
                                 이미지 업로드
                             </label>
                         </div>
+                        {/* Vimeo 영상인 경우 썸네일 선택기 표시 */}
+                        {videoState.vimeoUrl && (
+                            <div className="mb-6 p-4 bg-violet-500/5 rounded-xl border border-violet-500/20">
+                                <VimeoThumbnailSelector
+                                    vimeoId={extractVimeoId(videoState.vimeoUrl) || videoState.vimeoUrl}
+                                    vimeoHash={extractVimeoHash(videoState.vimeoUrl)}
+                                    onSelect={(url) => setThumbnailUrl(url)}
+                                    currentThumbnailUrl={thumbnailUrl}
+                                    refreshKey={thumbnailSelectorKey}
+                                />
+                            </div>
+                        )}
                         {thumbnailUrl && (
                             <div className="w-48 aspect-video rounded-xl overflow-hidden border border-zinc-800">
                                 <img src={thumbnailUrl} alt="Thumbnail" loading="lazy" className="w-full h-full object-cover" />

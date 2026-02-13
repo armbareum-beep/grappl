@@ -14,13 +14,15 @@ interface VimeoThumbnailSelectorProps {
     vimeoHash?: string | null;
     onSelect: (url: string) => void;
     currentThumbnailUrl?: string;
+    refreshKey?: number; // Increment to trigger refresh
 }
 
 export const VimeoThumbnailSelector: React.FC<VimeoThumbnailSelectorProps> = ({
     vimeoId,
     vimeoHash,
     onSelect,
-    currentThumbnailUrl
+    currentThumbnailUrl,
+    refreshKey = 0
 }) => {
     const [thumbnails, setThumbnails] = useState<VimeoThumbnail[]>([]);
     const [loading, setLoading] = useState(true);
@@ -88,7 +90,7 @@ export const VimeoThumbnailSelector: React.FC<VimeoThumbnailSelectorProps> = ({
         if (vimeoId) {
             fetchThumbnails();
         }
-    }, [vimeoId, vimeoHash]);
+    }, [vimeoId, vimeoHash, refreshKey]);
 
     if (loading) {
         return (
