@@ -436,8 +436,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const vumbnailRes = await fetch(vumbnailUrl);
                 if (vumbnailRes.ok) {
                     const arrayBuffer = await vumbnailRes.arrayBuffer();
-                    // Check if we got a valid image (not an error page - should be > 1KB)
-                    if (arrayBuffer.byteLength > 1000) {
+                    // Real video thumbnails are typically > 10KB. Smaller = placeholder/error image
+                    if (arrayBuffer.byteLength > 10000) {
                         const base64 = Buffer.from(arrayBuffer).toString('base64');
                         const contentType = vumbnailRes.headers.get('content-type') || 'image/jpeg';
                         console.log('[Vimeo] vumbnail.com succeeded, size:', arrayBuffer.byteLength);
@@ -446,7 +446,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                             base64: `data:${contentType};base64,${base64}`
                         });
                     }
-                    console.log('[Vimeo] vumbnail.com returned small/invalid response:', arrayBuffer.byteLength);
+                    console.log('[Vimeo] vumbnail.com returned placeholder image:', arrayBuffer.byteLength, 'bytes');
                 }
             } catch (e: any) {
                 console.log('[Vimeo] vumbnail.com failed:', e.message);
