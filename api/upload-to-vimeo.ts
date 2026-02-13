@@ -477,16 +477,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const pictureUri = pictureData.uri;
             console.log('[Vimeo] Picture created:', pictureUri);
 
-            // Wait for Vimeo to start processing (2 seconds initial delay)
-            console.log('[Vimeo] Waiting 2s for Vimeo to start processing...');
-            await new Promise(resolve => setTimeout(resolve, 2000));
-
-            // Poll for the thumbnail (6 more seconds, every 1 second)
-            // We verify the actual image content, not just URL existence
+            // Quick poll - 3 attempts, 1.5s each (total ~5s to stay under Vercel 10s limit)
             let thumbnailUrl: string | null = null;
             let validBase64: string | null = null;
 
-            for (let i = 0; i < 6; i++) {
+            for (let i = 0; i < 3; i++) {
+                await new Promise(resolve => setTimeout(resolve, 1500));
+
                 const checkRes = await fetch(`https://api.vimeo.com${pictureUri}`, {
                     headers: {
                         'Authorization': `Bearer ${VIMEO_TOKEN}`,
@@ -499,47 +496,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     const sizes = [...(checkData.sizes || [])].sort((a: any, b: any) => b.width - a.width);
 
                     if (sizes.length > 0 && sizes[0].link) {
-                        // Fetch the actual image and verify it's not a placeholder
                         const testUrl = sizes[0].link;
                         try {
                             const imgRes = await fetch(testUrl);
                             if (imgRes.ok) {
                                 const buffer = await imgRes.arrayBuffer();
-                                // Real thumbnails are > 15KB, placeholders are smaller
-                                if (buffer.byteLength > 15000) {
+                                // Accept if > 5KB (lower threshold for faster response)
+                                if (buffer.byteLength > 5000) {
                                     thumbnailUrl = testUrl;
                                     const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
                                     validBase64 = `data:${contentType};base64,${Buffer.from(buffer).toString('base64')}`;
-                                    console.log('[Vimeo] Valid thumbnail found after', 2 + i, 'seconds, size:', buffer.byteLength);
+                                    console.log('[Vimeo] Thumbnail ready after', (i + 1) * 1.5, 's, size:', buffer.byteLength);
                                     break;
-                                } else {
-                                    console.log('[Vimeo] Image too small (placeholder?):', buffer.byteLength, 'bytes, retrying...');
                                 }
                             }
                         } catch (imgErr) {
-                            console.log('[Vimeo] Image fetch failed, retrying...');
+                            console.log('[Vimeo] Image fetch failed, attempt', i + 1);
                         }
                     }
                 }
-
-                if (i < 5) {
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                }
             }
 
-            // If we got a valid thumbnail, return it
             if (validBase64 && thumbnailUrl) {
-                console.log('[Vimeo] Returning captured thumbnail at time:', timeInSeconds);
-                return res.status(200).json({
-                    success: true,
-                    thumbnailUrl,
-                    base64: validBase64
-                });
+                return res.status(200).json({ success: true, thumbnailUrl, base64: validBase64 });
             }
 
-            // If no valid thumbnail after 8 seconds, return error (don't fallback to first frame)
-            console.log('[Vimeo] Timeout - could not get thumbnail at specified time');
-            throw new Error('썸네일 생성에 시간이 걸리고 있습니다. 잠시 후 다시 시도해주세요.');
+            // Timeout - return error
+            throw new Error('Vimeo 처리 중입니다. 5초 후 다시 시도해주세요.');
         }
 
         return res.status(400).json({ error: 'Invalid action' });
