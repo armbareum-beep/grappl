@@ -12,7 +12,8 @@ import {
     createLesson, getLessonById, updateLesson,
     createSparringVideo, getSparringVideoById, updateSparringVideo,
     uploadThumbnail,
-    getCreators
+    getCreators,
+    createVimeoThumbnailAtTime
 } from '../../lib/api';
 import { VimeoThumbnailSelector } from '../../components/VimeoThumbnailSelector';
 import { extractVimeoId, extractVimeoHash } from '../../lib/vimeo';
@@ -22,6 +23,7 @@ import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 import { ThumbnailCropper } from '../../components/ThumbnailCropper';
 import { useToast } from '../../contexts/ToastContext';
 import { ImageUploader } from '../../components/ImageUploader';
+import Player from '@vimeo/player';
 import '@mux/mux-video';
 
 type ContentType = 'drill' | 'lesson' | 'sparring';
@@ -193,7 +195,8 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                     }
 
                     // Handle Vimeo URL (CamelCase or SnakeCase)
-                    const vUrl = data.vimeoUrl || data.vimeo_url;
+                    // Note: Sparring videos store Vimeo URLs in videoUrl field, not vimeoUrl
+                    const vUrl = data.vimeoUrl || data.vimeo_url || data.videoUrl || data.video_url;
                     if (vUrl) {
                         const vId = extractVimeoId(vUrl);
                         const vHash = extractVimeoHash(vUrl);
@@ -372,6 +375,48 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         } catch (e: any) {
             console.error('Mux thumbnail fetch failed:', e);
             toastError('Mux 썸네일을 가져오는데 실패했습니다.');
+        }
+    };
+
+    // Vimeo 썸네일 가져오기 (레슨/스파링 전용 - 백엔드 API 사용)
+    const captureFromVimeo = async (type: 'main' | 'desc') => {
+        try {
+            const iframeRef = type === 'main' ? mainVimeoRef : descVimeoRef;
+            const state = type === 'main' ? mainVideo : descVideo;
+
+            if (!iframeRef.current || !state.vimeoUrl) {
+                toastError('Vimeo 영상이 로드되지 않았습니다.');
+                return;
+            }
+
+            const vimeoId = extractVimeoId(state.vimeoUrl);
+            if (!vimeoId) {
+                toastError('Vimeo 영상 ID를 찾을 수 없습니다.');
+                return;
+            }
+
+            // Vimeo Player 인스턴스 생성 및 현재 시간 가져오기
+            const player = new Player(iframeRef.current);
+            const currentTime = await player.getCurrentTime();
+
+            // 백엔드 API를 통해 해당 시간의 썸네일 생성
+            const result = await createVimeoThumbnailAtTime(vimeoId, currentTime);
+
+            if (result.error) {
+                console.error('Vimeo thumbnail creation failed:', result.error);
+                toastError('썸네일 생성에 실패했습니다. 다시 시도해주세요.');
+                return;
+            }
+
+            if (result.base64) {
+                setCroppingImage(result.base64);
+                setActiveCropper(type);
+            } else {
+                toastError('썸네일을 가져오지 못했습니다.');
+            }
+        } catch (e: any) {
+            console.error('Vimeo thumbnail fetch failed:', e);
+            toastError('화면 캡처에 실패했습니다. 다시 시도해주세요.');
         }
     };
 
@@ -670,6 +715,12 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                             {isDrillType && state.vimeoUrl && (
                                 <button onClick={() => captureFromMux(state.vimeoUrl!, type)} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 rounded-xl text-white text-sm flex items-center gap-2 transition-colors">
                                     <Camera className="w-4 h-4" /> 현재 장면 캡처
+                                </button>
+                            )}
+                            {/* Vimeo 레슨/스파링: 썸네일 캡처 버튼 표시 */}
+                            {!isDrillType && state.vimeoUrl && state.previewUrl?.includes('vimeo') && (
+                                <button onClick={() => captureFromVimeo(type)} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 rounded-xl text-white text-sm flex items-center gap-2 transition-colors">
+                                    <Camera className="w-4 h-4" /> 현재 화면 캡처
                                 </button>
                             )}
                             {/* 로컬 비디오일 때만 캡쳐 버튼 표시 */}

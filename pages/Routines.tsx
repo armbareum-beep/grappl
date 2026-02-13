@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { fetchCreatorsByIds, fetchRoutines, getDailyFreeDrill } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { DrillRoutine } from '../types';
@@ -21,12 +22,21 @@ export const Routines: React.FC<{
     // Removed unused navigate to satisfy lints
     // const navigate = useNavigate();
     const { user } = useAuth();
+    const [searchParams] = useSearchParams();
+
+    // Get initial sort from URL parameter
+    const getInitialSort = (): 'shuffled' | 'latest' | 'popular' => {
+        const sortParam = searchParams.get('sort');
+        if (sortParam === 'latest' || sortParam === 'popular') return sortParam;
+        return 'shuffled';
+    };
+
     const [internalSearchTerm, setInternalSearchTerm] = useState('');
     const [internalCategory, setInternalCategory] = useState<string>('All');
     const [selectedDifficulty, setSelectedDifficulty] = useState<string>('All');
     const [selectedUniform, setSelectedUniform] = useState<string>('All');
     const [selectedOwnership, setSelectedOwnership] = useState<string>('All');
-    const [sortBy, setSortBy] = useState<'shuffled' | 'latest' | 'popular'>('shuffled');
+    const [sortBy, setSortBy] = useState<'shuffled' | 'latest' | 'popular'>(getInitialSort);
     const [openDropdown, setOpenDropdown] = useState<'uniform' | 'difficulty' | 'ownership' | 'sort' | null>(null);
 
     const searchTerm = internalSearchTerm;

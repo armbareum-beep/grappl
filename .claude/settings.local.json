@@ -54,7 +54,9 @@
       "Bash(vercel:*)",
       "WebFetch(domain:www.mux.com)",
       "Bash(git show:*)",
-      "WebFetch(domain:pagespeed.web.dev)"
+      "WebFetch(domain:pagespeed.web.dev)",
+      "Bash(npm ls:*)",
+      "Bash(timeout:*)"
     ]
   }
 }

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { VideoCategory, Difficulty, UniformType, Lesson } from '../../types';
 import { createLesson, getLessonById, updateLesson } from '../../lib/api-lessons';
-import { uploadThumbnail } from '../../lib/api';
+import { uploadThumbnail, createVimeoThumbnailAtTime } from '../../lib/api';
 import { getCreators } from '../../lib/api-admin';
 import { extractVimeoId, extractVimeoHash } from '../../lib/vimeo';
 import { ArrowLeft, Upload, Loader, FileVideo, Camera, Trash2 } from 'lucide-react';
@@ -142,19 +142,20 @@ export const UploadLesson: React.FC = () => {
                 const player = new Player(vimeoIframeRef.current);
                 const currentTime = await player.getCurrentTime();
 
-                // vumbnail.com을 사용하여 해당 시간의 썸네일 가져오기
-                const thumbnailUrl = `https://vumbnail.com/${vimeoId}.jpg?time=${Math.floor(currentTime)}`;
+                // 백엔드 API를 통해 해당 시간의 썸네일 생성
+                const result = await createVimeoThumbnailAtTime(vimeoId, currentTime);
 
-                // 이미지 다운로드
-                const response = await fetch(thumbnailUrl);
-                const blob = await response.blob();
+                if (result.error) {
+                    console.error('Vimeo thumbnail creation failed:', result.error);
+                    toastError('썸네일 생성에 실패했습니다. 다시 시도해주세요.');
+                    return;
+                }
 
-                // Blob을 Data URL로 변환
-                const reader = new FileReader();
-                reader.onload = () => {
-                    setCroppingImage(reader.result as string);
-                };
-                reader.readAsDataURL(blob);
+                if (result.base64) {
+                    setCroppingImage(result.base64);
+                } else {
+                    toastError('썸네일을 가져오지 못했습니다.');
+                }
                 return;
             }
 

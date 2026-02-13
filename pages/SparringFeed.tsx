@@ -86,7 +86,15 @@ export const SparringFeed: React.FC<{
 
     const [selectedUniform, setSelectedUniform] = useState('All');
     const [selectedOwnership, setSelectedOwnership] = useState<string>('All');
-    const [sortBy, setSortBy] = useState<'shuffled' | 'latest' | 'popular'>('shuffled');
+
+    // Get initial sort from URL parameter
+    const getInitialSort = (): 'shuffled' | 'latest' | 'popular' => {
+        const sortParam = searchParams.get('sort');
+        if (sortParam === 'latest' || sortParam === 'popular') return sortParam;
+        return 'shuffled';
+    };
+
+    const [sortBy, setSortBy] = useState<'shuffled' | 'latest' | 'popular'>(getInitialSort);
     const [openDropdown, setOpenDropdown] = useState<'uniform' | 'ownership' | 'sort' | null>(null);
     const [reelTouchStart, setReelTouchStart] = useState<{ y: number } | null>(null);
 

@@ -19,7 +19,7 @@ export const Terms: React.FC = () => {
                         <h1 className="text-4xl font-bold text-white mb-2">이용약관</h1>
                         <div className="flex items-center gap-2 text-slate-400 text-sm mb-8">
                             <Star className="w-4 h-4 text-violet-400" />
-                            <span>시행일자: 2026년 2월 12일</span>
+                            <span>시행일자: 2026년 2월 13일</span>
                         </div>
                         <div className="space-y-8 text-slate-300">
                             <section>
@@ -115,11 +115,61 @@ export const Terms: React.FC = () => {
                                     <li>회사가 제공하는 유료 서비스의 요금은 서비스 화면에 명시된 금액으로 합니다. 유료 서비스의 경우, 결제 시 명시된 이용 기간 또는 구독 주기에 따라 서비스가 제공됩니다.</li>
                                     <li>결제는 PayPal, 신용카드, 간편결제 등 회사가 제공하는 방법으로 진행됩니다.</li>
                                     <li>구독 서비스는 자동 갱신되며, 회원은 언제든지 구독을 해지할 수 있습니다. 구독 해지 시 이미 결제된 해당 회차의 잔여 기간까지는 서비스를 이용할 수 있으며, 다음 결제일부터 자동 결제가 중단됩니다.</li>
-                                    <li>환불 정책은 다음과 같습니다:
+                                    <li>연간 구독 회원은 개별 콘텐츠(강좌, 루틴, 스파링 영상) 구매 시 30% 할인 혜택을 받을 수 있습니다. 단, 번들 상품 및 드릴은 할인 대상에서 제외됩니다.</li>
+                                    <li>강좌, 번들 등 일회성 구매 콘텐츠는 평생 소장 상품입니다. 단, 결제일로부터 1년은 유료 서비스 기간으로, 그 이후는 무료 서비스 제공 기간으로 구분됩니다. 무료 서비스 제공 기간 중에는 회사의 운영 정책에 따라 서비스가 변경되거나 종료될 수 있습니다.</li>
+                                </ol>
+                            </section>
+
+                            <section>
+                                <h2 className="text-xl font-semibold text-violet-400 mb-3 flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
+                                    제6조의2 (환불 정책)
+                                </h2>
+                                <ol className="list-decimal list-inside space-y-3 ml-4">
+                                    <li>개별 콘텐츠(강좌, 드릴, 루틴, 스파링 영상) 환불:
                                         <ul className="list-disc list-inside ml-6 mt-2 space-y-1 text-slate-400">
-                                            <li>강좌 구매 후 7일 이내, 수강 진도율 10% 미만인 경우 전액 환불</li>
-                                            <li>구독 서비스는 결제일로부터 7일 이내 미사용 시 전액 환불</li>
+                                            <li>구매 후 7일 이내, 이용 기록이 없는 경우 전액 환불</li>
+                                            <li>강좌의 경우 수강 진도율 10% 미만인 경우 전액 환불</li>
+                                            <li>7일 경과 또는 이용 기록이 있는 경우 환불 불가</li>
+                                        </ul>
+                                    </li>
+                                    <li>구독 서비스 환불:
+                                        <ul className="list-disc list-inside ml-6 mt-2 space-y-1 text-slate-400">
+                                            <li>결제일로부터 7일 이내, 미사용 시 전액 환불</li>
+                                            <li>7일 경과 또는 사용 이력이 있는 경우 환불 불가</li>
+                                        </ul>
+                                    </li>
+                                    <li>번들 상품 환불:
+                                        <ul className="list-disc list-inside ml-6 mt-2 space-y-1 text-slate-400">
+                                            <li>구매 후 7일 이내, 번들 내 모든 콘텐츠 미이용 시 전액 환불</li>
+                                            <li>구매 후 7일 이내, 일부 콘텐츠 이용 시: 이용한 콘텐츠의 개별 정가를 차감한 금액 환불</li>
+                                            <li>7일 경과 시 환불 불가</li>
+                                        </ul>
+                                    </li>
+                                    <li>이미 보유한 콘텐츠가 포함된 번들 구매 시:
+                                        <ul className="list-disc list-inside ml-6 mt-2 space-y-1 text-slate-400">
+                                            <li>번들 내 이미 보유한 콘텐츠의 개별 정가가 결제 금액에서 자동 차감됩니다</li>
+                                            <li>환불 시 실제 결제 금액을 기준으로 환불 금액이 산정됩니다</li>
+                                            <li>환불 시 기존에 보유하던 콘텐츠의 접근 권한은 유지되며, 번들을 통해 새로 취득한 콘텐츠의 접근 권한만 회수됩니다</li>
+                                        </ul>
+                                    </li>
+                                    <li>구독자 할인 혜택을 적용받아 구매한 경우:
+                                        <ul className="list-disc list-inside ml-6 mt-2 space-y-1 text-slate-400">
+                                            <li>환불 금액은 실제 결제 금액을 기준으로 산정됩니다</li>
+                                            <li>환불 시점의 구독 상태와 관계없이 결제 당시 적용된 금액 기준으로 환불됩니다</li>
+                                        </ul>
+                                    </li>
+                                    <li>1:1 피드백 서비스 환불:
+                                        <ul className="list-disc list-inside ml-6 mt-2 space-y-1 text-slate-400">
+                                            <li>대기 중 상태: 전액 환불</li>
+                                            <li>크리에이터가 피드백 작성을 시작한 후 (진행 중 또는 완료 상태): 환불 불가</li>
+                                        </ul>
+                                    </li>
+                                    <li>공통 사항:
+                                        <ul className="list-disc list-inside ml-6 mt-2 space-y-1 text-slate-400">
+                                            <li>부분 환불 시 이용한 콘텐츠의 가격은 해당 콘텐츠의 개별 판매 정가를 기준으로 합니다 (할인가 아님)</li>
                                             <li>크리에이터의 귀책사유로 서비스 제공이 불가능한 경우 전액 환불</li>
+                                            <li>환불 처리는 영업일 기준 3~5일 소요될 수 있습니다</li>
                                         </ul>
                                     </li>
                                 </ol>
@@ -189,7 +239,8 @@ export const Terms: React.FC = () => {
                             <section className="pt-8 border-t border-slate-700/50">
                                 <p className="text-sm text-slate-500">
                                     <strong className="text-slate-400">부칙</strong><br />
-                                    본 약관은 2025년 1월 1일부터 시행됩니다.
+                                    1. 본 약관은 2025년 1월 1일부터 시행됩니다.<br />
+                                    2. 제6조의2(환불 정책)는 2026년 2월 13일부터 시행됩니다.
                                 </p>
                             </section>
                         </div>

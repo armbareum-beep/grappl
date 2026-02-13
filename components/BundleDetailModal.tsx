@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { X, Package, BookOpen, Zap, ArrowRight, List } from 'lucide-react';
+import { X, Package, BookOpen, Zap, ArrowRight, List, Check } from 'lucide-react';
 import { Bundle } from '../types';
 import { getCourseById, getSparringVideoById } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 interface BundleDetailModalProps {
     bundle: Bundle;
@@ -19,10 +20,12 @@ export const BundleDetailModal: React.FC<BundleDetailModalProps> = ({
     onPurchase,
 }) => {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [courses, setCourses] = useState<any[]>([]);
     const [routines, setRoutines] = useState<any[]>([]);
     const [sparringVideos, setSparringVideos] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [ownedIds, setOwnedIds] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         if (isOpen && bundle) {
@@ -36,6 +39,7 @@ export const BundleDetailModal: React.FC<BundleDetailModalProps> = ({
             const courseIds = bundle.course_ids || bundle.courseIds || [];
             const routineIds = bundle.routine_ids || bundle.routineIds || [];
             const sparringIds = bundle.sparring_ids || bundle.sparringIds || [];
+            const drillIds = bundle.drill_ids || bundle.drillIds || [];
 
             // Load courses
             if (courseIds.length > 0) {
@@ -58,6 +62,53 @@ export const BundleDetailModal: React.FC<BundleDetailModalProps> = ({
                 const sparringPromises = sparringIds.map(id => getSparringVideoById(id));
                 const sparringResults = await Promise.all(sparringPromises);
                 setSparringVideos(sparringResults.map((r: any) => r.data).filter((v: any) => v !== null));
+            }
+
+            // Check owned content if user is logged in
+            if (user?.id) {
+                const owned = new Set<string>();
+
+                // Check owned courses
+                if (courseIds.length > 0) {
+                    const { data: enrollments } = await supabase
+                        .from('course_enrollments' as any)
+                        .select('course_id')
+                        .eq('user_id', user.id)
+                        .in('course_id', courseIds);
+                    enrollments?.forEach((e: any) => owned.add(e.course_id));
+                }
+
+                // Check owned routines
+                if (routineIds.length > 0) {
+                    const { data: userRoutines } = await supabase
+                        .from('user_routines' as any)
+                        .select('routine_id')
+                        .eq('user_id', user.id)
+                        .in('routine_id', routineIds);
+                    userRoutines?.forEach((r: any) => owned.add(r.routine_id));
+                }
+
+                // Check owned sparring
+                if (sparringIds.length > 0) {
+                    const { data: userVideos } = await supabase
+                        .from('user_videos' as any)
+                        .select('video_id')
+                        .eq('user_id', user.id)
+                        .in('video_id', sparringIds);
+                    userVideos?.forEach((v: any) => owned.add(v.video_id));
+                }
+
+                // Check owned drills
+                if (drillIds.length > 0) {
+                    const { data: userDrills } = await supabase
+                        .from('user_drills' as any)
+                        .select('drill_id')
+                        .eq('user_id', user.id)
+                        .in('drill_id', drillIds);
+                    userDrills?.forEach((d: any) => owned.add(d.drill_id));
+                }
+
+                setOwnedIds(owned);
             }
         } catch (error) {
             console.error('Error loading bundle contents:', error);
@@ -89,6 +140,14 @@ export const BundleDetailModal: React.FC<BundleDetailModalProps> = ({
     const originalPrice = courseSum + routineSum + sparringSum;
     const discount = originalPrice - bundle.price;
     const discountPercent = originalPrice > bundle.price ? Math.round((discount / originalPrice) * 100) : 0;
+
+    // Calculate owned items discount
+    const ownedCoursesPrice = courses.filter(c => ownedIds.has(c.id)).reduce((sum, c) => sum + (Number(c?.price) || 0), 0);
+    const ownedRoutinesPrice = routines.filter(r => ownedIds.has(r.id)).reduce((sum, r) => sum + (Number(r?.price) || 0), 0);
+    const ownedSparringPrice = sparringVideos.filter(s => ownedIds.has(s.id)).reduce((sum, s) => sum + (Number(s?.price) || 0), 0);
+    const totalOwnedPrice = ownedCoursesPrice + ownedRoutinesPrice + ownedSparringPrice;
+    const adjustedPrice = Math.max(0, bundle.price - totalOwnedPrice);
+    const hasOwnedItems = totalOwnedPrice > 0;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
@@ -122,26 +181,46 @@ export const BundleDetailModal: React.FC<BundleDetailModalProps> = ({
                     ) : (
                         <>
                             {/* Price Overview */}
-                            <div className="flex items-center justify-between p-6 bg-zinc-800/50 rounded-2xl border border-zinc-700/50">
-                                <div className="space-y-1">
-                                    <p className="text-zinc-400 text-sm font-medium">번들 패키지 원가</p>
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-2xl font-bold text-zinc-500 line-through">
-                                            ₩{originalPrice.toLocaleString()}
-                                        </span>
-                                        {discountPercent > 0 && (
-                                            <span className="bg-red-500/10 text-red-500 px-3 py-1 rounded-lg font-black text-sm">
-                                                -{discountPercent}% 익스클루시브 혜택
+                            <div className="p-6 bg-zinc-800/50 rounded-2xl border border-zinc-700/50 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-1">
+                                        <p className="text-zinc-400 text-sm font-medium">번들 패키지 원가</p>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-2xl font-bold text-zinc-500 line-through">
+                                                ₩{originalPrice.toLocaleString()}
                                             </span>
-                                        )}
+                                            {discountPercent > 0 && (
+                                                <span className="bg-red-500/10 text-red-500 px-3 py-1 rounded-lg font-black text-sm">
+                                                    -{discountPercent}% 익스클루시브 혜택
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="text-right space-y-1">
+                                        <p className="text-violet-400 text-sm font-black whitespace-nowrap uppercase tracking-wider">Bundle Price</p>
+                                        <p className={`text-3xl font-black ${hasOwnedItems ? 'text-zinc-500 line-through' : 'text-white'}`}>
+                                            ₩{bundle.price.toLocaleString()}
+                                        </p>
                                     </div>
                                 </div>
-                                <div className="text-right space-y-1">
-                                    <p className="text-violet-400 text-sm font-black whitespace-nowrap uppercase tracking-wider">Bundle Price</p>
-                                    <p className="text-3xl font-black text-white">
-                                        ₩{bundle.price.toLocaleString()}
-                                    </p>
-                                </div>
+
+                                {hasOwnedItems && (
+                                    <div className="pt-4 border-t border-zinc-700/50 space-y-3">
+                                        <div className="flex items-center justify-between text-blue-400">
+                                            <span className="flex items-center gap-2 text-sm font-bold">
+                                                <Check className="w-4 h-4" />
+                                                이미 보유한 콘텐츠 차감
+                                            </span>
+                                            <span className="font-bold">-₩{totalOwnedPrice.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-emerald-400 text-sm font-black uppercase tracking-wider">Your Price</span>
+                                            <span className="text-3xl font-black text-emerald-400">
+                                                ₩{adjustedPrice.toLocaleString()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Content Lists */}
@@ -158,19 +237,29 @@ export const BundleDetailModal: React.FC<BundleDetailModalProps> = ({
                                                 <button
                                                     key={course.id}
                                                     onClick={() => handleCourseClick(course.id)}
-                                                    className="group flex items-center justify-between p-4 bg-zinc-800/30 hover:bg-zinc-800/50 rounded-xl border border-zinc-700/30 transition-all text-left"
+                                                    className={`group flex items-center justify-between p-4 bg-zinc-800/30 hover:bg-zinc-800/50 rounded-xl border transition-all text-left ${ownedIds.has(course.id) ? 'border-blue-500/30' : 'border-zinc-700/30'}`}
                                                 >
                                                     <div className="flex items-center gap-4">
-                                                        <div className="w-14 h-14 bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0 border border-zinc-700/50">
+                                                        <div className="relative w-14 h-14 bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0 border border-zinc-700/50">
                                                             <img src={course.thumbnailUrl} alt={course.title + " 썸네일"} loading="lazy" className="w-full h-full object-cover" />
+                                                            {ownedIds.has(course.id) && (
+                                                                <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
+                                                                    <Check className="w-6 h-6 text-blue-400" />
+                                                                </div>
+                                                            )}
                                                         </div>
                                                         <div>
-                                                            <h4 className="text-white font-bold group-hover:text-violet-400 transition-colors line-clamp-1">{course.title}</h4>
+                                                            <div className="flex items-center gap-2">
+                                                                <h4 className="text-white font-bold group-hover:text-violet-400 transition-colors line-clamp-1">{course.title}</h4>
+                                                                {ownedIds.has(course.id) && (
+                                                                    <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] font-black rounded-full uppercase">보유</span>
+                                                                )}
+                                                            </div>
                                                             <p className="text-zinc-500 text-sm">{course.creatorName}</p>
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-4">
-                                                        <span className="text-zinc-400 font-bold">₩{Number(course.price).toLocaleString()}</span>
+                                                        <span className={`font-bold ${ownedIds.has(course.id) ? 'text-blue-400 line-through' : 'text-zinc-400'}`}>₩{Number(course.price).toLocaleString()}</span>
                                                         <ArrowRight className="w-5 h-5 text-zinc-600 group-hover:text-violet-400 transform group-hover:translate-x-1 transition-all" />
                                                     </div>
                                                 </button>
@@ -191,10 +280,10 @@ export const BundleDetailModal: React.FC<BundleDetailModalProps> = ({
                                                 <button
                                                     key={routine.id}
                                                     onClick={() => handleRoutineClick(routine.id)}
-                                                    className="group flex items-center justify-between p-4 bg-zinc-800/30 hover:bg-zinc-800/50 rounded-xl border border-zinc-700/30 transition-all text-left"
+                                                    className={`group flex items-center justify-between p-4 bg-zinc-800/30 hover:bg-zinc-800/50 rounded-xl border transition-all text-left ${ownedIds.has(routine.id) ? 'border-blue-500/30' : 'border-zinc-700/30'}`}
                                                 >
                                                     <div className="flex items-center gap-4">
-                                                        <div className="w-14 h-14 bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0 border border-zinc-700/50">
+                                                        <div className="relative w-14 h-14 bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0 border border-zinc-700/50">
                                                             {routine.thumbnail_url ? (
                                                                 <img src={routine.thumbnail_url} alt={routine.title + " 썸네일"} loading="lazy" className="w-full h-full object-cover" />
                                                             ) : (
@@ -202,11 +291,21 @@ export const BundleDetailModal: React.FC<BundleDetailModalProps> = ({
                                                                     <List className="w-6 h-6 text-blue-500" />
                                                                 </div>
                                                             )}
+                                                            {ownedIds.has(routine.id) && (
+                                                                <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
+                                                                    <Check className="w-6 h-6 text-blue-400" />
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                        <h4 className="text-white font-bold group-hover:text-blue-400 transition-colors line-clamp-1">{routine.title}</h4>
+                                                        <div className="flex items-center gap-2">
+                                                            <h4 className="text-white font-bold group-hover:text-blue-400 transition-colors line-clamp-1">{routine.title}</h4>
+                                                            {ownedIds.has(routine.id) && (
+                                                                <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] font-black rounded-full uppercase">보유</span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                     <div className="flex items-center gap-4">
-                                                        <span className="text-zinc-400 font-bold">₩{Number(routine.price).toLocaleString()}</span>
+                                                        <span className={`font-bold ${ownedIds.has(routine.id) ? 'text-blue-400 line-through' : 'text-zinc-400'}`}>₩{Number(routine.price).toLocaleString()}</span>
                                                         <ArrowRight className="w-5 h-5 text-zinc-600 group-hover:text-blue-400 transform group-hover:translate-x-1 transition-all" />
                                                     </div>
                                                 </button>
@@ -227,16 +326,26 @@ export const BundleDetailModal: React.FC<BundleDetailModalProps> = ({
                                                 <button
                                                     key={video.id}
                                                     onClick={() => handleSparringClick(video.id)}
-                                                    className="group flex items-center justify-between p-4 bg-zinc-800/30 hover:bg-zinc-800/50 rounded-xl border border-zinc-700/30 transition-all text-left"
+                                                    className={`group flex items-center justify-between p-4 bg-zinc-800/30 hover:bg-zinc-800/50 rounded-xl border transition-all text-left ${ownedIds.has(video.id) ? 'border-blue-500/30' : 'border-zinc-700/30'}`}
                                                 >
                                                     <div className="flex items-center gap-4">
-                                                        <div className="w-14 h-14 bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0 border border-zinc-700/50">
+                                                        <div className="relative w-14 h-14 bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0 border border-zinc-700/50">
                                                             <img src={video.thumbnailUrl} alt={video.title + " 썸네일"} loading="lazy" className="w-full h-full object-cover" />
+                                                            {ownedIds.has(video.id) && (
+                                                                <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
+                                                                    <Check className="w-6 h-6 text-blue-400" />
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                        <h4 className="text-white font-bold group-hover:text-amber-400 transition-colors line-clamp-1">{video.title}</h4>
+                                                        <div className="flex items-center gap-2">
+                                                            <h4 className="text-white font-bold group-hover:text-amber-400 transition-colors line-clamp-1">{video.title}</h4>
+                                                            {ownedIds.has(video.id) && (
+                                                                <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] font-black rounded-full uppercase">보유</span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                     <div className="flex items-center gap-4">
-                                                        <span className="text-zinc-400 font-bold">₩{Number(video.price).toLocaleString()}</span>
+                                                        <span className={`font-bold ${ownedIds.has(video.id) ? 'text-blue-400 line-through' : 'text-zinc-400'}`}>₩{Number(video.price).toLocaleString()}</span>
                                                         <ArrowRight className="w-5 h-5 text-zinc-600 group-hover:text-amber-400 transform group-hover:translate-x-1 transition-all" />
                                                     </div>
                                                 </button>
@@ -255,7 +364,14 @@ export const BundleDetailModal: React.FC<BundleDetailModalProps> = ({
                         onClick={onPurchase}
                         className="w-full bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-700 hover:to-violet-800 text-white font-black py-4 rounded-2xl shadow-xl shadow-violet-900/30 transform active:scale-[0.99] transition-all flex items-center justify-center gap-2 text-lg"
                     >
-                        ₩{bundle.price.toLocaleString()} 결제하고 즉시 마스터하기
+                        {hasOwnedItems ? (
+                            <>
+                                <span className="line-through text-white/50 mr-2">₩{bundle.price.toLocaleString()}</span>
+                                ₩{adjustedPrice.toLocaleString()} 결제하고 즉시 마스터하기
+                            </>
+                        ) : (
+                            <>₩{bundle.price.toLocaleString()} 결제하고 즉시 마스터하기</>
+                        )}
                         <ArrowRight className="w-6 h-6" />
                     </button>
                 </div>

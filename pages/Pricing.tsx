@@ -150,9 +150,10 @@ export const Pricing: React.FC = () => {
 
             <ul className="space-y-4 flex-1 mb-10">
               {[
-                '전체 레슨, 드릴, 스파링 영상 접근',
-                '신규 콘텐츠 매주 자동 업데이트',
-                '가격이 인상되어도 기존 구독료 유지'
+                '모든 클래스·드릴·스파링 영상 무제한',
+                '매주 업데이트되는 신규 기술 영상',
+                '구독 중 가격 인상 없음',
+                '인스트럭터 피드백 우선 답변'
               ].map((feature, i) => (
                 <li key={i} className="flex items-start gap-3">
                   <Check className="flex-shrink-0 w-6 h-6 text-violet-400" />
@@ -196,9 +197,9 @@ export const Pricing: React.FC = () => {
                 <p className="text-sm text-violet-400 font-bold">
                   연간 전체 {pricing.basic.yearly.price.toLocaleString()}원 (월 24,166원)
                 </p>
-                <div className="flex items-center justify-center lg:justify-start gap-1.5 text-blue-400/80 font-bold text-xs bg-blue-500/10 inline-flex px-3 py-1 rounded-full border border-blue-500/20">
-                  <CreditCard className="w-3 h-3" />
-                  <span>1회 결제 (12개월 이용권)</span>
+                <div className="flex items-center justify-center lg:justify-start gap-1.5 text-violet-400/80 font-bold text-xs bg-violet-500/10 inline-flex px-3 py-1 rounded-full border border-violet-500/20">
+                  <RefreshCw className="w-3 h-3" />
+                  <span>매년 자동 결제</span>
                 </div>
               </div>
             </div>
@@ -206,9 +207,9 @@ export const Pricing: React.FC = () => {
             <ul className="space-y-4 flex-1 mb-10">
               {[
                 '1개월권의 모든 혜택 포함',
-                '전체 금액 대비 약 17% 할인',
+                '연 58,000원 절약 (17% 할인)',
                 '오프라인 세미나 우선 참여권',
-                '인스트럭터 피드백 우선 답변'
+                '단품 클래스 구매 시 30% 할인 (번들 제외)'
               ].map((feature, i) => (
                 <li key={i} className="flex items-start gap-3">
                   <Check className="flex-shrink-0 w-6 h-6 text-violet-400" />

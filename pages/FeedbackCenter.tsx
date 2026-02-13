@@ -317,13 +317,42 @@ export const FeedbackCenter: React.FC = () => {
                 <FeedbackDetailModal
                     feedback={selectedFeedback}
                     onClose={() => setSelectedFeedback(null)}
+                    onRefund={async () => {
+                        // Refresh feedbacks after refund
+                        if (user) {
+                            const res = await getFeedbackRequests(user.id, 'student');
+                            setFeedbacks(res.data || []);
+                        }
+                    }}
                 />
             )}
         </div>
     );
 };
 
-function FeedbackDetailModal({ feedback, onClose }: { feedback: FeedbackRequest; onClose: () => void }) {
+function FeedbackDetailModal({ feedback, onClose, onRefund }: { feedback: FeedbackRequest; onClose: () => void; onRefund?: () => void }) {
+    const [isRefunding, setIsRefunding] = useState(false);
+    const [showRefundConfirm, setShowRefundConfirm] = useState(false);
+
+    const handleRefund = async () => {
+        setIsRefunding(true);
+        try {
+            const { error } = await deleteFeedbackRequest(feedback.id);
+            if (error) throw error;
+            onRefund?.();
+            onClose();
+        } catch (err) {
+            console.error('Refund failed:', err);
+            alert('환불 처리 중 오류가 발생했습니다.');
+        } finally {
+            setIsRefunding(false);
+            setShowRefundConfirm(false);
+        }
+    };
+
+    // Check if refund is available (pending status with paid payment)
+    const canRefund = feedback.status === 'pending' && feedback.paymentStatus === 'paid';
+
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200 scrollbar-hide">
@@ -337,9 +366,19 @@ function FeedbackDetailModal({ feedback, onClose }: { feedback: FeedbackRequest;
                         </h3>
                         <p className="text-xs text-zinc-500 mt-1">{feedback.instructorName} 인스트럭터</p>
                     </div>
-                    <button onClick={onClose} aria-label="닫기" className="p-2 -mr-2 text-zinc-400 hover:text-white transition-colors">
-                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
+                    <div className="flex items-center gap-3">
+                        {canRefund && (
+                            <button
+                                onClick={() => setShowRefundConfirm(true)}
+                                className="px-4 py-2 text-sm font-bold text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+                            >
+                                환불 요청
+                            </button>
+                        )}
+                        <button onClick={onClose} aria-label="닫기" className="p-2 -mr-2 text-zinc-400 hover:text-white transition-colors">
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
                 </div>
 
                 <div className="p-8 space-y-10">
@@ -409,6 +448,39 @@ function FeedbackDetailModal({ feedback, onClose }: { feedback: FeedbackRequest;
                         )}
                     </div>
                 </div>
+
+                {/* Refund Confirmation Modal */}
+                {showRefundConfirm && (
+                    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
+                        <div className="bg-zinc-900 border border-zinc-700 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+                            <h3 className="text-xl font-bold text-white mb-4">환불 요청</h3>
+                            <p className="text-zinc-400 mb-6">
+                                정말 환불을 요청하시겠습니까? 업로드된 영상이 삭제되며 결제 금액이 환불됩니다.
+                            </p>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowRefundConfirm(false)}
+                                    disabled={isRefunding}
+                                    className="flex-1 px-4 py-3 border border-zinc-700 text-zinc-300 rounded-xl hover:bg-zinc-800 transition-colors font-bold disabled:opacity-50"
+                                >
+                                    취소
+                                </button>
+                                <button
+                                    onClick={handleRefund}
+                                    disabled={isRefunding}
+                                    className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl hover:bg-red-500 transition-colors font-bold disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    {isRefunding ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            처리 중...
+                                        </>
+                                    ) : '환불하기'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Feedback Request Modal */}
                 {selectedInstructor && (

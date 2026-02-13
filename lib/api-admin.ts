@@ -1189,6 +1189,108 @@ export async function getUserActivityStats(userId: string) {
     };
 }
 
+// ==================== User Watch History (For Refund Verification) ====================
+
+export interface UserWatchHistoryItem {
+    lessonId: string;
+    lessonTitle: string;
+    lessonNumber: number;
+    courseId: string;
+    courseTitle: string;
+    creatorName: string;
+    thumbnailUrl: string;
+    progress: number;
+    watchedSeconds: number;
+    durationMinutes: number;
+    lastWatched: string;
+}
+
+export interface UserWatchHistorySummary {
+    userId: string;
+    userName: string;
+    userEmail: string;
+    totalLessonsWatched: number;
+    totalWatchTimeMinutes: number;
+    watchHistory: UserWatchHistoryItem[];
+}
+
+export async function getUserWatchHistory(userId: string): Promise<UserWatchHistorySummary | null> {
+    try {
+        // 1. Fetch user info
+        const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('id, name, email')
+            .eq('id', userId)
+            .single();
+
+        if (userError || !userData) {
+            console.error('Error fetching user:', userError);
+            return null;
+        }
+
+        // 2. Fetch lesson progress with lesson and course details
+        const { data: progressData, error: progressError } = await supabase
+            .from('lesson_progress')
+            .select(`
+                *,
+                lesson:lessons(
+                    id,
+                    title,
+                    thumbnail_url,
+                    duration_minutes,
+                    lesson_number,
+                    course_id,
+                    course:courses(
+                        id,
+                        title,
+                        creator:creators(name)
+                    )
+                )
+            `)
+            .eq('user_id', userId)
+            .order('updated_at', { ascending: false });
+
+        if (progressError) {
+            console.error('Error fetching watch history:', progressError);
+            return null;
+        }
+
+        // 3. Transform data
+        const watchHistory: UserWatchHistoryItem[] = (progressData || [])
+            .filter((item: any) => item.lesson) // Filter out deleted lessons
+            .map((item: any) => ({
+                lessonId: item.lesson_id,
+                lessonTitle: item.lesson?.title || 'Unknown',
+                lessonNumber: item.lesson?.lesson_number || 0,
+                courseId: item.lesson?.course_id || '',
+                courseTitle: item.lesson?.course?.title || 'Unknown',
+                creatorName: item.lesson?.course?.creator?.name || 'Unknown',
+                thumbnailUrl: item.lesson?.thumbnail_url || '',
+                progress: item.progress || 0,
+                watchedSeconds: item.watched_seconds || 0,
+                durationMinutes: item.lesson?.duration_minutes || 0,
+                lastWatched: item.updated_at
+            }));
+
+        // 4. Calculate totals
+        const totalWatchTimeMinutes = Math.round(
+            watchHistory.reduce((acc, item) => acc + item.watchedSeconds, 0) / 60
+        );
+
+        return {
+            userId: userData.id,
+            userName: userData.name || 'Unknown',
+            userEmail: userData.email || '',
+            totalLessonsWatched: watchHistory.filter(h => h.progress > 0).length,
+            totalWatchTimeMinutes,
+            watchHistory
+        };
+    } catch (error) {
+        console.error('Error in getUserWatchHistory:', error);
+        return null;
+    }
+}
+
 
 // ==================== Vimeo Management ====================
 

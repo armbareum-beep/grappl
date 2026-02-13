@@ -305,8 +305,8 @@ export async function getHomePageData(): Promise<HomePageData> {
         drills: []
     });
 
-    const featuredRoutines = scoredRoutines.slice(0, 20).map(transformRoutine);
-    const newRoutines = routines.slice(0, 20).map(transformRoutine);
+    const featuredRoutines = scoredRoutines.slice(0, 12).map(transformRoutine);
+    const newRoutines = routines.slice(0, 12).map(transformRoutine);
 
     // Score and transform sparring
     const scoredSparring = sparringVideos.map((s: any) => ({
@@ -337,7 +337,7 @@ export async function getHomePageData(): Promise<HomePageData> {
     });
 
     const trendingSparring = scoredSparring.slice(0, 10).map(transformSparring);
-    const newSparring = sparringVideos.slice(0, 20).map(transformSparring);
+    const newSparring = sparringVideos.slice(0, 12).map(transformSparring);
 
     return {
         dailyDrill: transformedDailyDrill,

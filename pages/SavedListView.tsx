@@ -5,16 +5,19 @@ import {
     getUserSavedLessons,
     getUserSavedCourses,
     getUserSavedRoutines,
+    getUserSavedDrills,
     getUserRoutines,
     getSavedSparringVideos,
     getPurchasedSparringVideos,
     getFeedbackRequests
 } from '../lib/api';
+import { listUserWeeklyRoutinePlans } from '../lib/api-weekly-routine';
 import { listUserSkillTrees } from '../lib/api-skill-tree';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { CourseCard } from '../components/CourseCard';
 import { DrillRoutineCard } from '../components/DrillRoutineCard';
+import { DrillCard } from '../components/DrillCard';
 import { SparringCard } from '../components/SparringCard';
 import { ChainCard } from './MyLibrary';
 import { MessageSquare, Clock, CheckCircle2 } from 'lucide-react';
@@ -31,9 +34,12 @@ export const SavedListView: React.FC = () => {
     const getTitle = () => {
         switch (type) {
             case 'classes': return 'Classes & Lessons';
+            case 'lessons': return 'Saved Lessons';
             case 'routines': return 'Training Routines';
+            case 'drills': return 'Saved Drills';
             case 'sparring': return 'My Sparring';
             case 'roadmaps': return 'My Roadmap';
+            case 'weekly-routines': return 'Weekly Routines';
             case 'feedbacks': return 'My Feedback Requests';
             default: return 'Saved Items';
         }
@@ -56,6 +62,12 @@ export const SavedListView: React.FC = () => {
                     // Deduplicate in case a lesson's parent course is also saved (or vice versa)
                     // But actually they are different types, so we just combine them.
                     data = [...courses, ...lessons];
+                } else if (type === 'lessons') {
+                    const lessonsRes = await getUserSavedLessons(user.id);
+                    data = Array.isArray(lessonsRes) ? lessonsRes : ((lessonsRes as any).data || []);
+                } else if (type === 'drills') {
+                    const drillsRes = await getUserSavedDrills(user.id);
+                    data = Array.isArray(drillsRes) ? drillsRes : ((drillsRes as any).data || []);
                 } else if (type === 'routines') {
                     const savedRes = await getUserSavedRoutines(user.id);
                     const personalRes = await getUserRoutines(user.id);
@@ -80,6 +92,9 @@ export const SavedListView: React.FC = () => {
                     });
                 } else if (type === 'roadmaps') {
                     const res = await listUserSkillTrees(user.id);
+                    data = Array.isArray(res) ? res : ((res as any).data || []);
+                } else if (type === 'weekly-routines') {
+                    const res = await listUserWeeklyRoutinePlans(user.id);
                     data = Array.isArray(res) ? res : ((res as any).data || []);
                 } else if (type === 'feedbacks') {
                     const res = await getFeedbackRequests(user.id, 'student');
@@ -177,9 +192,30 @@ export const SavedListView: React.FC = () => {
                             };
 
                             if (type === 'classes') return <CourseCard key={item.id} course={item} onUnsave={handleUnsave} />;
+                            if (type === 'lessons') return <CourseCard key={item.id} course={item} onUnsave={handleUnsave} />;
                             if (type === 'routines') return <DrillRoutineCard key={item.id} routine={item} onUnsave={handleUnsave} />;
+                            if (type === 'drills') return <DrillCard key={item.id} drill={item} />;
                             if (type === 'sparring') return <SparringCard key={item.id} video={item} onUnsave={handleUnsave} hasAccess={item.isPurchased} />;
                             if (type === 'roadmaps') return <ChainCard key={item.id} chain={item} />;
+                            if (type === 'weekly-routines') return (
+                                <button
+                                    key={item.id}
+                                    onClick={() => navigate(`/training-routines?id=${item.id}`)}
+                                    className="flex flex-col bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden hover:border-violet-500/50 transition-all text-left group"
+                                >
+                                    <div className="aspect-square bg-gradient-to-br from-violet-600/20 to-fuchsia-600/20 flex items-center justify-center">
+                                        {item.thumbnailUrl ? (
+                                            <img src={item.thumbnailUrl} alt={item.title} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="text-4xl">📅</div>
+                                        )}
+                                    </div>
+                                    <div className="p-4">
+                                        <h3 className="text-white font-bold text-sm line-clamp-2 group-hover:text-violet-400 transition-colors">{item.title}</h3>
+                                        <p className="text-zinc-500 text-xs mt-1">{item.description || '주간 훈련 일정'}</p>
+                                    </div>
+                                </button>
+                            );
                             if (type === 'feedbacks') return (
                                 <button
                                     key={item.id}

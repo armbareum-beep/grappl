@@ -417,6 +417,86 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
         }
 
+        // --- Action 5: Create thumbnail at specific time ---
+        if (action === 'create_thumbnail_at_time') {
+            const { time } = req.body;
+            if (!vimeoId) throw new Error('vimeoId is required');
+            if (time === undefined || time === null) throw new Error('time is required');
+
+            const cleanId = vimeoId.toString().split(':')[0];
+            const vimeoHeaders = {
+                'Authorization': `Bearer ${VIMEO_TOKEN}`,
+                'Accept': 'application/vnd.vimeo.*+json;version=3.4',
+                'Content-Type': 'application/json'
+            };
+
+            console.log('[Vimeo] Creating thumbnail at time:', time, 'for video:', cleanId);
+
+            // Create picture at the specified time
+            const createRes = await fetch(`https://api.vimeo.com/videos/${cleanId}/pictures`, {
+                method: 'POST',
+                headers: vimeoHeaders,
+                body: JSON.stringify({ time: Number(time), active: false })
+            });
+
+            if (!createRes.ok) {
+                const errorText = await createRes.text();
+                console.error('[Vimeo] Create picture failed:', errorText);
+                throw new Error(`Failed to create thumbnail: ${errorText}`);
+            }
+
+            const pictureData = await createRes.json();
+            const pictureUri = pictureData.uri;
+            console.log('[Vimeo] Picture created:', pictureUri);
+
+            // Vimeo processes thumbnails asynchronously - poll until ready
+            let thumbnailUrl: string | null = null;
+            const maxAttempts = 10;
+
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                // Wait before checking (longer for first attempt to give Vimeo time)
+                await new Promise(resolve => setTimeout(resolve, attempt === 0 ? 2000 : 1000));
+
+                // Fetch the picture details
+                const checkRes = await fetch(`https://api.vimeo.com${pictureUri}`, {
+                    headers: {
+                        'Authorization': `Bearer ${VIMEO_TOKEN}`,
+                        'Accept': 'application/vnd.vimeo.*+json;version=3.4'
+                    }
+                });
+
+                if (checkRes.ok) {
+                    const checkData = await checkRes.json();
+                    const sizes = [...(checkData.sizes || [])].sort((a: any, b: any) => b.width - a.width);
+                    if (sizes.length > 0 && sizes[0].link) {
+                        thumbnailUrl = sizes[0].link;
+                        console.log('[Vimeo] Thumbnail ready after', attempt + 1, 'attempts:', thumbnailUrl);
+                        break;
+                    }
+                }
+
+                console.log('[Vimeo] Thumbnail not ready, attempt', attempt + 1);
+            }
+
+            if (!thumbnailUrl) {
+                throw new Error('Thumbnail generation timed out. Please try again.');
+            }
+
+            // Fetch the image and return as base64 (to bypass CORS)
+            const imageResponse = await fetch(thumbnailUrl);
+            if (!imageResponse.ok) throw new Error('Failed to fetch generated thumbnail');
+
+            const arrayBuffer = await imageResponse.arrayBuffer();
+            const base64 = Buffer.from(arrayBuffer).toString('base64');
+            const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+
+            return res.status(200).json({
+                success: true,
+                thumbnailUrl,
+                base64: `data:${contentType};base64,${base64}`
+            });
+        }
+
         return res.status(400).json({ error: 'Invalid action' });
 
     } catch (error: any) {

@@ -235,43 +235,64 @@ export async function batchCheckInteractions(
  * Get all saved lessons for a user
  */
 export async function getUserSavedLessons(userId: string) {
-    const { data, error } = await supabase
+    // Step 1: Get saved lesson IDs
+    const { data: interactions, error: interactionsError } = await supabase
         .from('user_interactions')
-        .select(`
-      content_id,
-      created_at,
-      lessons (
-        id,
-        title,
-        description,
-        thumbnail_url,
-        duration_minutes,
-        lesson_number,
-        course_id,
-        courses (
-          id,
-          title,
-          creator:creators (
-            name,
-            profile_image
-          )
-        )
-      )
-    `)
+        .select('content_id, created_at')
         .eq('user_id', userId)
         .eq('content_type', 'lesson')
         .eq('interaction_type', 'save')
         .order('created_at', { ascending: false });
 
-    if (error) {
-        console.error('Failed to fetch saved lessons:', error);
+    if (interactionsError || !interactions || interactions.length === 0) {
+        if (interactionsError) console.error('Failed to fetch saved lesson interactions:', interactionsError);
         return [];
     }
 
-    return (data || []).map((item: any) => ({
-        id: item.content_id,
-        ...item.lessons,
-        savedAt: item.created_at
+    const lessonIds = interactions.map(i => i.content_id);
+
+    // Step 2: Fetch actual lesson data
+    const { data: lessons, error: lessonsError } = await supabase
+        .from('lessons')
+        .select(`
+            id,
+            title,
+            description,
+            thumbnail_url,
+            duration_minutes,
+            lesson_number,
+            course_id,
+            courses (
+                id,
+                title,
+                creator:creators (
+                    name,
+                    profile_image
+                )
+            )
+        `)
+        .in('id', lessonIds);
+
+    if (lessonsError) {
+        console.error('Failed to fetch lessons:', lessonsError);
+        return [];
+    }
+
+    // Map lessons with saved timestamps
+    const savedAtMap = new Map(interactions.map(i => [i.content_id, i.created_at]));
+
+    return (lessons || []).map((lesson: any) => ({
+        id: lesson.id,
+        title: lesson.title,
+        description: lesson.description,
+        thumbnailUrl: lesson.thumbnail_url,
+        durationMinutes: lesson.duration_minutes,
+        lessonNumber: lesson.lesson_number,
+        courseId: lesson.course_id,
+        courseTitle: lesson.courses?.title,
+        creatorName: lesson.courses?.creator?.name,
+        creatorProfileImage: lesson.courses?.creator?.profile_image,
+        savedAt: savedAtMap.get(lesson.id)
     }));
 }
 
@@ -279,38 +300,56 @@ export async function getUserSavedLessons(userId: string) {
  * Get all saved courses for a user
  */
 export async function getUserSavedCourses(userId: string) {
-    const { data, error } = await supabase
+    // Step 1: Get saved course IDs
+    const { data: interactions, error: interactionsError } = await supabase
         .from('user_interactions')
-        .select(`
-      content_id,
-      created_at,
-      courses (
-        id,
-        title,
-        description,
-        thumbnail_url,
-        price,
-        difficulty,
-        creator:creators (
-          name,
-          profile_image
-        )
-      )
-    `)
+        .select('content_id, created_at')
         .eq('user_id', userId)
         .eq('content_type', 'course')
         .eq('interaction_type', 'save')
         .order('created_at', { ascending: false });
 
-    if (error) {
-        console.error('Failed to fetch saved courses:', error);
+    if (interactionsError || !interactions || interactions.length === 0) {
+        if (interactionsError) console.error('Failed to fetch saved course interactions:', interactionsError);
         return [];
     }
 
-    return (data || []).map((item: any) => ({
-        id: item.content_id,
-        ...item.courses,
-        savedAt: item.created_at
+    const courseIds = interactions.map(i => i.content_id);
+
+    // Step 2: Fetch actual course data
+    const { data: courses, error: coursesError } = await supabase
+        .from('courses')
+        .select(`
+            id,
+            title,
+            description,
+            thumbnail_url,
+            price,
+            difficulty,
+            creator:creators (
+                name,
+                profile_image
+            )
+        `)
+        .in('id', courseIds);
+
+    if (coursesError) {
+        console.error('Failed to fetch courses:', coursesError);
+        return [];
+    }
+
+    const savedAtMap = new Map(interactions.map(i => [i.content_id, i.created_at]));
+
+    return (courses || []).map((course: any) => ({
+        id: course.id,
+        title: course.title,
+        description: course.description,
+        thumbnailUrl: course.thumbnail_url,
+        price: course.price,
+        difficulty: course.difficulty,
+        creatorName: course.creator?.name,
+        creatorProfileImage: course.creator?.profile_image,
+        savedAt: savedAtMap.get(course.id)
     }));
 }
 
@@ -318,78 +357,145 @@ export async function getUserSavedCourses(userId: string) {
  * Get all saved routines for a user
  */
 export async function getUserSavedRoutines(userId: string) {
-    const { data, error } = await supabase
+    // Step 1: Get saved routine IDs
+    const { data: interactions, error: interactionsError } = await supabase
         .from('user_interactions')
-        .select(`
-      content_id,
-      created_at,
-      drill_routines (
-        id,
-        title,
-        description,
-        thumbnail_url,
-        difficulty,
-        duration_minutes,
-        creator:creators (
-          name,
-          profile_image
-        )
-      )
-    `)
+        .select('content_id, created_at')
         .eq('user_id', userId)
         .eq('content_type', 'routine')
         .eq('interaction_type', 'save')
         .order('created_at', { ascending: false });
 
-    if (error) {
-        console.error('Failed to fetch saved routines:', error);
+    if (interactionsError || !interactions || interactions.length === 0) {
+        if (interactionsError) console.error('Failed to fetch saved routine interactions:', interactionsError);
         return [];
     }
 
-    return (data || []).map((item: any) => ({
-        id: item.content_id,
-        ...item.drill_routines,
-        savedAt: item.created_at
-    }));
+    const routineIds = interactions.map(i => i.content_id);
+
+    // Step 2: Fetch actual routine data
+    const { data: routines, error: routinesError } = await supabase
+        .from('routines')
+        .select(`
+            id,
+            title,
+            description,
+            thumbnail_url,
+            difficulty,
+            creator_id,
+            views,
+            price
+        `)
+        .in('id', routineIds);
+
+    if (routinesError) {
+        console.error('Failed to fetch routines:', routinesError);
+        return [];
+    }
+
+    // Step 3: Fetch creator info separately
+    const creatorIds = [...new Set((routines || []).map((r: any) => r.creator_id).filter(Boolean))];
+    let creatorMap = new Map<string, { name: string; profile_image: string }>();
+
+    if (creatorIds.length > 0) {
+        const { data: creators } = await supabase
+            .from('creators')
+            .select('id, name, profile_image')
+            .in('id', creatorIds);
+
+        (creators || []).forEach((c: any) => {
+            creatorMap.set(c.id, { name: c.name, profile_image: c.profile_image });
+        });
+    }
+
+    const savedAtMap = new Map(interactions.map(i => [i.content_id, i.created_at]));
+
+    return (routines || []).map((routine: any) => {
+        const creator = creatorMap.get(routine.creator_id);
+        return {
+            id: routine.id,
+            title: routine.title,
+            description: routine.description,
+            thumbnailUrl: routine.thumbnail_url,
+            difficulty: routine.difficulty,
+            creatorId: routine.creator_id,
+            creatorName: creator?.name,
+            creatorProfileImage: creator?.profile_image,
+            views: routine.views || 0,
+            price: routine.price || 0,
+            savedAt: savedAtMap.get(routine.id)
+        };
+    });
 }
 
 /**
  * Get all saved sparring videos for a user
  */
 export async function getSavedSparringVideos(userId: string) {
-    const { data, error } = await supabase
+    // Step 1: Get saved sparring IDs
+    const { data: interactions, error: interactionsError } = await supabase
         .from('user_interactions')
-        .select(`
-      content_id,
-      created_at,
-      sparring_videos (
-        id,
-        title,
-        description,
-        thumbnail_url,
-        price,
-        duration_minutes,
-        creator:creators (
-          name,
-          profile_image
-        )
-      )
-    `)
+        .select('content_id, created_at')
         .eq('user_id', userId)
         .eq('content_type', 'sparring')
         .eq('interaction_type', 'save')
         .order('created_at', { ascending: false });
 
-    if (error) {
-        console.error('Failed to fetch saved sparring videos:', error);
+    if (interactionsError || !interactions || interactions.length === 0) {
+        if (interactionsError) console.error('Failed to fetch saved sparring interactions:', interactionsError);
         return [];
     }
 
-    return (data || []).map((item: any) => ({
-        id: item.content_id,
-        ...item.sparring_videos,
-        savedAt: item.created_at
-    }));
+    const sparringIds = interactions.map(i => i.content_id);
+
+    // Step 2: Fetch actual sparring data (without embedded creator select)
+    const { data: sparringVideos, error: sparringError } = await supabase
+        .from('sparring_videos')
+        .select(`
+            id,
+            title,
+            description,
+            thumbnail_url,
+            price,
+            creator_id
+        `)
+        .in('id', sparringIds);
+
+    if (sparringError) {
+        console.error('Failed to fetch sparring videos:', sparringError);
+        return [];
+    }
+
+    // Step 3: Fetch creator info separately
+    const creatorIds = [...new Set((sparringVideos || []).map((v: any) => v.creator_id).filter(Boolean))];
+    let creatorMap = new Map<string, { name: string; profile_image: string }>();
+
+    if (creatorIds.length > 0) {
+        const { data: creators } = await supabase
+            .from('creators')
+            .select('id, name, profile_image')
+            .in('id', creatorIds);
+
+        (creators || []).forEach((c: any) => {
+            creatorMap.set(c.id, { name: c.name, profile_image: c.profile_image });
+        });
+    }
+
+    const savedAtMap = new Map(interactions.map(i => [i.content_id, i.created_at]));
+
+    return (sparringVideos || []).map((video: any) => {
+        const creator = creatorMap.get(video.creator_id);
+        return {
+            id: video.id,
+            title: video.title,
+            description: video.description,
+            thumbnailUrl: video.thumbnail_url,
+            price: video.price,
+            creatorName: creator?.name,
+            creator: creator,
+            savedAt: savedAtMap.get(video.id)
+        };
+    });
 }
 
 // ============================================================================
@@ -499,44 +605,86 @@ export async function getUserLikedDrills(_userId: string) {
 }
 
 export async function getUserSavedDrills(userId: string) {
-    const { data, error } = await supabase
+    // Step 1: Get saved drill IDs
+    const { data: interactions, error: interactionsError } = await supabase
         .from('user_interactions')
-        .select(`
-      content_id,
-      created_at,
-      drills (
-        id,
-        title,
-        description,
-        thumbnail_url,
-        difficulty,
-        duration_minutes,
-        category,
-        vimeo_url,
-        creator_id,
-        creator:creators (
-          name,
-          profile_image
-        )
-      )
-    `)
+        .select('content_id, created_at')
         .eq('user_id', userId)
         .eq('content_type', 'drill')
         .eq('interaction_type', 'save')
         .order('created_at', { ascending: false });
 
-    if (error) {
-        console.error('Failed to fetch saved drills:', error);
+    if (interactionsError || !interactions || interactions.length === 0) {
+        if (interactionsError) console.error('Failed to fetch saved drill interactions:', interactionsError);
         return [];
     }
 
-    return (data || []).map((item: any) => ({
-        id: item.content_id,
-        ...item.drills,
-        creatorName: item.drills?.creator?.name,
-        creatorProfileImage: item.drills?.creator?.profile_image,
-        savedAt: item.created_at
-    }));
+    const drillIds = interactions.map(i => i.content_id);
+
+    // Step 2: Fetch actual drill data (without embedded creator select)
+    const { data: drills, error: drillsError } = await supabase
+        .from('drills')
+        .select(`
+            id,
+            title,
+            description,
+            thumbnail_url,
+            difficulty,
+            duration_minutes,
+            category,
+            vimeo_url,
+            creator_id,
+            views,
+            likes,
+            status
+        `)
+        .in('id', drillIds);
+
+    if (drillsError) {
+        console.error('Failed to fetch drills:', drillsError);
+        return [];
+    }
+
+    // Step 3: Fetch creator info separately
+    const creatorIds = [...new Set((drills || []).map((d: any) => d.creator_id).filter(Boolean))];
+    let creatorMap = new Map<string, { name: string; profile_image: string }>();
+
+    if (creatorIds.length > 0) {
+        const { data: creators } = await supabase
+            .from('creators')
+            .select('id, name, profile_image')
+            .in('id', creatorIds);
+
+        (creators || []).forEach((c: any) => {
+            creatorMap.set(c.id, { name: c.name, profile_image: c.profile_image });
+        });
+    }
+
+    const savedAtMap = new Map(interactions.map(i => [i.content_id, i.created_at]));
+
+    return (drills || []).map((drill: any) => {
+        const creator = creatorMap.get(drill.creator_id);
+        const mins = drill.duration_minutes || 0;
+        return {
+            id: drill.id,
+            title: drill.title,
+            description: drill.description,
+            thumbnailUrl: drill.thumbnail_url,
+            difficulty: drill.difficulty,
+            durationMinutes: mins,
+            duration: mins > 0 ? `${mins}분` : '',
+            category: drill.category,
+            vimeoUrl: drill.vimeo_url,
+            creatorId: drill.creator_id,
+            creatorName: creator?.name,
+            creatorProfileImage: creator?.profile_image,
+            views: drill.views || 0,
+            likes: drill.likes || 0,
+            price: 0, // Drills are free
+            aspectRatio: '9:16',
+            savedAt: savedAtMap.get(drill.id)
+        };
+    });
 }
 
 export async function getUserLikedSparring(_userId: string) {

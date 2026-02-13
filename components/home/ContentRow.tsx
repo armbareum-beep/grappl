@@ -11,12 +11,13 @@ import {
     toggleSparringSave, checkSparringSaved,
     toggleLessonSave, checkLessonSaved
 } from '../../lib/api';
+import { toggleDrillSave, checkDrillSaved } from '../../lib/api-user-interactions';
 
 const ShareModal = lazy(() => import('../social/ShareModal'));
 
 interface ContentRowItemProps {
     item: any;
-    type: 'course' | 'routine' | 'sparring' | 'lesson' | 'chain' | 'weekly-routine';
+    type: 'course' | 'routine' | 'sparring' | 'lesson' | 'chain' | 'weekly-routine' | 'drill';
     variant: 'ranking' | 'standard';
     idx: number;
     cardClass: string;
@@ -45,6 +46,7 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
                 else if (type === 'routine') saved = await checkRoutineSaved(user.id, item.id);
                 else if (type === 'sparring') saved = await checkSparringSaved(user.id, item.id);
                 else if (type === 'lesson') saved = await checkLessonSaved(user.id, item.id);
+                else if (type === 'drill') saved = await checkDrillSaved(user.id, item.id);
                 setIsSaved(saved);
             } catch (err) {
                 console.error(err);
@@ -76,6 +78,7 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
             else if (type === 'routine') await toggleRoutineSave(user.id, item.id);
             else if (type === 'sparring') await toggleSparringSave(user.id, item.id);
             else if (type === 'lesson') await toggleLessonSave(user.id, item.id);
+            else if (type === 'drill') await toggleDrillSave(user.id, item.id);
             const newSavedState = !isSaved;
             setIsSaved(newSavedState);
             // Notify other instances of the same item
@@ -99,6 +102,7 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
         if (type === 'routine') return `${origin}/routines/${item.id}`;
         if (type === 'sparring') return `${origin}/sparring/${item.id}`;
         if (type === 'lesson') return `${origin}/lessons/${item.id}`;
+        if (type === 'drill') return `${origin}/drills?id=${item.id}`;
         return origin;
     };
 
@@ -108,7 +112,7 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
 
     const categoryText = (type === 'course' || type === 'lesson' || type === 'sparring')
         ? item.category
-        : (type === 'routine' ? item.difficulty : null);
+        : ((type === 'routine' || type === 'drill') ? item.difficulty : null);
 
     const renderButtons = () => (
         <>
@@ -167,14 +171,16 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
                     <div
                         className="relative z-20 rounded-lg overflow-hidden bg-zinc-900 shadow-2xl transition-transform duration-300 group-hover:scale-[1.03] transform-gpu"
                         style={{
-                            marginLeft: (type === 'routine' || type === 'sparring') ? '75px' : '110px',
-                            width: (type === 'routine' || type === 'sparring') ? '170px' : '300px',
-                            aspectRatio: type === 'routine' ? '2/3' : type === 'sparring' ? '1/1' : '16/9'
+                            marginLeft: (type === 'routine' || type === 'drill' || type === 'sparring') ? '75px' : '110px',
+                            width: (type === 'routine' || type === 'drill' || type === 'sparring') ? '170px' : '300px',
+                            aspectRatio: (type === 'routine' || type === 'drill') ? '2/3' : type === 'sparring' ? '1/1' : '16/9'
                         }}
                     >
-                        {type === 'routine' ? (
+                        {(type === 'routine' || type === 'drill') ? (
                             <img
                                 src={getThumbnail(item)}
+                                width={170}
+                                height={255}
                                 className="absolute inset-0 !w-full !h-full !max-w-none !max-h-none object-cover !scale-[1.21] transition-transform duration-500 opacity-90 group-hover:opacity-100"
                                 alt={getTitle(item)}
                                 loading="lazy"
@@ -183,6 +189,8 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
                         ) : (
                             <img
                                 src={getThumbnail(item)}
+                                width={type === 'sparring' ? 180 : 320}
+                                height={type === 'sparring' ? 180 : 180}
                                 className="absolute inset-0 w-full h-full object-cover"
                                 alt={getTitle(item)}
                                 loading="lazy"
@@ -195,9 +203,11 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
                 </div>
             ) : (
                 <div className="w-full h-full rounded-lg overflow-hidden relative bg-zinc-900 group-hover:scale-[1.03] transition-transform duration-300 transform-gpu">
-                    {type === 'routine' ? (
+                    {(type === 'routine' || type === 'drill') ? (
                         <img
                             src={getThumbnail(item)}
+                            width={170}
+                            height={255}
                             className="absolute inset-0 !w-full !h-full !max-w-none !max-h-none object-cover !scale-[1.21] transition-transform duration-500 opacity-90 group-hover:opacity-100"
                             alt={getTitle(item)}
                             loading="lazy"
@@ -206,6 +216,8 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
                     ) : (
                         <img
                             src={getThumbnail(item)}
+                            width={type === 'sparring' ? 180 : 320}
+                            height={type === 'sparring' ? 180 : 180}
                             className="absolute inset-0 w-full h-full object-cover"
                             alt={getTitle(item)}
                             loading="lazy"
@@ -217,7 +229,7 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
                 </div>
             )}
 
-            <div className="pt-3 px-1 flex flex-col gap-0 items-start relative" style={variant === 'ranking' ? { marginLeft: (type === 'routine' || type === 'sparring') ? '75px' : '110px' } : {}}>
+            <div className="pt-3 px-1 flex flex-col gap-0 items-start relative" style={variant === 'ranking' ? { marginLeft: (type === 'routine' || type === 'drill' || type === 'sparring') ? '75px' : '110px', width: (type === 'routine' || type === 'drill' || type === 'sparring') ? '170px' : '300px' } : {}}>
                 <div className="flex-1 min-w-0 relative pb-1 pr-1 w-full">
                     <div className="flex justify-between items-start gap-1">
                         <h3 className="flex-1 text-white text-[13px] md:text-[14px] font-bold truncate md:whitespace-normal md:line-clamp-2 group-hover:text-violet-400 transition-colors uppercase tracking-tight leading-tight">{getTitle(item)}</h3>
@@ -246,7 +258,7 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
                 onClose={() => setIsActionMenuOpen(false)}
                 item={{
                     id: item.id,
-                    type: type === 'course' ? 'class' : (type === 'sparring' ? 'sparring' : 'routine'),
+                    type: type === 'course' ? 'class' : (type === 'sparring' ? 'sparring' : (type === 'drill' ? 'drill' : 'routine')),
                     title: getTitle(item),
                     thumbnailUrl: getThumbnail(item),
                     creatorName: item.creatorName || (item.creator as any)?.name || 'Grapplay Creator',
@@ -276,7 +288,7 @@ const ContentRowItem: React.FC<ContentRowItemProps> = ({
 
 interface ContentRowProps {
     items: any[];
-    type: 'course' | 'routine' | 'sparring' | 'lesson' | 'chain' | 'weekly-routine';
+    type: 'course' | 'routine' | 'sparring' | 'lesson' | 'chain' | 'weekly-routine' | 'drill';
     title: string;
     subtitle?: string;
     variant?: 'ranking' | 'standard';
@@ -295,7 +307,7 @@ export const ContentRow: React.FC<ContentRowProps> = ({
 
     if (!items || items.length === 0) return null;
 
-    const displayItems = items.slice(0, 15);
+    const displayItems = items.slice(0, 12);
 
     const handleClick = (item: any) => {
         if (type === 'course') navigate(`/courses/${item.courseId || item.id}`);
@@ -304,6 +316,7 @@ export const ContentRow: React.FC<ContentRowProps> = ({
         else if (type === 'lesson') navigate(`/lessons/${item.id}`);
         else if (type === 'chain') navigate(`/skill-tree?id=${item.id}`);
         else if (type === 'weekly-routine') navigate(`/training-routines?id=${item.id}`);
+        else if (type === 'drill') navigate(`/drills?id=${item.id}`);
     };
 
     const getThumbnail = (item: any) => {
@@ -317,14 +330,14 @@ export const ContentRow: React.FC<ContentRowProps> = ({
 
     const getSubtitle = (item: any) => {
         if (type === 'course') return item.creatorName;
-        if (type === 'routine' || type === 'weekly-routine') return item.creatorName || (item.creator ? (item.creator as any).name : 'Grapplay Team');
+        if (type === 'routine' || type === 'weekly-routine' || type === 'drill') return item.creatorName || (item.creator ? (item.creator as any).name : 'Grapplay Team');
         if (type === 'sparring') return (item.creator as any)?.name || item.creatorName || 'Sparring Video';
         return '';
     };
 
     const getCardStyle = () => {
         if (type === 'course' || type === 'lesson') return 'w-[280px] md:w-[320px] aspect-video mr-0';
-        if (type === 'routine') return 'w-[160px] md:w-[170px] aspect-[2/3] mr-0';
+        if (type === 'routine' || type === 'drill') return 'w-[160px] md:w-[170px] aspect-[2/3] mr-0';
         if (type === 'sparring' || type === 'chain' || type === 'weekly-routine') return 'w-[158px] md:w-[180px] aspect-square mr-0';
         return 'w-[260px] md:w-[320px] aspect-video';
     };
@@ -338,8 +351,15 @@ export const ContentRow: React.FC<ContentRowProps> = ({
         watchDrag: true
     });
 
+    // Calculate min-height based on content type to prevent CLS
+    const getMinHeight = () => {
+        if (type === 'routine' || type === 'drill') return 'min-h-[340px] md:min-h-[360px]';
+        if (type === 'sparring') return 'min-h-[280px] md:min-h-[300px]';
+        return 'min-h-[260px] md:min-h-[280px]'; // course, lesson
+    };
+
     return (
-        <section className="w-full mb-6 relative z-10">
+        <section className={cn("w-full mb-6 relative z-10", getMinHeight())}>
             <div className="px-4 md:px-12 mb-2 flex items-end justify-between group/header cursor-pointer" onClick={() => basePath && navigate(basePath)}>
                 <div>
                     <h2 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2 group-hover/header:text-violet-200 transition-colors">

@@ -142,8 +142,9 @@ export const Login: React.FC = () => {
                 {/* Form */}
                 <div className="space-y-8">
                     <form onSubmit={handleSubmit} className="space-y-6">
+                        {/* Error message - only render when error exists to avoid CLS from empty space */}
                         {error && (
-                            <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-start">
+                            <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-start animate-in fade-in slide-in-from-top-2 duration-200">
                                 <AlertCircle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
                                 <p className="text-sm text-red-500">{error}</p>
                             </div>

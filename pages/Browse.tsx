@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Course } from '../types';
 import { getCourses, getDailyFreeLesson } from '../lib/api'; // Maintain api imports just in case types depend on it, or better remove if unused.
 import { useCourses, useDailyFreeLesson } from '../hooks/use-queries';
@@ -16,6 +17,14 @@ export const Browse: React.FC<{
   onTabChange?: (tab: LibraryTabType) => void;
 }> = ({ isEmbedded, activeTab, onTabChange }) => {
   const { user } = useAuth(); // Restore user context
+  const [searchParams] = useSearchParams();
+
+  // Get initial sort from URL parameter
+  const getInitialSort = (): 'shuffled' | 'latest' | 'popular' => {
+    const sortParam = searchParams.get('sort');
+    if (sortParam === 'latest' || sortParam === 'popular') return sortParam;
+    return 'shuffled';
+  };
 
   // -- Filter & Sort States --
   const [internalSearchTerm, setInternalSearchTerm] = useState('');
@@ -26,7 +35,7 @@ export const Browse: React.FC<{
   const [selectedDifficulty, setSelectedDifficulty] = useState('All');
   const [selectedUniform, setSelectedUniform] = useState('All');
   const [selectedOwnership, setSelectedOwnership] = useState('All');
-  const [sortBy, setSortBy] = useState<'shuffled' | 'latest' | 'popular'>('shuffled');
+  const [sortBy, setSortBy] = useState<'shuffled' | 'latest' | 'popular'>(getInitialSort);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   const categories = ['All', 'Standing', 'Guard', 'Passing', 'Side', 'Mount', 'Back', 'Submission'];

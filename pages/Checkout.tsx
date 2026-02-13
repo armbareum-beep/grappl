@@ -36,6 +36,19 @@ export const Checkout: React.FC = () => {
     const [discountedAmount, setDiscountedAmount] = useState(0);
     const [activeTab, setActiveTab] = useState<'domestic' | 'paypal'>('domestic');
 
+    // Yearly subscriber discount state
+    const [isYearlySubscriber, setIsYearlySubscriber] = useState(false);
+    const [yearlyDiscount, setYearlyDiscount] = useState(0);
+
+    // Bundle owned content state
+    const [ownedBundleItems, setOwnedBundleItems] = useState<{
+        courses: { id: string; title: string; price: number }[];
+        drills: { id: string; title: string; price: number }[];
+        routines: { id: string; title: string; price: number }[];
+        sparring: { id: string; title: string; price: number }[];
+    }>({ courses: [], drills: [], routines: [], sparring: [] });
+    const [ownedItemsDiscount, setOwnedItemsDiscount] = useState(0);
+
     const isYearly = productTitle.includes('(연간)');
 
     useEffect(() => {
@@ -87,9 +100,109 @@ export const Checkout: React.FC = () => {
                 initialAmount = feedback?.price || 0;
                 setProductTitle('피드백 요청');
             } else if (type === 'bundle') {
-                const { data: bundle } = await supabase.from('bundles').select('title, price').eq('id', id).single();
+                const { data: bundle } = await supabase.from('bundles').select('title, price, course_ids, drill_ids, routine_ids, sparring_ids').eq('id', id as string).single() as { data: any };
                 initialAmount = bundle?.price || 0;
                 setProductTitle(bundle?.title || '번들 패키지');
+
+                // Check for already owned content in bundle
+                if (bundle && user?.id) {
+                    const ownedItems: typeof ownedBundleItems = { courses: [], drills: [], routines: [], sparring: [] };
+                    let totalOwnedPrice = 0;
+
+                    // Check owned courses
+                    if (bundle.course_ids?.length > 0) {
+                        const { data: enrollments } = await supabase
+                            .from('course_enrollments' as any)
+                            .select('course_id')
+                            .eq('user_id', user.id)
+                            .in('course_id', bundle.course_ids);
+
+                        if (enrollments?.length) {
+                            const ownedCourseIds = enrollments.map((e: any) => e.course_id);
+                            const { data: courses } = await supabase
+                                .from('courses')
+                                .select('id, title, price')
+                                .in('id', ownedCourseIds);
+
+                            if (courses) {
+                                ownedItems.courses = courses.map(c => ({ id: c.id, title: c.title, price: c.price || 0 }));
+                                totalOwnedPrice += courses.reduce((sum, c) => sum + (c.price || 0), 0);
+                            }
+                        }
+                    }
+
+                    // Check owned drills
+                    if (bundle.drill_ids?.length > 0) {
+                        const { data: userDrills } = await supabase
+                            .from('user_drills' as any)
+                            .select('drill_id')
+                            .eq('user_id', user.id)
+                            .in('drill_id', bundle.drill_ids);
+
+                        if (userDrills?.length) {
+                            const ownedDrillIds = userDrills.map((d: any) => d.drill_id);
+                            const { data: drills } = await supabase
+                                .from('drills')
+                                .select('id, title, price')
+                                .in('id', ownedDrillIds) as { data: any[] | null };
+
+                            if (drills) {
+                                ownedItems.drills = drills.map((d: any) => ({ id: d.id, title: d.title, price: d.price || 0 }));
+                                totalOwnedPrice += drills.reduce((sum: number, d: any) => sum + (d.price || 0), 0);
+                            }
+                        }
+                    }
+
+                    // Check owned routines
+                    if (bundle.routine_ids?.length > 0) {
+                        const { data: userRoutines } = await supabase
+                            .from('user_routines' as any)
+                            .select('routine_id')
+                            .eq('user_id', user.id)
+                            .in('routine_id', bundle.routine_ids);
+
+                        if (userRoutines?.length) {
+                            const ownedRoutineIds = userRoutines.map((r: any) => r.routine_id);
+                            const { data: routines } = await supabase
+                                .from('routines')
+                                .select('id, title, price')
+                                .in('id', ownedRoutineIds);
+
+                            if (routines) {
+                                ownedItems.routines = routines.map(r => ({ id: r.id, title: r.title, price: r.price || 0 }));
+                                totalOwnedPrice += routines.reduce((sum, r) => sum + (r.price || 0), 0);
+                            }
+                        }
+                    }
+
+                    // Check owned sparring videos
+                    if (bundle.sparring_ids?.length > 0) {
+                        const { data: userVideos } = await supabase
+                            .from('user_videos' as any)
+                            .select('video_id')
+                            .eq('user_id', user.id)
+                            .in('video_id', bundle.sparring_ids);
+
+                        if (userVideos?.length) {
+                            const ownedVideoIds = userVideos.map((v: any) => v.video_id);
+                            const { data: videos } = await supabase
+                                .from('sparring_videos')
+                                .select('id, title, price')
+                                .in('id', ownedVideoIds);
+
+                            if (videos) {
+                                ownedItems.sparring = videos.map(v => ({ id: v.id, title: v.title, price: v.price || 0 }));
+                                totalOwnedPrice += videos.reduce((sum, v) => sum + (v.price || 0), 0);
+                            }
+                        }
+                    }
+
+                    setOwnedBundleItems(ownedItems);
+                    // Cap the discount at bundle price (can't go negative)
+                    const cappedDiscount = Math.min(totalOwnedPrice, initialAmount);
+                    setOwnedItemsDiscount(cappedDiscount);
+                    initialAmount = initialAmount - cappedDiscount;
+                }
             } else if (type === 'drill') {
                 const { data: drill } = await supabase.from('drills').select('title, price').eq('id', id).single();
                 initialAmount = drill?.price || 0;
@@ -110,8 +223,31 @@ export const Checkout: React.FC = () => {
                     setProductTitle(isYearly ? 'Basic 구독 (연간)' : 'Basic 구독 (월간)');
                 }
             }
-            setAmount(initialAmount);
-            setDiscountedAmount(initialAmount);
+
+            // Store original amount before any discounts
+            const originalAmount = initialAmount;
+
+            // Check if user is yearly subscriber for automatic 30% discount on single items (excluding bundles and drills)
+            const eligibleForYearlyDiscount = ['course', 'routine', 'sparring'].includes(type || '');
+            let yearlyDiscountAmount = 0;
+
+            if (eligibleForYearlyDiscount && user?.id) {
+                const { data: subscription } = await supabase
+                    .from('subscriptions')
+                    .select('plan_interval, status')
+                    .eq('user_id', user.id)
+                    .eq('status', 'active')
+                    .maybeSingle();
+
+                if (subscription?.plan_interval === 'year') {
+                    setIsYearlySubscriber(true);
+                    yearlyDiscountAmount = Math.round(originalAmount * 0.3);
+                    setYearlyDiscount(yearlyDiscountAmount);
+                }
+            }
+
+            setAmount(originalAmount);
+            setDiscountedAmount(originalAmount - yearlyDiscountAmount);
             setLoading(false);
         } catch (err: any) {
             console.error('Error fetching product info:', err);
@@ -127,17 +263,20 @@ export const Checkout: React.FC = () => {
 
         try {
             const { data, error: vError } = await validateCoupon(couponCode);
+            // Base amount after yearly subscriber discount
+            const baseAmount = amount - yearlyDiscount;
+
             if (vError) {
                 setCouponError(vError.message || '유효하지 않은 쿠폰입니다.');
                 setAppliedCoupon(null);
-                setDiscountedAmount(amount);
+                setDiscountedAmount(baseAmount);
             } else if (data) {
                 setAppliedCoupon(data);
-                let newAmount = amount;
+                let newAmount = baseAmount;
                 if (data.discountType === 'percent') {
-                    newAmount = amount * (1 - data.value / 100);
+                    newAmount = baseAmount * (1 - data.value / 100);
                 } else if (data.discountType === 'fixed') {
-                    newAmount = Math.max(0, amount - data.value);
+                    newAmount = Math.max(0, baseAmount - data.value);
                 }
                 setDiscountedAmount(Math.round(newAmount));
             }
@@ -243,12 +382,30 @@ export const Checkout: React.FC = () => {
                                     <span>₩{amount.toLocaleString()}</span>
                                 </div>
 
+                                {isYearlySubscriber && yearlyDiscount > 0 && (
+                                    <div className="flex justify-between items-center text-violet-400 font-bold">
+                                        <span className="flex items-center gap-1.5 uppercase text-xs tracking-wider">
+                                            <Tag className="w-3.5 h-3.5" /> 연간 구독자 30% 할인
+                                        </span>
+                                        <span>-₩{yearlyDiscount.toLocaleString()}</span>
+                                    </div>
+                                )}
+
+                                {type === 'bundle' && ownedItemsDiscount > 0 && (
+                                    <div className="flex justify-between items-center text-blue-400 font-bold">
+                                        <span className="flex items-center gap-1.5 uppercase text-xs tracking-wider">
+                                            <Check className="w-3.5 h-3.5" /> 이미 보유한 콘텐츠 차감
+                                        </span>
+                                        <span>-₩{ownedItemsDiscount.toLocaleString()}</span>
+                                    </div>
+                                )}
+
                                 {appliedCoupon && (
                                     <div className="flex justify-between items-center text-emerald-400 font-bold">
                                         <span className="flex items-center gap-1.5 uppercase text-xs tracking-wider">
                                             <Tag className="w-3.5 h-3.5" /> Coupon Discount
                                         </span>
-                                        <span>-₩{(amount - discountedAmount).toLocaleString()}</span>
+                                        <span>-₩{(amount - yearlyDiscount - discountedAmount).toLocaleString()}</span>
                                     </div>
                                 )}
 
@@ -261,6 +418,42 @@ export const Checkout: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Owned Bundle Items Detail */}
+                            {type === 'bundle' && ownedItemsDiscount > 0 && (
+                                <div className="mt-6 p-4 bg-blue-500/5 border border-blue-500/20 rounded-2xl">
+                                    <h4 className="text-xs font-black text-blue-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                        <Check className="w-4 h-4" />
+                                        이미 보유 중인 콘텐츠
+                                    </h4>
+                                    <div className="space-y-2 text-sm">
+                                        {ownedBundleItems.courses.map(item => (
+                                            <div key={item.id} className="flex justify-between text-zinc-400">
+                                                <span className="truncate mr-2">{item.title}</span>
+                                                <span className="text-blue-400 flex-shrink-0">-₩{item.price.toLocaleString()}</span>
+                                            </div>
+                                        ))}
+                                        {ownedBundleItems.drills.map(item => (
+                                            <div key={item.id} className="flex justify-between text-zinc-400">
+                                                <span className="truncate mr-2">{item.title}</span>
+                                                <span className="text-blue-400 flex-shrink-0">-₩{item.price.toLocaleString()}</span>
+                                            </div>
+                                        ))}
+                                        {ownedBundleItems.routines.map(item => (
+                                            <div key={item.id} className="flex justify-between text-zinc-400">
+                                                <span className="truncate mr-2">{item.title}</span>
+                                                <span className="text-blue-400 flex-shrink-0">-₩{item.price.toLocaleString()}</span>
+                                            </div>
+                                        ))}
+                                        {ownedBundleItems.sparring.map(item => (
+                                            <div key={item.id} className="flex justify-between text-zinc-400">
+                                                <span className="truncate mr-2">{item.title}</span>
+                                                <span className="text-blue-400 flex-shrink-0">-₩{item.price.toLocaleString()}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Coupon Section */}
                             <div className="pt-8 border-t border-zinc-800">
@@ -306,7 +499,7 @@ export const Checkout: React.FC = () => {
                                         <button
                                             onClick={() => {
                                                 setAppliedCoupon(null);
-                                                setDiscountedAmount(amount);
+                                                setDiscountedAmount(amount - yearlyDiscount);
                                                 setCouponCode('');
                                             }}
                                             className="text-zinc-500 hover:text-white transition-colors text-xs font-black underline underline-offset-4"

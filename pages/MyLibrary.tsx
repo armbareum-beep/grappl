@@ -4,21 +4,24 @@ import {
   getUserCourses,
   getCourseProgress,
   getUserRoutines,
-  getSavedSparringVideos,
-  getUserSavedRoutines,
-  getUserSavedLessons,
-  getUserSavedCourses,
   getPurchasedSparringVideos
 } from '../lib/api';
+import {
+  getUserSavedDrills,
+  getUserSavedLessons,
+  getUserSavedRoutines,
+  getUserSavedCourses,
+  getSavedSparringVideos
+} from '../lib/api-user-interactions';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { listUserSkillTrees } from '../lib/api-skill-tree';
 import { listUserWeeklyRoutinePlans } from '../lib/api-weekly-routine';
-import { Course, DrillRoutine, SparringVideo, UserSkillTree, Lesson, WeeklyRoutinePlan } from '../types';
+import { Course, DrillRoutine, SparringVideo, UserSkillTree, Lesson, WeeklyRoutinePlan, Drill } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { Bookmark, Network, Video, Clock } from 'lucide-react';
+import { Bookmark, Network } from 'lucide-react';
 import { Button } from '../components/Button';
 import { ContentRow } from '../components/home/ContentRow';
 
@@ -35,6 +38,7 @@ export const MyLibrary: React.FC = () => {
   const [myCourses, setMyCourses] = useState<CourseWithProgress[]>([]);
   const [savedLessons, setSavedLessons] = useState<Lesson[]>([]);
   const [allRoutines, setAllRoutines] = useState<DrillRoutine[]>([]);
+  const [savedDrills, setSavedDrills] = useState<Drill[]>([]);
   const [chains, setChains] = useState<UserSkillTree[]>([]);
   const [mySparring, setMySparring] = useState<SparringVideo[]>([]);
   const [weeklySchedule, setWeeklySchedule] = useState<Record<string, DrillRoutine[]>>({});
@@ -59,6 +63,7 @@ export const MyLibrary: React.FC = () => {
           personalRoutinesData,
           savedRoutinesData,
           savedLessonsData,
+          savedDrillsData,
           savedSparringData,
           purchasedSparringData,
           chainsData,
@@ -69,6 +74,7 @@ export const MyLibrary: React.FC = () => {
           getUserRoutines(user.id),
           getUserSavedRoutines(user.id),
           getUserSavedLessons(user.id),
+          getUserSavedDrills(user.id),
           getSavedSparringVideos(user.id),
           getPurchasedSparringVideos(user.id),
           listUserSkillTrees(user.id),
@@ -99,7 +105,8 @@ export const MyLibrary: React.FC = () => {
         });
 
         setMyCourses(Array.from(uniqueCoursesMap.values()));
-        setSavedLessons(savedLessonsData || []);
+        setSavedLessons((savedLessonsData || []) as any);
+        setSavedDrills((savedDrillsData || []) as any);
 
         // Process Routines
         const routinesRaw = personalRoutinesData as any;
@@ -171,39 +178,61 @@ export const MyLibrary: React.FC = () => {
     );
   }
 
-  const hasContent = myCourses.length > 0 || savedLessons.length > 0 || allRoutines.length > 0 || mySparring.length > 0 || chains.length > 0;
+  const hasContent = myCourses.length > 0 || savedLessons.length > 0 || allRoutines.length > 0 || savedDrills.length > 0 || mySparring.length > 0 || chains.length > 0;
 
   return (
     <div className="bg-zinc-950 min-h-screen pb-20">
       <div className="max-w-full py-8 space-y-12 px-4 md:px-12">
         <h1 className="text-3xl font-bold text-white mb-2">저장됨</h1>
 
-        {/* Row 1: Classes & Lessons */}
-        {(myCourses.length > 0 || savedLessons.length > 0) && (
+        {/* Row 1: Classes */}
+        {myCourses.length > 0 && (
           <ContentRow
-            title="Classes & Lessons"
-            subtitle="수강 중이거나 저장한 클래스와 레슨"
-            items={[...myCourses, ...savedLessons]}
+            title="Classes"
+            subtitle="수강 중이거나 저장한 클래스"
+            items={myCourses}
             type="course"
             basePath="/saved/classes"
           />
         )}
 
-        {/* Row 2: Routines */}
+        {/* Row 2: Lessons */}
+        {savedLessons.length > 0 && (
+          <ContentRow
+            title="Lessons"
+            subtitle="저장한 레슨"
+            items={savedLessons}
+            type="lesson"
+            basePath="/saved/lessons"
+          />
+        )}
+
+        {/* Row 3: Routines */}
         {allRoutines.length > 0 && (
           <ContentRow
-            title="Training Routines"
-            subtitle="내 훈련 루틴 및 드릴"
+            title="Routines"
+            subtitle="내 훈련 루틴"
             items={allRoutines}
             type="routine"
             basePath="/saved/routines"
           />
         )}
 
-        {/* Row 3: Sparring */}
+        {/* Row 4: Drills */}
+        {savedDrills.length > 0 && (
+          <ContentRow
+            title="Drills"
+            subtitle="저장한 드릴"
+            items={savedDrills}
+            type="drill"
+            basePath="/saved/drills"
+          />
+        )}
+
+        {/* Row 5: Sparring */}
         {mySparring.length > 0 && (
           <ContentRow
-            title="My Sparring"
+            title="Sparring"
             subtitle="저장한 스파링 영상"
             items={mySparring}
             type="sparring"
@@ -211,7 +240,7 @@ export const MyLibrary: React.FC = () => {
           />
         )}
 
-        {/* Row 4: Roadmap */}
+        {/* Row 6: Roadmap */}
         {chains.length > 0 && (
           <ContentRow
             title="My Roadmap"
@@ -222,14 +251,14 @@ export const MyLibrary: React.FC = () => {
           />
         )}
 
-        {/* Row 5: Weekly Routines */}
+        {/* Row 7: Weekly Routines */}
         {weeklyRoutines.length > 0 && (
           <ContentRow
             title="Weekly Routine"
             subtitle="내가 계획한 주간 훈련 일정"
             items={weeklyRoutines}
             type="weekly-routine"
-            basePath="/arena"
+            basePath="/saved/weekly-routines"
           />
         )}
 

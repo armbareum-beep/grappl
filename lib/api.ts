@@ -4040,6 +4040,7 @@ export async function getFeedbackRequests(userId: string, role: 'student' | 'ins
         videoUrl: req.video_url,
         description: req.description,
         status: req.status,
+        paymentStatus: req.payment_status,
         price: req.price,
         feedbackContent: req.feedback_content,
         responseVideoUrl: req.response_video_url,
@@ -8737,6 +8738,43 @@ export async function proxyImageFetch(imageUrl: string): Promise<{ base64?: stri
         return { base64: data.base64 };
     } catch (error: any) {
         console.error('Error proxying image:', error);
+        return { error: error.message };
+    }
+}
+
+export async function createVimeoThumbnailAtTime(vimeoId: string, time: number): Promise<{
+    base64?: string;
+    thumbnailUrl?: string;
+    error?: string;
+}> {
+    // Skip Mux playback IDs
+    if (isMuxPlaybackId(vimeoId)) {
+        return { error: 'Mux playback ID - not a Vimeo video' };
+    }
+
+    try {
+        const response = await fetch('/api/upload-to-vimeo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'create_thumbnail_at_time',
+                vimeoId,
+                time
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            return { error: data.error || 'Failed to create thumbnail' };
+        }
+
+        return {
+            base64: data.base64,
+            thumbnailUrl: data.thumbnailUrl
+        };
+    } catch (error: any) {
+        console.error('Error creating Vimeo thumbnail:', error);
         return { error: error.message };
     }
 }

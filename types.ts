@@ -372,6 +372,7 @@ export interface FeedbackRequest {
   videoUrl: string;
   description: string;
   status: FeedbackStatus;
+  paymentStatus?: 'pending' | 'paid';
   price: number;
   feedbackContent?: string;
   responseVideoUrl?: string;

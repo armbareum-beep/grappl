@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -6,6 +6,7 @@ import {
     updateSparringVideo,
     getDrills,
     getAllCreatorLessons,
+    uploadThumbnail,
 } from '../../lib/api';
 import {
     ArrowLeft,
@@ -18,12 +19,17 @@ import {
     ChevronRight,
     Type,
     Settings2,
-    Tags
+    Tags,
+    Camera,
+    Image as ImageIcon
 } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import { UniformType, SparringVideo, Drill, Lesson } from '../../types';
 import { Button } from '../../components/Button';
 import { cn } from '../../lib/utils';
+import { extractVimeoId, extractVimeoHash } from '../../lib/vimeo';
+import { ThumbnailCropper } from '../../components/ThumbnailCropper';
+import Player from '@vimeo/player';
 
 export const UploadSparring: React.FC = () => {
     const { user, loading, isAdmin } = useAuth();
@@ -51,6 +57,13 @@ export const UploadSparring: React.FC = () => {
     const [lessons, setLessons] = useState<Lesson[]>([]);
     const [activeTab, setActiveTab] = useState<'drills' | 'lessons'>('drills');
     const [searchQuery, setSearchQuery] = useState('');
+
+    // Vimeo & Thumbnail State
+    const [vimeoUrl, setVimeoUrl] = useState('');
+    const [vimeoEmbedUrl, setVimeoEmbedUrl] = useState('');
+    const [croppingImage, setCroppingImage] = useState<string | null>(null);
+    const vimeoIframeRef = useRef<HTMLIFrameElement>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
         if (!loading && !user) {
@@ -91,6 +104,25 @@ export const UploadSparring: React.FC = () => {
             setVideoUrl(data.videoUrl || '');
             setThumbnailUrl(data.thumbnailUrl || '');
 
+            // Load Vimeo URL if exists - videoUrl에 Vimeo URL이 저장됨
+            const targetUrl = data.videoUrl || '';
+            if (targetUrl) {
+                const vId = extractVimeoId(targetUrl);
+                const vHash = extractVimeoHash(targetUrl);
+                if (vId) {
+                    setVimeoUrl(targetUrl);
+                    let embedUrl = `https://player.vimeo.com/video/${vId}`;
+                    if (vHash) embedUrl += `?h=${vHash}`;
+                    setVimeoEmbedUrl(embedUrl);
+                }
+            }
+
+            console.log('[UploadSparring] Loaded video:', {
+                videoUrl: data.videoUrl,
+                thumbnailUrl: data.thumbnailUrl,
+                extractedVimeoId: extractVimeoId(targetUrl)
+            });
+
         } catch (err: any) {
             console.error(err);
             toastError('정보를 불러오는데 실패했습니다.');
@@ -108,9 +140,94 @@ export const UploadSparring: React.FC = () => {
             ]);
 
             setDrills(Array.isArray(drillsData) ? drillsData : (drillsData as any)?.data || []);
-            setLessons(lessonsData || []);
+            setLessons(Array.isArray(lessonsData) ? lessonsData : (lessonsData as any)?.data || []);
         } catch (err) {
             console.error('Failed to load content for selection:', err);
+        }
+    };
+
+
+    const captureFromVideo = async () => {
+        try {
+            // Vimeo 영상인 경우
+            if (vimeoUrl && vimeoIframeRef.current) {
+                const vimeoId = extractVimeoId(vimeoUrl);
+                if (!vimeoId) {
+                    toastError('Vimeo 영상 ID를 찾을 수 없습니다.');
+                    return;
+                }
+
+                const player = new Player(vimeoIframeRef.current);
+                const currentTime = await player.getCurrentTime();
+                const thumbnailUrl = `https://vumbnail.com/${vimeoId}.jpg?time=${Math.floor(currentTime)}`;
+
+                const response = await fetch(thumbnailUrl);
+                const blob = await response.blob();
+
+                const reader = new FileReader();
+                reader.onload = () => {
+                    setCroppingImage(reader.result as string);
+                };
+                reader.readAsDataURL(blob);
+                return;
+            }
+
+            // 로컬 비디오인 경우
+            if (!videoRef.current) {
+                toastError('영상이 로드되지 않았습니다.');
+                return;
+            }
+            const video = videoRef.current;
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            setCroppingImage(canvas.toDataURL('image/jpeg', 1.0));
+        } catch (e: any) {
+            console.error('Capture failed:', e);
+            toastError('화면 캡처에 실패했습니다.');
+        }
+    };
+
+    const fetchVimeoThumbnail = async (timeOffset: number = 0) => {
+        const vimeoId = extractVimeoId(vimeoUrl);
+        if (!vimeoId) {
+            toastError('Vimeo 영상 ID를 찾을 수 없습니다.');
+            return;
+        }
+        try {
+            const thumbnailUrl = `https://vumbnail.com/${vimeoId}.jpg?time=${timeOffset}`;
+            const response = await fetch(thumbnailUrl);
+            const blob = await response.blob();
+
+            const reader = new FileReader();
+            reader.onload = () => {
+                setCroppingImage(reader.result as string);
+            };
+            reader.readAsDataURL(blob);
+        } catch (e) {
+            console.error('Failed to fetch vimeo thumbnail:', e);
+            toastError('Vimeo 썸네일을 가져오는데 실패했습니다.');
+        }
+    };
+
+    const handleCropComplete = async (blob: Blob) => {
+        setIsSubmitting(true);
+        try {
+            const { url, error } = await uploadThumbnail(blob);
+            if (error) throw error;
+            if (url) {
+                setThumbnailUrl(url);
+                success('썸네일이 저장되었습니다.');
+            }
+        } catch (err) {
+            console.error('Thumbnail upload failed:', err);
+            toastError('썸네일 저장에 실패했습니다.');
+        } finally {
+            setIsSubmitting(false);
+            setCroppingImage(null);
         }
     };
 
@@ -143,7 +260,8 @@ export const UploadSparring: React.FC = () => {
                 category: category as any,
                 uniformType,
                 difficulty: undefined as any,
-                price
+                price,
+                thumbnailUrl
             });
 
             if (error) throw error;
@@ -176,6 +294,16 @@ export const UploadSparring: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-zinc-950 text-white pb-24">
+            {/* Thumbnail Cropper Modal */}
+            {croppingImage && (
+                <ThumbnailCropper
+                    imageSrc={croppingImage}
+                    onCropComplete={handleCropComplete}
+                    onCancel={() => setCroppingImage(null)}
+                    aspectRatio={16 / 9}
+                />
+            )}
+
             {/* Header Sticky Bar */}
             <div className="sticky top-0 z-30 bg-zinc-950/80 backdrop-blur-xl border-b border-zinc-800">
                 <div className="max-w-5xl mx-auto px-4 h-20 flex items-center justify-between">
@@ -223,12 +351,23 @@ export const UploadSparring: React.FC = () => {
                         {/* Video Card */}
                         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl">
                             <div className="aspect-video bg-black relative">
-                                {videoUrl ? (
+                                {vimeoEmbedUrl ? (
+                                    <iframe
+                                        ref={vimeoIframeRef}
+                                        src={vimeoEmbedUrl}
+                                        className="w-full h-full"
+                                        frameBorder="0"
+                                        allow="autoplay; fullscreen"
+                                        allowFullScreen
+                                    />
+                                ) : videoUrl ? (
                                     <video
+                                        ref={videoRef}
                                         src={videoUrl}
                                         poster={thumbnailUrl}
                                         className="w-full h-full object-contain"
                                         controls
+                                        crossOrigin="anonymous"
                                     />
                                 ) : (
                                     <div className="w-full h-full flex flex-col items-center justify-center text-zinc-600 gap-3">
@@ -237,6 +376,70 @@ export const UploadSparring: React.FC = () => {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Thumbnail Controls */}
+                            {(vimeoEmbedUrl || videoUrl) && (
+                                <div className="p-4 border-b border-zinc-800 bg-zinc-900/80">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">썸네일</span>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={captureFromVideo}
+                                                className="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 rounded-lg text-white text-xs font-bold flex items-center gap-1.5 transition-colors"
+                                            >
+                                                <Camera className="w-3.5 h-3.5" /> 현재 화면 캡처
+                                            </button>
+                                            <label className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 text-xs font-bold cursor-pointer transition-colors flex items-center gap-1.5">
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={(e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (file) {
+                                                            const reader = new FileReader();
+                                                            reader.onload = (event) => {
+                                                                setCroppingImage(event.target?.result as string);
+                                                            };
+                                                            reader.readAsDataURL(file);
+                                                        }
+                                                    }}
+                                                    className="hidden"
+                                                />
+                                                <ImageIcon className="w-3.5 h-3.5" /> 이미지 업로드
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    {/* Vimeo Thumbnail Suggestions */}
+                                    {vimeoEmbedUrl && (
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] text-zinc-500 font-medium">Vimeo 추천:</span>
+                                            <button
+                                                onClick={() => fetchVimeoThumbnail(0)}
+                                                className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 rounded text-[10px] font-bold text-zinc-400 hover:text-white transition-colors"
+                                            >
+                                                시작 장면
+                                            </button>
+                                            <button
+                                                onClick={() => fetchVimeoThumbnail(30)}
+                                                className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 rounded text-[10px] font-bold text-zinc-400 hover:text-white transition-colors"
+                                            >
+                                                30초 장면
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* Current Thumbnail Preview */}
+                                    {thumbnailUrl && (
+                                        <div className="mt-3 flex items-center gap-3">
+                                            <div className="w-24 aspect-video rounded-lg overflow-hidden border border-zinc-700">
+                                                <img src={thumbnailUrl} alt="현재 썸네일" className="w-full h-full object-cover" />
+                                            </div>
+                                            <span className="text-[10px] text-zinc-500">현재 썸네일</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                             <div className="p-6 bg-zinc-900/50">
                                 <div className="space-y-6">
                                     <div className="space-y-4">

@@ -4,7 +4,7 @@ import { Drill } from '../types';
 import { PlayCircle, Clock, Bookmark, Share2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
-import { toggleRoutineSave, checkRoutineSaved } from '../lib/api';
+import { toggleDrillSave, checkDrillSaved } from '../lib/api-user-interactions';
 
 const ShareModal = lazy(() => import('./social/ShareModal'));
 
@@ -21,10 +21,7 @@ export const DrillCard: React.FC<DrillCardProps> = ({ drill, className }) => {
 
     useEffect(() => {
         if (user && drill.id) {
-            // NOTE: Currently drills are linked to routines via drill.id in this component's Link.
-            // Using checkRoutineSaved as a proxy if it's meant to be a routine card,
-            // or we might need checkDrillSaved if we introduce it.
-            checkRoutineSaved(user.id, drill.id).then(setIsSaved).catch(console.error);
+            checkDrillSaved(user.id, drill.id).then(setIsSaved).catch(console.error);
         }
     }, [user?.id, drill.id]);
 
@@ -36,7 +33,7 @@ export const DrillCard: React.FC<DrillCardProps> = ({ drill, className }) => {
             return;
         }
         try {
-            await toggleRoutineSave(user.id, drill.id);
+            await toggleDrillSave(user.id, drill.id);
             setIsSaved(!isSaved);
         } catch (err) {
             console.error(err);
@@ -52,7 +49,7 @@ export const DrillCard: React.FC<DrillCardProps> = ({ drill, className }) => {
     return (
         <div className={cn("flex flex-col h-full", className)}>
             <Link
-                to={`/routines/${drill.id}`}
+                to={`/drills?id=${drill.id}`}
                 className={cn(
                     "group block relative overflow-hidden rounded-lg bg-slate-900 transition-all duration-500 hover:shadow-[0_0_30px_rgba(124,58,237,0.2)] hover:ring-1 hover:ring-violet-500/30 grow aspect-[9/16]"
                 )}
@@ -105,7 +102,7 @@ export const DrillCard: React.FC<DrillCardProps> = ({ drill, className }) => {
 
                 {/* Views (Moved/Integrated or Hidden on hover) */}
                 <div className="absolute top-2.5 left-2.5 text-[10px] text-white bg-black/50 backdrop-blur-sm rounded px-1.5 py-0.5 opacity-100 group-hover:opacity-0 transition-opacity">
-                    {drill.views.toLocaleString()} views
+                    {(drill.views || 0).toLocaleString()} views
                 </div>
             </Link>
 
@@ -114,18 +111,18 @@ export const DrillCard: React.FC<DrillCardProps> = ({ drill, className }) => {
                 {/* Duration Badge */}
                 <div className="flex items-center gap-1 text-[10px] text-zinc-400 mb-1.5 font-bold uppercase tracking-tight">
                     <Clock className="w-3 h-3" />
-                    <span>{drill.duration}</span>
+                    <span>{drill.duration || (drill.durationMinutes ? `${drill.durationMinutes}분` : '')}</span>
                 </div>
 
                 {/* Title */}
-                <Link to={`/routines/${drill.id}`}>
+                <Link to={`/drills?id=${drill.id}`}>
                     <h3 className="font-bold text-zinc-100 text-sm line-clamp-2 leading-tight group-hover:text-violet-400 transition-colors">{drill.title}</h3>
                 </Link>
 
                 {/* Creator & Price */}
                 <div className="flex items-center justify-between mt-2">
                     <span className="text-zinc-500 text-[11px] font-medium truncate max-w-[100px]">{drill.creatorName}</span>
-                    <span className="text-zinc-100 text-xs font-bold">₩{drill.price.toLocaleString()}</span>
+                    <span className="text-zinc-100 text-xs font-bold">{drill.price ? `₩${drill.price.toLocaleString()}` : '무료'}</span>
                 </div>
             </div>
 
@@ -137,7 +134,7 @@ export const DrillCard: React.FC<DrillCardProps> = ({ drill, className }) => {
                         title={drill.title}
                         text={`${drill.creatorName || 'Grapplay'}님의 드릴을 확인해보세요!`}
                         imageUrl={drill.thumbnailUrl}
-                        url={`${window.location.origin}/routines/${drill.id}`}
+                        url={`${window.location.origin}/drills?id=${drill.id}`}
                     />
                 )}
             </Suspense>

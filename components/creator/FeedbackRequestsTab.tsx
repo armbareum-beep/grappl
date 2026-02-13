@@ -241,7 +241,17 @@ export const FeedbackRequestsTab: React.FC = () => {
 
                                 <div className="flex gap-2">
                                     <button
-                                        onClick={() => setSelectedRequest(request)}
+                                        onClick={async () => {
+                                            // Update status to in_progress when creator starts working on feedback
+                                            if (request.status === 'pending') {
+                                                await updateFeedbackStatus(request.id, 'in_progress');
+                                                // Update local state
+                                                setRequests(prev => prev.map(r =>
+                                                    r.id === request.id ? { ...r, status: 'in_progress' } : r
+                                                ));
+                                            }
+                                            setSelectedRequest(request);
+                                        }}
                                         className={cn(
                                             "px-6 py-2 rounded-lg font-bold transition-all flex items-center gap-2 shadow-lg",
                                             request.status === 'completed'

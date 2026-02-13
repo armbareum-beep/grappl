@@ -157,6 +157,8 @@ export const Home: React.FC = () => {
                                                     {drill.thumbnailUrl ? (
                                                         <img
                                                             src={getOptimizedThumbnail(drill.thumbnailUrl, idx === 0 ? 'large' : 'medium')}
+                                                            width={1280}
+                                                            height={720}
                                                             className="absolute inset-0 !w-full !h-full !max-w-none !max-h-none object-cover !scale-[1.21] transition-transform duration-500"
                                                             alt={drill.title}
                                                             fetchPriority={idx === 0 ? "high" : "low"}
@@ -215,6 +217,8 @@ export const Home: React.FC = () => {
                                                     {lesson.thumbnailUrl ? (
                                                         <img
                                                             src={getOptimizedThumbnail(lesson.thumbnailUrl, idx === 0 ? 'large' : 'medium')}
+                                                            width={1280}
+                                                            height={720}
                                                             className="absolute inset-0 w-full h-full object-cover"
                                                             alt={lesson.title}
                                                             fetchPriority={idx === 0 ? "high" : "low"}
@@ -273,6 +277,8 @@ export const Home: React.FC = () => {
                                                     {sparring.thumbnailUrl ? (
                                                         <img
                                                             src={getOptimizedThumbnail(sparring.thumbnailUrl, idx === 0 ? 'large' : 'medium')}
+                                                            width={1280}
+                                                            height={720}
                                                             className="absolute inset-0 w-full h-full object-cover"
                                                             alt={sparring.title}
                                                             fetchPriority={idx === 0 ? "high" : "low"}
@@ -389,7 +395,7 @@ export const Home: React.FC = () => {
                             items={trendingCourses}
                             type="course"
                             variant="standard"
-                            basePath="/courses"
+                            basePath="/courses?sort=popular"
                         />
                     )
                 }
@@ -402,7 +408,7 @@ export const Home: React.FC = () => {
                             items={newCourses}
                             type="course"
                             variant="standard"
-                            basePath="/courses"
+                            basePath="/courses?sort=latest"
                         />
                     )
                 }
@@ -415,7 +421,7 @@ export const Home: React.FC = () => {
                             items={featuredRoutines}
                             type="routine"
                             variant="ranking"
-                            basePath="/routines"
+                            basePath="/routines?sort=popular"
                         />
                     )
                 }
@@ -428,7 +434,7 @@ export const Home: React.FC = () => {
                             items={newRoutines}
                             type="routine"
                             variant="standard"
-                            basePath="/routines"
+                            basePath="/routines?sort=latest"
                         />
                     )
                 }
@@ -441,7 +447,7 @@ export const Home: React.FC = () => {
                             items={trendingSparring}
                             type="sparring"
                             variant="standard"
-                            basePath="/sparring"
+                            basePath="/sparring?sort=popular"
                         />
                     )
                 }
@@ -454,7 +460,7 @@ export const Home: React.FC = () => {
                             items={newSparring}
                             type="sparring"
                             variant="standard"
-                            basePath="/sparring"
+                            basePath="/sparring?sort=latest"
                         />
                     )
                 }
