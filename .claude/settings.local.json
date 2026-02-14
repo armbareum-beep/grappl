@@ -58,7 +58,8 @@
       "Bash(npm ls:*)",
       "Bash(timeout:*)",
       "Bash(npx vercel:*)",
-      "Bash(identify:*)"
+      "Bash(identify:*)",
+      "Bash(git remote set-url:*)"
     ]
   }
 }
