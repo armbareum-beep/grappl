@@ -1406,10 +1406,10 @@ export async function updateCourse(courseId: string, courseData: Partial<Course>
     if (courseData.creatorId) dbData.creator_id = courseData.creatorId;
     if (courseData.category) dbData.category = courseData.category;
     if (courseData.difficulty) dbData.difficulty = courseData.difficulty;
-    if (courseData.thumbnailUrl) dbData.thumbnail_url = courseData.thumbnailUrl;
+    if (courseData.thumbnailUrl !== undefined) dbData.thumbnail_url = courseData.thumbnailUrl;
     if (courseData.price !== undefined) dbData.price = courseData.price;
     if (courseData.isSubscriptionExcluded !== undefined) dbData.is_subscription_excluded = courseData.isSubscriptionExcluded;
-    if (courseData.isHidden !== undefined) dbData.is_hidden = courseData.isHidden;
+    // Note: is_hidden column does not exist in courses table
     if (courseData.uniformType) dbData.uniform_type = courseData.uniformType;
     if (courseData.previewVimeoId) dbData.preview_vimeo_id = courseData.previewVimeoId;
 
@@ -5083,6 +5083,7 @@ export async function getDrills(creatorId?: string, limit: number = 50, forceRef
 
     // Extract creator IDs
     const creatorIds = Array.from(new Set(drills.map((d: any) => d.creator_id).filter(Boolean)));
+    const drillIds = drills.map((d: any) => d.id);
 
     // Fetch creators (users)
     let userMap: Record<string, any> = {};
@@ -5099,13 +5100,41 @@ export async function getDrills(creatorId?: string, limit: number = 50, forceRef
         }
     }
 
+    // Fetch routine information for drills
+    let drillRoutineMap: Record<string, { routineId: string; routineTitle: string }> = {};
+    if (drillIds.length > 0) {
+        const { data: routineDrills } = await supabase
+            .from('routine_drills')
+            .select('drill_id, routine_id, routines(id, title)')
+            .in('drill_id', drillIds);
+
+        if (routineDrills) {
+            routineDrills.forEach((rd: any) => {
+                // Only store first routine found for each drill
+                if (!drillRoutineMap[rd.drill_id] && rd.routines) {
+                    drillRoutineMap[rd.drill_id] = {
+                        routineId: rd.routine_id,
+                        routineTitle: rd.routines.title || ''
+                    };
+                }
+            });
+        }
+    }
+
     return drills.map((drill: any) => {
         const creator = userMap[drill.creator_id];
-        return transformDrill({
-            ...drill,
-            creator_name: creator?.name,
-            creator: creator // transformDrill expects creator object for some fields
-        });
+        const routineInfo = drillRoutineMap[drill.id];
+        return {
+            ...transformDrill({
+                ...drill,
+                creator_name: creator?.name,
+                creator: creator // transformDrill expects creator object for some fields
+            }),
+            routine: routineInfo ? {
+                id: routineInfo.routineId,
+                title: routineInfo.routineTitle
+            } : undefined
+        };
     });
 }
 

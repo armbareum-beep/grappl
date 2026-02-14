@@ -114,20 +114,19 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
 
         if (loadedSchedule) {
             setSchedule(loadedSchedule);
-        } else if (isGuest) {
+        } else if (isGuest && guestRoutines.length > 0) {
             // Only use guest routines if no local save exists
             const newSchedule: WeeklySchedule = { '월': [], '화': [], '수': [], '목': [], '금': [], '토': [], '일': [] };
-            if (guestRoutines.length > 0) {
-                newSchedule['월'] = [guestRoutines[0]];
-                if (guestRoutines.length > 1) newSchedule['수'] = [guestRoutines[1]];
-                if (guestRoutines.length > 2) newSchedule['금'] = [guestRoutines[2]];
-            }
+            newSchedule['월'] = [guestRoutines[0]];
+            if (guestRoutines.length > 1) newSchedule['수'] = [guestRoutines[1]];
+            if (guestRoutines.length > 2) newSchedule['금'] = [guestRoutines[2]];
             setSchedule(newSchedule);
             // Save this initial guest schedule to localStorage so it persists
             localStorage.setItem('weekly_schedule_draft', JSON.stringify(newSchedule));
         }
         prevGuestRoutineIds.current = guestRoutineIds;
-    }, [isGuest, guestRoutineIds, guestRoutines]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isGuest, guestRoutineIds]);
 
     // Listen for external updates to the schedule (e.g. from TrainingRoutinesTab)
     useEffect(() => {
@@ -739,16 +738,26 @@ export const WeeklyRoutinePlanner: React.FC<WeeklyRoutinePlannerProps> = ({
 
                     <div className="flex gap-3 mt-4">
                         <button
-                            onClick={() => setIsStartModalOpen(false)}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsStartModalOpen(false);
+                            }}
                             className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold rounded-xl transition-colors"
                         >
                             취소
                         </button>
                         <button
-                            onClick={() => {
-                                setIsStartModalOpen(false);
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (!startModalRoutines.length || !startModalRoutines[0]?.id) {
+                                    console.error('No routines to start');
+                                    return;
+                                }
+                                const firstRoutine = startModalRoutines[0];
                                 const playlist = startModalRoutines.map(r => r.id).join(',');
-                                navigate(`/my-routines/${startModalRoutines[0].id}?playlist=${playlist}`);
+                                const basePath = String(firstRoutine.id).startsWith('custom-') ? '/my-routines' : '/routines';
+                                setIsStartModalOpen(false);
+                                navigate(`${basePath}/${firstRoutine.id}?playlist=${playlist}`);
                             }}
                             className="flex-1 py-3 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-xl shadow-lg shadow-violet-900/20 transition-all flex items-center justify-center gap-2"
                         >
