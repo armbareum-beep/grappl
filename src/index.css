@@ -316,7 +316,7 @@ html {
 .roadmap-edge-flow {
   stroke-dasharray: 10 10;
   animation: roadmap-flow 1s linear infinite;
-  stroke: #a78bfa !important;
+  stroke: #ffffff !important;
   stroke-width: 3 !important;
 }
 
@@ -324,19 +324,19 @@ html {
 
   0%,
   100% {
-    filter: drop-shadow(0 0 2px rgba(139, 92, 246, 0.4));
+    filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.4));
     stroke-opacity: 0.8;
   }
 
   50% {
-    filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.8));
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
     stroke-opacity: 1;
   }
 }
 
 .roadmap-edge-glow {
   animation: glow-pulse 2s ease-in-out infinite;
-  stroke: #8b5cf6 !important;
+  stroke: #ffffff !important;
   stroke-width: 4 !important;
 }
 
@@ -391,7 +391,7 @@ html {
 .roadmap-edge-bidirectional {
   stroke-dasharray: 4 4;
   animation: bidirectional-outward 0.8s linear infinite;
-  stroke: #8b5cf6 !important;
+  stroke: #ffffff !important;
   stroke-width: 3 !important;
 }
 
@@ -406,28 +406,32 @@ html {
 }
 
 .react-flow__arrowhead polyline {
-  stroke: #8b5cf6 !important;
+  stroke: #ffffff !important;
   stroke-width: 1.5 !important;
   fill: none !important;
   stroke-linecap: butt !important;
   stroke-linejoin: miter !important;
 }
 
-/* Prevent edge container from capturing events outside specific paths (prevents rectangular hit area) */
+/* Allow edge clicking */
 .react-flow__edge {
-  pointer-events: none !important;
+  pointer-events: all !important;
+  cursor: pointer !important;
 }
 
-/* Hover effects - keep default behavior */
+/* Hover effects - white highlight */
 .react-flow__edge:hover path,
 .react-flow__edge:hover .react-flow__edge-path {
-  stroke: #a78bfa !important;
+  stroke: #ffffff !important;
+  stroke-width: 3 !important;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.5));
 }
 
 /* Keep highlight effect for selected edges only */
 .react-flow__edge.selected.skill-tree-edge .react-flow__edge-path {
-  stroke: #a78bfa !important;
+  stroke: #ffffff !important;
   stroke-width: 4 !important;
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
 }
 
 .react-flow__edge.selected.roadmap-edge .react-flow__edge-path {

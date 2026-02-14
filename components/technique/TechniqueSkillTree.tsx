@@ -552,6 +552,8 @@ export const TechniqueSkillTree: React.FC = () => {
                                 target: edge.target,
                                 type: 'default',
                                 animated: false,
+                                selectable: true,
+                                focusable: true,
                                 sourceHandle: edge.sourceHandle,
                                 targetHandle: edge.targetHandle,
                                 style: { stroke: '#ffffff', strokeWidth: 2, strokeDasharray: 'none' },
@@ -732,6 +734,8 @@ export const TechniqueSkillTree: React.FC = () => {
                     target: edge.target as string,
                     type: 'default',
                     animated: false,
+                    selectable: true,
+                    focusable: true,
                     sourceHandle: edge.sourceHandle,
                     targetHandle: edge.targetHandle,
                     style: { stroke: '#ffffff', strokeWidth: 2, strokeDasharray: 'none' },
@@ -793,6 +797,8 @@ export const TechniqueSkillTree: React.FC = () => {
                                     target: edge.target,
                                     type: 'default',
                                     animated: false,
+                                    selectable: true,
+                                    focusable: true,
                                     sourceHandle: edge.sourceHandle,
                                     targetHandle: edge.targetHandle,
                                     style: { stroke: '#ffffff', strokeWidth: 2, strokeDasharray: 'none' }
@@ -894,6 +900,8 @@ export const TechniqueSkillTree: React.FC = () => {
                             target: edge.target,
                             type: 'default',
                             animated: false,
+                            selectable: true,
+                            focusable: true,
                             sourceHandle: edge.sourceHandle,
                             targetHandle: edge.targetHandle,
                             style: { stroke: '#ffffff', strokeWidth: 2, strokeDasharray: 'none' },
@@ -1178,6 +1186,8 @@ export const TechniqueSkillTree: React.FC = () => {
                 sourceHandle: sourceHandle || undefined,
                 targetHandle: targetHandle || undefined,
                 type: 'default',
+                selectable: true,
+                focusable: true,
                 style: { stroke, strokeWidth, strokeDasharray },
                 className
             };
@@ -1831,6 +1841,8 @@ export const TechniqueSkillTree: React.FC = () => {
             target: edge.target,
             type: 'default',
             animated: false,
+            selectable: true,
+            focusable: true,
             sourceHandle: edge.sourceHandle,
             targetHandle: edge.targetHandle,
             style: { stroke: '#ffffff', strokeWidth: 2, strokeDasharray: 'none' }
@@ -2001,8 +2013,10 @@ export const TechniqueSkillTree: React.FC = () => {
                 sourceHandle: sourceHandle || undefined,
                 targetHandle: targetHandle || undefined,
                 type: 'default',
-                style: { stroke: '#7c3aed', strokeWidth: isGroupConnection ? 3.5 : 3, strokeDasharray: '15 15' },
-                className: 'roadmap-edge-dash'
+                selectable: true,
+                focusable: true,
+                style: { stroke: '#ffffff', strokeWidth: isGroupConnection ? 3.5 : 2 },
+                className: ''
             };
 
             return addEdge(newEdge, eds);
@@ -2237,10 +2251,29 @@ export const TechniqueSkillTree: React.FC = () => {
         setEdges((eds: Edge[]) => eds.filter((e) => e.id !== edge.id));
     }, [setEdges]);
 
-    // Handle edge selection or context deletion
-    const onEdgeClick = useCallback(() => {
-        // Just select on click
-    }, []);
+    // Handle edge click - first click selects (white highlight), second click deletes
+    const onEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
+        event.stopPropagation();
+
+        const clickedEdge = edges.find(e => e.id === edge.id);
+
+        if (clickedEdge?.selected) {
+            // Already selected - delete it
+            setEdges((eds: Edge[]) => eds.filter((e) => e.id !== edge.id));
+        } else {
+            // Not selected - select it with white style (and deselect others)
+            setEdges((eds: Edge[]) => eds.map((e) => {
+                const isSelected = e.id === edge.id;
+                return {
+                    ...e,
+                    selected: isSelected,
+                    style: isSelected
+                        ? { stroke: '#ffffff', strokeWidth: 4, filter: 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.8))' }
+                        : { stroke: '#ffffff', strokeWidth: 2 }
+                };
+            }));
+        }
+    }, [edges, setEdges]);
 
     // Drag to Create Handlers (Note: Removed onConnectStart/End as they were unused)
 
@@ -2337,7 +2370,9 @@ export const TechniqueSkillTree: React.FC = () => {
                     sourceHandle: optimalSource,
                     targetHandle: optimalTarget,
                     type: 'default',
-                    style: { stroke: '#8b5cf6', strokeWidth: 3 }
+                    selectable: true,
+                    focusable: true,
+                    style: { stroke: '#ffffff', strokeWidth: 2 }
                 });
             }
         });
@@ -3147,8 +3182,12 @@ export const TechniqueSkillTree: React.FC = () => {
                             multiSelectionKeyCode={['Shift', 'Control', 'Meta']}
                             snapToGrid={true}
                             snapGrid={[20, 20]}
+                            edgesFocusable={true}
+                            elementsSelectable={true}
                             defaultEdgeOptions={{
                                 type: 'default',
+                                selectable: true,
+                                focusable: true,
                                 style: { stroke: '#ffffff', strokeWidth: 2, cursor: 'pointer' },
                                 interactionWidth: 50,
                             }}
@@ -3166,24 +3205,51 @@ export const TechniqueSkillTree: React.FC = () => {
                             proOptions={{ hideAttribution: true }}
                         >
                             <style>{`
-            /* Scoped Roadmap Styles */
+            /* Scoped Roadmap Styles - all edges white */
             .roadmap-edge-flow.react-flow__edge-path {
-            stroke: #a78bfa!important;
-            stroke-width: 3!important;
-            stroke-dasharray: 10 10;
-            animation: flow 1s linear infinite;
+            stroke: #ffffff !important;
+            stroke-width: 2 !important;
+            stroke-dasharray: none;
+            animation: none;
         }
 
             .roadmap-edge-glow.react-flow__edge-path {
-            stroke: #8b5cf6 !important;
-    stroke-width: 4!important;
-    filter: drop-shadow(0 0 4px #8b5cf6);
+            stroke: #ffffff !important;
+    stroke-width: 2 !important;
+    filter: none;
     stroke-dasharray: none;
     animation: none;
 }
 
             .react-flow__edge-path {
+    stroke: #ffffff !important;
     transition: all 0.5s ease;
+}
+
+            /* Make edges clickable */
+            .react-flow__edge {
+    pointer-events: all !important;
+    cursor: pointer !important;
+}
+
+            .react-flow__edge-interaction {
+    pointer-events: all !important;
+    stroke-width: 20 !important;
+    stroke: transparent !important;
+}
+
+            /* Hover edge style - white highlight */
+            .react-flow__edge:hover .react-flow__edge-path {
+    stroke: #ffffff !important;
+    stroke-width: 3 !important;
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.5));
+}
+
+            /* Selected edge style - white highlight like nodes */
+            .react-flow__edge.selected .react-flow__edge-path {
+    stroke: #ffffff !important;
+    stroke-width: 4 !important;
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8)) !important;
 }
 
             /* Allow default styles for others */

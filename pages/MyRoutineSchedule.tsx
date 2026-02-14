@@ -22,7 +22,7 @@ const MyRoutineSchedule: React.FC = () => {
     useEffect(() => {
         const loadSchedule = () => {
             setLoading(true);
-            const saved = localStorage.getItem('weekly_routine_schedule');
+            const saved = localStorage.getItem('weekly_schedule_draft');
             if (saved) {
                 try {
                     setSchedule(JSON.parse(saved));
@@ -64,7 +64,7 @@ const MyRoutineSchedule: React.FC = () => {
                         <h2 className="text-xl font-bold mb-2">등록된 스케줄이 없습니다.</h2>
                         <p className="text-zinc-500 mb-8">아레나 탭에서 훈련 루틴을 요일별로 배치해보세요!</p>
                         <Button
-                            onClick={() => navigate('/arena?tab=routines')}
+                            onClick={() => navigate('/training-routines')}
                             className="bg-violet-600 hover:bg-violet-500"
                         >
                             루틴 배치하러 가기

@@ -262,13 +262,10 @@ export async function getUserSavedLessons(userId: string) {
             duration_minutes,
             lesson_number,
             course_id,
-            courses (
+            course:courses (
                 id,
                 title,
-                creator:creators (
-                    name,
-                    profile_image
-                )
+                creator_id
             )
         `)
         .in('id', lessonIds);
@@ -278,22 +275,40 @@ export async function getUserSavedLessons(userId: string) {
         return [];
     }
 
+    // Fetch creator names separately
+    const creatorIds = [...new Set((lessons || []).map((l: any) => l.course?.creator_id).filter(Boolean))];
+    let creatorsMap: Record<string, any> = {};
+
+    if (creatorIds.length > 0) {
+        const { data: creators } = await supabase
+            .from('users')
+            .select('id, name, avatar_url')
+            .in('id', creatorIds);
+
+        if (creators) {
+            creators.forEach((c: any) => { creatorsMap[c.id] = c; });
+        }
+    }
+
     // Map lessons with saved timestamps
     const savedAtMap = new Map(interactions.map(i => [i.content_id, i.created_at]));
 
-    return (lessons || []).map((lesson: any) => ({
-        id: lesson.id,
-        title: lesson.title,
-        description: lesson.description,
-        thumbnailUrl: lesson.thumbnail_url,
-        durationMinutes: lesson.duration_minutes,
-        lessonNumber: lesson.lesson_number,
-        courseId: lesson.course_id,
-        courseTitle: lesson.courses?.title,
-        creatorName: lesson.courses?.creator?.name,
-        creatorProfileImage: lesson.courses?.creator?.profile_image,
-        savedAt: savedAtMap.get(lesson.id)
-    }));
+    return (lessons || []).map((lesson: any) => {
+        const creator = creatorsMap[lesson.course?.creator_id];
+        return {
+            id: lesson.id,
+            title: lesson.title,
+            description: lesson.description,
+            thumbnailUrl: lesson.thumbnail_url,
+            durationMinutes: lesson.duration_minutes,
+            lessonNumber: lesson.lesson_number,
+            courseId: lesson.course_id,
+            courseTitle: lesson.course?.title,
+            creatorName: creator?.name,
+            creatorProfileImage: creator?.avatar_url,
+            savedAt: savedAtMap.get(lesson.id)
+        };
+    });
 }
 
 /**

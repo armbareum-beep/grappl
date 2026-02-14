@@ -47,7 +47,7 @@ export const getAdminStats = async (): Promise<AdminStats> => {
 
 export interface PendingContent {
     id: string;
-    type: 'course' | 'drill' | 'sparring';
+    type: 'course' | 'drill' | 'sparring' | 'routine';
     title: string;
     creatorName: string;
     createdAt: string;
@@ -55,17 +55,19 @@ export interface PendingContent {
 }
 
 export async function getPendingContent(): Promise<PendingContent[]> {
-    // Note: drills and sparring_videos don't have FK relationship to creators, so we fetch creator_id and look up names separately
-    const [courses, drills, sparring] = await Promise.all([
+    // Note: drills, sparring_videos, routines don't have FK relationship to creators, so we fetch creator_id and look up names separately
+    const [courses, drills, sparring, routines] = await Promise.all([
         withTimeout(supabase.from('courses').select('id, title, creator:creators(name), created_at, thumbnail_url').eq('status', 'pending')),
         withTimeout(supabase.from('drills').select('id, title, creator_id, created_at, thumbnail_url').eq('status', 'pending')),
-        withTimeout(supabase.from('sparring_videos').select('id, title, creator_id, created_at, thumbnail_url').eq('status', 'pending'))
+        withTimeout(supabase.from('sparring_videos').select('id, title, creator_id, created_at, thumbnail_url').eq('status', 'pending')),
+        withTimeout(supabase.from('routines').select('id, title, creator_id, created_at, thumbnail_url').eq('status', 'pending'))
     ]);
 
     // Collect all creator_ids that need lookup
     const creatorIds = new Set<string>();
     drills.data?.forEach(d => d.creator_id && creatorIds.add(d.creator_id));
     sparring.data?.forEach(s => s.creator_id && creatorIds.add(s.creator_id));
+    routines.data?.forEach(r => r.creator_id && creatorIds.add(r.creator_id));
 
     // Fetch creator names
     const creatorMap = new Map<string, string>();
@@ -82,14 +84,20 @@ export async function getPendingContent(): Promise<PendingContent[]> {
     courses.data?.forEach(c => results.push({ id: c.id, type: 'course', title: c.title, creatorName: (c.creator as any)?.name, createdAt: c.created_at, thumbnailUrl: c.thumbnail_url }));
     drills.data?.forEach(d => results.push({ id: d.id, type: 'drill', title: d.title, creatorName: creatorMap.get(d.creator_id) || 'Unknown', createdAt: d.created_at, thumbnailUrl: d.thumbnail_url }));
     sparring.data?.forEach(s => results.push({ id: s.id, type: 'sparring', title: s.title, creatorName: creatorMap.get(s.creator_id) || 'Unknown', createdAt: s.created_at, thumbnailUrl: s.thumbnail_url }));
+    routines.data?.forEach(r => results.push({ id: r.id, type: 'routine', title: r.title, creatorName: creatorMap.get(r.creator_id) || 'Unknown', createdAt: r.created_at, thumbnailUrl: r.thumbnail_url }));
 
     return results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
-export async function updateContentStatus(type: 'course' | 'drill' | 'sparring', id: string, status: 'approved' | 'rejected') {
-    const table = type === 'course' ? 'courses' : type === 'drill' ? 'drills' : 'sparring_videos';
+export async function updateContentStatus(type: 'course' | 'drill' | 'sparring' | 'routine', id: string, status: 'approved' | 'rejected') {
+    const tableMap = {
+        'course': 'courses',
+        'drill': 'drills',
+        'sparring': 'sparring_videos',
+        'routine': 'routines'
+    };
     const { error } = await supabase
-        .from(table)
+        .from(tableMap[type])
         .update({ status })
         .eq('id', id);
     return { error };
@@ -1033,11 +1041,12 @@ export async function updatePayoutStatus(payoutId: string, status: 'processing' 
 
 // ==================== Content Review ====================
 
-export async function rejectContent(id: string, type: 'course' | 'drill' | 'sparring', reason: string) {
+export async function rejectContent(id: string, type: 'course' | 'drill' | 'sparring' | 'routine', reason: string) {
     const tableMap = {
         'course': 'courses',
         'drill': 'drills',
-        'sparring': 'sparring_videos'
+        'sparring': 'sparring_videos',
+        'routine': 'routines'
     };
 
     // Different tables have different column structures
@@ -1045,7 +1054,8 @@ export async function rejectContent(id: string, type: 'course' | 'drill' | 'spar
     const updateDataMap = {
         'course': { status: 'rejected', published: false },
         'drill': { status: 'rejected' },
-        'sparring': { status: 'rejected', is_published: false }
+        'sparring': { status: 'rejected', is_published: false },
+        'routine': { status: 'rejected' }
     };
 
     const { data, error } = await supabase
@@ -1076,18 +1086,20 @@ export async function rejectContent(id: string, type: 'course' | 'drill' | 'spar
     return { data, error };
 }
 
-export async function approveContent(id: string, type: 'course' | 'drill' | 'sparring') {
+export async function approveContent(id: string, type: 'course' | 'drill' | 'sparring' | 'routine') {
     const tableMap = {
         'course': 'courses',
         'drill': 'drills',
-        'sparring': 'sparring_videos'
+        'sparring': 'sparring_videos',
+        'routine': 'routines'
     };
 
     // Different tables have different column structures
     const updateDataMap = {
         'course': { status: 'approved', published: true },
         'drill': { status: 'approved' },
-        'sparring': { status: 'approved', is_published: true }
+        'sparring': { status: 'approved', is_published: true },
+        'routine': { status: 'approved' }
     };
     const updateData = updateDataMap[type];
 
@@ -1132,7 +1144,7 @@ export async function approveContent(id: string, type: 'course' | 'drill' | 'spa
                     userId: f.follower_id,
                     type: 'creator_new_content' as const,
                     title: '새로운 콘텐츠 알림',
-                    message: `'${creatorName}'님이 새 ${type === 'course' ? '강좌' : type === 'drill' ? '드릴' : '스파링'} '${content.title}'을(를) 업로드했습니다.`,
+                    message: `'${creatorName}'님이 새 ${type === 'course' ? '강좌' : type === 'drill' ? '드릴' : type === 'routine' ? '루틴' : '스파링'} '${content.title}'을(를) 업로드했습니다.`,
                     link: `/library/${type}/${id}`,
                     metadata: {
                         content_id: id,
