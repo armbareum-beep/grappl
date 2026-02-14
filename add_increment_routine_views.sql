@@ -4,7 +4,7 @@ RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
-BEGIN
+BEGINasdfasdfsadfdsafdsfadsafdfsadsfafsaddsaf
   UPDATE routines
   SET views = views + 1
   WHERE id = p_routine_id;

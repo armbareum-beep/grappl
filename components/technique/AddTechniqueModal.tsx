@@ -98,8 +98,10 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
     };
 
     const safeArray = (arr: any) => Array.isArray(arr) ? arr : [];
-    const filteredLessons = safeArray(lessons).filter(filterItem);
-    const filteredDrills = safeArray(drills).filter(filterItem);
+    // Filter out lessons without course and drills without routine (only for main lists, not saved)
+    const filteredLessons = safeArray(lessons).filter((l: any) => l.course?.title).filter(filterItem);
+    const filteredDrills = safeArray(drills).filter((d: any) => d.routine?.title).filter(filterItem);
+    // Saved items don't need course/routine filter - user already saved them
     const filteredSavedLessons = safeArray(savedLessons).filter(filterItem);
     const filteredSavedDrills = safeArray(savedDrills).filter(filterItem);
 
@@ -230,7 +232,7 @@ export const AddTechniqueModal: React.FC<AddTechniqueModalProps> = ({
                                 key={`drill-${drill.id}`}
                                 title={drill.title}
                                 instructor={drill.creatorName || ''}
-                                pathInfo={`${drill.category} • ${drill.length || ''}`}
+                                pathInfo={`${(drill as any).routine?.title || drill.category || 'Drill'} • ${drill.length || ''}`}
                                 thumbnail={drill.thumbnailUrl}
                                 isAdded={isAlreadyAdded(drill.id, 'drill')}
                                 isSelected={isItemSelected(drill.id, 'drill')}

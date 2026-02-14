@@ -108,6 +108,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         setPreviewUrl(null);
         setIsValid(true);
         onValidityChange?.(true);
+        onUploadComplete(''); // Notify parent that thumbnail was removed
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
