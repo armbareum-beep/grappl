@@ -98,9 +98,10 @@ export const VersionChecker: React.FC = () => {
                 // 업데이트 시도 전에 기록
                 localStorage.setItem(TRIED_VERSION_KEY, newestVersion);
 
-                // ✅ 자동 업데이트 활성화 (사용자 선택 반영)
-                // 새 버전이 감지되면 즉시 hardReload 실행
-                handleUpdate(newestVersion);
+                // ⛔ 자동 업데이트 임시 비활성화 (무한 루프 방지)
+                // 새 버전 감지해도 아무것도 안 함
+                console.log('[VersionChecker] 새 버전 감지됨, 자동 업데이트 비활성화 상태:', newestVersion);
+                return;
             }
         } catch (error) {
             console.error('[VersionChecker] 버전 체크 실패:', error);
