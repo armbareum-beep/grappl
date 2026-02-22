@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getPendingContent, PendingContent } from '../../lib/api-admin';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
-import { ArrowLeft, Check, X, Film, BookOpen, Swords, Clock, User, Eye } from 'lucide-react';
+import { ArrowLeft, Check, X, Film, BookOpen, Swords, Clock, User, Eye, ListChecks } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 
 export const AdminContentApproval: React.FC = () => {
@@ -21,6 +21,7 @@ export const AdminContentApproval: React.FC = () => {
             case 'course': return `/courses/${item.id}`;
             case 'drill': return `/drills/${item.id}`;
             case 'sparring': return `/sparring/${item.id}`;
+            case 'routine': return `/routines/${item.id}`;
             default: return '#';
         }
     };
@@ -130,11 +131,16 @@ export const AdminContentApproval: React.FC = () => {
                                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-80 group-hover:opacity-100"
                                     />
                                     <div className="absolute top-4 left-4">
-                                        <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest backdrop-blur-md border ${item.type === 'course' ? 'bg-violet-500/20 text-violet-300 border-violet-500/30' :
+                                        <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest backdrop-blur-md border ${
+                                            item.type === 'course' ? 'bg-violet-500/20 text-violet-300 border-violet-500/30' :
                                             item.type === 'drill' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' :
-                                                'bg-rose-500/20 text-rose-300 border-rose-500/30'
-                                            }`}>
-                                            {item.type === 'course' ? <BookOpen className="w-3 h-3" /> : item.type === 'drill' ? <Film className="w-3 h-3" /> : <Swords className="w-3 h-3" />}
+                                            item.type === 'routine' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' :
+                                            'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                                        }`}>
+                                            {item.type === 'course' ? <BookOpen className="w-3 h-3" /> :
+                                             item.type === 'drill' ? <Film className="w-3 h-3" /> :
+                                             item.type === 'routine' ? <ListChecks className="w-3 h-3" /> :
+                                             <Swords className="w-3 h-3" />}
                                             {item.type}
                                         </span>
                                     </div>

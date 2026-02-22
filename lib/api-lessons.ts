@@ -4,7 +4,7 @@ import { Lesson, Difficulty, VideoCategory } from '../types';
 
 // ==================== Lessons ====================
 
-export function transformLesson(data: any): Lesson {
+export function transformLesson(data: any): Lesson & { course?: { title: string; creatorName?: string } } {
     return {
         id: data.id,
         courseId: data.course_id,
@@ -28,6 +28,11 @@ export function transformLesson(data: any): Lesson {
         uniformType: data.uniform_type,
         price: data.price ?? data.course?.price ?? 0,
         likes: data.likes || 0,
+        // Include course object for AddTechniqueModal
+        course: data.course ? {
+            title: data.course.title || '',
+            creatorName: data.course.creator?.name || data.course.creatorName || ''
+        } : undefined,
     };
 }
 
@@ -160,7 +165,7 @@ export async function getLessonById(id: string) {
 export async function getLessons(limit: number = 200) {
     const { data, error } = await supabase
         .from('lessons')
-        .select('*, course:courses(title, thumbnail_url, is_subscription_excluded, price)')
+        .select('*, course:courses(title, thumbnail_url, is_subscription_excluded, price, creator_id)')
         .order('created_at', { ascending: false })
         .limit(limit);
 
@@ -169,7 +174,33 @@ export async function getLessons(limit: number = 200) {
         return [];
     }
 
-    return (data || []).map(transformLesson);
+    if (!data || data.length === 0) return [];
+
+    // Fetch creator names for courses
+    const creatorIds = [...new Set(data.map((l: any) => l.course?.creator_id).filter(Boolean))];
+    let creatorsMap: Record<string, string> = {};
+
+    if (creatorIds.length > 0) {
+        const { data: creators } = await supabase
+            .from('users')
+            .select('id, name')
+            .in('id', creatorIds);
+
+        if (creators) {
+            creators.forEach((c: any) => { creatorsMap[c.id] = c.name; });
+        }
+    }
+
+    // Enrich data with creator names
+    const enrichedData = data.map((lesson: any) => ({
+        ...lesson,
+        course: lesson.course ? {
+            ...lesson.course,
+            creatorName: creatorsMap[lesson.course.creator_id] || ''
+        } : undefined
+    }));
+
+    return enrichedData.map(transformLesson);
 }
 
 export async function getCreatorLessons(creatorId: string) {

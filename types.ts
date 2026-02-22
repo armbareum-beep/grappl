@@ -517,6 +517,7 @@ export interface DrillRoutine {
   isHidden?: boolean; // Creator can hide content without deleting
   rank?: number;
   isDailyFree?: boolean;
+  status?: 'draft' | 'pending' | 'approved' | 'rejected';
 }
 
 export interface DrillRoutineItem {
