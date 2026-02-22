@@ -49,7 +49,7 @@ export const VersionChecker: React.FC = () => {
         localStorage.setItem(LAST_SUCCESSFUL_RELOAD_KEY, now.toString());
 
         try {
-            await hardReload([LAST_UPDATE_KEY, LAST_SUCCESSFUL_RELOAD_KEY], true);
+            await hardReload([LAST_UPDATE_KEY, LAST_SUCCESSFUL_RELOAD_KEY, TRIED_VERSION_KEY], true);
         } catch (error) {
             console.error('[VersionCheck] Error during hard reload:', error);
             const url = new URL(window.location.href);
@@ -138,7 +138,7 @@ export const VersionChecker: React.FC = () => {
             try {
                 // Clear the reload interval check for stale sessions
                 localStorage.removeItem(LAST_SUCCESSFUL_RELOAD_KEY);
-                await hardReload([LAST_UPDATE_KEY, LAST_ACTIVE_KEY], true);
+                await hardReload([LAST_UPDATE_KEY, LAST_ACTIVE_KEY, TRIED_VERSION_KEY], true);
             } catch (error) {
                 console.error('[VersionCheck] Error during stale session reload:', error);
                 window.location.reload();
