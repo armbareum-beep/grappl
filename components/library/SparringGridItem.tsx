@@ -14,24 +14,24 @@ export const SparringGridItem: React.FC<{
     idx: number;
     setActiveIndex: (idx: number) => void;
     setViewMode: (mode: 'reels' | 'grid') => void;
-}> = ({ video, idx, setActiveIndex, setViewMode }) => {
+    initialSaved?: boolean; // Pre-fetched save status from parent (batch query)
+}> = ({ video, idx, setActiveIndex, setViewMode, initialSaved }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const itemRef = useRef<HTMLDivElement>(null);
     const [searchParams] = useSearchParams();
     const isTarget = searchParams.get('id') === video.id;
 
-    const [isSaved, setIsSaved] = useState(false);
+    const [isSaved, setIsSaved] = useState(initialSaved ?? false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
 
+    // Sync with parent's batch-fetched value
     useEffect(() => {
-        if (user) {
-            import('../../lib/api').then(({ checkSparringSaved }) => {
-                checkSparringSaved(user.id, video.id).then(setIsSaved).catch(() => { });
-            });
+        if (initialSaved !== undefined) {
+            setIsSaved(initialSaved);
         }
-    }, [user?.id, video.id]);
+    }, [initialSaved]);
 
     useEffect(() => {
         if (isTarget && itemRef.current) {

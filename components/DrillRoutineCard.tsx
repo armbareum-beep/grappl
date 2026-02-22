@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { DrillRoutine } from '../types';
 import { PlayCircle, Bookmark, Share2 } from 'lucide-react';
 import Player from '@vimeo/player';
-import { toggleRoutineSave, checkRoutineSaved } from '../lib/api';
+import { toggleRoutineSave } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
 import { ContentBadge } from './common/ContentBadge';
@@ -16,18 +16,20 @@ interface DrillRoutineCardProps {
     hasAccess?: boolean;
     className?: string;
     onUnsave?: () => void;
+    initialSaved?: boolean; // Pre-fetched save status from parent (batch query)
 }
 
-export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine, rank, hasAccess = false, className, onUnsave }) => {
+export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine, rank, hasAccess = false, className, onUnsave, initialSaved }) => {
     const { user } = useAuth();
-    const [isSaved, setIsSaved] = useState(false);
+    const [isSaved, setIsSaved] = useState(initialSaved ?? false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
+    // Sync with parent's batch-fetched value
     useEffect(() => {
-        if (user && routine.id) {
-            checkRoutineSaved(user.id, routine.id).then(setIsSaved).catch(console.error);
+        if (initialSaved !== undefined) {
+            setIsSaved(initialSaved);
         }
-    }, [user?.id, routine.id]);
+    }, [initialSaved]);
     const [isHovering, setIsHovering] = useState(false);
     const [showVideo, setShowVideo] = useState(false);
     const [isDragging, setIsDragging] = useState(false);

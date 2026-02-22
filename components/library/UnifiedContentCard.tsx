@@ -7,9 +7,9 @@ import { ContentBadge } from '../common/ContentBadge';
 import { Course, DrillRoutine, SparringVideo } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-    toggleCourseSave, checkCourseSaved,
-    toggleRoutineSave, checkRoutineSaved,
-    toggleSparringSave, checkSparringSaved
+    toggleCourseSave,
+    toggleRoutineSave,
+    toggleSparringSave
 } from '../../lib/api';
 
 const ShareModal = React.lazy(() => import('../social/ShareModal'));
@@ -41,6 +41,7 @@ interface UnifiedContentCardProps {
     className?: string;
     minimal?: boolean;
     isMasonry?: boolean;
+    initialSaved?: boolean; // Pre-fetched save status from parent (batch query)
 }
 
 // Spans are now calculated dynamically via Ref and ResizeObserver to avoid gaps
@@ -70,7 +71,7 @@ const isRecent = (createdAt?: string): boolean => {
     return new Date(createdAt).getTime() > thirtyDaysAgo;
 };
 
-export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, onSparringClick, className, minimal = false, isMasonry = false }) => {
+export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, onSparringClick, className, minimal = false, isMasonry = false, initialSaved }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const link = getItemLink(item);
@@ -109,30 +110,16 @@ export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, on
     // Use a reasonable default (300px-ish) to avoid zero-height clumping
     const spanStyle = (span && (minimal || isMasonry)) ? { gridRowEnd: `span ${span}` } : {};
 
-    const [isSaved, setIsSaved] = useState(false);
+    const [isSaved, setIsSaved] = useState(initialSaved ?? false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
 
+    // Sync with parent's batch-fetched value
     useEffect(() => {
-        if (!user) return;
-
-        const checkStatus = async () => {
-            try {
-                let saved = false;
-                if (item.type === 'class') {
-                    saved = await checkCourseSaved(user.id, item.id);
-                } else if (item.type === 'routine') {
-                    saved = await checkRoutineSaved(user.id, item.id);
-                } else if (item.type === 'sparring') {
-                    saved = await checkSparringSaved(user.id, item.id);
-                }
-                setIsSaved(saved);
-            } catch (e) {
-                console.error("Failed to check save status", e);
-            }
-        };
-        checkStatus();
-    }, [user?.id, item.id, item.type]);
+        if (initialSaved !== undefined) {
+            setIsSaved(initialSaved);
+        }
+    }, [initialSaved]);
 
     const handleClick = (e: React.MouseEvent) => {
         if (item.type === 'sparring' && onSparringClick) {
