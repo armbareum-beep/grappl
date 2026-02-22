@@ -9,6 +9,7 @@ import { Course, DrillRoutine, SparringVideo } from '../../types';
 import { LoadingScreen } from '../LoadingScreen';
 import { UnifiedContentCard, UnifiedContentItem, ContentType } from './UnifiedContentCard';
 import { LibraryTabs, LibraryTabType } from './LibraryTabs';
+import { batchCheckInteractions } from '../../lib/api-user-interactions';
 
 
 
@@ -59,6 +60,7 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [allItems, setAllItems] = useState<UnifiedContentItem[]>([]);
+    const [savedMap, setSavedMap] = useState<Map<string, boolean>>(new Map());
 
     // Daily free IDs
     const [, setFreeIds] = useState<{
@@ -207,6 +209,31 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                 .sort(() => Math.random() - 0.5); // Random shuffle
             const sorted = smartSort(allContentInOrder);
             setAllItems(sorted);
+
+            // Batch fetch saved status for all items (if user is logged in)
+            if (user) {
+                try {
+                    // Group items by type and fetch in parallel
+                    const courseIds = courseItems.map(i => i.id);
+                    const routineIds = routineItems.map(i => i.id);
+                    const sparringIds = sparringItems.map(i => i.id);
+
+                    const [courseSaved, routineSaved, sparringSaved] = await Promise.all([
+                        courseIds.length > 0 ? batchCheckInteractions('course', courseIds, 'save') : new Map(),
+                        routineIds.length > 0 ? batchCheckInteractions('routine', routineIds, 'save') : new Map(),
+                        sparringIds.length > 0 ? batchCheckInteractions('sparring', sparringIds, 'save') : new Map()
+                    ]);
+
+                    // Merge all saved maps
+                    const mergedMap = new Map<string, boolean>();
+                    courseSaved.forEach((v, k) => mergedMap.set(k, v));
+                    routineSaved.forEach((v, k) => mergedMap.set(k, v));
+                    sparringSaved.forEach((v, k) => mergedMap.set(k, v));
+                    setSavedMap(mergedMap);
+                } catch (err) {
+                    console.error('[AllContentFeed] Failed to batch check saved status:', err);
+                }
+            }
         } catch (error) {
             console.error('Failed to load content:', error);
         } finally {
@@ -278,6 +305,7 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                                     item={item}
                                     onSparringClick={handleSparringClick}
                                     isMasonry={true}
+                                    initialSaved={savedMap.get(item.id)}
                                 />
                             ))}
                         </AnimatePresence>
