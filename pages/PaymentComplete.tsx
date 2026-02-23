@@ -28,6 +28,7 @@ export const PaymentComplete: React.FC = () => {
     const amount = searchParams.get('amount');
     const couponCode = searchParams.get('couponCode');
     const returnUrl = searchParams.get('returnUrl');
+    const userIdFromUrl = searchParams.get('userId');
 
     useEffect(() => {
         const verifyPayment = async () => {
@@ -42,7 +43,11 @@ export const PaymentComplete: React.FC = () => {
 
                 try {
                     const { data: { session } } = await supabase.auth.getSession();
-                    if (!session) {
+
+                    // Use userId from URL if session is not available (mobile redirect case)
+                    const effectiveUserId = user?.id || userIdFromUrl;
+
+                    if (!session && !userIdFromUrl) {
                         setStatus('error');
                         setMessage('로그인이 필요합니다.');
                         return;
@@ -59,14 +64,14 @@ export const PaymentComplete: React.FC = () => {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${session.access_token}`,
+                                ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
                             },
                             body: JSON.stringify({
                                 paymentId: portonePaymentId || '',
                                 billingKey: portoneBillingKey || '',
                                 mode: mode,
                                 id: mode === 'subscription_upgrade' ? upgradeDetails?.currentSubscription?.id : productId,
-                                userId: user?.id,
+                                userId: effectiveUserId,
                                 couponCode: couponCode || undefined,
                                 amount: amount ? parseInt(amount) : undefined
                             }),
@@ -84,10 +89,10 @@ export const PaymentComplete: React.FC = () => {
                     }
 
                     // Send success notification
-                    if (user?.id) {
+                    if (effectiveUserId) {
                         createNotification({
                             type: 'payment_success',
-                            user_id: user.id,
+                            user_id: effectiveUserId,
                             title: '결제 성공',
                             message: '결제가 완료되었습니다.',
                             link: '/payment/history',
@@ -106,10 +111,11 @@ export const PaymentComplete: React.FC = () => {
                     setMessage(error.message || '결제 검증 중 오류가 발생했습니다.');
 
                     // Send failure notification
-                    if (user?.id) {
+                    const failUserId = user?.id || userIdFromUrl;
+                    if (failUserId) {
                         createNotification({
                             type: 'payment_failed',
-                            user_id: user.id,
+                            user_id: failUserId,
                             title: '결제 실패',
                             message: error.message || '결제가 실패했습니다.',
                             link: `/checkout/${mode}/${productId}`,

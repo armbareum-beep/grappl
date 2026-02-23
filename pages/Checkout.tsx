@@ -619,6 +619,7 @@ export const Checkout: React.FC = () => {
                                                         amount: String(discountedAmount),
                                                         couponCode: appliedCoupon?.code || '',
                                                         returnUrl: returnUrl || '',
+                                                        userId: user?.id || '',
                                                     });
                                                     const redirectUrl = `${baseUrl}/payment/complete?${redirectParams.toString()}`;
 
