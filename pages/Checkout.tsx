@@ -607,6 +607,20 @@ export const Checkout: React.FC = () => {
                                                         : import.meta.env.VITE_PORTONE_CHANNEL_KEY_GENERAL;
 
                                                     let response;
+                                                    const paymentId = `payment-${Date.now()}`;
+                                                    const issueId = `issue-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+                                                    // Build redirect URL for mobile payments
+                                                    const baseUrl = window.location.origin;
+                                                    const redirectParams = new URLSearchParams({
+                                                        mode: isUpgrade ? 'subscription_upgrade' : type || '',
+                                                        productId: id || '',
+                                                        amount: String(discountedAmount),
+                                                        couponCode: appliedCoupon?.code || '',
+                                                        returnUrl: returnUrl || '',
+                                                    });
+                                                    const redirectUrl = `${baseUrl}/payment/complete?${redirectParams.toString()}`;
+
                                                     // Monthly Subscription -> Issue Billing Key
                                                     if (isMonthlySubscription && !isUpgrade) {
                                                         response = await PortOne.requestIssueBillingKey({
@@ -614,13 +628,14 @@ export const Checkout: React.FC = () => {
                                                             channelKey: channelKey,
                                                             billingKeyMethod: "CARD",
                                                             issueName: productTitle,
-                                                            issueId: `issue-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                                                            issueId: issueId,
                                                             customer: {
                                                                 customerId: user?.id, // Updated for V2
                                                                 email: user?.email,
                                                                 phoneNumber: phoneNumber ? phoneNumber.replace(/-/g, '') : undefined,
                                                                 fullName: fullName || undefined,
                                                             },
+                                                            redirectUrl: redirectUrl,
                                                         });
                                                     }
                                                     // Yearly Pass, Upgrades & Others -> One-time Payment
@@ -628,7 +643,7 @@ export const Checkout: React.FC = () => {
                                                         response = await PortOne.requestPayment({
                                                             storeId: import.meta.env.VITE_PORTONE_STORE_ID,
                                                             channelKey: channelKey,
-                                                            paymentId: `payment-${Date.now()}`,
+                                                            paymentId: paymentId,
                                                             orderName: productTitle,
                                                             totalAmount: discountedAmount,
                                                             currency: "KRW",
@@ -639,6 +654,7 @@ export const Checkout: React.FC = () => {
                                                                 phoneNumber: phoneNumber ? phoneNumber.replace(/-/g, '') : undefined,
                                                                 fullName: fullName || undefined,
                                                             },
+                                                            redirectUrl: redirectUrl,
                                                         });
                                                     }
 
