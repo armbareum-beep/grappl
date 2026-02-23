@@ -56,7 +56,7 @@ export const Pricing: React.FC = () => {
   const pricing = {
     basic: {
       monthly: { price: 29000, priceId: 'price_1SWs3iDWGN6smyu7MNbjs5kM' }, // Basic Monthly
-      yearly: { price: 290000, priceId: 'price_1SYHwZDWGN6smyu74bzDxySW' }, // Basic Yearly
+      yearly: { price: 190000, originalPrice: 290000, priceId: 'price_1SYHwZDWGN6smyu74bzDxySW' }, // Basic Yearly - 3월 할인
     },
     premium: {
       monthly: { price: 39000, priceId: 'price_1SYHxWDWGN6smyu7qHuppVy5' }, // Pro Monthly
@@ -176,9 +176,9 @@ export const Pricing: React.FC = () => {
           {/* 1 Year Pass (Recommended) */}
           <div className="relative bg-zinc-900/40 backdrop-blur-xl border border-violet-500/50 rounded-[40px] p-10 flex flex-col shadow-[0_0_40px_rgba(124,58,237,0.15)] transition-transform duration-300 hover:scale-[1.01]">
             <div className="absolute top-0 right-10 -translate-y-1/2">
-              <div className="bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white text-sm font-bold px-5 py-2 rounded-full shadow-lg flex items-center gap-1.5 ring-4 ring-zinc-950">
+              <div className="bg-gradient-to-r from-rose-500 to-orange-500 text-white text-sm font-bold px-5 py-2 rounded-full shadow-lg flex items-center gap-1.5 ring-4 ring-zinc-950 animate-pulse">
                 <Zap className="w-4 h-4 fill-white text-white" />
-                Best Value
+                3월 한정 35% 할인
               </div>
             </div>
 
@@ -195,9 +195,17 @@ export const Pricing: React.FC = () => {
                 </span>
                 <span className="text-xl text-zinc-500">/월</span>
               </div>
-              <div className="space-y-1 mt-2">
+              <div className="space-y-2 mt-2">
+                <div className="flex items-center justify-center lg:justify-start gap-3">
+                  <span className="text-lg text-zinc-500 line-through">
+                    {pricing.basic.yearly.originalPrice?.toLocaleString()}원
+                  </span>
+                  <span className="text-xl text-rose-400 font-black">
+                    {pricing.basic.yearly.price.toLocaleString()}원
+                  </span>
+                </div>
                 <p className="text-sm text-violet-400 font-bold">
-                  연간 전체 {pricing.basic.yearly.price.toLocaleString()}원 (월 24,166원)
+                  월 {getMonthlyEquivalent(pricing.basic.yearly.price).toLocaleString()}원 · 10만원 절약!
                 </p>
                 <div className="flex items-center justify-center lg:justify-start gap-1.5 text-emerald-400/80 font-bold text-xs bg-emerald-500/10 inline-flex px-3 py-1 rounded-full border border-emerald-500/20">
                   <CreditCard className="w-3 h-3" />
@@ -209,7 +217,7 @@ export const Pricing: React.FC = () => {
             <ul className="space-y-4 flex-1 mb-10">
               {[
                 '1개월권의 모든 혜택 포함',
-                '연 58,000원 절약 (17% 할인)',
+                '3월 한정 10만원 할인 (35% OFF)',
                 '오프라인 세미나 우선 참여권',
                 '단품 클래스 구매 시 30% 할인 (번들 제외)'
               ].map((feature, i) => (
