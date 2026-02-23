@@ -219,7 +219,8 @@ export const Checkout: React.FC = () => {
                     initialAmount = isYearly ? 390000 : 39000;
                     setProductTitle(isYearly ? 'Pro 구독 (연간)' : 'Pro 구독 (월간)');
                 } else {
-                    initialAmount = isYearly ? 290000 : 29000;
+                    // 3월 할인: 290000 -> 190000
+                    initialAmount = isYearly ? 190000 : 29000;
                     setProductTitle(isYearly ? 'Basic 구독 (연간)' : 'Basic 구독 (월간)');
                 }
             }
