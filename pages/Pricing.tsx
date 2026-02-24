@@ -97,17 +97,17 @@ export const Pricing: React.FC = () => {
               </div>
             </div>
           </div>
-        ) : isSubscribed && currentTier ? (
+        ) : isSubscribed ? (
           <div className="mb-12 bg-zinc-900/60 border border-violet-500/30 rounded-2xl p-6 backdrop-blur-md">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center gap-3">
                 <Crown className="w-8 h-8 text-violet-400" />
                 <div>
                   <h3 className="text-xl font-bold text-zinc-50">
-                    현재 이용 중인 플랜: {currentTier === 'premium' ? 'Pro 멤버십' : 'Standard 멤버십'}
+                    현재 이용 중: Grapplay 멤버십
                   </h3>
                   <p className="text-sm text-zinc-400">
-                    구독 기간 동안 모든 프리미엄 콘텐츠를 자유롭게 이용하실 수 있습니다.
+                    이용 기간 동안 모든 콘텐츠를 자유롭게 이용하실 수 있습니다.
                   </p>
                 </div>
               </div>

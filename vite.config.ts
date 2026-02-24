@@ -33,12 +33,13 @@ export default defineConfig({
     plugins: [
         react(),
         VitePWA({
-            // ✅ 간소화: 앱 설치 기능만 유지, 캐싱은 비활성화
-            registerType: 'autoUpdate',
+            // ✅ PWA 설치 기능만 유지, 자동 업데이트 비활성화 (무한 새로고침 방지)
+            registerType: 'prompt', // 'autoUpdate' → 'prompt': 사용자가 직접 업데이트 결정
             injectRegister: 'auto',
             workbox: {
-                skipWaiting: true,
-                clientsClaim: true,
+                // ❌ skipWaiting/clientsClaim 비활성화 - 즉시 takeover 방지
+                skipWaiting: false,
+                clientsClaim: false,
                 cleanupOutdatedCaches: true,
                 // ❌ JS/CSS/HTML 캐싱 완전 비활성화 - 브라우저 기본 캐싱만 사용
                 globPatterns: [], // 아무것도 precache 안 함

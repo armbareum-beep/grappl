@@ -61,7 +61,19 @@
       "Bash(identify:*)",
       "Bash(git remote add:*)",
       "Bash(git remote remove:*)",
-      "Bash(git remote rename:*)"
+      "Bash(git remote rename:*)",
+      "Bash(gh pr create:*)",
+      "WebFetch(domain:grapplay.com)",
+      "WebFetch(domain:grapplay-jyjf7ue8y-grapplay.vercel.app)",
+      "Bash(gh repo view:*)",
+      "Bash(gh repo list:*)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "Bash(git stash pop:*)",
+      "Bash(echo:*)",
+      "Bash(test:*)"
     ]
   }
 }

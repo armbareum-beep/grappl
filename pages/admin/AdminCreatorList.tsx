@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { getAdminCreators, getPendingCreators, approveCreator, rejectCreator } from '../../lib/api';
 import { deleteCreator, updateCreatorProfileAdmin, CreatorProfileUpdate, toggleCreatorHidden } from '../../lib/api-admin';
 import { Creator } from '../../types';
-import { User, ArrowLeft, Trash2, Shield, Users, Edit, X, Save, CheckCircle, XCircle, Eye, EyeOff } from 'lucide-react';
+import { User, ArrowLeft, Trash2, Shield, Users, Edit, X, Save, CheckCircle, XCircle, Eye, EyeOff, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../contexts/ToastContext';
 import { ImageUploader } from '../../components/ImageUploader';
@@ -134,6 +134,29 @@ export const AdminCreatorList: React.FC = () => {
         setIsEditModalOpen(true);
     };
 
+    const handleDownloadEmails = () => {
+        if (creators.length === 0) {
+            toastError('다운로드할 인스트럭터가 없습니다.');
+            return;
+        }
+
+        // Create CSV content from creators list
+        const csvContent = 'Name,Email\n' + creators
+            .map(c => `"${(c.name || '').replace(/"/g, '""')}","${c.email || ''}"`)
+            .join('\n');
+
+        // Download
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `grapplay_instructors_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+
+        success(`${creators.length}명의 인스트럭터 정보를 다운로드했습니다.`);
+    };
+
     const handleEditSave = async () => {
         if (!editingCreator) return;
 
@@ -184,6 +207,13 @@ export const AdminCreatorList: React.FC = () => {
                             <p className="text-zinc-400 mt-1">인스트럭터 목록 및 승인 대기 내역을 관리합니다.</p>
                         </div>
                     </div>
+                    <button
+                        onClick={handleDownloadEmails}
+                        className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium rounded-xl transition-all border border-zinc-700"
+                    >
+                        <Download className="w-4 h-4" />
+                        이메일 다운로드
+                    </button>
                 </div>
 
                 {/* Tabs */}

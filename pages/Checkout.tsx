@@ -212,17 +212,11 @@ export const Checkout: React.FC = () => {
                 initialAmount = sparring?.price || 0;
                 setProductTitle(sparring?.title || '스파링 영상');
             } else if (type === 'subscription') {
-                const isPro = id?.includes('price_1SYHx') || id?.includes('price_1SYI2');
                 const isYearly = id?.includes('price_1SYHw') || id?.includes('price_1SYI2');
 
-                if (isPro) {
-                    initialAmount = isYearly ? 390000 : 39000;
-                    setProductTitle(isYearly ? 'Pro 구독 (연간)' : 'Pro 구독 (월간)');
-                } else {
-                    // 3월 할인: 290000 -> 190000
-                    initialAmount = isYearly ? 190000 : 29000;
-                    setProductTitle(isYearly ? 'Basic 구독 (연간)' : 'Basic 구독 (월간)');
-                }
+                // 3월 할인: 290000 -> 190000
+                initialAmount = isYearly ? 190000 : 29000;
+                setProductTitle(isYearly ? 'Grapplay 멤버십 (1년권)' : 'Grapplay 멤버십 (1개월권)');
             }
 
             // Store original amount before any discounts

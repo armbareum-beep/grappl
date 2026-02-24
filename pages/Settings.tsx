@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 
-import { User, Bell, Shield, CreditCard, ChevronRight, Upload as UploadIcon, Check, Settings as SettingsIcon, LogOut, Loader2, AlertTriangle, Calendar, Smartphone, RefreshCw } from 'lucide-react';
+import { User, Bell, Shield, CreditCard, ChevronRight, Upload as UploadIcon, Check, Settings as SettingsIcon, LogOut, Loader2, AlertTriangle, Calendar, Smartphone, RefreshCw, Trash2 } from 'lucide-react';
 import { updateUserProfile, uploadProfileImage, getCreatorById, updatePassword, getUserSubscription, cancelSubscription, calculateUpgradeProration } from '../lib/api';
+import { hardReload } from '../lib/utils';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
 import { format } from 'date-fns';
@@ -41,6 +42,9 @@ export const Settings: React.FC = () => {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [passwordError, setPasswordError] = useState('');
+
+    // Cache Clear State
+    const [clearingCache, setClearingCache] = useState(false);
 
     // Load initial data
     useEffect(() => {
@@ -295,6 +299,22 @@ export const Settings: React.FC = () => {
         }
     };
 
+    const handleClearCache = async () => {
+        setClearingCache(true);
+        setMessage({ type: 'success', text: '캐시를 삭제하고 새로고침합니다...' });
+
+        // 잠시 대기 후 캐시 삭제 실행 (사용자가 메시지를 볼 수 있도록)
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        try {
+            await hardReload([], true);
+        } catch (error) {
+            console.error('Cache clear error:', error);
+            // hardReload 실패 시 기본 새로고침
+            window.location.reload();
+        }
+    };
+
     const renderContent = () => {
         switch (activeSection) {
             case 'profile':
@@ -469,11 +489,13 @@ export const Settings: React.FC = () => {
                                         <CreditCard className="w-7 h-7 text-white" />
                                     </div>
                                     <div>
-                                        <h4 className="text-lg font-bold text-white mb-1">Premium Plan</h4>
-                                        <p className="text-sm text-zinc-400 mb-2">모든 강좌와 AI 코칭 기능을 무제한으로 이용하세요.</p>
+                                        <h4 className="text-lg font-bold text-white mb-1">
+                                            Grapplay 멤버십 ({subscription.plan_interval === 'year' ? '1년권' : '1개월권'})
+                                        </h4>
+                                        <p className="text-sm text-zinc-400 mb-2">모든 강좌와 콘텐츠를 무제한으로 이용하세요.</p>
                                         <div className="flex items-center gap-2 text-xs font-medium text-zinc-500 bg-zinc-800/50 px-2 py-1 rounded-lg inline-flex">
                                             <Calendar className="w-3.5 h-3.5" />
-                                            <span>다음 결제일: {subscription.current_period_end ? format(new Date(subscription.current_period_end), 'yyyy년 M월 d일', { locale: ko }) : '-'}</span>
+                                            <span>이용 종료일: {subscription.current_period_end ? format(new Date(subscription.current_period_end), 'yyyy년 M월 d일', { locale: ko }) : '-'}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -504,7 +526,7 @@ export const Settings: React.FC = () => {
                                     <CreditCard className="w-8 h-8 text-zinc-600" />
                                 </div>
                                 <h3 className="text-lg font-bold text-white mb-2">활성화된 구독이 없습니다</h3>
-                                <p className="text-zinc-400 mb-6">프리미엄 멤버십으로 업그레이드하고 모든 기능을 이용해보세요.</p>
+                                <p className="text-zinc-400 mb-6">Grapplay 멤버십에 가입하고 모든 콘텐츠를 이용해보세요.</p>
                                 <Button variant="primary" onClick={() => window.location.href = '/pricing'}>
                                     멤버십 알아보기
                                 </Button>
@@ -578,6 +600,50 @@ export const Settings: React.FC = () => {
                                 <h5 className="text-xs font-bold text-zinc-300 mb-2 uppercase tracking-widest">수동 설치 방법</h5>
                                 <p className="text-[11px] text-zinc-500 leading-relaxed">
                                     iOS(iPhone)의 경우 <strong>'공유하기'</strong> 버튼 클릭 후 <strong>'홈 화면에 추가'</strong>를 눌러 직접 설치해주세요.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* 캐시 삭제 섹션 */}
+                        <div className="bg-zinc-900/50 rounded-2xl border border-zinc-800 overflow-hidden">
+                            <div className="p-6">
+                                <div className="flex flex-col md:flex-row items-start md:items-center gap-4 justify-between">
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 flex-shrink-0">
+                                            <Trash2 className="w-6 h-6 text-amber-500" />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-base font-bold text-white mb-1">캐시 삭제</h4>
+                                            <p className="text-xs text-zinc-400 leading-relaxed">
+                                                앱이 최신 버전으로 업데이트되지 않거나<br className="md:hidden" />
+                                                오류가 발생할 경우 캐시를 삭제해보세요.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        onClick={handleClearCache}
+                                        disabled={clearingCache}
+                                        variant="secondary"
+                                        size="sm"
+                                        className="w-full md:w-auto flex-shrink-0"
+                                    >
+                                        {clearingCache ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                                삭제 중...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <RefreshCw className="w-4 h-4 mr-2" />
+                                                캐시 삭제 및 새로고침
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
+                            </div>
+                            <div className="px-6 py-4 bg-zinc-800/30 border-t border-zinc-800">
+                                <p className="text-[11px] text-zinc-500">
+                                    현재 버전: <span className="font-mono text-zinc-400">{import.meta.env.VITE_APP_VERSION || 'dev'}</span>
                                 </p>
                             </div>
                         </div>

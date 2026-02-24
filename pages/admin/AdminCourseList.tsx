@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getCourses, deleteCourse, updateCourse } from '../../lib/api';
+import { getAllCoursesForAdmin, deleteCourse, updateCourse } from '../../lib/api';
 import { Course } from '../../types';
 import { Button } from '../../components/Button';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
@@ -68,8 +68,9 @@ export const AdminCourseList: React.FC = () => {
 
     async function fetchCourses() {
         try {
-            const data = await getCourses();
-            setCourses(data);
+            const { data, error } = await getAllCoursesForAdmin();
+            if (error) throw error;
+            setCourses(data || []);
         } catch (error) {
             console.error('Error fetching courses:', error);
         } finally {
