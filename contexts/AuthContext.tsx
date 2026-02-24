@@ -3,22 +3,22 @@ import { supabase } from '../lib/supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { queryClient } from '../lib/react-query';
 
-// Auto-recovery: clear stale auth data and reload
+// Auto-recovery: clear stale auth data (NO RELOAD - prevents infinite loops)
 async function autoRecoverAuth(reason: string) {
     console.warn(`[AuthContext] Auto-recovery triggered: ${reason}`);
 
     try {
-        // Check if we already tried recovery recently (prevent infinite loops)
-        const lastRecovery = localStorage.getItem('auth_recovery_attempt');
+        // Check if we already tried recovery recently (prevent spam)
+        const lastRecovery = sessionStorage.getItem('auth_recovery_attempt');
         const now = Date.now();
         if (lastRecovery && now - parseInt(lastRecovery) < 30000) {
-            console.warn('[AuthContext] Recovery attempted recently, skipping to prevent loop');
+            console.warn('[AuthContext] Recovery attempted recently, skipping');
             return false;
         }
 
         try {
-            localStorage.setItem('auth_recovery_attempt', now.toString());
-        } catch { /* Safari Private Mode 등에서 예외 발생 가능 */ }
+            sessionStorage.setItem('auth_recovery_attempt', now.toString());
+        } catch { /* Safari Private Mode */ }
 
         try {
             // Sign out from Supabase to clear server session
@@ -27,7 +27,7 @@ async function autoRecoverAuth(reason: string) {
             console.warn('[AuthContext] signOut failed during recovery:', e);
         }
 
-        // Clear auth-related localStorage keys (각각 try-catch로 감싸서 예외 방지)
+        // Clear auth-related localStorage keys
         try {
             const keysToRemove: string[] = [];
             for (let i = 0; i < localStorage.length; i++) {
@@ -47,19 +47,14 @@ async function autoRecoverAuth(reason: string) {
             console.warn('[AuthContext] localStorage cleanup failed:', e);
         }
 
-        // Clear session storage
-        try {
-            sessionStorage.clear();
-        } catch { }
-
-        // Invalidate all queries
+        // Invalidate all queries (NO sessionStorage.clear() - preserves reload flags)
         try {
             queryClient.clear();
         } catch { }
 
+        // ❌ NO RELOAD - just clear state and let React handle it
         return true;
     } catch (e) {
-        // 최외곽 예외 처리 - 어떤 오류가 발생해도 함수가 정상 종료되도록
         console.error('[AuthContext] autoRecoverAuth failed:', e);
         return false;
     }

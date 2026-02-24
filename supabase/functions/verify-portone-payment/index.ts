@@ -231,27 +231,17 @@ Deno.serve(async (req) => {
         } else if (mode === 'subscription' || mode === 'subscription_upgrade') {
             const isUpgrade = mode === 'subscription_upgrade'
 
-            let tier: string
+            // Single tier: just "basic" for all memberships
+            const tier = 'basic'
             let endDate: Date
 
             if (isUpgrade) {
-                // For upgrades, tier is determined from the old subscription
-                const { data: oldSub } = await supabaseClient
-                    .from('subscriptions')
-                    .select('subscription_tier')
-                    .eq('id', id)
-                    .single()
-
-                tier = oldSub?.subscription_tier || 'basic'
-
                 // Upgrade to yearly
                 endDate = new Date()
                 endDate.setFullYear(endDate.getFullYear() + 1)
             } else {
-                // New subscription
-                const isPro = id?.includes('price_1SYHx') || id?.includes('price_1SYI2')
+                // New subscription - check if yearly or monthly
                 const isYearly = id?.includes('price_1SYHw') || id?.includes('price_1SYI2')
-                tier = isPro ? 'premium' : 'basic'
 
                 endDate = new Date()
                 if (isYearly) {
@@ -262,7 +252,7 @@ Deno.serve(async (req) => {
             }
 
             // Update user subscription status
-            await supabaseClient
+            const { error: userUpdateError } = await supabaseClient
                 .from('users')
                 .update({
                     is_subscriber: true,
@@ -271,6 +261,13 @@ Deno.serve(async (req) => {
                 })
                 .eq('id', userId)
 
+            if (userUpdateError) {
+                console.error('Error updating user subscription status:', userUpdateError)
+                throw new Error(`Failed to update user: ${userUpdateError.message}`)
+            }
+
+            console.log(`User ${userId} subscription status updated: tier=${tier}, end=${endDate.toISOString()}`)
+
             // Create new subscription (upgrades always create yearly)
             const { data: subData, error: subError } = await supabaseClient
                 .from('subscriptions')
@@ -278,17 +275,23 @@ Deno.serve(async (req) => {
                     user_id: userId,
                     status: 'active',
                     subscription_tier: tier,
-                    plan_interval: 'year', // Upgrades are always yearly
+                    plan_interval: 'year',
                     current_period_start: new Date().toISOString(),
                     current_period_end: endDate.toISOString(),
                     portone_payment_id: effectivePaymentId,
-                    billing_key: null, // No billing key for yearly
                     amount: amountValue
                 })
                 .select()
                 .single()
 
-            if (!subError && subData) {
+            if (subError) {
+                console.error('Error creating subscription:', subError)
+                throw new Error(`Failed to create subscription: ${subError.message}`)
+            }
+
+            console.log(`Subscription created: id=${subData?.id}, user=${userId}`)
+
+            if (subData) {
                 // For annual subscriptions, recognition is split into 12 months in revenue_ledger
                 // Note: Subscription revenue split among creators is usually handled by a separate monthly job.
                 // For now, we record the platform-level revenue.

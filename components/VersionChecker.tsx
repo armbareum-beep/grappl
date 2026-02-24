@@ -1,23 +1,21 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, RefreshCw, X } from 'lucide-react';
 import { hardReload } from '../lib/utils';
 
-const UPDATE_COOLDOWN = 10000; // 10 seconds safety cooldown
-const MIN_RELOAD_INTERVAL = 600000; // 10 minutes minimum between hard reloads (reduced from 1 hour)
-const STALE_SESSION_THRESHOLD = 24 * 60 * 60 * 1000; // 24 hours - consider session stale after this
-const LAST_UPDATE_KEY = 'grapplay_last_update_attempt';
-const LAST_SUCCESSFUL_RELOAD_KEY = 'grapplay_last_successful_reload';
-const LAST_ACTIVE_KEY = 'grapplay_last_active';
-const TRIED_VERSION_KEY = 'grapplay_tried_version';
+// Constants for preventing refresh loops
+const VERSION_CHECK_INTERVAL = 10 * 60 * 1000; // 10 minutes
+const VISIBILITY_CHECK_THROTTLE = 5 * 60 * 1000; // 5 minutes
+const SESSION_RELOAD_KEY = 'grapplay_version_reloaded';
+const LAST_VERSION_CHECK_KEY = 'grapplay_last_version_check';
 
 export const VersionChecker: React.FC = () => {
     const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
-    const [latestVersion, _setLatestVersion] = useState<string | null>(null);
+    const [latestVersion, setLatestVersion] = useState<string | null>(null);
     const isUpdating = useRef(false);
+    const lastVisibilityCheck = useRef(0);
 
-    // 개발 환경 체크 - 훅 규칙 준수를 위해 상단 변수로 선언
-    // localhost, 127.0.0.1, 사설 IP 대역(192.168.x.x, 10.x.x.x, 172.16-31.x.x) 모두 개발 환경으로 간주
+    // Development environment check
     const isDev = import.meta.env.DEV ||
         window.location.hostname === 'localhost' ||
         window.location.hostname === '127.0.0.1' ||
@@ -25,50 +23,48 @@ export const VersionChecker: React.FC = () => {
         Boolean(window.location.hostname.match(/^10\./)) ||
         Boolean(window.location.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./));
 
-    const handleUpdate = async (newVersion: string) => {
+    // User-initiated update (via button click only)
+    const handleUpdate = useCallback(async () => {
         if (isUpdating.current) return;
 
-        // Prevent infinite reload loops: check if we tried to update very recently
-        const lastAttempt = localStorage.getItem(LAST_UPDATE_KEY);
-        const lastReload = localStorage.getItem(LAST_SUCCESSFUL_RELOAD_KEY);
-        const now = Date.now();
-
-        if (lastAttempt && now - parseInt(lastAttempt) < UPDATE_COOLDOWN) {
-            console.warn('[VersionCheck] Update attempt blocked to prevent infinite loop');
-            return;
-        }
-
-        // Only force reload if 1 hour has passed since last reload
-        // OR if this is not a background visibility check
-        if (lastReload && now - parseInt(lastReload) < MIN_RELOAD_INTERVAL) {
+        // Prevent multiple reloads in same session
+        const sessionReloaded = sessionStorage.getItem(SESSION_RELOAD_KEY);
+        if (sessionReloaded === 'true') {
+            console.log('[VersionChecker] Already reloaded this session, skipping');
+            setShowUpdatePrompt(false);
             return;
         }
 
         isUpdating.current = true;
-        localStorage.setItem(LAST_UPDATE_KEY, now.toString());
-        localStorage.setItem(LAST_SUCCESSFUL_RELOAD_KEY, now.toString());
+        sessionStorage.setItem(SESSION_RELOAD_KEY, 'true');
 
         try {
-            await hardReload([LAST_UPDATE_KEY, LAST_SUCCESSFUL_RELOAD_KEY, TRIED_VERSION_KEY], true);
+            setShowUpdatePrompt(false);
+            await hardReload([], true);
         } catch (error) {
-            console.error('[VersionCheck] Error during hard reload:', error);
+            console.error('[VersionChecker] Error during hard reload:', error);
+            // Fallback: simple reload with cache bust
             const url = new URL(window.location.href);
-            url.searchParams.set('reload_t', Date.now().toString());
+            url.searchParams.set('_t', Date.now().toString());
             window.location.href = url.toString();
         }
-    };
+    }, []);
 
-    const checkVersion = async (isAutoUpdate = false) => {
-        if (isUpdating.current) return;
+    // Check for new version - NEVER auto-reloads, only shows prompt
+    const checkVersion = useCallback(async () => {
+        if (isUpdating.current || !navigator.onLine) return;
 
-        // ✅ 오프라인 체크 추가
-        if (!navigator.onLine) {
+        // Prevent checking too frequently
+        const lastCheck = localStorage.getItem(LAST_VERSION_CHECK_KEY);
+        const now = Date.now();
+        if (lastCheck && now - parseInt(lastCheck) < 60000) { // 1 minute minimum between checks
             return;
         }
 
         try {
-            // ✅ 캐시 우회 강화 (cache: 'no-store' 추가)
-            const response = await fetch('/version.json?t=' + new Date().getTime(), {
+            localStorage.setItem(LAST_VERSION_CHECK_KEY, now.toString());
+
+            const response = await fetch('/version.json?t=' + now, {
                 cache: 'no-store',
                 headers: {
                     'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -81,105 +77,64 @@ export const VersionChecker: React.FC = () => {
             const data = await response.json();
             const newestVersion = data.version;
 
-            // 방어 코드: 버전 정보가 유효하지 않으면 중단
             if (!newestVersion) return;
 
-            // USE THE INJECTED VERSION FROM VITE as the source of truth for "currently running"
             const currentVersion = import.meta.env.VITE_APP_VERSION;
 
             if (currentVersion && newestVersion !== currentVersion) {
-                // 무한 루프 방지: 이미 이 버전으로 업데이트 시도했으면 스킵
-                const triedVersion = localStorage.getItem(TRIED_VERSION_KEY);
-                if (triedVersion === newestVersion) {
-                    console.log('[VersionChecker] 이미 시도한 버전, 스킵:', newestVersion);
-                    return;
-                }
+                console.log('[VersionChecker] New version available:', newestVersion, '(current:', currentVersion, ')');
 
-                // 업데이트 시도 전에 기록
-                localStorage.setItem(TRIED_VERSION_KEY, newestVersion);
-
-                // ✅ 자동 업데이트 활성화 (사용자 선택 반영)
-                // 새 버전이 감지되면 즉시 hardReload 실행
-                handleUpdate(newestVersion);
+                // Only show prompt - NEVER auto-reload
+                setLatestVersion(newestVersion);
+                setShowUpdatePrompt(true);
             }
         } catch (error) {
-            console.error('[VersionChecker] 버전 체크 실패:', error);
+            console.error('[VersionChecker] Version check failed:', error);
         }
-    };
+    }, []);
 
     useEffect(() => {
         if (isDev) return;
 
-        // Check if this is a stale session (user hasn't visited in a long time)
-        const checkStaleSession = () => {
-            const lastActive = localStorage.getItem(LAST_ACTIVE_KEY);
-            const now = Date.now();
-
-            if (lastActive) {
-                const timeSinceLastActive = now - parseInt(lastActive);
-                if (timeSinceLastActive > STALE_SESSION_THRESHOLD) {
-                    console.log('[VersionChecker] Stale session detected, forcing cache clear');
-                    // Force hard reload bypassing cooldown for stale sessions
-                    forceHardReloadStaleSession();
-                    return true;
-                }
-            }
-
-            // Update last active time
-            localStorage.setItem(LAST_ACTIVE_KEY, now.toString());
-            return false;
-        };
-
-        // Force reload for stale sessions - bypasses normal cooldown
-        const forceHardReloadStaleSession = async () => {
-            if (isUpdating.current) return;
-            isUpdating.current = true;
-
-            try {
-                // Clear the reload interval check for stale sessions
-                localStorage.removeItem(LAST_SUCCESSFUL_RELOAD_KEY);
-                await hardReload([LAST_UPDATE_KEY, LAST_ACTIVE_KEY, TRIED_VERSION_KEY], true);
-            } catch (error) {
-                console.error('[VersionCheck] Error during stale session reload:', error);
-                window.location.reload();
-            }
-        };
-
-        // Check for stale session first
-        if (checkStaleSession()) {
-            return; // Will reload, no need to continue
+        // Check if already reloaded this session - don't even show prompt
+        const sessionReloaded = sessionStorage.getItem(SESSION_RELOAD_KEY);
+        if (sessionReloaded === 'true') {
+            console.log('[VersionChecker] Session already reloaded, component inactive');
+            return;
         }
 
-        // Initial check
-        checkVersion();
+        // Initial check after 3 second delay (let app stabilize first)
+        const initialTimeout = setTimeout(() => checkVersion(), 3000);
 
-        // Check and AUTOMATICALLY reload on visibility change (when user comes back to tab)
-        let lastVisibilityCheck = 0;
+        // Periodic check
+        const interval = setInterval(checkVersion, VERSION_CHECK_INTERVAL);
+
+        // Visibility change handler with throttling
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
                 const now = Date.now();
-
-                // Update last active time on every visibility
-                localStorage.setItem(LAST_ACTIVE_KEY, now.toString());
-
-                // Throttle visibility checks to once every 5 minutes
-                if (now - lastVisibilityCheck < 5 * 60 * 1000) {
+                if (now - lastVisibilityCheck.current < VISIBILITY_CHECK_THROTTLE) {
                     return;
                 }
-                lastVisibilityCheck = now;
+                lastVisibilityCheck.current = now;
                 checkVersion();
             }
         };
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
-        // ✅ 주기적 체크 (10분) - 서버 부하 고려
-        const interval = setInterval(() => checkVersion(), 10 * 60 * 1000);
-
         return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            clearTimeout(initialTimeout);
             clearInterval(interval);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
+    }, [isDev, checkVersion]);
+
+    // Dismiss handler
+    const handleDismiss = useCallback(() => {
+        setShowUpdatePrompt(false);
+        // Don't show again for 1 hour after dismissing
+        sessionStorage.setItem('grapplay_update_dismissed', Date.now().toString());
     }, []);
 
     return (
@@ -205,14 +160,14 @@ export const VersionChecker: React.FC = () => {
 
                         <div className="flex flex-col gap-2">
                             <button
-                                onClick={() => latestVersion && handleUpdate(latestVersion)}
+                                onClick={handleUpdate}
                                 className="bg-violet-600 hover:bg-violet-500 text-white p-3 rounded-2xl transition-all active:scale-95 group shadow-lg shadow-violet-900/20"
                                 title="업데이트 적용"
                             >
                                 <RefreshCw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
                             </button>
                             <button
-                                onClick={() => setShowUpdatePrompt(false)}
+                                onClick={handleDismiss}
                                 className="text-zinc-600 hover:text-zinc-400 p-2 transition-colors flex items-center justify-center"
                                 title="나중에 하기"
                             >
@@ -225,4 +180,3 @@ export const VersionChecker: React.FC = () => {
         </AnimatePresence>
     );
 };
-

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Course } from '../types';
 import { PlayCircle, Bookmark, Share2, MoreHorizontal } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { toggleCourseSave, checkCourseSaved } from '../lib/api';
+import { toggleCourseSave } from '../lib/api';
 import Player from '@vimeo/player';
 import { cn } from '../lib/utils';
 import { ContentBadge } from './common/ContentBadge';
@@ -18,9 +18,10 @@ interface CourseCardProps {
     rank?: number;
     hasAccess?: boolean;
     onUnsave?: () => void;
+    initialSaved?: boolean; // Pre-fetched save status from parent (batch query)
 }
 
-export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDailyFree, rank, hasAccess = false, onUnsave }) => {
+export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDailyFree, rank, hasAccess = false, onUnsave, initialSaved }) => {
     const [isHovering, setIsHovering] = useState(false);
     const [showVideo, setShowVideo] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
@@ -32,15 +33,16 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, className, isDai
 
     const { user } = useAuth();
     const navigate = useNavigate();
-    const [isSaved, setIsSaved] = useState(false);
+    const [isSaved, setIsSaved] = useState(initialSaved ?? false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
 
+    // Sync with parent's batch-fetched value
     useEffect(() => {
-        if (user) {
-            checkCourseSaved(user.id, course.id).then(setIsSaved).catch(console.error);
+        if (initialSaved !== undefined) {
+            setIsSaved(initialSaved);
         }
-    }, [user?.id, course.id]);
+    }, [initialSaved]);
 
     const handleSave = async (e: React.MouseEvent) => {
         e.preventDefault(); e.stopPropagation();

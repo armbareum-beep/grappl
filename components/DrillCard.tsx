@@ -4,26 +4,28 @@ import { Drill } from '../types';
 import { PlayCircle, Clock, Bookmark, Share2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
-import { toggleDrillSave, checkDrillSaved } from '../lib/api-user-interactions';
+import { toggleDrillSave } from '../lib/api-user-interactions';
 
 const ShareModal = lazy(() => import('./social/ShareModal'));
 
 interface DrillCardProps {
     drill: Drill;
-    className?: string; // Add className for flexibility
+    className?: string;
+    initialSaved?: boolean; // Pre-fetched save status from parent (batch query)
 }
 
-export const DrillCard: React.FC<DrillCardProps> = ({ drill, className }) => {
+export const DrillCard: React.FC<DrillCardProps> = ({ drill, className, initialSaved }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
-    const [isSaved, setIsSaved] = useState(false);
+    const [isSaved, setIsSaved] = useState(initialSaved ?? false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
+    // Sync with parent's batch-fetched value
     useEffect(() => {
-        if (user && drill.id) {
-            checkDrillSaved(user.id, drill.id).then(setIsSaved).catch(console.error);
+        if (initialSaved !== undefined) {
+            setIsSaved(initialSaved);
         }
-    }, [user?.id, drill.id]);
+    }, [initialSaved]);
 
     const handleSave = async (e: React.MouseEvent) => {
         e.preventDefault();

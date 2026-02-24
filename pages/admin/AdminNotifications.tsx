@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { getAdminNotifications, createAdminNotification, AdminNotification } from '../../lib/api-admin';
-import { ArrowLeft, Bell, Send } from 'lucide-react';
+import { getAdminNotifications, createAdminNotification, AdminNotification, getEmailListByAudience } from '../../lib/api-admin';
+import { ArrowLeft, Bell, Send, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../contexts/ToastContext';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
@@ -13,6 +13,7 @@ export const AdminNotifications: React.FC = () => {
     const [title, setTitle] = useState('');
     const [message, setMessage] = useState('');
     const [targetAudience, setTargetAudience] = useState<'all' | 'creators' | 'users'>('all');
+    const [sendEmail, setSendEmail] = useState(false);
     const [sending, setSending] = useState(false);
     const [loading, setLoading] = useState(true);
 
@@ -39,12 +40,22 @@ export const AdminNotifications: React.FC = () => {
         setConfirmModalOpen(false);
         setSending(true);
         try {
-            const { error } = await createAdminNotification(title, message, targetAudience);
+            const { error, emailResult } = await createAdminNotification(title, message, targetAudience, sendEmail);
             if (error) throw error;
 
-            success('알림이 발송되었습니다.');
+            if (sendEmail && emailResult) {
+                if (emailResult.error) {
+                    success(`앱 알림 발송 완료. 이메일 발송 실패: ${emailResult.error}`);
+                } else {
+                    success(`알림 발송 완료! (이메일 ${emailResult.sent}명에게 발송)`);
+                }
+            } else {
+                success('알림이 발송되었습니다.');
+            }
+
             setTitle('');
             setMessage('');
+            setSendEmail(false);
             fetchNotifications();
         } catch (error) {
             console.error('Failed to send notification:', error);
@@ -60,6 +71,33 @@ export const AdminNotifications: React.FC = () => {
             case 'creators': return '인스트럭터';
             case 'users': return '일반 유저';
             default: return targetAudience;
+        }
+    };
+
+    const handleDownloadEmails = async () => {
+        try {
+            const emails = await getEmailListByAudience(targetAudience);
+            if (!emails || emails.length === 0) {
+                toastError('다운로드할 이메일이 없습니다.');
+                return;
+            }
+
+            // Create CSV content
+            const csvContent = 'Name,Email\n' + emails.map(e => `${e.name || ''},${e.email}`).join('\n');
+
+            // Download
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `grapplay_${targetAudience}_emails_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+
+            success(`${emails.length}개의 이메일을 다운로드했습니다.`);
+        } catch (error) {
+            console.error('Failed to download emails:', error);
+            toastError('이메일 다운로드에 실패했습니다.');
         }
     };
 
@@ -79,7 +117,7 @@ export const AdminNotifications: React.FC = () => {
                 onClose={() => setConfirmModalOpen(false)}
                 onConfirm={handleConfirmSend}
                 title="알림 발송 확인"
-                message={`정말 "${getTargetAudienceLabel()}" 그룹에게 알림을 발송하시겠습니까?`}
+                message={`정말 "${getTargetAudienceLabel()}" 그룹에게 알림을 발송하시겠습니까?${sendEmail ? '\n\n이메일로도 함께 발송됩니다.' : ''}`}
                 confirmText="발송"
                 cancelText="취소"
                 variant="warning"
@@ -167,7 +205,15 @@ export const AdminNotifications: React.FC = () => {
                                 />
                             </div>
 
-                            <div className="flex justify-end">
+                            <div className="flex items-center justify-between">
+                                <button
+                                    type="button"
+                                    onClick={handleDownloadEmails}
+                                    className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium rounded-xl transition-all flex items-center gap-2 text-sm border border-zinc-700"
+                                >
+                                    <Download className="w-4 h-4" />
+                                    {getTargetAudienceLabel()} 이메일 다운로드
+                                </button>
                                 <button
                                     type="submit"
                                     disabled={sending}

@@ -6,12 +6,12 @@ import { ActionMenuModal } from '../library/ActionMenuModal';
 import { cn, getOptimizedThumbnail } from '../../lib/utils';
 import { useAuth as useAuthContext } from '../../contexts/AuthContext';
 import {
-    toggleCourseSave, checkCourseSaved,
-    toggleRoutineSave, checkRoutineSaved,
-    toggleSparringSave, checkSparringSaved,
-    toggleLessonSave, checkLessonSaved
+    toggleCourseSave,
+    toggleRoutineSave,
+    toggleSparringSave,
+    toggleLessonSave
 } from '../../lib/api';
-import { toggleDrillSave, checkDrillSaved } from '../../lib/api-user-interactions';
+import { toggleDrillSave, batchCheckInteractions, ContentType } from '../../lib/api-user-interactions';
 
 const ShareModal = lazy(() => import('../social/ShareModal'));
 
@@ -25,35 +25,24 @@ interface ContentRowItemProps {
     getTitle: (item: any) => string;
     getSubtitle: (item: any) => string;
     handleClick: (item: any) => void;
+    initialSaved?: boolean; // Pre-fetched save status from parent (batch query)
 }
 
 const ContentRowItem: React.FC<ContentRowItemProps> = ({
-    item, type, variant, idx, cardClass, getThumbnail, getTitle, getSubtitle, handleClick
+    item, type, variant, idx, cardClass, getThumbnail, getTitle, getSubtitle, handleClick, initialSaved
 }) => {
     const { user } = useAuthContext();
     const navigate = useNavigate();
-    const [isSaved, setIsSaved] = useState(false);
+    const [isSaved, setIsSaved] = useState(initialSaved ?? false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
 
+    // Sync with parent's batch-fetched value
     useEffect(() => {
-        if (!user || !item.id) return;
-
-        const checkSaved = async () => {
-            try {
-                let saved = false;
-                if (type === 'course') saved = await checkCourseSaved(user.id, item.id);
-                else if (type === 'routine') saved = await checkRoutineSaved(user.id, item.id);
-                else if (type === 'sparring') saved = await checkSparringSaved(user.id, item.id);
-                else if (type === 'lesson') saved = await checkLessonSaved(user.id, item.id);
-                else if (type === 'drill') saved = await checkDrillSaved(user.id, item.id);
-                setIsSaved(saved);
-            } catch (err) {
-                console.error(err);
-            }
-        };
-        checkSaved();
-    }, [user?.id, item.id, type]);
+        if (initialSaved !== undefined) {
+            setIsSaved(initialSaved);
+        }
+    }, [initialSaved]);
 
     // Listen for save toggle events from other instances of the same item
     useEffect(() => {
@@ -304,10 +293,41 @@ export const ContentRow: React.FC<ContentRowProps> = ({
     basePath
 }) => {
     const navigate = useNavigate();
+    const { user } = useAuthContext();
+    const [savedMap, setSavedMap] = useState<Map<string, boolean>>(new Map());
 
     if (!items || items.length === 0) return null;
 
     const displayItems = items.slice(0, 12);
+
+    // Batch fetch saved status for all items
+    useEffect(() => {
+        if (!user || displayItems.length === 0) return;
+        if (type === 'chain' || type === 'weekly-routine') return; // These types don't support save
+
+        const fetchSavedStatus = async () => {
+            try {
+                // Map row type to ContentType
+                const contentTypeMap: Record<string, ContentType> = {
+                    'course': 'course',
+                    'routine': 'routine',
+                    'sparring': 'sparring',
+                    'lesson': 'lesson',
+                    'drill': 'drill'
+                };
+                const contentType = contentTypeMap[type];
+                if (!contentType) return;
+
+                const ids = displayItems.map(item => item.id).filter(Boolean);
+                const result = await batchCheckInteractions(contentType, ids, 'save');
+                setSavedMap(result);
+            } catch (err) {
+                console.error('[ContentRow] Failed to batch check saved status:', err);
+            }
+        };
+
+        fetchSavedStatus();
+    }, [user?.id, type, displayItems.map(i => i.id).join(',')]);
 
     const handleClick = (item: any) => {
         if (type === 'course') navigate(`/courses/${item.courseId || item.id}`);
@@ -386,6 +406,7 @@ export const ContentRow: React.FC<ContentRowProps> = ({
                                 getTitle={getTitle}
                                 getSubtitle={getSubtitle}
                                 handleClick={handleClick}
+                                initialSaved={savedMap.get(item.id)}
                             />
                         </div>
                     ))}

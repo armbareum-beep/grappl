@@ -212,16 +212,11 @@ export const Checkout: React.FC = () => {
                 initialAmount = sparring?.price || 0;
                 setProductTitle(sparring?.title || '스파링 영상');
             } else if (type === 'subscription') {
-                const isPro = id?.includes('price_1SYHx') || id?.includes('price_1SYI2');
                 const isYearly = id?.includes('price_1SYHw') || id?.includes('price_1SYI2');
 
-                if (isPro) {
-                    initialAmount = isYearly ? 390000 : 39000;
-                    setProductTitle(isYearly ? 'Pro 구독 (연간)' : 'Pro 구독 (월간)');
-                } else {
-                    initialAmount = isYearly ? 290000 : 29000;
-                    setProductTitle(isYearly ? 'Basic 구독 (연간)' : 'Basic 구독 (월간)');
-                }
+                // 3월 할인: 290000 -> 190000
+                initialAmount = isYearly ? 190000 : 29000;
+                setProductTitle(isYearly ? 'Grapplay 멤버십 (1년권)' : 'Grapplay 멤버십 (1개월권)');
             }
 
             // Store original amount before any discounts
@@ -607,6 +602,21 @@ export const Checkout: React.FC = () => {
                                                         : import.meta.env.VITE_PORTONE_CHANNEL_KEY_GENERAL;
 
                                                     let response;
+                                                    const paymentId = `payment-${Date.now()}`;
+                                                    const issueId = `issue-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+                                                    // Build redirect URL for mobile payments
+                                                    const baseUrl = window.location.origin;
+                                                    const redirectParams = new URLSearchParams({
+                                                        mode: isUpgrade ? 'subscription_upgrade' : type || '',
+                                                        productId: id || '',
+                                                        amount: String(discountedAmount),
+                                                        couponCode: appliedCoupon?.code || '',
+                                                        returnUrl: returnUrl || '',
+                                                        userId: user?.id || '',
+                                                    });
+                                                    const redirectUrl = `${baseUrl}/payment/complete?${redirectParams.toString()}`;
+
                                                     // Monthly Subscription -> Issue Billing Key
                                                     if (isMonthlySubscription && !isUpgrade) {
                                                         response = await PortOne.requestIssueBillingKey({
@@ -614,13 +624,14 @@ export const Checkout: React.FC = () => {
                                                             channelKey: channelKey,
                                                             billingKeyMethod: "CARD",
                                                             issueName: productTitle,
-                                                            issueId: `issue-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                                                            issueId: issueId,
                                                             customer: {
                                                                 customerId: user?.id, // Updated for V2
                                                                 email: user?.email,
                                                                 phoneNumber: phoneNumber ? phoneNumber.replace(/-/g, '') : undefined,
                                                                 fullName: fullName || undefined,
                                                             },
+                                                            redirectUrl: redirectUrl,
                                                         });
                                                     }
                                                     // Yearly Pass, Upgrades & Others -> One-time Payment
@@ -628,7 +639,7 @@ export const Checkout: React.FC = () => {
                                                         response = await PortOne.requestPayment({
                                                             storeId: import.meta.env.VITE_PORTONE_STORE_ID,
                                                             channelKey: channelKey,
-                                                            paymentId: `payment-${Date.now()}`,
+                                                            paymentId: paymentId,
                                                             orderName: productTitle,
                                                             totalAmount: discountedAmount,
                                                             currency: "KRW",
@@ -639,6 +650,7 @@ export const Checkout: React.FC = () => {
                                                                 phoneNumber: phoneNumber ? phoneNumber.replace(/-/g, '') : undefined,
                                                                 fullName: fullName || undefined,
                                                             },
+                                                            redirectUrl: redirectUrl,
                                                         });
                                                     }
 

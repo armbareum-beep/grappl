@@ -956,9 +956,14 @@ export async function getAdminNotifications() {
     })) as AdminNotification[];
 }
 
-export async function createAdminNotification(title: string, message: string, targetAudience: 'all' | 'creators' | 'users') {
+export async function createAdminNotification(
+    title: string,
+    message: string,
+    targetAudience: 'all' | 'creators' | 'users',
+    sendEmail: boolean = false
+) {
     const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) return { error: { message: 'Unauthorized' } };
+    if (!userData.user) return { error: { message: 'Unauthorized' }, emailResult: null };
 
     const { error } = await supabase
         .from('admin_notifications')
@@ -969,12 +974,115 @@ export async function createAdminNotification(title: string, message: string, ta
             target_audience: targetAudience
         });
 
+    let emailResult = null;
+
     if (!error) {
         // Also log this action
         await logAdminAction('CREATE_NOTIFICATION', 'notification', 'new', `Sent to ${targetAudience}: ${title}`);
+
+        // Send email if requested
+        if (sendEmail) {
+            try {
+                const { data: session } = await supabase.auth.getSession();
+                const response = await fetch(
+                    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-notification-email`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${session.session?.access_token}`,
+                        },
+                        body: JSON.stringify({ title, message, targetAudience }),
+                    }
+                );
+
+                if (response.ok) {
+                    emailResult = await response.json();
+                } else {
+                    const errorText = await response.text();
+                    console.error('Email sending failed:', errorText);
+                    emailResult = { error: errorText };
+                }
+            } catch (emailError: any) {
+                console.error('Email sending error:', emailError);
+                emailResult = { error: emailError.message };
+            }
+        }
     }
 
-    return { error };
+    return { error, emailResult };
+}
+
+export async function getEmailListByAudience(targetAudience: 'all' | 'creators' | 'users'): Promise<{ name: string; email: string }[]> {
+    try {
+        if (targetAudience === 'creators') {
+            // Get creators with emails from creators table + fallback to users table
+            const { data: creators, error } = await supabase
+                .from('creators')
+                .select('name, email, user_id');
+
+            if (error || !creators) return [];
+
+            console.log('[getEmailListByAudience] Raw creators data:', creators.slice(0, 5));
+
+            // Get ALL user_ids to fetch name from users table
+            const allUserIds = creators.map(c => c.user_id).filter(Boolean);
+
+            let userInfoMap = new Map<string, { email: string; name: string }>();
+            if (allUserIds.length > 0) {
+                const { data: users } = await supabase
+                    .from('users')
+                    .select('id, email, name')
+                    .in('id', allUserIds);
+                console.log('[getEmailListByAudience] Users data:', users?.slice(0, 5));
+                userInfoMap = new Map(users?.map(u => [u.id, { email: u.email || '', name: u.name || '' }]) || []);
+            }
+
+            const result = creators
+                .map(c => ({
+                    // Prefer creators.name (admin-set) over users.name
+                    name: c.name || userInfoMap.get(c.user_id)?.name || '',
+                    email: c.email || userInfoMap.get(c.user_id)?.email || ''
+                }))
+                .filter(c => c.email);
+
+            console.log('[getEmailListByAudience] Final result:', result.slice(0, 5));
+            return result;
+        } else if (targetAudience === 'users') {
+            // Get users who are NOT creators
+            const { data: creators } = await supabase
+                .from('creators')
+                .select('user_id');
+
+            const creatorUserIds = creators?.map(c => c.user_id) || [];
+
+            let query = supabase.from('users').select('name, email');
+            if (creatorUserIds.length > 0) {
+                query = query.not('id', 'in', `(${creatorUserIds.join(',')})`);
+            }
+
+            const { data: users, error } = await query;
+            if (error || !users) return [];
+
+            return users
+                .filter(u => u.email)
+                .map(u => ({ name: u.name || '', email: u.email }));
+        } else {
+            // All users
+            const { data: users, error } = await supabase
+                .from('users')
+                .select('name, email');
+
+            if (error || !users) return [];
+
+            return users
+                .filter(u => u.email)
+                .map(u => ({ name: u.name || '', email: u.email }));
+        }
+    } catch (error) {
+        console.error('getEmailListByAudience error:', error);
+        return [];
+    }
 }
 
 // ==================== Payout Management ====================

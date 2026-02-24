@@ -72,22 +72,31 @@
   <script>
     // ============================================
     // 🔥 강제 캐시 클리어 (버전이 바뀌면 실행)
-    // 이 버전을 바꾸면 모든 사용자의 캐시가 강제로 클리어됩니다
+    // 세션당 1회만 실행하여 무한 루프 방지
     // ============================================
     (function() {
-      var CACHE_BUST_VERSION = '20260213_v1'; // 배포할 때마다 이 값을 변경
+      var CACHE_BUST_VERSION = '20260224_v2'; // 배포할 때마다 이 값을 변경
       var CACHE_KEY = 'grapplay_cache_version';
+      var SESSION_RELOAD_KEY = 'grapplay_session_reloaded';
 
       try {
+        // 🛡️ 세션 내 중복 리로드 방지 - sessionStorage 사용
+        var sessionReloaded = sessionStorage.getItem(SESSION_RELOAD_KEY);
+        if (sessionReloaded === 'true') {
+          console.log('[CacheBust] Already reloaded this session, skipping');
+          return;
+        }
+
         var savedVersion = localStorage.getItem(CACHE_KEY);
 
         if (savedVersion !== CACHE_BUST_VERSION) {
           console.log('[CacheBust] New version detected:', CACHE_BUST_VERSION, '(was:', savedVersion, ')');
 
-          // 즉시 버전 저장 (무한 루프 방지)
+          // 즉시 버전 저장 및 세션 플래그 설정 (무한 루프 방지)
           localStorage.setItem(CACHE_KEY, CACHE_BUST_VERSION);
+          sessionStorage.setItem(SESSION_RELOAD_KEY, 'true');
 
-          // Service Worker 해제 및 캐시 삭제
+          // Service Worker 해제 및 캐시 삭제 (비동기, 논블로킹)
           var clearPromises = [];
 
           // 1. Service Worker 해제
@@ -114,16 +123,14 @@
             );
           }
 
-          // 캐시 클리어 후 리로드
+          // 캐시 클리어 후 리로드 (한 번만)
           Promise.all(clearPromises).then(function() {
-            console.log('[CacheBust] Cache cleared, reloading...');
-            // 짧은 대기 후 리로드 (캐시 삭제가 반영되도록)
+            console.log('[CacheBust] Cache cleared, reloading once...');
             setTimeout(function() {
               window.location.reload();
             }, 300);
           });
 
-          // 이 시점에서 스크립트 실행 중단 (리로드 대기)
           return;
         }
       } catch(e) {

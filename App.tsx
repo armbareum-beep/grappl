@@ -98,73 +98,31 @@ const DebugAccess = React.lazy(() => import('./pages/DebugAccess'));
 const RootRedirect: React.FC = () => {
   const { user, loading } = useAuth();
   const [forceLoad, setForceLoad] = React.useState(false);
-  const [recoveryAttempted, setRecoveryAttempted] = React.useState(false);
 
   React.useEffect(() => {
-    // ✅ 개선: 3초 후 강제 표시 (4초 → 3초, 빠른 피드백)
+    // Force display after 3 seconds - NO RELOAD, just show landing page
+    // This prevents infinite reload loops while still giving good UX
     const timer = setTimeout(() => {
-      setForceLoad(true);
-      console.warn('[RootRedirect] Auth loading exceeded 3s, forcing landing page display');
+      if (loading) {
+        console.warn('[RootRedirect] Auth loading exceeded 3s, forcing landing page display');
+        setForceLoad(true);
+      }
     }, 3000);
 
-    // ✅ 개선: 6초 후 복구 시도 (8초 → 6초, 타임아웃 단축과 맞춤)
-    const recoveryTimer = setTimeout(async () => {
-      if (loading && !recoveryAttempted) {
-        console.warn('[RootRedirect] Auth still loading after 6s, attempting auto-recovery');
-        setRecoveryAttempted(true);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
-        // Check if we already tried recovery recently (10초로 단축, 60초 → 10초)
-        const lastRecovery = localStorage.getItem('app_infinite_loading_recovery');
-        const now = Date.now();
-        if (lastRecovery && now - parseInt(lastRecovery) < 10000) {
-          // 10초 내 재시도면 단순 리로드만 (스킵하지 않음)
-          console.warn('[RootRedirect] Recovery attempted recently, doing simple reload');
-          window.location.reload();
-          return;
-        }
-
-        try {
-          localStorage.setItem('app_infinite_loading_recovery', now.toString());
-        } catch { /* Safari Private Mode 예외 무시 */ }
-
-        // Clear auth data and reload
-        try {
-          // Clear auth-related storage
-          const keysToRemove: string[] = [];
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && (key.includes('supabase') || key.includes('auth') || key.startsWith('user_status'))) {
-              keysToRemove.push(key);
-            }
-          }
-          keysToRemove.forEach(k => {
-            try { localStorage.removeItem(k); } catch { }
-          });
-          try { sessionStorage.clear(); } catch { }
-
-          // Reload after cleanup
-          window.location.reload();
-        } catch (e) {
-          console.error('[RootRedirect] Recovery failed, forcing reload:', e);
-          window.location.reload(); // 실패해도 무조건 리로드
-        }
-      }
-    }, 6000);
-
-    return () => {
-      clearTimeout(timer);
-      clearTimeout(recoveryTimer);
-    };
-  }, [loading, recoveryAttempted]);
-
+  // Show loading screen briefly, but don't block forever
   if (loading && !forceLoad) {
     return <LoadingScreen message="로그인 정보 확인 중..." />;
   }
 
+  // If user exists (even during extended loading), redirect to home
   if (user) {
     return <Navigate to="/home" replace />;
   }
 
+  // No user or loading timed out - show landing page
   return <LandingPage />;
 };
 

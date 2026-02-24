@@ -1386,7 +1386,8 @@ export async function createCourse(courseData: Partial<Course>) {
         is_subscription_excluded: courseData.isSubscriptionExcluded,
         uniform_type: courseData.uniformType,
         preview_vimeo_id: courseData.previewVimeoId,
-        status: 'draft',
+        status: 'approved',
+        published: true,
     };
 
     const { data, error } = await supabase
@@ -1409,7 +1410,7 @@ export async function updateCourse(courseId: string, courseData: Partial<Course>
     if (courseData.thumbnailUrl !== undefined) dbData.thumbnail_url = courseData.thumbnailUrl;
     if (courseData.price !== undefined) dbData.price = courseData.price;
     if (courseData.isSubscriptionExcluded !== undefined) dbData.is_subscription_excluded = courseData.isSubscriptionExcluded;
-    // Note: is_hidden column does not exist in courses table
+    if (courseData.published !== undefined) dbData.published = courseData.published;
     if (courseData.uniformType) dbData.uniform_type = courseData.uniformType;
     if (courseData.previewVimeoId) dbData.preview_vimeo_id = courseData.previewVimeoId;
 

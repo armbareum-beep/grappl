@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { SparringVideo } from '../types';
 import { Play, Bookmark, PlayCircle } from 'lucide-react';
 import Player from '@vimeo/player';
-import { toggleSparringSave, checkSparringSaved } from '../lib/api';
+import { toggleSparringSave } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
 import { ContentBadge } from './common/ContentBadge';
@@ -13,17 +13,19 @@ interface SparringCardProps {
     rank?: number;
     hasAccess?: boolean;
     onUnsave?: () => void;
+    initialSaved?: boolean; // Pre-fetched save status from parent (batch query)
 }
 
-export const SparringCard: React.FC<SparringCardProps> = ({ video, rank, hasAccess = false, onUnsave }) => {
+export const SparringCard: React.FC<SparringCardProps> = ({ video, rank, hasAccess = false, onUnsave, initialSaved }) => {
     const { user } = useAuth();
-    const [isSaved, setIsSaved] = useState(false);
+    const [isSaved, setIsSaved] = useState(initialSaved ?? false);
 
+    // Sync with parent's batch-fetched value
     useEffect(() => {
-        if (user && video.id) {
-            checkSparringSaved(user.id, video.id).then(setIsSaved).catch(console.error);
+        if (initialSaved !== undefined) {
+            setIsSaved(initialSaved);
         }
-    }, [user?.id, video.id]);
+    }, [initialSaved]);
 
     const [isHovering, setIsHovering] = useState(false);
     const [showVideo, setShowVideo] = useState(false);

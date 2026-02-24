@@ -1,9 +1,10 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Check, Zap, Crown, RefreshCw, CreditCard } from 'lucide-react';
+import { Check, Zap, Crown, CreditCard, Clock, X } from 'lucide-react';
 import { Button } from '../components/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { motion, AnimatePresence } from 'framer-motion';
 
 type SubscriptionTier = 'basic' | 'premium';
 
@@ -15,6 +16,7 @@ export const Pricing: React.FC = () => {
   const [currentTier, setCurrentTier] = React.useState<SubscriptionTier | null>(null);
   const [isSubscribed, setIsSubscribed] = React.useState(false);
   const [subscriptionLoaded, setSubscriptionLoaded] = React.useState(false);
+  const [showComingSoonModal, setShowComingSoonModal] = React.useState(false);
 
   // Get return URL from location state
   const returnUrl = (location.state as any)?.returnUrl;
@@ -54,7 +56,7 @@ export const Pricing: React.FC = () => {
   const pricing = {
     basic: {
       monthly: { price: 29000, priceId: 'price_1SWs3iDWGN6smyu7MNbjs5kM' }, // Basic Monthly
-      yearly: { price: 290000, priceId: 'price_1SYHwZDWGN6smyu74bzDxySW' }, // Basic Yearly
+      yearly: { price: 190000, originalPrice: 290000, priceId: 'price_1SYHwZDWGN6smyu74bzDxySW' }, // Basic Yearly - 3월 할인
     },
     premium: {
       monthly: { price: 39000, priceId: 'price_1SYHxWDWGN6smyu7qHuppVy5' }, // Pro Monthly
@@ -95,17 +97,17 @@ export const Pricing: React.FC = () => {
               </div>
             </div>
           </div>
-        ) : isSubscribed && currentTier ? (
+        ) : isSubscribed ? (
           <div className="mb-12 bg-zinc-900/60 border border-violet-500/30 rounded-2xl p-6 backdrop-blur-md">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center gap-3">
                 <Crown className="w-8 h-8 text-violet-400" />
                 <div>
                   <h3 className="text-xl font-bold text-zinc-50">
-                    현재 이용 중인 플랜: {currentTier === 'premium' ? 'Pro 멤버십' : 'Standard 멤버십'}
+                    현재 이용 중: Grapplay 멤버십
                   </h3>
                   <p className="text-sm text-zinc-400">
-                    구독 기간 동안 모든 프리미엄 콘텐츠를 자유롭게 이용하실 수 있습니다.
+                    이용 기간 동안 모든 콘텐츠를 자유롭게 이용하실 수 있습니다.
                   </p>
                 </div>
               </div>
@@ -142,9 +144,9 @@ export const Pricing: React.FC = () => {
                 <span className="text-xl text-zinc-500">/월</span>
               </div>
 
-              <div className="flex items-center justify-center lg:justify-start gap-1.5 mt-3 text-violet-400/80 font-bold text-xs bg-violet-500/10 inline-flex px-3 py-1 rounded-full border border-violet-500/20">
-                <RefreshCw className="w-3 h-3" />
-                <span>매월 자동 결제</span>
+              <div className="flex items-center justify-center lg:justify-start gap-1.5 mt-3 text-amber-400/80 font-bold text-xs bg-amber-500/10 inline-flex px-3 py-1 rounded-full border border-amber-500/20">
+                <Clock className="w-3 h-3" />
+                <span>준비 중</span>
               </div>
             </div>
 
@@ -164,7 +166,7 @@ export const Pricing: React.FC = () => {
 
             <Button
               className="w-full h-16 rounded-2xl text-lg font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-100 transition-colors"
-              onClick={() => handleSubscription(pricing.basic.monthly.priceId)}
+              onClick={() => setShowComingSoonModal(true)}
               disabled={loading || isSubscribed}
             >
               {isSubscribed ? '이미 이용 중입니다' : '1개월 시작하기'}
@@ -174,9 +176,9 @@ export const Pricing: React.FC = () => {
           {/* 1 Year Pass (Recommended) */}
           <div className="relative bg-zinc-900/40 backdrop-blur-xl border border-violet-500/50 rounded-[40px] p-10 flex flex-col shadow-[0_0_40px_rgba(124,58,237,0.15)] transition-transform duration-300 hover:scale-[1.01]">
             <div className="absolute top-0 right-10 -translate-y-1/2">
-              <div className="bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white text-sm font-bold px-5 py-2 rounded-full shadow-lg flex items-center gap-1.5 ring-4 ring-zinc-950">
+              <div className="bg-gradient-to-r from-rose-500 to-orange-500 text-white text-sm font-bold px-5 py-2 rounded-full shadow-lg flex items-center gap-1.5 ring-4 ring-zinc-950 animate-pulse">
                 <Zap className="w-4 h-4 fill-white text-white" />
-                Best Value
+                3월 한정 35% 할인
               </div>
             </div>
 
@@ -193,13 +195,21 @@ export const Pricing: React.FC = () => {
                 </span>
                 <span className="text-xl text-zinc-500">/월</span>
               </div>
-              <div className="space-y-1 mt-2">
+              <div className="space-y-2 mt-2">
+                <div className="flex items-center justify-center lg:justify-start gap-3">
+                  <span className="text-lg text-zinc-500 line-through">
+                    {pricing.basic.yearly.originalPrice?.toLocaleString()}원
+                  </span>
+                  <span className="text-xl text-rose-400 font-black">
+                    {pricing.basic.yearly.price.toLocaleString()}원
+                  </span>
+                </div>
                 <p className="text-sm text-violet-400 font-bold">
-                  연간 전체 {pricing.basic.yearly.price.toLocaleString()}원 (월 24,166원)
+                  월 {getMonthlyEquivalent(pricing.basic.yearly.price).toLocaleString()}원 · 10만원 절약!
                 </p>
-                <div className="flex items-center justify-center lg:justify-start gap-1.5 text-violet-400/80 font-bold text-xs bg-violet-500/10 inline-flex px-3 py-1 rounded-full border border-violet-500/20">
-                  <RefreshCw className="w-3 h-3" />
-                  <span>매년 자동 결제</span>
+                <div className="flex items-center justify-center lg:justify-start gap-1.5 text-emerald-400/80 font-bold text-xs bg-emerald-500/10 inline-flex px-3 py-1 rounded-full border border-emerald-500/20">
+                  <CreditCard className="w-3 h-3" />
+                  <span>1회 결제</span>
                 </div>
               </div>
             </div>
@@ -207,7 +217,7 @@ export const Pricing: React.FC = () => {
             <ul className="space-y-4 flex-1 mb-10">
               {[
                 '1개월권의 모든 혜택 포함',
-                '연 58,000원 절약 (17% 할인)',
+                '3월 한정 10만원 할인 (35% OFF)',
                 '오프라인 세미나 우선 참여권',
                 '단품 클래스 구매 시 30% 할인 (번들 제외)'
               ].map((feature, i) => (
@@ -223,7 +233,7 @@ export const Pricing: React.FC = () => {
               onClick={() => handleSubscription(pricing.basic.yearly.priceId)}
               disabled={loading || isSubscribed}
             >
-              {isSubscribed ? '이미 이용 중입니다' : '1년 구독 신청'}
+              {isSubscribed ? '이미 이용 중입니다' : '1년 이용권 구매'}
             </Button>
           </div>
         </div>
@@ -236,6 +246,57 @@ export const Pricing: React.FC = () => {
           </Link>
         </div>
       </div>
+
+      {/* Coming Soon Modal */}
+      <AnimatePresence>
+        {showComingSoonModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowComingSoonModal(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl shadow-black/50"
+            >
+              <div className="p-8">
+                <div className="flex justify-between items-start mb-6">
+                  <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center">
+                    <Clock className="w-6 h-6 text-amber-400" />
+                  </div>
+                  <button
+                    onClick={() => setShowComingSoonModal(false)}
+                    className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <h3 className="text-xl font-bold text-white mb-3">월 구독 서비스 준비 중</h3>
+                <p className="text-zinc-400 leading-relaxed mb-6">
+                  월 구독 결제 서비스는 현재 준비 중입니다.<br />
+                  조만간 이용 가능하니 조금만 기다려 주세요!
+                </p>
+                <div className="bg-violet-500/10 border border-violet-500/20 rounded-2xl p-4 mb-6">
+                  <p className="text-violet-300 text-sm font-medium">
+                    💡 현재는 <span className="text-violet-200 font-bold">1년 이용권 단건 결제</span>만 가능합니다.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setShowComingSoonModal(false)}
+                  className="w-full h-12 rounded-xl font-bold bg-zinc-800 hover:bg-zinc-700 text-white"
+                >
+                  확인
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
