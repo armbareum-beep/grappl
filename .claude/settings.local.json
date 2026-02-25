@@ -73,7 +73,10 @@
       "Bash(git stash:*)",
       "Bash(git stash pop:*)",
       "Bash(echo:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(git -C /c/Users/armba/Documents/grapplay log --oneline --all)",
+      "Bash(git -C:*)",
+      "Bash(git -C /c/Users/armba/Documents/grapplay log b4da0a12 -1 --format=\"%B\")"
     ]
   }
 }
