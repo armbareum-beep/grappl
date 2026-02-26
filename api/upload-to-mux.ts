@@ -131,7 +131,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                     if (uploadInfoRes.ok) {
                         const uploadInfo = await uploadInfoRes.json();
-                        assetId = uploadInfo.asset_id;
+                        assetId = uploadInfo.data?.asset_id;
+                        console.log('[Mux] Upload info response:', JSON.stringify(uploadInfo.data));
                     }
                 } catch (err) {
                     console.error('[Mux] Failed to get asset from upload:', err);
