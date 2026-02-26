@@ -320,14 +320,37 @@ export async function getCreators(): Promise<Creator[]> {
 
 export async function getAdminCreators(): Promise<Creator[]> {
     try {
-        const { data, error } = await supabase.rpc('get_admin_creators_with_email');
+        // Direct query instead of RPC to include hidden field
+        const { data: creatorsData, error: creatorsError } = await supabase
+            .from('creators')
+            .select('id, name, bio, profile_image, subscriber_count, hidden, approved, created_at')
+            .eq('approved', true)
+            .order('created_at', { ascending: false });
 
-        if (error) {
-            console.error('Error fetching admin creators:', error);
-            throw error;
+        if (creatorsError) {
+            console.error('Error fetching creators:', creatorsError);
+            throw creatorsError;
         }
 
-        return (data || []).map(transformCreator);
+        if (!creatorsData || creatorsData.length === 0) {
+            return [];
+        }
+
+        // Fetch emails from users table
+        const creatorIds = creatorsData.map(c => c.id);
+        const { data: usersData } = await supabase
+            .from('users')
+            .select('id, email')
+            .in('id', creatorIds);
+
+        const emailMap = new Map<string, string>();
+        usersData?.forEach(u => emailMap.set(u.id, u.email || ''));
+
+        // Transform with email
+        return creatorsData.map(c => transformCreator({
+            ...c,
+            email: emailMap.get(c.id) || ''
+        }));
     } catch (e) {
         console.error('getAdminCreators timeout/fail:', e);
         return [];

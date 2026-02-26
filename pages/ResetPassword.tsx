@@ -14,18 +14,87 @@ export const ResetPassword: React.FC = () => {
     const { } = useAuth();
     const navigate = useNavigate();
 
+    const [isValidSession, setIsValidSession] = useState(false);
+    const [isCheckingSession, setIsCheckingSession] = useState(true);
+
     // Check if we have a valid session (user clicked the reset link)
     useEffect(() => {
         const checkSession = async () => {
+            // Check for access_token in hash (legacy flow)
             const hashParams = new URLSearchParams(window.location.hash.substring(1));
             const accessToken = hashParams.get('access_token');
+            const hashType = hashParams.get('type');
 
-            if (!accessToken) {
-                setError('유효하지 않은 재설정 링크입니다. 비밀번호 찾기를 다시 시도해주세요.');
+            // Check for error in hash (Supabase error redirect)
+            const hashError = hashParams.get('error');
+            const errorCode = hashParams.get('error_code');
+            const errorDescription = hashParams.get('error_description');
+
+            if (hashError) {
+                if (errorCode === 'otp_expired') {
+                    setError('재설정 링크가 만료되었습니다. 비밀번호 찾기를 다시 시도해주세요.');
+                } else {
+                    setError(errorDescription?.replace(/\+/g, ' ') || '링크가 유효하지 않습니다. 비밀번호 찾기를 다시 시도해주세요.');
+                }
+                setIsCheckingSession(false);
+                return;
             }
+
+            // Check for token_hash in query params (PKCE flow)
+            const queryParams = new URLSearchParams(window.location.search);
+            const tokenHash = queryParams.get('token_hash');
+            const queryType = queryParams.get('type');
+
+            // If we have a token_hash with recovery type, exchange it for a session
+            if (tokenHash && queryType === 'recovery') {
+                const { error } = await supabase.auth.verifyOtp({
+                    token_hash: tokenHash,
+                    type: 'recovery',
+                });
+                if (error) {
+                    setError('유효하지 않은 재설정 링크입니다. 비밀번호 찾기를 다시 시도해주세요.');
+                    setIsCheckingSession(false);
+                    return;
+                }
+                setIsValidSession(true);
+                setIsCheckingSession(false);
+                return;
+            }
+
+            // If we have access_token in hash with recovery type
+            if (accessToken && hashType === 'recovery') {
+                setIsValidSession(true);
+                setIsCheckingSession(false);
+                return;
+            }
+
+            // Check if there's already a valid session from the auth state change
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                setIsValidSession(true);
+                setIsCheckingSession(false);
+                return;
+            }
+
+            // No valid token found
+            setError('유효하지 않은 재설정 링크입니다. 비밀번호 찾기를 다시 시도해주세요.');
+            setIsCheckingSession(false);
         };
 
+        // Listen for auth state changes (handles automatic session recovery)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'PASSWORD_RECOVERY' && session) {
+                setIsValidSession(true);
+                setIsCheckingSession(false);
+                setError('');
+            }
+        });
+
         checkSession();
+
+        return () => {
+            subscription.unsubscribe();
+        };
     }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -103,6 +172,19 @@ export const ResetPassword: React.FC = () => {
         );
     }
 
+    // Show loading state while checking session
+    if (isCheckingSession) {
+        return (
+            <div className="min-h-screen bg-zinc-950 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-violet-900/10 rounded-full blur-[100px] pointer-events-none"></div>
+                <div className="text-center">
+                    <Loader2 className="w-8 h-8 text-violet-500 animate-spin mx-auto mb-4" />
+                    <p className="text-zinc-400">링크를 확인하는 중...</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-zinc-950 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
             {/* Background Effects */}
@@ -147,9 +229,10 @@ export const ResetPassword: React.FC = () => {
                                 id="newPassword"
                                 type="password"
                                 required
+                                disabled={!isValidSession}
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
-                                className="block w-full bg-transparent border-none text-zinc-100 placeholder:text-zinc-600 pl-12 pr-4 py-4 text-sm focus:ring-0 focus:outline-none"
+                                className="block w-full bg-transparent border-none text-zinc-100 placeholder:text-zinc-600 pl-12 pr-4 py-4 text-sm focus:ring-0 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                                 placeholder="••••••••"
                                 minLength={6}
                             />
@@ -169,9 +252,10 @@ export const ResetPassword: React.FC = () => {
                                 id="confirmPassword"
                                 type="password"
                                 required
+                                disabled={!isValidSession}
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
-                                className="block w-full bg-transparent border-none text-zinc-100 placeholder:text-zinc-600 pl-12 pr-4 py-4 text-sm focus:ring-0 focus:outline-none"
+                                className="block w-full bg-transparent border-none text-zinc-100 placeholder:text-zinc-600 pl-12 pr-4 py-4 text-sm focus:ring-0 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                                 placeholder="••••••••"
                                 minLength={6}
                             />
@@ -180,7 +264,7 @@ export const ResetPassword: React.FC = () => {
 
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={loading || !isValidSession}
                         className="w-full bg-violet-600 hover:bg-violet-500 text-zinc-50 font-bold text-lg rounded-full py-4 shadow-[0_10px_20px_rgba(124,58,237,0.3)] transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                     >
                         {loading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}

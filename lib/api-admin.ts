@@ -519,29 +519,34 @@ export async function toggleCreatorHidden(creatorId: string, hidden: boolean) {
 }
 
 export async function updateCreatorProfileAdmin(creatorId: string, updates: CreatorProfileUpdate) {
-    // 1. Update creators table
-    const { error: creatorError } = await supabase
+    // 1. Build update object with only defined values
+    const creatorUpdates: Record<string, any> = {};
+    if (updates.name !== undefined) creatorUpdates.name = updates.name;
+    if (updates.bio !== undefined) creatorUpdates.bio = updates.bio;
+    if (updates.profileImage !== undefined) creatorUpdates.profile_image = updates.profileImage;
+
+    // Skip if no updates
+    if (Object.keys(creatorUpdates).length === 0) {
+        return { error: null };
+    }
+
+    // 2. Update creators table
+    const { data: updatedData, error: creatorError } = await supabase
         .from('creators')
-        .update({
-            name: updates.name,
-            bio: updates.bio,
-            profile_image: updates.profileImage,
-            // Add other fields if they exist in DB schema
-        })
-        .eq('id', creatorId);
+        .update(creatorUpdates)
+        .eq('id', creatorId)
+        .select()
+        .single();
 
     if (creatorError) {
-        // If 404/no rows (might be because record doesn't exist in creators table yet but user is creator?),
-        // we might need to update users table too or handle it.
-        // But assumed creator exists in 'creators' table.
         console.error('Error updating creators table:', creatorError);
         return { error: creatorError };
     }
 
-    // 2. Update users table (name, avatar) if needed to keep sync
-    const userUpdates: any = {};
-    if (updates.name) userUpdates.name = updates.name;
-    if (updates.profileImage) userUpdates.avatar_url = updates.profileImage;
+    // 3. Update users table (name, avatar) if needed to keep sync
+    const userUpdates: Record<string, any> = {};
+    if (updates.name !== undefined) userUpdates.name = updates.name;
+    if (updates.profileImage !== undefined) userUpdates.avatar_url = updates.profileImage;
 
     if (Object.keys(userUpdates).length > 0) {
         const { error: userError } = await supabase
@@ -555,7 +560,7 @@ export async function updateCreatorProfileAdmin(creatorId: string, updates: Crea
         }
     }
 
-    return { error: null };
+    return { error: null, data: updatedData };
 }
 
 
