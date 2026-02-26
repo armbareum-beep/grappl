@@ -1,12 +1,28 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Maximize2, Minimize2 } from 'lucide-react';
+import { Maximize2, Minimize2, Sparkles } from 'lucide-react';
 import { TrainingRoutinesTab } from '../components/arena/TrainingRoutinesTab';
 import { cn } from '../lib/utils';
+import { Modal } from '../components/Modal';
+
+const FEATURE_CHANGE_MODAL_KEY = 'training-routines-feature-change-shown';
 
 export const MyRoutines: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const isFullScreen = searchParams.get('fullscreen') === 'true';
+    const [showFeatureChangeModal, setShowFeatureChangeModal] = useState(false);
+
+    useEffect(() => {
+        const hasShown = sessionStorage.getItem(FEATURE_CHANGE_MODAL_KEY);
+        if (!hasShown) {
+            setShowFeatureChangeModal(true);
+        }
+    }, []);
+
+    const handleCloseModal = () => {
+        sessionStorage.setItem(FEATURE_CHANGE_MODAL_KEY, 'true');
+        setShowFeatureChangeModal(false);
+    };
 
     const toggleFullScreen = () => {
         const newParams = new URLSearchParams(searchParams);
@@ -41,6 +57,25 @@ export const MyRoutines: React.FC = () => {
             </div>
 
             <TrainingRoutinesTab />
+
+            {/* 기능 변경 예정 안내 모달 */}
+            <Modal
+                isOpen={showFeatureChangeModal}
+                onClose={handleCloseModal}
+                title="훈련 루틴 기능 변경 예정"
+                icon={Sparkles}
+                iconColor="amber"
+                footer={
+                    <button
+                        onClick={handleCloseModal}
+                        className="flex-1 py-4 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-2xl transition-all active:scale-[0.98]"
+                    >
+                        확인
+                    </button>
+                }
+            >
+                <p>훈련 루틴은 향후 다른 기능으로 변경될 예정입니다. 더 나은 서비스로 찾아뵙겠습니다!</p>
+            </Modal>
         </div>
     );
 };
