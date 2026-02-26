@@ -62,7 +62,7 @@ export const CreatorProfile: React.FC = () => {
         }
 
         fetchData();
-    }, [id]);
+    }, [id, user?.id]);
 
     const handleSubmitFeedbackRequest = async () => {
         if (!user || !id || !selectedFile || !feedbackSettings) return;
@@ -143,11 +143,11 @@ export const CreatorProfile: React.FC = () => {
                 } : null);
             }
         } catch (error) {
-            // Revert on error
+            // Revert on error — undo the optimistic delta
             setIsSubscribed(previousStatus);
             setCreator(prev => prev ? {
                 ...prev,
-                subscriberCount: prev.subscriberCount + (previousStatus ? 1 : -1) - (newStatus ? 1 : -1)
+                subscriberCount: prev.subscriberCount - (newStatus ? 1 : -1)
             } : null);
             console.error('Follow error:', error);
             toastError('오류가 발생했습니다. 다시 시도해주세요.');
