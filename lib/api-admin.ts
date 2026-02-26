@@ -1683,3 +1683,189 @@ export async function getRecentPayments(limit = 50) {
     return data || [];
 }
 
+// ==================== Settlement Tracking (정산 상태 추적) ====================
+
+export interface CreatorSettlement {
+    id: string;
+    creator_id: string;
+    settlement_month: string;
+    gross_amount: number;
+    settlement_amount: number;
+    platform_fee: number;
+    carried_over_from: number;
+    total_payable: number;
+    status: 'pending' | 'processing' | 'paid' | 'carried_over';
+    paid_at?: string;
+    payment_reference?: string;
+    payment_method?: string;
+    created_at: string;
+    updated_at: string;
+    creator?: {
+        name: string;
+        email?: string;
+        payout_settings?: any;
+    };
+}
+
+/**
+ * 정산 목록 조회 (관리자용)
+ */
+export async function getCreatorSettlements(
+    year?: number,
+    month?: number,
+    status?: string
+): Promise<CreatorSettlement[]> {
+    let query = supabase
+        .from('creator_settlements')
+        .select(`
+            *,
+            creator:creators(name, payout_settings)
+        `)
+        .order('settlement_month', { ascending: false })
+        .order('total_payable', { ascending: false });
+
+    if (year && month) {
+        const targetMonth = `${year}-${String(month).padStart(2, '0')}-01`;
+        query = query.eq('settlement_month', targetMonth);
+    }
+
+    if (status && status !== 'all') {
+        query = query.eq('status', status);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+        if (error.code === '42P01') return []; // Table doesn't exist yet
+        console.error('Error fetching settlements:', error);
+        return [];
+    }
+
+    return data || [];
+}
+
+/**
+ * 정산 상태 업데이트 (지급 완료 처리)
+ */
+export async function markSettlementPaid(
+    settlementId: string,
+    paymentReference?: string,
+    paymentMethod: string = 'bank_transfer'
+): Promise<{ error: any }> {
+    const { error } = await supabase
+        .from('creator_settlements')
+        .update({
+            status: 'paid',
+            paid_at: new Date().toISOString(),
+            payment_reference: paymentReference,
+            payment_method: paymentMethod,
+            updated_at: new Date().toISOString()
+        })
+        .eq('id', settlementId);
+
+    if (!error) {
+        await logAdminAction('MARK_SETTLEMENT_PAID', 'creator_settlements', settlementId, `정산 지급 완료: ${paymentReference || 'N/A'}`);
+    }
+
+    return { error };
+}
+
+/**
+ * 정산 상태 일괄 업데이트
+ */
+export async function markSettlementsPaidBulk(
+    settlementIds: string[],
+    paymentReference?: string,
+    paymentMethod: string = 'bank_transfer'
+): Promise<{ success: number; failed: number }> {
+    let success = 0;
+    let failed = 0;
+
+    for (const id of settlementIds) {
+        const { error } = await markSettlementPaid(id, paymentReference, paymentMethod);
+        if (error) {
+            failed++;
+        } else {
+            success++;
+        }
+    }
+
+    return { success, failed };
+}
+
+/**
+ * 월별 정산 레코드 생성 (수동)
+ */
+export async function generateSettlementsForMonth(
+    year: number,
+    month: number
+): Promise<{ error: any }> {
+    const targetMonth = `${year}-${String(month).padStart(2, '0')}-01`;
+
+    const { error } = await supabase.rpc('generate_monthly_settlements', {
+        target_month: targetMonth
+    });
+
+    if (!error) {
+        await logAdminAction('GENERATE_SETTLEMENTS', 'creator_settlements', targetMonth, `${targetMonth} 정산 레코드 생성`);
+    }
+
+    return { error };
+}
+
+/**
+ * 정산 통계 조회
+ */
+export async function getSettlementStats(year?: number, month?: number): Promise<{
+    total_pending: number;
+    total_paid: number;
+    total_carried_over: number;
+    pending_count: number;
+    paid_count: number;
+    carried_over_count: number;
+}> {
+    let query = supabase.from('creator_settlements').select('status, total_payable');
+
+    if (year && month) {
+        const targetMonth = `${year}-${String(month).padStart(2, '0')}-01`;
+        query = query.eq('settlement_month', targetMonth);
+    }
+
+    const { data, error } = await query;
+
+    if (error || !data) {
+        return {
+            total_pending: 0,
+            total_paid: 0,
+            total_carried_over: 0,
+            pending_count: 0,
+            paid_count: 0,
+            carried_over_count: 0
+        };
+    }
+
+    const stats = {
+        total_pending: 0,
+        total_paid: 0,
+        total_carried_over: 0,
+        pending_count: 0,
+        paid_count: 0,
+        carried_over_count: 0
+    };
+
+    data.forEach(s => {
+        if (s.status === 'pending' || s.status === 'processing') {
+            stats.total_pending += s.total_payable || 0;
+            stats.pending_count++;
+        } else if (s.status === 'paid') {
+            stats.total_paid += s.total_payable || 0;
+            stats.paid_count++;
+        } else if (s.status === 'carried_over') {
+            stats.total_carried_over += s.total_payable || 0;
+            stats.carried_over_count++;
+        }
+    });
+
+    return stats;
+}
+

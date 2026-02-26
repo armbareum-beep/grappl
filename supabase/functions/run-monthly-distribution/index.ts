@@ -135,6 +135,21 @@ Deno.serve(async (req) => {
 
         console.log(`Distribution completed: ${creatorCount} creators, ₩${totalDistributed}`)
 
+        // 정산 레코드 생성 (최소 지급 기준 ₩100,000 적용)
+        try {
+            const { error: settlementError } = await supabaseClient.rpc(
+                'generate_monthly_settlements',
+                { target_month: targetMonth }
+            )
+            if (settlementError) {
+                console.error('Settlement generation error:', settlementError)
+            } else {
+                console.log('Settlement records generated')
+            }
+        } catch (e) {
+            console.error('Settlement generation failed:', e)
+        }
+
         return new Response(JSON.stringify({
             success: true,
             target_month: targetMonth,
