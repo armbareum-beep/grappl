@@ -1,0 +1,48 @@
+name: Monthly Subscription Distribution
+
+on:
+  # 매월 10일 오전 9시 (KST) = UTC 00:00
+  schedule:
+    - cron: '0 0 10 * *'
+
+  # 수동 실행 가능
+  workflow_dispatch:
+    inputs:
+      target_month:
+        description: '배분 대상 월 (YYYY-MM-DD, 비워두면 전월)'
+        required: false
+        default: ''
+
+jobs:
+  run-distribution:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Run Monthly Subscription Distribution
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          TARGET_MONTH="${{ github.event.inputs.target_month }}"
+
+          if [ -z "$TARGET_MONTH" ]; then
+            BODY='{}'
+          else
+            BODY="{\"target_month\": \"$TARGET_MONTH\"}"
+          fi
+
+          RESPONSE=$(curl -s -X POST \
+            "${SUPABASE_URL}/functions/v1/run-monthly-distribution?cron_secret=${CRON_SECRET}" \
+            -H "Content-Type: application/json" \
+            -d "$BODY")
+
+          echo "Response: $RESPONSE"
+
+          # 성공 여부 확인
+          SUCCESS=$(echo $RESPONSE | jq -r '.success')
+          if [ "$SUCCESS" != "true" ]; then
+            echo "Distribution failed!"
+            exit 1
+          fi
+
+          echo "Distribution completed successfully!"
