@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getCourses, fetchRoutines, getSparringVideos, getDailyFreeLesson, getDailyFreeSparring, getDailyFreeDrill } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
@@ -10,6 +10,7 @@ import { LoadingScreen } from '../LoadingScreen';
 import { UnifiedContentCard, UnifiedContentItem, ContentType } from './UnifiedContentCard';
 import { LibraryTabs, LibraryTabType } from './LibraryTabs';
 import { batchCheckInteractions } from '../../lib/api-user-interactions';
+import { useCreators } from '../../hooks/use-queries';
 
 
 
@@ -57,7 +58,42 @@ function smartSort(items: UnifiedContentItem[]): UnifiedContentItem[] {
 export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTabChange }) => {
     const { user } = useAuth();
     const [, setSearchParams] = useSearchParams();
+    const { data: creatorsData = [] } = useCreators();
+    const [selectedCreatorId, setSelectedCreatorId] = useState<string | null>(null);
+    const instructorScrollRef = useRef<HTMLDivElement>(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [startX, setStartX] = useState(0);
+    const [scrollLeft, setScrollLeft] = useState(0);
     const [loading, setLoading] = useState(true);
+
+    // Randomize creators on mount
+    const creators = useMemo(() => {
+        return [...creatorsData].sort(() => Math.random() - 0.5);
+    }, [creatorsData]);
+
+    // Drag scroll handlers
+    const handleMouseDown = (e: React.MouseEvent) => {
+        if (!instructorScrollRef.current) return;
+        setIsDragging(true);
+        setStartX(e.pageX - instructorScrollRef.current.offsetLeft);
+        setScrollLeft(instructorScrollRef.current.scrollLeft);
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!isDragging || !instructorScrollRef.current) return;
+        e.preventDefault();
+        const x = e.pageX - instructorScrollRef.current.offsetLeft;
+        const walk = (x - startX) * 1.5;
+        instructorScrollRef.current.scrollLeft = scrollLeft - walk;
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
+    };
+
+    const handleMouseLeave = () => {
+        setIsDragging(false);
+    };
     const [searchTerm, setSearchTerm] = useState('');
     const [allItems, setAllItems] = useState<UnifiedContentItem[]>([]);
     const [savedMap, setSavedMap] = useState<Map<string, boolean>>(new Map());
@@ -253,8 +289,15 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
             );
         }
 
+        // Apply creator filter
+        if (selectedCreatorId) {
+            items = items.filter(item => item.creatorId === selectedCreatorId);
+        }
+
         return items;
-    }, [allItems, searchTerm]);
+    }, [allItems, searchTerm, selectedCreatorId]);
+
+    const selectedCreator = creators.find(c => c.id === selectedCreatorId);
 
     const handleSparringClick = (item: UnifiedContentItem) => {
         setSearchParams({ tab: 'sparring', id: item.id, view: 'reels' });
@@ -290,6 +333,74 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                             총 <span className="text-zinc-200 font-bold">{filteredItems.length}</span>개의 콘텐츠
                         </div>
                     </div>
+                </div>
+
+                {/* Instructors Filter Section */}
+                <div className="mb-8">
+                    <div
+                        ref={instructorScrollRef}
+                        className={`flex gap-5 overflow-x-auto no-scrollbar py-2 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+                        onMouseDown={handleMouseDown}
+                        onMouseMove={handleMouseMove}
+                        onMouseUp={handleMouseUp}
+                        onMouseLeave={handleMouseLeave}
+                    >
+                        {creators.map(creator => (
+                            <button
+                                key={creator.id}
+                                onClick={(e) => {
+                                    if (isDragging) {
+                                        e.preventDefault();
+                                        return;
+                                    }
+                                    setSelectedCreatorId(
+                                        selectedCreatorId === creator.id ? null : creator.id
+                                    );
+                                }}
+                                className="flex flex-col items-center gap-2 shrink-0 group select-none"
+                            >
+                                <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-zinc-800 transition-all ${
+                                    selectedCreatorId === creator.id
+                                        ? 'ring-2 ring-violet-500 ring-offset-2 ring-offset-zinc-950'
+                                        : 'group-hover:ring-2 group-hover:ring-zinc-600 group-hover:ring-offset-2 group-hover:ring-offset-zinc-950'
+                                }`}>
+                                    {creator.profileImage ? (
+                                        <img
+                                            src={creator.profileImage}
+                                            alt={creator.name}
+                                            className="w-full h-full object-cover pointer-events-none"
+                                            draggable={false}
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-zinc-500 text-xl font-bold">
+                                            {creator.name.charAt(0)}
+                                        </div>
+                                    )}
+                                </div>
+                                <span className={`text-xs font-medium max-w-[80px] truncate transition-colors ${
+                                    selectedCreatorId === creator.id
+                                        ? 'text-violet-400'
+                                        : 'text-zinc-400 group-hover:text-zinc-200'
+                                }`}>
+                                    {creator.name}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                    {selectedCreator && (
+                        <div className="mt-4 flex items-center gap-2">
+                            <span className="text-sm text-zinc-400">
+                                <span className="text-violet-400 font-semibold">{selectedCreator.name}</span>의 콘텐츠
+                            </span>
+                            <button
+                                onClick={() => setSelectedCreatorId(null)}
+                                className="flex items-center gap-1 px-2 py-1 bg-zinc-800 text-zinc-400 text-xs rounded-full hover:bg-zinc-700 transition-colors"
+                            >
+                                <X className="w-3 h-3" />
+                                <span>해제</span>
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Masonry Grid */}

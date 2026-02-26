@@ -38,11 +38,12 @@ import { TextNode } from './TextNode';
 import GroupNode from './GroupNode';
 import {
     Plus, Trash2, Save, Share2, FolderOpen, X, FilePlus, Video,
-    Map as MapIcon, Network, List as ListIcon, Maximize2, Minimize2, Type, Edit3, PlayCircle, Copy, GripVertical, Download
+    Map as MapIcon, Network, List as ListIcon, Maximize2, Minimize2, Type, Edit3, PlayCircle, Copy, GripVertical, Download, Sparkles
 } from 'lucide-react';
 
 import { SaveModal, LoadModal, SaveData } from './SkillTreeModals';
 import { ConfirmModal } from '../common/ConfirmModal';
+import { Modal } from '../Modal';
 import ShareModal from '../social/ShareModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import screenfull from 'screenfull';
@@ -322,6 +323,19 @@ export const TechniqueSkillTree: React.FC = () => {
 
     // Delete Group Confirm State
     const [deleteGroupConfirmId, setDeleteGroupConfirmId] = useState<string | null>(null);
+
+    // Feature Change Notice Modal State
+    const [showFeatureChangeModal, setShowFeatureChangeModal] = useState(false);
+
+    // Show feature change modal on mount (once per session)
+    useEffect(() => {
+        const FEATURE_CHANGE_MODAL_KEY = 'skill-tree-feature-change-shown';
+        const hasShown = sessionStorage.getItem(FEATURE_CHANGE_MODAL_KEY);
+        if (!hasShown) {
+            setShowFeatureChangeModal(true);
+            sessionStorage.setItem(FEATURE_CHANGE_MODAL_KEY, 'true');
+        }
+    }, []);
 
     // Update Edges style - always white
     useEffect(() => {
@@ -4006,6 +4020,24 @@ export const TechniqueSkillTree: React.FC = () => {
                 </div>
             )}
 
+            {/* 기능 변경 예정 안내 모달 */}
+            <Modal
+                isOpen={showFeatureChangeModal}
+                onClose={() => setShowFeatureChangeModal(false)}
+                title="스킬 로드맵 기능 변경 예정"
+                icon={Sparkles}
+                iconColor="amber"
+                footer={
+                    <button
+                        onClick={() => setShowFeatureChangeModal(false)}
+                        className="flex-1 py-4 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-2xl transition-all active:scale-[0.98]"
+                    >
+                        확인
+                    </button>
+                }
+            >
+                <p>스킬 로드맵은 향후 다른 기능으로 변경될 예정입니다. 더 나은 서비스로 찾아뵙겠습니다!</p>
+            </Modal>
         </div>
     );
 };
