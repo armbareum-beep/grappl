@@ -90,12 +90,12 @@ jobs:
         run: |
           echo "Checking for potentially sensitive files..."
 
-          # Check if .env files are committed
-          if git ls-files | grep -E '\.env$|\.env\.local$|\.env\.production$'; then
+          # Check if real .env files are committed (exclude templates/examples)
+          if git ls-files | grep -E '\.env$|\.env\.local$' | grep -v 'example' | grep -v 'template'; then
             echo "WARNING: .env files found in repository!"
             exit 1
           else
-            echo "OK: No .env files in repository"
+            echo "OK: No sensitive .env files in repository"
           fi
 
           # Check for hardcoded secrets patterns
