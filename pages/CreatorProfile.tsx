@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { BookOpen, MessageSquare, Clock, DollarSign, Shield, Zap, PlayCircle, ArrowLeft, Upload, Video, AlertCircle, Loader2 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { getCreatorById, getCoursesByCreator, getRoutines, getSparringVideos, getFeedbackSettings, createFeedbackRequest, toggleCreatorFollow, checkCreatorFollowStatus, uploadFeedbackVideo, getFeedbackRequests, deleteFeedbackRequest } from '../lib/api';
@@ -13,6 +14,7 @@ export const CreatorProfile: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const queryClient = useQueryClient();
     const { error: toastError, warning } = useToast();
     const [creator, setCreator] = useState<Creator | null>(null);
     const [courses, setCourses] = useState<Course[]>([]);
@@ -142,6 +144,9 @@ export const CreatorProfile: React.FC = () => {
                     subscriberCount: prev.subscriberCount + (followed ? 1 : -1) - (newStatus ? 1 : -1)
                 } : null);
             }
+
+            // Invalidate creators cache so Instructors page shows updated count
+            queryClient.invalidateQueries({ queryKey: ['creators'] });
         } catch (error) {
             // Revert on error — undo the optimistic delta
             setIsSubscribed(previousStatus);
