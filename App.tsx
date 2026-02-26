@@ -99,6 +99,23 @@ const RootRedirect: React.FC = () => {
   const { user, loading } = useAuth();
   const [forceLoad, setForceLoad] = React.useState(false);
 
+  // Check for password reset error/token in hash and redirect to /reset-password
+  React.useEffect(() => {
+    const hash = window.location.hash;
+    if (hash) {
+      const hashParams = new URLSearchParams(hash.substring(1));
+      const errorCode = hashParams.get('error_code');
+      const type = hashParams.get('type');
+      const accessToken = hashParams.get('access_token');
+
+      // If it's a password reset related redirect, send to /reset-password
+      if (errorCode === 'otp_expired' || type === 'recovery' || accessToken) {
+        window.location.href = `/reset-password${hash}`;
+        return;
+      }
+    }
+  }, []);
+
   React.useEffect(() => {
     // Force display after 3 seconds - NO RELOAD, just show landing page
     // This prevents infinite reload loops while still giving good UX
