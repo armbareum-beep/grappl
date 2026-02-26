@@ -1,0 +1,108 @@
+name: CI - Build & Type Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: # 수동 실행
+
+jobs:
+  build:
+    name: Build & Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript Type Check
+        run: npx tsc --noEmit
+        continue-on-error: true
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Check build output
+        run: |
+          if [ -d "dist" ]; then
+            echo "Build successful!"
+            ls -la dist/
+            echo "Total files: $(find dist -type f | wc -l)"
+            echo "Total size: $(du -sh dist | cut -f1)"
+          else
+            echo "Build failed - dist folder not found"
+            exit 1
+          fi
+
+  lint:
+    name: Lint Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npx eslint . --ext .ts,.tsx --max-warnings 50
+        continue-on-error: true
+
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Check for sensitive files
+        run: |
+          echo "Checking for potentially sensitive files..."
+
+          # Check if .env files are committed
+          if git ls-files | grep -E '\.env$|\.env\.local$|\.env\.production$'; then
+            echo "WARNING: .env files found in repository!"
+            exit 1
+          else
+            echo "OK: No .env files in repository"
+          fi
+
+          # Check for hardcoded secrets patterns
+          echo "Checking for hardcoded secrets..."
+          if grep -rE "(sk_live_|pk_live_|SUPABASE_SERVICE_ROLE_KEY\s*=\s*['\"]ey)" --include="*.ts" --include="*.tsx" --include="*.js" .; then
+            echo "WARNING: Potential hardcoded secrets found!"
+            exit 1
+          else
+            echo "OK: No obvious hardcoded secrets found"
+          fi

@@ -1,0 +1,75 @@
+name: Lighthouse Performance Test
+
+on:
+  workflow_dispatch: # 수동 실행만
+    inputs:
+      url:
+        description: '테스트할 URL (기본: 프로덕션)'
+        required: false
+        default: 'https://grapplay.com'
+
+jobs:
+  lighthouse:
+    name: Lighthouse Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Lighthouse CI
+        run: npm install -g @lhci/cli
+
+      - name: Run Lighthouse
+        run: |
+          URL="${{ github.event.inputs.url || 'https://grapplay.com' }}"
+          echo "Testing URL: $URL"
+
+          lhci autorun --collect.url="$URL" --collect.numberOfRuns=3 || true
+
+      - name: Run Lighthouse on key pages
+        run: |
+          BASE_URL="${{ github.event.inputs.url || 'https://grapplay.com' }}"
+
+          echo "=== Homepage ==="
+          npx lighthouse "$BASE_URL" --output=json --output-path=./lighthouse-home.json --chrome-flags="--headless --no-sandbox" || true
+
+          echo "=== Pricing Page ==="
+          npx lighthouse "$BASE_URL/pricing" --output=json --output-path=./lighthouse-pricing.json --chrome-flags="--headless --no-sandbox" || true
+
+          echo "=== Library Page ==="
+          npx lighthouse "$BASE_URL/library" --output=json --output-path=./lighthouse-library.json --chrome-flags="--headless --no-sandbox" || true
+
+      - name: Parse and Display Results
+        run: |
+          echo "=== Lighthouse Results Summary ==="
+
+          for file in lighthouse-*.json; do
+            if [ -f "$file" ]; then
+              PAGE=$(echo $file | sed 's/lighthouse-//' | sed 's/.json//')
+              echo ""
+              echo "--- $PAGE ---"
+
+              PERF=$(cat $file | jq '.categories.performance.score * 100' 2>/dev/null || echo "N/A")
+              ACCESS=$(cat $file | jq '.categories.accessibility.score * 100' 2>/dev/null || echo "N/A")
+              BP=$(cat $file | jq '.categories["best-practices"].score * 100' 2>/dev/null || echo "N/A")
+              SEO=$(cat $file | jq '.categories.seo.score * 100' 2>/dev/null || echo "N/A")
+
+              echo "Performance: $PERF"
+              echo "Accessibility: $ACCESS"
+              echo "Best Practices: $BP"
+              echo "SEO: $SEO"
+            fi
+          done
+
+      - name: Upload Lighthouse Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: lighthouse-*.json
+          retention-days: 30

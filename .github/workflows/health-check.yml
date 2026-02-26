@@ -1,0 +1,113 @@
+name: API Health Check
+
+on:
+  schedule:
+    # 매일 오전 9시 (KST) = UTC 00:00
+    - cron: '0 0 * * *'
+  workflow_dispatch: # 수동 실행
+
+jobs:
+  health-check:
+    name: API & Site Health Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check Website Status
+        run: |
+          echo "=== Website Health Check ==="
+
+          # Main site
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://grapplay.com")
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Main site: OK ($HTTP_CODE)"
+          else
+            echo "❌ Main site: FAILED ($HTTP_CODE)"
+          fi
+
+          # Check key pages
+          for PAGE in "/pricing" "/library" "/login"; do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://grapplay.com$PAGE")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ $PAGE: OK ($HTTP_CODE)"
+            else
+              echo "⚠️ $PAGE: $HTTP_CODE"
+            fi
+          done
+
+      - name: Check Supabase API
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        run: |
+          echo "=== Supabase Health Check ==="
+
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "⚠️ SUPABASE_URL not configured"
+            exit 0
+          fi
+
+          # Check Supabase health endpoint
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$SUPABASE_URL/rest/v1/" -H "apikey: ${{ secrets.VITE_SUPABASE_ANON_KEY }}")
+          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "401" ]; then
+            echo "✅ Supabase REST API: Reachable"
+          else
+            echo "❌ Supabase REST API: FAILED ($HTTP_CODE)"
+          fi
+
+          # Check Auth endpoint
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$SUPABASE_URL/auth/v1/health")
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Supabase Auth: OK"
+          else
+            echo "⚠️ Supabase Auth: $HTTP_CODE"
+          fi
+
+      - name: Check Edge Functions
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        run: |
+          echo "=== Edge Functions Health Check ==="
+
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "⚠️ SUPABASE_URL not configured"
+            exit 0
+          fi
+
+          # List of edge functions to check (OPTIONS request)
+          FUNCTIONS=("verify-portone-payment" "cancel-subscription" "run-monthly-distribution")
+
+          for FUNC in "${FUNCTIONS[@]}"; do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X OPTIONS "$SUPABASE_URL/functions/v1/$FUNC")
+            if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "204" ]; then
+              echo "✅ $FUNC: Reachable"
+            else
+              echo "⚠️ $FUNC: $HTTP_CODE"
+            fi
+          done
+
+      - name: Check SSL Certificate
+        run: |
+          echo "=== SSL Certificate Check ==="
+
+          EXPIRY=$(echo | openssl s_client -servername grapplay.com -connect grapplay.com:443 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
+
+          if [ -n "$EXPIRY" ]; then
+            EXPIRY_EPOCH=$(date -d "$EXPIRY" +%s 2>/dev/null || date -j -f "%b %d %H:%M:%S %Y %Z" "$EXPIRY" +%s 2>/dev/null)
+            NOW_EPOCH=$(date +%s)
+            DAYS_LEFT=$(( ($EXPIRY_EPOCH - $NOW_EPOCH) / 86400 ))
+
+            if [ "$DAYS_LEFT" -gt 30 ]; then
+              echo "✅ SSL Certificate: Valid for $DAYS_LEFT days"
+            elif [ "$DAYS_LEFT" -gt 7 ]; then
+              echo "⚠️ SSL Certificate: Expires in $DAYS_LEFT days - Consider renewing"
+            else
+              echo "❌ SSL Certificate: Expires in $DAYS_LEFT days - URGENT!"
+            fi
+          else
+            echo "⚠️ Could not check SSL certificate"
+          fi
+
+      - name: Summary
+        run: |
+          echo ""
+          echo "=== Health Check Complete ==="
+          echo "Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
