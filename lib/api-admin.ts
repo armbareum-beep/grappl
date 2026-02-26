@@ -845,8 +845,8 @@ export async function getAdminChartData(days = 30) {
         const salesMap = new Map<string, number>();
         const usersMap = new Map<string, number>();
 
-        // Initialize map with all dates
-        for (let i = 0; i < days; i++) {
+        // Initialize map with all dates (including today)
+        for (let i = 0; i <= days; i++) {
             const d = new Date(startDate);
             d.setDate(d.getDate() + i);
             const dateStr = d.toISOString().split('T')[0];
@@ -1491,5 +1491,195 @@ export async function syncDurations(
     });
     if (!response.ok) throw new Error('Failed to sync durations');
     return response.json();
+}
+
+// ==================== Revenue Ledger Management ====================
+
+export interface RevenueLedgerRecord {
+    id: string;
+    subscription_id?: string;
+    amount: number;
+    platform_fee: number;
+    creator_revenue: number;
+    product_type: string;
+    status: string;
+    recognition_date: string;
+    created_at: string;
+}
+
+/**
+ * Get revenue ledger records (for admin review)
+ */
+export async function getRevenueLedger(limit = 50): Promise<RevenueLedgerRecord[]> {
+    const { data, error } = await supabase
+        .from('revenue_ledger')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+    if (error) {
+        console.error('Error fetching revenue ledger:', error);
+        return [];
+    }
+    return data || [];
+}
+
+/**
+ * Add a refund record to revenue_ledger (negative amount)
+ * Use this for manual ledger adjustments when refund was already processed externally
+ * Calls Edge Function to bypass RLS
+ */
+export async function addRefundRecord(
+    subscriptionId: string | null,
+    amount: number,
+    reason: string = '관리자 환불 처리',
+    creatorId?: string // 환불을 크리에이터에게 귀속시킬 때 필요
+): Promise<{ error: any }> {
+    try {
+        const { data: session } = await supabase.auth.getSession();
+
+        const response = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/add-refund-record`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.session?.access_token}`,
+                },
+                body: JSON.stringify({ amount, reason, subscriptionId, creatorId }),
+            }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            return { error: { message: result.error || '환불 기록 추가 실패' } };
+        }
+
+        return { error: null };
+    } catch (error: any) {
+        console.error('addRefundRecord error:', error);
+        return { error: { message: error.message } };
+    }
+}
+
+/**
+ * Delete refund records from revenue_ledger
+ */
+export async function deleteRefundRecords(
+    recordId?: string,
+    deleteCount?: number
+): Promise<{ success: boolean; deleted?: number; error?: string }> {
+    try {
+        const { data: session } = await supabase.auth.getSession();
+
+        const response = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-refund-record`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.session?.access_token}`,
+                },
+                body: JSON.stringify({ recordId, deleteCount }),
+            }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            return { success: false, error: result.error || '삭제 실패' };
+        }
+
+        return { success: true, deleted: result.deleted };
+    } catch (error: any) {
+        console.error('deleteRefundRecords error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Refund a specific product
+ */
+export async function refundProduct(
+    productType: 'course' | 'drill' | 'routine' | 'sparring' | 'feedback',
+    productId: string,
+    amount: number,
+    reason: string = '상품 환불'
+): Promise<{ error: any }> {
+    return addRefundRecord(null, amount, `${productType}(${productId}) 환불: ${reason}`);
+}
+
+/**
+ * Refund a bundle
+ */
+export async function refundBundle(
+    bundleId: string,
+    totalAmount: number,
+    reason: string = '번들 환불'
+): Promise<{ error: any }> {
+    return addRefundRecord(null, totalAmount, `번들(${bundleId}) 환불: ${reason}`);
+}
+
+/**
+ * Process actual refund via PortOne API + update revenue_ledger
+ * This calls the Edge Function that handles the full refund flow
+ */
+export async function processRefund(
+    paymentId: string,
+    amount?: number,
+    reason: string = '관리자 환불 처리'
+): Promise<{ success: boolean; refundedAmount?: number; error?: string }> {
+    try {
+        const { data: session } = await supabase.auth.getSession();
+
+        const response = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-refund`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.session?.access_token}`,
+                },
+                body: JSON.stringify({ paymentId, amount, reason }),
+            }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            return { success: false, error: result.error || '환불 처리 실패' };
+        }
+
+        return { success: true, refundedAmount: result.refundedAmount };
+    } catch (error: any) {
+        console.error('processRefund error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Get recent payments for refund processing
+ */
+export async function getRecentPayments(limit = 50) {
+    const { data, error } = await supabase
+        .from('payments')
+        .select(`
+            id,
+            portone_payment_id,
+            amount,
+            status,
+            mode,
+            created_at,
+            user:users(name, email)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+    if (error) {
+        console.error('Error fetching payments:', error);
+        return [];
+    }
+    return data || [];
 }
 

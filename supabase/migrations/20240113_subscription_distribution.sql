@@ -53,7 +53,7 @@ END $$;
 -- - Only counts watch time from PAID subscribers (is_subscriber=true AND is_complimentary_subscription=false)
 -- - EXCLUDE watch time for content the user has purchased (Double-dipping prevention)
 --   - Lessons: Exclude if user purchased the Course
---   - Drills: Exclude if user purchased the Drill
+--   - Drills: Exclude if user purchased the Drill directly OR via Routine purchase
 --   - Sparring: Exclude if user purchased the Video
 -- - EXCLUDE content marked as 'is_subscription_excluded' (e.g. Premium only)
 CREATE OR REPLACE FUNCTION calculate_monthly_subscription_distribution(target_month DATE)
@@ -84,6 +84,9 @@ DECLARE
         LEFT JOIN user_courses uc ON (l.course_id = uc.course_id AND uc.user_id = u.id)
         LEFT JOIN user_drills ud ON (log.drill_id = ud.drill_id AND ud.user_id = u.id)
         LEFT JOIN user_videos uv ON (log.video_id = uv.video_id AND uv.user_id = u.id)
+        -- Join to check routine purchase ownership for drills
+        LEFT JOIN routine_drills rd ON (log.drill_id = rd.drill_id)
+        LEFT JOIN user_routine_purchases urp ON (rd.routine_id = urp.routine_id AND urp.user_id = u.id)
         WHERE log.date >= start_date AND log.date < end_date
         AND c.id IS NOT NULL
         -- 1. Only paid subscribers (exclude complimentary)
@@ -91,7 +94,8 @@ DECLARE
         AND (u.is_complimentary_subscription IS NULL OR u.is_complimentary_subscription = false)
         -- 2. Exclude purchased content (If joined record exists, user owns it -> exclude from sub pool)
         AND uc.course_id IS NULL -- Not purchased as course
-        AND ud.drill_id IS NULL  -- Not purchased as drill
+        AND ud.drill_id IS NULL  -- Not purchased as drill (direct)
+        AND urp.routine_id IS NULL -- Not purchased via routine
         AND uv.video_id IS NULL  -- Not purchased as sparring video
         -- 3. Exclude 'Subscription Excluded' content
         AND (course.is_subscription_excluded IS NULL OR course.is_subscription_excluded = false)
@@ -100,10 +104,23 @@ DECLARE
 
     creator_rec RECORD;
     creator_payout NUMERIC;
+    already_distributed BOOLEAN;
 BEGIN
     -- Set period (e.g., '2023-01-01' -> start: '2023-01-01', end: '2023-02-01')
     start_date := date_trunc('month', target_month);
     end_date := start_date + INTERVAL '1 month';
+
+    -- 0. Check if distribution already ran for this month (prevent duplicate)
+    SELECT EXISTS (
+        SELECT 1 FROM revenue_ledger
+        WHERE product_type = 'subscription_distribution'
+        AND recognition_date >= start_date AND recognition_date < end_date
+    ) INTO already_distributed;
+
+    IF already_distributed THEN
+        RAISE NOTICE 'Distribution already completed for %. Skipping to prevent duplicate.', start_date;
+        RETURN;
+    END IF;
 
     -- 1. Get Total Recognized Subscription Revenue for this month
     SELECT COALESCE(SUM(amount), 0)
@@ -130,13 +147,17 @@ BEGIN
     LEFT JOIN user_courses uc ON (l.course_id = uc.course_id AND uc.user_id = u.id)
     LEFT JOIN user_drills ud ON (log.drill_id = ud.drill_id AND ud.user_id = u.id)
     LEFT JOIN user_videos uv ON (log.video_id = uv.video_id AND uv.user_id = u.id)
+    -- Join to check routine purchase ownership for drills
+    LEFT JOIN routine_drills rd ON (log.drill_id = rd.drill_id)
+    LEFT JOIN user_routine_purchases urp ON (rd.routine_id = urp.routine_id AND urp.user_id = u.id)
     WHERE log.date >= start_date AND log.date < end_date
     -- 1. Only paid subscribers
     AND u.is_subscriber = true
     AND (u.is_complimentary_subscription IS NULL OR u.is_complimentary_subscription = false)
     -- 2. Exclude purchased content
     AND uc.course_id IS NULL
-    AND ud.drill_id IS NULL
+    AND ud.drill_id IS NULL  -- Not purchased as drill (direct)
+    AND urp.routine_id IS NULL -- Not purchased via routine
     AND uv.video_id IS NULL
     -- 3. Exclude 'Subscription Excluded' content
     AND (course.is_subscription_excluded IS NULL OR course.is_subscription_excluded = false)
@@ -159,13 +180,12 @@ BEGIN
             -- Insert Distribution Record
             INSERT INTO revenue_ledger (
                 creator_id,
-                amount, 
+                amount,
                 platform_fee,
                 creator_revenue,
                 product_type,
                 status,
-                recognition_date,
-                description
+                recognition_date
             ) VALUES (
                 creator_rec.creator_id,
                 creator_payout,
@@ -173,8 +193,7 @@ BEGIN
                 creator_payout,
                 'subscription_distribution',
                 'processed', -- Auto-processed
-                CURRENT_DATE, -- Date of distribution run
-                'Subscription Revenue Share for ' || to_char(start_date, 'YYYY-MM')
+                CURRENT_DATE -- Date of distribution run
             );
         END IF;
     END LOOP;
