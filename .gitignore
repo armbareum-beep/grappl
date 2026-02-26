@@ -48,3 +48,4 @@ _OLD_BACKUP/
 tmpclaude-*
 .claude/
 .env*.local
+.env.production
