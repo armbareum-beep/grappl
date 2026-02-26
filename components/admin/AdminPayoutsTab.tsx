@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Copy, Building, User, Clock, Download } from 'lucide-react';
+import { Copy, Building, User, Clock, Download, RefreshCw, MinusCircle, Plus, Trash2 } from 'lucide-react';
 import { getCreatorPayoutsAdmin } from '../../lib/api';
-import { getAdminSettlements, exportSettlementsToCSV } from '../../lib/api-admin';
+import { getAdminSettlements, exportSettlementsToCSV, getRevenueLedger, addRefundRecord, RevenueLedgerRecord, processRefund, getRecentPayments, deleteRefundRecords } from '../../lib/api-admin';
 import { useToast } from '../../contexts/ToastContext';
 import { ConfirmModal } from '../common/ConfirmModal';
+import { Button } from '../Button';
 
 interface CreatorPayoutInfo {
     id: string;
@@ -27,8 +28,20 @@ export const AdminPayoutsTab: React.FC = () => {
     const [loading, setLoading] = useState(true);
 
     const [settlements, setSettlements] = useState<any[]>([]);
-    const [viewMode, setViewMode] = useState<'info' | 'settlement' | 'processing'>('processing');
+    const [viewMode, setViewMode] = useState<'info' | 'settlement' | 'processing' | 'revenue'>('processing');
     const [payouts, setPayouts] = useState<any[]>([]);
+
+    // Revenue Ledger State
+    const [revenueLedger, setRevenueLedger] = useState<RevenueLedgerRecord[]>([]);
+    const [showRefundModal, setShowRefundModal] = useState(false);
+    const [refundAmount, setRefundAmount] = useState('');
+    const [refundReason, setRefundReason] = useState('');
+    const [refundSubscriptionId, setRefundSubscriptionId] = useState<string | null>(null);
+
+    // Payments State (for actual refunds)
+    const [payments, setPayments] = useState<any[]>([]);
+    const [selectedPayment, setSelectedPayment] = useState<any>(null);
+    const [processingRefund, setProcessingRefund] = useState(false);
 
     // Payout Management State
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -43,8 +56,69 @@ export const AdminPayoutsTab: React.FC = () => {
     useEffect(() => {
         if (viewMode === 'processing') {
             loadPayouts();
+        } else if (viewMode === 'revenue') {
+            loadRevenueLedger();
         }
     }, [viewMode, selectedYear, selectedMonth]);
+
+    const loadRevenueLedger = async () => {
+        const [ledgerData, paymentsData] = await Promise.all([
+            getRevenueLedger(100),
+            getRecentPayments(50)
+        ]);
+        setRevenueLedger(ledgerData);
+        setPayments(paymentsData);
+    };
+
+    const handleProcessRefund = async () => {
+        if (!selectedPayment) return;
+
+        setProcessingRefund(true);
+        try {
+            const result = await processRefund(
+                selectedPayment.portone_payment_id,
+                refundAmount ? parseInt(refundAmount) : undefined,
+                refundReason || '관리자 환불 처리'
+            );
+
+            if (result.success) {
+                success(`₩${result.refundedAmount?.toLocaleString()} 환불이 완료되었습니다.`);
+                setShowRefundModal(false);
+                setSelectedPayment(null);
+                setRefundAmount('');
+                setRefundReason('');
+                loadRevenueLedger();
+            } else {
+                toastError(result.error || '환불 처리 실패');
+            }
+        } catch (err: any) {
+            toastError(err.message || '환불 처리 중 오류 발생');
+        } finally {
+            setProcessingRefund(false);
+        }
+    };
+
+    const handleAddRefund = async () => {
+        const amount = parseInt(refundAmount);
+        if (!amount || amount <= 0) {
+            toastError('유효한 금액을 입력하세요');
+            return;
+        }
+
+        const { error } = await addRefundRecord(refundSubscriptionId, amount, refundReason || '관리자 환불 처리');
+
+        if (error) {
+            console.error('환불 기록 추가 에러:', error);
+            toastError(`환불 기록 추가 실패: ${error.message || error.code || JSON.stringify(error)}`);
+        } else {
+            success(`₩${amount.toLocaleString()} 환불 기록이 추가되었습니다`);
+            setShowRefundModal(false);
+            setRefundAmount('');
+            setRefundReason('');
+            setRefundSubscriptionId(null);
+            loadRevenueLedger();
+        }
+    };
 
     const loadData = async () => {
         setLoading(true);
@@ -138,6 +212,12 @@ export const AdminPayoutsTab: React.FC = () => {
                             className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${viewMode === 'info' ? 'bg-violet-600 text-white shadow-[0_0_15px_rgba(139,92,246,0.2)]' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'}`}
                         >
                             계좌 정보
+                        </button>
+                        <button
+                            onClick={() => setViewMode('revenue')}
+                            className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${viewMode === 'revenue' ? 'bg-violet-600 text-white shadow-[0_0_15px_rgba(139,92,246,0.2)]' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'}`}
+                        >
+                            매출 원장
                         </button>
                     </div>
                 </div>
@@ -346,6 +426,271 @@ export const AdminPayoutsTab: React.FC = () => {
                                 )}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            )}
+
+            {viewMode === 'revenue' && (
+                <div className="space-y-8">
+                    {/* Header */}
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h3 className="text-xl font-bold text-white">결제 및 환불 관리</h3>
+                            <p className="text-sm text-zinc-500 mt-1">
+                                총 매출: ₩{revenueLedger.reduce((sum, r) => sum + r.amount, 0).toLocaleString()}
+                                {' '}({revenueLedger.filter(r => r.amount < 0).length}건 환불 포함)
+                            </p>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={loadRevenueLedger}
+                                className="border-zinc-700"
+                            >
+                                <RefreshCw className="w-4 h-4 mr-2" />
+                                새로고침
+                            </Button>
+                            <Button
+                                size="sm"
+                                onClick={() => {
+                                    setSelectedPayment(null);
+                                    setShowRefundModal(true);
+                                }}
+                                className="bg-zinc-700 hover:bg-zinc-600"
+                            >
+                                <Plus className="w-4 h-4 mr-2" />
+                                수동 기록 추가
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* Payments Table - For Actual Refunds */}
+                    <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800/50 overflow-hidden backdrop-blur-xl">
+                        <div className="p-4 border-b border-zinc-800 bg-zinc-900/50">
+                            <h4 className="font-bold text-white">결제 내역</h4>
+                            <p className="text-xs text-zinc-500 mt-1">환불할 결제를 선택하면 PortOne API로 실제 환불이 진행됩니다</p>
+                        </div>
+                        <table className="w-full">
+                            <thead>
+                                <tr className="bg-zinc-900/50 border-b border-zinc-800">
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-zinc-500 uppercase">일자</th>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-zinc-500 uppercase">결제자</th>
+                                    <th className="px-6 py-3 text-right text-xs font-bold text-zinc-500 uppercase">금액</th>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-zinc-500 uppercase">상태</th>
+                                    <th className="px-6 py-3 text-right text-xs font-bold text-zinc-500 uppercase">작업</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-800/50">
+                                {payments.length === 0 ? (
+                                    <tr><td colSpan={5} className="px-6 py-8 text-center text-zinc-500">결제 내역이 없습니다.</td></tr>
+                                ) : (
+                                    payments.map(payment => (
+                                        <tr key={payment.id} className={payment.status === 'refunded' ? 'bg-rose-500/5 opacity-60' : ''}>
+                                            <td className="px-6 py-3 text-sm text-zinc-400">
+                                                {new Date(payment.created_at).toLocaleDateString('ko-KR')}
+                                            </td>
+                                            <td className="px-6 py-3">
+                                                <div className="text-sm text-white">{payment.user?.name || '-'}</div>
+                                                <div className="text-xs text-zinc-500">{payment.user?.email}</div>
+                                            </td>
+                                            <td className="px-6 py-3 text-right font-bold text-emerald-400">
+                                                ₩{payment.amount?.toLocaleString()}
+                                            </td>
+                                            <td className="px-6 py-3">
+                                                <span className={`px-2 py-1 rounded-md text-xs font-bold ${
+                                                    payment.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400' :
+                                                    payment.status === 'refunded' ? 'bg-rose-500/10 text-rose-400' :
+                                                    'bg-zinc-500/10 text-zinc-400'
+                                                }`}>
+                                                    {payment.status === 'completed' ? '완료' :
+                                                     payment.status === 'refunded' ? '환불됨' : payment.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-3 text-right">
+                                                {payment.status === 'completed' && payment.portone_payment_id && (
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() => {
+                                                            setSelectedPayment(payment);
+                                                            setRefundAmount(payment.amount?.toString() || '');
+                                                            setShowRefundModal(true);
+                                                        }}
+                                                        className="bg-rose-600 hover:bg-rose-700 text-xs"
+                                                    >
+                                                        <MinusCircle className="w-3 h-3 mr-1" />
+                                                        환불
+                                                    </Button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Revenue Ledger Table */}
+                    <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800/50 overflow-hidden backdrop-blur-xl">
+                        <div className="p-4 border-b border-zinc-800 bg-zinc-900/50">
+                            <h4 className="font-bold text-white">매출 원장 (Revenue Ledger)</h4>
+                            <p className="text-xs text-zinc-500 mt-1">매출 및 환불 기록</p>
+                        </div>
+                        <table className="w-full">
+                            <thead>
+                                <tr className="bg-zinc-900/50 border-b border-zinc-800">
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-zinc-500 uppercase">일자</th>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-zinc-500 uppercase">유형</th>
+                                    <th className="px-6 py-3 text-right text-xs font-bold text-zinc-500 uppercase">금액</th>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-zinc-500 uppercase">상태</th>
+                                    <th className="px-6 py-3 text-right text-xs font-bold text-zinc-500 uppercase">작업</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-800/50">
+                                {revenueLedger.length === 0 ? (
+                                    <tr><td colSpan={5} className="px-6 py-8 text-center text-zinc-500">데이터가 없습니다.</td></tr>
+                                ) : (
+                                    revenueLedger.map(record => (
+                                        <tr key={record.id} className={record.amount < 0 ? 'bg-rose-500/5' : ''}>
+                                            <td className="px-6 py-3 text-sm text-zinc-400">
+                                                {new Date(record.created_at).toLocaleDateString('ko-KR')}
+                                            </td>
+                                            <td className="px-6 py-3">
+                                                <span className={`px-2 py-1 rounded-md text-xs font-bold ${
+                                                    record.product_type.includes('refund')
+                                                        ? 'bg-rose-500/10 text-rose-400'
+                                                        : 'bg-emerald-500/10 text-emerald-400'
+                                                }`}>
+                                                    {record.product_type}
+                                                </span>
+                                            </td>
+                                            <td className={`px-6 py-3 text-right font-bold ${record.amount < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                                                {record.amount < 0 ? '' : '+'}₩{record.amount.toLocaleString()}
+                                            </td>
+                                            <td className="px-6 py-3 text-sm text-zinc-400">
+                                                {record.status}
+                                            </td>
+                                            <td className="px-6 py-3 text-right">
+                                                {record.product_type === 'refund' && (
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (!confirm('이 환불 기록을 삭제하시겠습니까?')) return;
+                                                            const result = await deleteRefundRecords(record.id);
+                                                            if (result.success) {
+                                                                success('삭제되었습니다');
+                                                                loadRevenueLedger();
+                                                            } else {
+                                                                toastError(result.error || '삭제 실패');
+                                                            }
+                                                        }}
+                                                        className="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {/* Refund Modal */}
+            {showRefundModal && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-md">
+                        <h3 className="text-xl font-bold text-white mb-2">
+                            {selectedPayment ? '결제 환불 처리' : '수동 환불 기록 추가'}
+                        </h3>
+                        <p className="text-sm text-zinc-400 mb-6">
+                            {selectedPayment
+                                ? '이 작업은 PortOne API를 통해 실제 환불을 진행하고, 매출 원장에 기록합니다.'
+                                : '이미 외부에서 환불 처리된 건에 대해 매출 원장에만 기록을 추가합니다.'}
+                        </p>
+
+                        {selectedPayment && (
+                            <div className="bg-zinc-800/50 rounded-lg p-4 mb-4 border border-zinc-700">
+                                <div className="text-xs text-zinc-500 mb-1">결제 정보</div>
+                                <div className="text-white font-bold">{selectedPayment.user?.name || '-'}</div>
+                                <div className="text-sm text-zinc-400">{selectedPayment.user?.email}</div>
+                                <div className="text-emerald-400 font-bold mt-2">₩{selectedPayment.amount?.toLocaleString()}</div>
+                                <div className="text-xs text-zinc-500 mt-1">Payment ID: {selectedPayment.portone_payment_id?.slice(0, 20)}...</div>
+                            </div>
+                        )}
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-zinc-400 mb-2">
+                                    환불 금액 (원) {selectedPayment && <span className="text-zinc-500 font-normal">- 비워두면 전액 환불</span>}
+                                </label>
+                                <input
+                                    type="number"
+                                    value={refundAmount}
+                                    onChange={(e) => setRefundAmount(e.target.value)}
+                                    placeholder={selectedPayment ? selectedPayment.amount?.toString() : "190000"}
+                                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-zinc-400 mb-2">환불 사유</label>
+                                <input
+                                    type="text"
+                                    value={refundReason}
+                                    onChange={(e) => setRefundReason(e.target.value)}
+                                    placeholder="테스트 결제 취소"
+                                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500"
+                                />
+                            </div>
+                            {!selectedPayment && (
+                                <div>
+                                    <label className="block text-sm font-bold text-zinc-400 mb-2">Subscription ID (선택)</label>
+                                    <input
+                                        type="text"
+                                        value={refundSubscriptionId || ''}
+                                        onChange={(e) => setRefundSubscriptionId(e.target.value || null)}
+                                        placeholder="관련 구독 ID (없으면 비워두세요)"
+                                        className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500"
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <Button
+                                variant="outline"
+                                className="flex-1 border-zinc-700"
+                                disabled={processingRefund}
+                                onClick={() => {
+                                    setShowRefundModal(false);
+                                    setSelectedPayment(null);
+                                    setRefundAmount('');
+                                    setRefundReason('');
+                                    setRefundSubscriptionId(null);
+                                }}
+                            >
+                                취소
+                            </Button>
+                            <Button
+                                className="flex-1 bg-rose-600 hover:bg-rose-700"
+                                disabled={processingRefund || (!selectedPayment && !refundAmount)}
+                                onClick={selectedPayment ? handleProcessRefund : handleAddRefund}
+                            >
+                                {processingRefund ? (
+                                    <>
+                                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                        처리 중...
+                                    </>
+                                ) : (
+                                    <>
+                                        <MinusCircle className="w-4 h-4 mr-2" />
+                                        {selectedPayment ? '환불 처리' : '기록 추가'}
+                                    </>
+                                )}
+                            </Button>
+                        </div>
                     </div>
                 </div>
             )}

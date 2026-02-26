@@ -352,7 +352,9 @@ export const AdminDashboard: React.FC = () => {
                             <div className="flex items-center justify-between mb-8">
                                 <div>
                                     <h3 className="text-lg font-bold text-white mb-1">매출 추이 (30일)</h3>
-                                    <p className="text-sm text-zinc-500">일별 플랫폼 전체 매출 현황</p>
+                                    <p className="text-sm text-zinc-500">
+                                        일별 플랫폼 전체 매출 현황 · 총 매출: <span className={`font-bold ${chartData.salesData.reduce((sum, d) => sum + (d.amount || 0), 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>₩{chartData.salesData.reduce((sum, d) => sum + (d.amount || 0), 0).toLocaleString()}</span>
+                                    </p>
                                 </div>
                                 <button className="p-2 text-zinc-500 hover:text-white transition-colors bg-zinc-800/50 rounded-lg">
                                     <Download className="w-4 h-4" />

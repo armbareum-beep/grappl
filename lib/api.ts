@@ -2142,18 +2142,7 @@ export async function calculateCreatorEarnings(creatorId: string) {
         directRevenue += courseSales?.reduce((sum: number, sale: { price_paid: number }) => sum + (sale.price_paid || 0), 0) || 0;
     }
 
-    // 1b. Drill Sales
-    const { data: drills } = await supabase.from('drills').select('id').eq('creator_id', creatorId);
-    const drillIds = drills?.map((d: { id: string }) => d.id) || [];
-    if (drillIds.length > 0) {
-        const { data: drillSales } = await supabase
-            .from('user_drills')
-            .select('price_paid')
-            .in('drill_id', drillIds);
-        directRevenue += drillSales?.reduce((sum: number, sale: { price_paid: number }) => sum + (sale.price_paid || 0), 0) || 0;
-    }
-
-    // 1c. Routine Sales
+    // 1b. Routine Sales (드릴은 개별 판매 안 함 - 루틴의 재료)
     const { data: routines } = await supabase
         .from('routines')
         .select('id, price')
@@ -2169,7 +2158,7 @@ export async function calculateCreatorEarnings(creatorId: string) {
         directRevenue += routineSales?.reduce((sum: number, sale: { routine_id: string }) => sum + (routinePriceMap.get(sale.routine_id) || 0), 0) || 0;
     }
 
-    // 1d. Sparring Video Sales
+    // 1c. Sparring Video Sales
     const { data: sparringVideos } = await supabase
         .from('sparring_videos')
         .select('id, price')
@@ -2191,6 +2180,7 @@ export async function calculateCreatorEarnings(creatorId: string) {
     let bundleRevenue = 0;
 
     // Fetch ALL bundle sales to check if this creator has items inside them
+    // 번들 = 코스 + 루틴 + 스파링 (드릴은 개별 판매 아님)
     const { data: allBundleSales } = await supabase
         .from('user_bundles')
         .select(`
@@ -2199,10 +2189,13 @@ export async function calculateCreatorEarnings(creatorId: string) {
             bundles!inner (
                 id,
                 bundle_courses (
-                    course:courses ( id, Price, creator_id )
+                    course:courses ( id, price, creator_id )
                 ),
                 bundle_routines (
                     routine:routines ( id, price, creator_id )
+                ),
+                bundle_sparring (
+                    sparring:sparring_videos ( id, price, creator_id )
                 )
             )
         `);
@@ -2212,13 +2205,14 @@ export async function calculateCreatorEarnings(creatorId: string) {
             const bundle = sale.bundles;
             const courses = bundle.bundle_courses?.map((bc: any) => bc.course) || [];
             const routines = bundle.bundle_routines?.map((br: any) => br.routine) || [];
+            const sparring = bundle.bundle_sparring?.map((bs: any) => bs.sparring) || [];
 
             let totalValue = 0;
             let myValue = 0;
 
-            // Calculate total value of items inside the bundle
+            // Calculate total value of items inside the bundle (코스 + 루틴 + 스파링)
             courses.forEach((c: any) => {
-                const price = c.Price || 0;
+                const price = c.price || 0;
                 totalValue += price;
                 if (c.creator_id === creatorId) {
                     myValue += price;
@@ -2229,6 +2223,14 @@ export async function calculateCreatorEarnings(creatorId: string) {
                 const price = r.price || 0;
                 totalValue += price;
                 if (r.creator_id === creatorId) {
+                    myValue += price;
+                }
+            });
+
+            sparring.forEach((s: any) => {
+                const price = s.price || 0;
+                totalValue += price;
+                if (s.creator_id === creatorId) {
                     myValue += price;
                 }
             });
@@ -2246,168 +2248,50 @@ export async function calculateCreatorEarnings(creatorId: string) {
 
     // 2. Calculate Feedback Revenue
     // Feedback also uses the direct_share (80%)
+    // Only count PAID and COMPLETED feedback
     const { data: feedbackSales } = await supabase
         .from('feedback_requests')
         .select('*')
         .eq('instructor_id', creatorId)
-        .eq('status', 'completed');
+        .eq('status', 'completed')
+        .eq('payment_status', 'paid');
 
     const totalFeedbackSales = feedbackSales?.reduce((sum: number, req: { price: number }) => sum + (req.price || 0), 0) || 0;
     const feedbackRevenue = totalFeedbackSales * directShare;
 
-    // 3. Calculate Subscription Revenue (Watch Time Based)
-    // Get actual subscription revenue from revenue_ledger (recognized only)
-    // For now, we'll sum ALL recognized revenue. In a real system, this would be filtered by month.
-    const { data: recognizedRevenue } = await supabase
+    // 3. Calculate Subscription Revenue
+    // Get ACTUAL distributed subscription revenue for this creator from revenue_ledger
+    // This is the processed amount from monthly distribution (product_type = 'subscription_distribution')
+    const { data: distributedSubRevenue } = await supabase
+        .from('revenue_ledger')
+        .select('creator_revenue')
+        .eq('creator_id', creatorId)
+        .eq('product_type', 'subscription_distribution')
+        .eq('status', 'processed');
+
+    // Sum all distributed subscription revenue for this creator
+    const subscriptionRevenue = distributedSubRevenue?.reduce((sum, r) => sum + (r.creator_revenue || 0), 0) || 0;
+
+    // 4. Get refunds for this creator (negative amounts)
+    const { data: refunds } = await supabase
         .from('revenue_ledger')
         .select('amount')
-        .eq('status', 'recognized');
+        .eq('creator_id', creatorId)
+        .eq('product_type', 'refund');
 
-    // Fallback to mock if no ledger data exists yet (for dev/testing)
-    const totalSubRevenuePool = (recognizedRevenue && recognizedRevenue.length > 0)
-        ? recognizedRevenue.reduce((sum, r) => sum + r.amount, 0)
-        : 10000000; // 10,000,000 KRW fallback
+    const totalRefunds = refunds?.reduce((sum, r) => sum + Math.abs(r.amount || 0), 0) || 0;
 
-    // Get courses owned by users to exclude them from subscription revenue
-    const { data: ownedCourses } = await supabase
-        .from('user_courses')
-        .select('user_id, course_id');
-
-    // Get routines owned by users to exclude their drills from subscription revenue
-    const { data: ownedRoutines } = await supabase
-        .from('user_routine_purchases')
-        .select(`
-            user_id,
-            routine_id,
-            routine:routines (
-                routine_drills ( drill_id )
-            )
-        `);
-
-    // Get sparring videos owned by users
-    const { data: ownedVideos } = await supabase
-        .from('user_videos')
-        .select('user_id, video_id');
-
-    // Get drills owned directly by users
-    const { data: ownedDrills } = await supabase
-        .from('user_drills')
-        .select('user_id, drill_id');
-
-    const ownershipMap = new Map<string, boolean>();
-
-    // 1. Map owned courses
-    ownedCourses?.forEach(uc => {
-        ownershipMap.set(`${uc.user_id}_course_${uc.course_id}`, true);
-    });
-
-    // 2. Map owned drills via routines
-    ownedRoutines?.forEach((ur: any) => {
-        // ur.routine.routine_drills is an array of objects { drill_id: "..." }
-        // Note: Supabase join returns it as an array
-        const drills = ur.routine?.routine_drills;
-        if (Array.isArray(drills)) {
-            drills.forEach((d: any) => {
-                ownershipMap.set(`${ur.user_id}_drill_${d.drill_id}`, true);
-            });
-        }
-    });
-
-    // 3. Map owned sparring videos
-    ownedVideos?.forEach(uv => {
-        ownershipMap.set(`${uv.user_id}_video_${uv.video_id}`, true);
-    });
-
-    // 4. Map directly owned drills
-    ownedDrills?.forEach(ud => {
-        ownershipMap.set(`${ud.user_id}_drill_${ud.drill_id}`, true);
-    });
-
-    // Get actual watch seconds from video_watch_logs
-    // Note: Since recordWatchTime now only records paid subscribers, this data is already filtered
-    // But we still need to join with users table for safety and to exclude owned content
-    const { data: watchLogs } = await supabase
-        .from('video_watch_logs')
-        .select(`user_id, watch_seconds, lesson_id, video_id, drill_id`);
-
-    // Get paid subscriber IDs (is_subscriber=true AND is_complimentary_subscription=false)
-    const { data: paidSubscribers } = await supabase
-        .from('users')
-        .select('id')
-        .eq('is_subscriber', true)
-        .or('is_complimentary_subscription.is.null,is_complimentary_subscription.eq.false');
-
-    const paidSubscriberIds = new Set(paidSubscribers?.map(u => u.id) || []);
-
-    // Fetch mapping data for all content types to attribute creator_id
-    const [
-        { data: lessonsRef },
-        { data: drillsRef },
-        { data: sparringRef },
-        { data: videosRef }
-    ] = await Promise.all([
-        supabase.from('lessons').select('id, creator_id, course_id'),
-        supabase.from('drills').select('id, creator_id'),
-        supabase.from('sparring_videos').select('id, creator_id'),
-        supabase.from('videos').select('id, creator_id')
-    ]);
-
-    const contentCreatorMap = new Map<string, string>();
-    const lessonCourseMap = new Map<string, string>();
-
-    lessonsRef?.forEach(l => {
-        if (l.creator_id) contentCreatorMap.set(l.id, l.creator_id);
-        if (l.course_id) lessonCourseMap.set(l.id, l.course_id);
-    });
-    drillsRef?.forEach(d => { if (d.creator_id) contentCreatorMap.set(d.id, d.creator_id); });
-    sparringRef?.forEach(s => { if (s.creator_id) contentCreatorMap.set(s.id, s.creator_id); });
-    videosRef?.forEach(v => { if (v.creator_id) contentCreatorMap.set(v.id, v.creator_id); });
-
-    let totalWatchTime = 0;
-    let creatorWatchTime = 0;
-
-    watchLogs?.forEach((log: any) => {
-        const seconds = log.watch_seconds || 0;
-        const userId = log.user_id;
-        const contentId = log.lesson_id || log.video_id || log.drill_id;
-
-        if (!contentId) return;
-
-        // Only count paid subscribers (safety check - recordWatchTime already filters)
-        if (!paidSubscriberIds.has(userId)) return;
-
-        // Skip if user owns the course (direct purchase items don't count toward subscription pool)
-        if (log.lesson_id) {
-            const courseId = lessonCourseMap.get(log.lesson_id);
-            if (courseId && ownershipMap.has(`${userId}_course_${courseId}`)) return;
-        } else if (log.video_id) {
-            // Check sparring/video ownership
-            if (ownershipMap.has(`${userId}_video_${log.video_id}`)) return;
-        } else if (log.drill_id) {
-            // Check drill ownership via routine
-            if (ownershipMap.has(`${userId}_drill_${log.drill_id}`)) return;
-        }
-
-        totalWatchTime += seconds;
-        const targetCreatorId = contentCreatorMap.get(contentId);
-        if (targetCreatorId === creatorId) {
-            creatorWatchTime += seconds;
-        }
-    });
-
-    const share = totalWatchTime > 0 ? creatorWatchTime / totalWatchTime : 0;
-    const creatorSubRevenue = Math.floor(totalSubRevenuePool * subShare * share);
+    // Calculate total (refunds are already negative in the ledger, but we display as deduction)
+    const totalRevenue = directRevenue + bundleRevenue + feedbackRevenue + subscriptionRevenue;
 
     return {
         data: {
             directRevenue,
             bundleRevenue,
             feedbackRevenue,
-            subscriptionRevenue: creatorSubRevenue,
-            totalRevenue: directRevenue + bundleRevenue + feedbackRevenue + creatorSubRevenue,
-            creatorWatchTime,
-            totalWatchTime,
-            watchTimeShare: share
+            subscriptionRevenue,
+            totalRevenue,
+            totalRefunds
         },
         error: null
     };
