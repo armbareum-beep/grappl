@@ -160,8 +160,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                     if (assetRes.ok) {
                         const assetInfo = await assetRes.json();
-                        playbackId = assetInfo.playback_ids?.[0]?.id;
-                        durationSeconds = assetInfo.duration || 0;
+                        playbackId = assetInfo.data?.playback_ids?.[0]?.id;
+                        durationSeconds = assetInfo.data?.duration || 0;
 
                         if (playbackId) {
                             console.log(
@@ -279,8 +279,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                     if (assetRes.ok) {
                         const assetInfo = await assetRes.json();
-                        playbackId = assetInfo.playback_ids?.[0]?.id;
-                        durationSeconds = assetInfo.duration || 0;
+                        playbackId = assetInfo.data?.playback_ids?.[0]?.id;
+                        durationSeconds = assetInfo.data?.duration || 0;
 
                         if (playbackId) {
                             console.log(`[Mux] Found playback ID: ${playbackId}`);
