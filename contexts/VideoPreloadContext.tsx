@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useRef, useCallback, useEffect } from 'react';
-import Player from '@vimeo/player';
+import type Player from '@vimeo/player';
 import { extractVimeoId, isMuxPlaybackId } from '../lib/api';
-import '@mux/mux-video';
 
 interface PreloadState {
     status: 'idle' | 'loading' | 'ready' | 'error';
@@ -152,19 +151,21 @@ export const VideoPreloadProvider: React.FC<VideoPreloadProviderProps> = ({ chil
 
         // Handle Mux video preload
         if (isMux) {
-            try {
-                console.log('[VideoPreload] Creating Mux video element for:', drill.id);
-                const muxVideo = document.createElement('mux-video') as any;
-                muxVideo.setAttribute('playback-id', url);
-                muxVideo.setAttribute('preload', 'auto');
-                muxVideo.setAttribute('muted', 'true');
-                muxVideo.setAttribute('playsinline', 'true');
-                muxVideo.className = 'w-full h-full object-cover';
-                muxVideo.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
+            // Dynamic import to reduce initial bundle size
+            import('@mux/mux-video').then(() => {
+                try {
+                    console.log('[VideoPreload] Creating Mux video element for:', drill.id);
+                    const muxVideo = document.createElement('mux-video') as any;
+                    muxVideo.setAttribute('playback-id', url);
+                    muxVideo.setAttribute('preload', 'auto');
+                    muxVideo.setAttribute('muted', 'true');
+                    muxVideo.setAttribute('playsinline', 'true');
+                    muxVideo.className = 'w-full h-full object-cover';
+                    muxVideo.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
 
-                if (preloadContainerRef.current) {
-                    preloadContainerRef.current.appendChild(muxVideo);
-                }
+                    if (preloadContainerRef.current) {
+                        preloadContainerRef.current.appendChild(muxVideo);
+                    }
 
                 const videoElement = muxVideo as HTMLVideoElement;
 
@@ -217,8 +218,21 @@ export const VideoPreloadProvider: React.FC<VideoPreloadProviderProps> = ({ chil
                     }
                 }, 3000);
 
-            } catch (err) {
-                console.error('[VideoPreload] Failed to create Mux video:', err);
+                } catch (err) {
+                    console.error('[VideoPreload] Failed to create Mux video:', err);
+                    setPreloadState({
+                        status: 'error',
+                        drillId: drill.id,
+                        vimeoUrl: url,
+                        playerRef: null,
+                        iframeRef: null,
+                        muxVideoRef: null,
+                        isMux: true,
+                    });
+                    isPreloadingRef.current = false;
+                }
+            }).catch(err => {
+                console.error('[VideoPreload] Failed to load Mux video library:', err);
                 setPreloadState({
                     status: 'error',
                     drillId: drill.id,
@@ -229,44 +243,45 @@ export const VideoPreloadProvider: React.FC<VideoPreloadProviderProps> = ({ chil
                     isMux: true,
                 });
                 isPreloadingRef.current = false;
-            }
+            });
             return;
         }
 
-        // Handle Vimeo video preload (existing logic)
-        try {
-            const [baseId, hash] = vimeoId!.includes(':') ? vimeoId!.split(':') : [vimeoId, null];
+        // Handle Vimeo video preload - dynamic import to reduce bundle size
+        import('@vimeo/player').then(({ default: VimeoPlayer }) => {
+            try {
+                const [baseId, hash] = vimeoId!.includes(':') ? vimeoId!.split(':') : [vimeoId, null];
 
-            // iframe 생성
-            const iframe = document.createElement('iframe');
-            const params = new URLSearchParams({
-                autoplay: '0',
-                loop: '1',
-                muted: '1',
-                autopause: '0',
-                controls: '0',
-                playsinline: '1',
-                dnt: '1',
-                title: '0',
-                byline: '0',
-                portrait: '0',
-                quality: 'sd',
-                ...(hash ? { h: hash } : {}),
-            });
+                // iframe 생성
+                const iframe = document.createElement('iframe');
+                const params = new URLSearchParams({
+                    autoplay: '0',
+                    loop: '1',
+                    muted: '1',
+                    autopause: '0',
+                    controls: '0',
+                    playsinline: '1',
+                    dnt: '1',
+                    title: '0',
+                    byline: '0',
+                    portrait: '0',
+                    quality: 'sd',
+                    ...(hash ? { h: hash } : {}),
+                });
 
-            iframe.src = `https://player.vimeo.com/video/${baseId}?${params.toString()}`;
-            iframe.className = 'w-full h-full border-0';
-            iframe.allow = 'autoplay; fullscreen; picture-in-picture';
-            iframe.style.width = '100%';
-            iframe.style.height = '100%';
+                iframe.src = `https://player.vimeo.com/video/${baseId}?${params.toString()}`;
+                iframe.className = 'w-full h-full border-0';
+                iframe.allow = 'autoplay; fullscreen; picture-in-picture';
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
 
-            if (preloadContainerRef.current) {
-                preloadContainerRef.current.appendChild(iframe);
-            }
+                if (preloadContainerRef.current) {
+                    preloadContainerRef.current.appendChild(iframe);
+                }
 
-            const player = new Player(iframe);
+                const player = new VimeoPlayer(iframe);
 
-            player.ready().then(async () => {
+                player.ready().then(async () => {
                 // 음소거 및 음량 0으로 설정 (iOS 요구사항)
                 await player.setVolume(0).catch(() => { });
                 await player.setMuted(true).catch(() => { });
@@ -302,9 +317,22 @@ export const VideoPreloadProvider: React.FC<VideoPreloadProviderProps> = ({ chil
                     isMux: false,
                 });
                 isPreloadingRef.current = false;
-            });
-        } catch (err) {
-            console.error('[VideoPreload] Failed to create player:', err);
+                });
+            } catch (err) {
+                console.error('[VideoPreload] Failed to create player:', err);
+                setPreloadState({
+                    status: 'error',
+                    drillId: drill.id,
+                    vimeoUrl: url,
+                    playerRef: null,
+                    iframeRef: null,
+                    muxVideoRef: null,
+                    isMux: false,
+                });
+                isPreloadingRef.current = false;
+            }
+        }).catch(err => {
+            console.error('[VideoPreload] Failed to load Vimeo player library:', err);
             setPreloadState({
                 status: 'error',
                 drillId: drill.id,
@@ -315,7 +343,7 @@ export const VideoPreloadProvider: React.FC<VideoPreloadProviderProps> = ({ chil
                 isMux: false,
             });
             isPreloadingRef.current = false;
-        }
+        });
     }, [preloadState.drillId, preloadState.status, preloadState.playerRef, preloadState.muxVideoRef]);
 
     const consumePreloadedPlayer = useCallback(() => {

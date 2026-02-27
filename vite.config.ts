@@ -99,15 +99,31 @@ export default defineConfig({
         rollupOptions: {
             output: {
                 manualChunks: (id) => {
-                    // React 사용하지 않는 순수 JS 라이브러리만 분리 (안전)
+                    // 핵심 React 라이브러리 (항상 필요)
+                    if (id.includes('node_modules/react/') ||
+                        id.includes('node_modules/react-dom/') ||
+                        id.includes('node_modules/scheduler/')) {
+                        return 'react-core';
+                    }
+
+                    // React Router (라우팅)
+                    if (id.includes('react-router') || id.includes('@remix-run')) {
+                        return 'react-router';
+                    }
+
+                    // 무거운 라이브러리 분리
                     if (id.includes('@supabase')) return 'supabase';
-                    if (id.includes('@sentry') && !id.includes('@sentry/react')) return 'sentry';
+                    if (id.includes('@sentry')) return 'sentry';
+                    if (id.includes('recharts') || id.includes('d3-')) return 'charts';
+                    if (id.includes('reactflow') || id.includes('@reactflow')) return 'reactflow';
+                    if (id.includes('framer-motion')) return 'framer';
+                    if (id.includes('@tanstack/react-query')) return 'react-query';
                     if (id.includes('date-fns')) return 'date-fns';
                     if (id.includes('@vimeo/player')) return 'vimeo';
                     if (id.includes('tus-js-client')) return 'tus';
-
-                    // React 관련 모든 것은 기본 청크로 (분리하지 않음)
-                    // react, react-dom, react-query, framer-motion, reactflow 등
+                    if (id.includes('lucide-react')) return 'icons';
+                    if (id.includes('@radix-ui')) return 'radix';
+                    if (id.includes('zod')) return 'zod';
                 }
             }
         },

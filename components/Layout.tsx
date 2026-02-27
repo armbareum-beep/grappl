@@ -10,7 +10,7 @@ const NotificationDropdown = lazy(() => import('./NotificationDropdown').then(m 
 const LevelUpModal = lazy(() => import('./LevelUpModal').then(m => ({ default: m.LevelUpModal })));
 const TitleEarnedModal = lazy(() => import('./TitleEarnedModal').then(m => ({ default: m.TitleEarnedModal })));
 const GlobalSearch = lazy(() => import('../pages/GlobalSearch').then(m => ({ default: m.GlobalSearch })));
-import { getSiteSettings } from '../lib/api-admin';
+import { getSiteSettings } from '../lib/api-site';
 import { SiteSettings } from '../types';
 import { onNavHover, preloadCriticalRoutes } from '../lib/prefetch';
 

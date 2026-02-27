@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useWakeLock } from '../hooks/useWakeLock';
-import * as UpChunk from '@mux/upchunk';
 
 // Types
 export interface UploadTask {
@@ -148,6 +147,8 @@ export const BackgroundUploadProvider: React.FC<{ children: React.ReactNode }> =
                 if (isMuxUpload) {
                     console.log('[Mux] Starting UpChunk upload to:', uploadLink);
 
+                    // Dynamic import to avoid bundling with main chunk
+                    const UpChunk = await import('@mux/upchunk');
                     const upload = UpChunk.createUpload({
                         endpoint: uploadLink,
                         file: task.file,

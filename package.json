@@ -15,7 +15,9 @@
         "android": "npx cap open android",
         "ios": "npx cap open ios",
         "android:run": "npx cap run android",
-        "ios:run": "npx cap run ios"
+        "ios:run": "npx cap run ios",
+        "test:e2e": "playwright test",
+        "test:e2e:ui": "playwright test --ui"
     },
     "dependencies": {
         "@capacitor/android": "^8.0.2",
@@ -64,6 +66,7 @@
         "tus-js-client": "^4.3.1"
     },
     "devDependencies": {
+        "@playwright/test": "^1.51.0",
         "@types/react": "^18.3.5",
         "@types/react-dom": "^18.3.0",
         "@types/screenfull": "^4.0.0",

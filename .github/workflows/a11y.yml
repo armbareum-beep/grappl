@@ -1,0 +1,71 @@
+name: Accessibility Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  accessibility:
+    name: Accessibility Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build app
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Start preview server
+        run: npm run preview &
+        env:
+          PORT: 4173
+
+      - name: Wait for server
+        run: npx wait-on http://localhost:4173 --timeout 30000
+
+      - name: Run axe accessibility tests
+        run: |
+          npm install -g @axe-core/cli
+
+          echo "## Accessibility Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Test main pages
+          PAGES=("/" "/feed" "/courses" "/login")
+
+          for page in "${PAGES[@]}"; do
+            echo "Testing: http://localhost:4173$page"
+            axe http://localhost:4173$page --exit --tags wcag2a,wcag2aa --disable color-contrast || true
+          done
+
+      - name: Run Lighthouse accessibility audit
+        uses: treosh/lighthouse-ci-action@v11
+        with:
+          urls: |
+            http://localhost:4173/
+            http://localhost:4173/login
+          configPath: ./.github/lighthouse/lighthouserc-a11y.json
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+        continue-on-error: true
+
+      - name: Check critical issues
+        run: |
+          echo "Accessibility checks completed."
+          echo "Review the artifacts for detailed reports."

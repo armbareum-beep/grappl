@@ -148,6 +148,21 @@ Deno.serve(async (req) => {
                     subscription_end_date: new Date().toISOString()
                 })
                 .eq('id', user.id)
+
+            // Add refund record to revenue_ledger (negative amount)
+            // This ensures admin dashboard shows correct revenue after refunds
+            if (subscription.amount) {
+                await supabaseClient.from('revenue_ledger').insert({
+                    subscription_id: subscription.id,
+                    amount: -Math.abs(subscription.amount), // Negative amount for refund
+                    platform_fee: -Math.abs(subscription.amount),
+                    creator_revenue: 0,
+                    product_type: 'subscription_refund',
+                    status: 'refunded',
+                    recognition_date: new Date().toISOString().split('T')[0]
+                })
+                console.log(`Added refund record to revenue_ledger: -${subscription.amount}`)
+            }
         } else {
             // Cancel at end of period - user keeps access until current_period_end
             await supabaseClient

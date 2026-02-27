@@ -1,5 +1,4 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
-import * as Sentry from "@sentry/react";
 import { AlertTriangle } from 'lucide-react';
 import { Button } from './Button';
 
@@ -24,8 +23,12 @@ export class ErrorBoundary extends Component<Props, State> {
 
     public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error('Uncaught error:', error, errorInfo);
-        // Sentry에 에러 전송
-        Sentry.captureException(error, { extra: { componentStack: errorInfo.componentStack } });
+        // Sentry에 에러 전송 (동적 import로 번들 크기 절약)
+        if (import.meta.env.PROD) {
+            import('@sentry/react').then((Sentry) => {
+                Sentry.captureException(error, { extra: { componentStack: errorInfo.componentStack } });
+            });
+        }
     }
 
     private handleReset = () => {
