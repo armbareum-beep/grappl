@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Calendar, ChevronRight } from 'lucide-react';
 import { HighlightedText } from '../common/HighlightedText';
 
@@ -47,12 +46,8 @@ export const RoutinePromotionSection: React.FC<{ title?: string; subtitle?: stri
                         <div className="relative z-10 flex flex-col gap-6">
 
                             {/* Element A: Weekly Planner Mockup */}
-                            <motion.div
-                                initial={{ opacity: 0, x: -20 }}
-                                whileInView={{ opacity: 1, x: 0 }}
-                                viewport={{ once: true }}
-                                transition={{ duration: 0.8 }}
-                                className="bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-6 rounded-2xl shadow-2xl relative overflow-hidden"
+                            <div
+                                className="bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-6 rounded-2xl shadow-2xl relative overflow-hidden animate-fade-in-left"
                             >
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center gap-2">
@@ -84,15 +79,12 @@ export const RoutinePromotionSection: React.FC<{ title?: string; subtitle?: stri
                                         );
                                     })}
                                 </div>
-                            </motion.div>
+                            </div>
 
                             {/* Element B: Drill Card (Floating) */}
-                            <motion.div
-                                initial={{ opacity: 0, y: 30 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true }}
-                                transition={{ duration: 0.8, delay: 0.2 }}
-                                className="absolute -bottom-8 -right-4 md:-right-8 w-[280px] bg-zinc-950/90 backdrop-blur-xl border border-zinc-800 p-5 rounded-xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] z-20"
+                            <div
+                                className="absolute -bottom-8 -right-4 md:-right-8 w-[280px] bg-zinc-950/90 backdrop-blur-xl border border-zinc-800 p-5 rounded-xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] z-20 animate-fade-in-up"
+                                style={{ animationDelay: '0.2s' }}
                             >
                                 <div className="flex items-center justify-between mb-4 pb-3 border-b border-zinc-800/50">
                                     <span className="text-sm font-bold text-white">Today's Drills</span>
@@ -110,17 +102,9 @@ export const RoutinePromotionSection: React.FC<{ title?: string; subtitle?: stri
                                             >
                                                 <div className={`relative flex items-center justify-center w-5 h-5 rounded border transition-all duration-300 shrink-0 mt-0.5 ${isChecked ? 'bg-violet-600 border-violet-600' : 'border-zinc-700 bg-zinc-900 group-hover:border-zinc-500'
                                                     }`}>
-                                                    <AnimatePresence>
-                                                        {isChecked && (
-                                                            <motion.div
-                                                                initial={{ scale: 0 }}
-                                                                animate={{ scale: 1 }}
-                                                                exit={{ scale: 0 }}
-                                                            >
-                                                                <Check className="w-3.5 h-3.5 text-white" />
-                                                            </motion.div>
-                                                        )}
-                                                    </AnimatePresence>
+                                                    {isChecked && (
+                                                        <Check className="w-3.5 h-3.5 text-white animate-scale-in" />
+                                                    )}
                                                     {/* Pulse Effect */}
                                                     {isChecked && (
                                                         <span className="absolute inset-0 rounded-full animate-ping bg-violet-500/50"></span>
@@ -137,7 +121,7 @@ export const RoutinePromotionSection: React.FC<{ title?: string; subtitle?: stri
                                         );
                                     })}
                                 </div>
-                            </motion.div>
+                            </div>
                         </div>
 
                         {/* Decorative blob behind visuals */}
@@ -170,6 +154,32 @@ export const RoutinePromotionSection: React.FC<{ title?: string; subtitle?: stri
 
                 </div>
             </div>
+
+            {/* CSS Animations */}
+            <style>{`
+                @keyframes fade-in-left {
+                    from { opacity: 0; transform: translateX(-20px); }
+                    to { opacity: 1; transform: translateX(0); }
+                }
+                @keyframes fade-in-up {
+                    from { opacity: 0; transform: translateY(30px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                @keyframes scale-in {
+                    from { transform: scale(0); }
+                    to { transform: scale(1); }
+                }
+                .animate-fade-in-left {
+                    animation: fade-in-left 0.8s ease-out forwards;
+                }
+                .animate-fade-in-up {
+                    animation: fade-in-up 0.8s ease-out forwards;
+                    opacity: 0;
+                }
+                .animate-scale-in {
+                    animation: scale-in 0.2s ease-out forwards;
+                }
+            `}</style>
         </section>
     );
 };

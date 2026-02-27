@@ -1,6 +1,5 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, useInView } from 'framer-motion';
 import { GitBranch } from 'lucide-react';
 import { HighlightedText } from '../common/HighlightedText';
 
@@ -31,8 +30,6 @@ interface CapsuleRoadmapSectionProps {
 
 export const CapsuleRoadmapSection: React.FC<CapsuleRoadmapSectionProps> = ({ title, subtitle }) => {
     const navigate = useNavigate();
-    const containerRef = useRef<HTMLDivElement>(null);
-    const isInView = useInView(containerRef, { once: true, margin: "-100px" });
 
     return (
         <section className="py-24 md:py-40 relative overflow-hidden">
@@ -45,11 +42,8 @@ export const CapsuleRoadmapSection: React.FC<CapsuleRoadmapSectionProps> = ({ ti
 
                 {/* 1. Typography & CTA */}
                 <div className="text-center max-w-4xl mx-auto mb-10 md:mb-20">
-                    <motion.h2
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        className="text-4xl md:text-6xl font-black mb-6 leading-tight text-white tracking-tight break-keep"
+                    <h2
+                        className="text-4xl md:text-6xl font-black mb-6 leading-tight text-white tracking-tight break-keep animate-fade-in-up"
                     >
                         <div className="flex justify-center mb-6">
                             <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm">
@@ -60,37 +54,29 @@ export const CapsuleRoadmapSection: React.FC<CapsuleRoadmapSectionProps> = ({ ti
                             </div>
                         </div>
                         {title ? <HighlightedText text={title} /> : <>길을 잃지 않는 수련, <br className="md:hidden" /> <span className="text-violet-500">당신의 다음 테크닉은 무엇입니까?</span></>}
-                    </motion.h2>
-                    <motion.p
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: 0.1 }}
-                        className="text-zinc-400 text-lg md:text-xl leading-relaxed max-w-2xl mx-auto break-keep"
+                    </h2>
+                    <p
+                        className="text-zinc-400 text-lg md:text-xl leading-relaxed max-w-2xl mx-auto break-keep animate-fade-in-up"
+                        style={{ animationDelay: '0.1s' }}
                     >
                         {subtitle ? <HighlightedText text={subtitle} /> : <>단편적인 기술 습득은 성장을 늦출 뿐입니다. <br /> 레슨과 드릴을 연결하여 당신의 주짓수를 끊김 없는 하나의 흐름으로 만듭니다.</>}
-                    </motion.p>
+                    </p>
                 </div>
 
                 {/* CTA Button - Desktop only */}
                 <div className="hidden md:block mb-20">
-                    <motion.button
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        whileInView={{ opacity: 1, scale: 1 }}
-                        viewport={{ once: true }}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
+                    <button
                         onClick={() => navigate('/skill-tree')}
-                        className="bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-full px-12 py-5 text-xl transition-all shadow-[0_0_30px_rgba(124,58,237,0.4)] hover:shadow-[0_0_50px_rgba(124,58,237,0.6)]"
+                        className="bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-full px-12 py-5 text-xl transition-all duration-300 shadow-[0_0_30px_rgba(124,58,237,0.4)] hover:shadow-[0_0_50px_rgba(124,58,237,0.6)] hover:scale-105 active:scale-95 animate-fade-in-up"
+                        style={{ animationDelay: '0.2s' }}
                     >
                         기술시스템 구축하기
-                    </motion.button>
+                    </button>
                 </div>
 
                 {/* 2. Visual Identity: Capsule Roadmap */}
                 <div className="w-full pb-8">
                     <div
-                        ref={containerRef}
                         className="relative w-full max-w-4xl mx-auto aspect-[4/5] md:aspect-[2/1] bg-zinc-900/30 backdrop-blur-sm border border-zinc-800/50 rounded-3xl p-4 md:p-8 shadow-2xl overflow-hidden"
                     >
                         {/* Subtle Grid Background */}
@@ -101,13 +87,14 @@ export const CapsuleRoadmapSection: React.FC<CapsuleRoadmapSectionProps> = ({ ti
 
                         {/* Nodes */}
                         {nodes.map((node, i) => (
-                            <motion.div
+                            <div
                                 key={node.id}
-                                className="absolute transform -translate-x-1/2 -translate-y-1/2 z-10"
-                                style={{ left: `${node.x}%`, top: `${node.y}%` }}
-                                initial={{ scale: 0, opacity: 0 }}
-                                animate={isInView ? { scale: 1, opacity: 1 } : {}}
-                                transition={{ delay: 0.2 + (i * 0.1), type: "spring", stiffness: 200, damping: 20 }}
+                                className="absolute transform -translate-x-1/2 -translate-y-1/2 z-10 animate-pop-in"
+                                style={{
+                                    left: `${node.x}%`,
+                                    top: `${node.y}%`,
+                                    animationDelay: `${0.2 + (i * 0.1)}s`
+                                }}
                             >
                                 <div className={`
                                     relative px-4 py-2 md:px-6 md:py-3 rounded-full border transition-all duration-300 flex items-center gap-2 md:gap-3 cursor-pointer group hover:scale-105
@@ -140,27 +127,42 @@ export const CapsuleRoadmapSection: React.FC<CapsuleRoadmapSectionProps> = ({ ti
                                         ))}
                                     </div>
                                 </div>
-                            </motion.div>
+                            </div>
                         ))}
                     </div>
                 </div>
 
                 {/* CTA Button - Mobile only */}
                 <div className="md:hidden mt-8">
-                    <motion.button
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        whileInView={{ opacity: 1, scale: 1 }}
-                        viewport={{ once: true }}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
+                    <button
                         onClick={() => navigate('/skill-tree')}
-                        className="bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-full px-12 py-5 text-xl transition-all shadow-[0_0_30px_rgba(124,58,237,0.4)] hover:shadow-[0_0_50px_rgba(124,58,237,0.6)]"
+                        className="bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-full px-12 py-5 text-xl transition-all duration-300 shadow-[0_0_30px_rgba(124,58,237,0.4)] hover:shadow-[0_0_50px_rgba(124,58,237,0.6)] active:scale-95"
                     >
                         기술시스템 구축하기
-                    </motion.button>
+                    </button>
                 </div>
 
             </div>
+
+            {/* CSS Animations */}
+            <style>{`
+                @keyframes fade-in-up {
+                    from { opacity: 0; transform: translateY(20px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                @keyframes pop-in {
+                    from { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+                    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                }
+                .animate-fade-in-up {
+                    animation: fade-in-up 0.6s ease-out forwards;
+                    opacity: 0;
+                }
+                .animate-pop-in {
+                    animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+                    opacity: 0;
+                }
+            `}</style>
         </section>
     );
 };
