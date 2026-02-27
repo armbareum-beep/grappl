@@ -9,7 +9,7 @@ interface LoadingTimeoutGuardProps {
 
 export const LoadingTimeoutGuard: React.FC<LoadingTimeoutGuardProps> = ({
     loading,
-    timeoutMs = 5000
+    timeoutMs = 10000
 }) => {
     const [showModal, setShowModal] = useState(false);
 
