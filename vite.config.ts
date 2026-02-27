@@ -114,7 +114,10 @@ export default defineConfig({
                     // 무거운 라이브러리 분리
                     if (id.includes('@supabase')) return 'supabase';
                     if (id.includes('@sentry')) return 'sentry';
-                    if (id.includes('recharts') || id.includes('d3-')) return 'charts';
+                    // recharts와 d3는 서로 의존성이 있어 초기화 순서 문제 발생 가능
+                    // 각각 별도 청크로 분리하고 d3를 먼저 로드되도록 함
+                    if (id.includes('d3-')) return 'vendor-d3';
+                    if (id.includes('recharts')) return 'vendor-recharts';
                     if (id.includes('reactflow') || id.includes('@reactflow')) return 'reactflow';
                     if (id.includes('framer-motion')) return 'framer';
                     if (id.includes('@tanstack/react-query')) return 'react-query';
@@ -134,8 +137,10 @@ export default defineConfig({
             }
         },
         chunkSizeWarningLimit: 1000, // 경고 임계값 상향 (1MB)
-        // esbuild 사용 (기본값) - terser는 recharts/d3와 호환성 문제 있음
         sourcemap: false, // 프로덕션 빌드에서 소스맵 제거 (크기 절약)
+        // esbuild 설정 - d3/recharts 호환성을 위해 보수적 최적화
+        target: 'es2020',
+        minify: true,
     },
     server: {
         // port: 8080, // Removed to allow default (5173) or flexible port
