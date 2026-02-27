@@ -14,14 +14,21 @@
   <meta http-equiv="Expires" content="0" />
   <meta name="referrer" content="origin-when-cross-origin" />
 
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y1J01LCZ89"></script>
+  <!-- Google tag (gtag.js) - Deferred loading for better FCP -->
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag() { dataLayer.push(arguments); }
-    gtag('js', new Date());
-
-    gtag('config', 'G-Y1J01LCZ89');
+    // Load GA after page is interactive (2s delay)
+    setTimeout(function() {
+      var script = document.createElement('script');
+      script.src = 'https://www.googletagmanager.com/gtag/js?id=G-Y1J01LCZ89';
+      script.async = true;
+      script.onload = function() {
+        gtag('js', new Date());
+        gtag('config', 'G-Y1J01LCZ89');
+      };
+      document.head.appendChild(script);
+    }, 2000);
   </script>
 
   <!-- Google Search Console Verification -->

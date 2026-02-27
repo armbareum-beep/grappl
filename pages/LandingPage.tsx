@@ -1,21 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense, lazy } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLandingPageData } from '../hooks/use-landing-queries';
 import { useVideoPreloadSafe } from '../contexts/VideoPreloadContext';
 
 import { Star, Search, Award, Quote, Zap } from 'lucide-react';
-import { InstructorCarousel } from '../components/InstructorCarousel';
-
-import { RandomSparringShowcase } from '../components/RandomSparringShowcase';
-import { ClassShowcase } from '../components/ClassShowcase';
-import { DrillReelsSection } from '../components/DrillReelsSection';
-import { RoutinePromotionSection } from '../components/landing/RoutinePromotionSection';
-import { CapsuleRoadmapSection } from '../components/landing/CapsuleRoadmapSection';
-import { DailyFreePassCarousel } from '../components/landing/DailyFreePassCarousel';
 import { HighlightedText } from '../components/common/HighlightedText';
 
 import { cn } from '../lib/utils';
+
+// Lazy load below-the-fold components
+const InstructorCarousel = lazy(() => import('../components/InstructorCarousel').then(m => ({ default: m.InstructorCarousel })));
+const RandomSparringShowcase = lazy(() => import('../components/RandomSparringShowcase').then(m => ({ default: m.RandomSparringShowcase })));
+const ClassShowcase = lazy(() => import('../components/ClassShowcase').then(m => ({ default: m.ClassShowcase })));
+const DrillReelsSection = lazy(() => import('../components/DrillReelsSection').then(m => ({ default: m.DrillReelsSection })));
+const RoutinePromotionSection = lazy(() => import('../components/landing/RoutinePromotionSection').then(m => ({ default: m.RoutinePromotionSection })));
+const CapsuleRoadmapSection = lazy(() => import('../components/landing/CapsuleRoadmapSection').then(m => ({ default: m.CapsuleRoadmapSection })));
+const DailyFreePassCarousel = lazy(() => import('../components/landing/DailyFreePassCarousel').then(m => ({ default: m.DailyFreePassCarousel })));
 
 export const LandingPage: React.FC = () => {
     const navigate = useNavigate();
@@ -218,11 +219,13 @@ export const LandingPage: React.FC = () => {
                         </p>
                     </div>
 
-                    <DailyFreePassCarousel
-                        dailyDrill={dailyDrill}
-                        dailyLesson={dailyLesson}
-                        dailySparring={dailySparring}
-                    />
+                    <Suspense fallback={<div className="w-full h-96 bg-zinc-900/50 rounded-3xl animate-pulse" />}>
+                        <DailyFreePassCarousel
+                            dailyDrill={dailyDrill}
+                            dailyLesson={dailyLesson}
+                            dailySparring={dailySparring}
+                        />
+                    </Suspense>
                 </div>
             </section >
 
@@ -256,7 +259,9 @@ export const LandingPage: React.FC = () => {
                                 />
                             </div>
                         </div>
-                        <InstructorCarousel searchQuery={searchQuery} />
+                        <Suspense fallback={<div className="w-full h-64 bg-zinc-900/50 rounded-xl animate-pulse" />}>
+                            <InstructorCarousel searchQuery={searchQuery} />
+                        </Suspense>
                         <div className="mt-20 text-center">
                             <button
                                 className="px-10 py-4 bg-transparent border border-zinc-800 text-zinc-400 font-bold rounded-full transition-all hover:border-violet-500 hover:text-violet-400 hover:bg-violet-900/10 hover:shadow-[0_0_20px_rgba(124,58,237,0.2)]"
@@ -269,36 +274,28 @@ export const LandingPage: React.FC = () => {
                 </section>
             )}
 
-            {
-                (!siteSettings || siteSettings.sections?.classShowcase !== false) && <ClassShowcase
+            <Suspense fallback={<div className="w-full h-96 bg-zinc-950" />}>
+                {(!siteSettings || siteSettings.sections?.classShowcase !== false) && <ClassShowcase
                     title={siteSettings?.sectionContent?.classShowcase?.title}
                     subtitle={siteSettings?.sectionContent?.classShowcase?.subtitle}
-                />
-            }
-            {
-                (!siteSettings || siteSettings.sections?.drillReels !== false) && <DrillReelsSection
+                />}
+                {(!siteSettings || siteSettings.sections?.drillReels !== false) && <DrillReelsSection
                     title={siteSettings?.sectionContent?.drillReels?.title}
                     subtitle={siteSettings?.sectionContent?.drillReels?.subtitle}
-                />
-            }
-            {
-                (!siteSettings || siteSettings.sections?.sparringShowcase !== false) && <RandomSparringShowcase
+                />}
+                {(!siteSettings || siteSettings.sections?.sparringShowcase !== false) && <RandomSparringShowcase
                     title={siteSettings?.sectionContent?.sparringShowcase?.title}
                     subtitle={siteSettings?.sectionContent?.sparringShowcase?.subtitle}
-                />
-            }
-            {
-                (!siteSettings || siteSettings.sections?.roadmap !== false) && <CapsuleRoadmapSection
+                />}
+                {(!siteSettings || siteSettings.sections?.roadmap !== false) && <CapsuleRoadmapSection
                     title={siteSettings?.sectionContent?.roadmap?.title}
                     subtitle={siteSettings?.sectionContent?.roadmap?.subtitle}
-                />
-            }
-            {
-                (!siteSettings || siteSettings.sections?.routinePromotion !== false) && <RoutinePromotionSection
+                />}
+                {(!siteSettings || siteSettings.sections?.routinePromotion !== false) && <RoutinePromotionSection
                     title={siteSettings?.sectionContent?.routinePromotion?.title}
                     subtitle={siteSettings?.sectionContent?.routinePromotion?.subtitle}
-                />
-            }
+                />}
+            </Suspense>
 
             {
                 (!siteSettings || siteSettings.sections?.testimonials !== false) && (

@@ -1,8 +1,17 @@
 import React from 'react';
 // FORCE HMR UPDATE APP - NEW UI TEST
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
-import { SpeedInsights } from '@vercel/speed-insights/react';
-import { Analytics } from '@vercel/analytics/react';
+// Lazy load analytics to not block initial render (deferred 3s after mount)
+const SpeedInsights = React.lazy(() =>
+  new Promise<{ default: React.ComponentType }>(resolve =>
+    setTimeout(() => import('@vercel/speed-insights/react').then(m => resolve({ default: m.SpeedInsights })), 3000)
+  )
+);
+const Analytics = React.lazy(() =>
+  new Promise<{ default: React.ComponentType }>(resolve =>
+    setTimeout(() => import('@vercel/analytics/react').then(m => resolve({ default: m.Analytics })), 3000)
+  )
+);
 import { Layout } from './components/Layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LoadingScreen } from './components/LoadingScreen';
@@ -407,8 +416,10 @@ const App: React.FC = () => {
           <GlobalUploadProgress />
         </BackgroundUploadProvider>
       </ToastProvider>
-      <SpeedInsights />
-      <Analytics />
+      <React.Suspense fallback={null}>
+        <SpeedInsights />
+        <Analytics />
+      </React.Suspense>
     </ErrorBoundary>
   );
 };
