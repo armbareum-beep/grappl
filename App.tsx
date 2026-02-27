@@ -1,17 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 // FORCE HMR UPDATE APP - NEW UI TEST
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
-// Lazy load analytics to not block initial render (deferred 3s after mount)
-const SpeedInsights = React.lazy(() =>
-  new Promise<{ default: React.ComponentType }>(resolve =>
-    setTimeout(() => import('@vercel/speed-insights/react').then(m => resolve({ default: m.SpeedInsights })), 3000)
-  )
-);
-const Analytics = React.lazy(() =>
-  new Promise<{ default: React.ComponentType }>(resolve =>
-    setTimeout(() => import('@vercel/analytics/react').then(m => resolve({ default: m.Analytics })), 3000)
-  )
-);
+
+// Lazy load analytics
+const SpeedInsights = React.lazy(() => import('@vercel/speed-insights/react').then(m => ({ default: m.SpeedInsights })));
+const Analytics = React.lazy(() => import('@vercel/analytics/react').then(m => ({ default: m.Analytics })));
 import { Layout } from './components/Layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LoadingScreen } from './components/LoadingScreen';
@@ -273,6 +266,13 @@ const App: React.FC = () => {
   // ✅ iOS Safari 키보드 뷰포트 대응 (CSS 변수 --keyboard-height 설정)
   useVisualViewport();
 
+  // ✅ Analytics 지연 로딩 (3초 후)
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setShowAnalytics(true), 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
   // ✅ 앱 시작 시 에러 상태의 쿼리 클리어 (무한 로딩/에러 복구)
   React.useEffect(() => {
     clearErrorQueries();
@@ -416,10 +416,12 @@ const App: React.FC = () => {
           <GlobalUploadProgress />
         </BackgroundUploadProvider>
       </ToastProvider>
-      <React.Suspense fallback={null}>
-        <SpeedInsights />
-        <Analytics />
-      </React.Suspense>
+      {showAnalytics && (
+        <React.Suspense fallback={null}>
+          <SpeedInsights />
+          <Analytics />
+        </React.Suspense>
+      )}
     </ErrorBoundary>
   );
 };
