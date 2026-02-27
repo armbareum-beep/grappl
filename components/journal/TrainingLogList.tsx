@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { TrainingLog } from '../../types';
 import { Calendar, Clock, Activity, Trash2, Edit2, BookOpen } from 'lucide-react';
-import { AICoachWidget } from './AICoachWidget';
 import { ConfirmModal } from '../common/ConfirmModal';
+
+// Lazy load AI coach widget to reduce initial bundle (recharts ~450KB)
+const AICoachWidget = React.lazy(() => import('./AICoachWidget').then(m => ({ default: m.AICoachWidget })));
 
 interface TrainingLogListProps {
     logs: TrainingLog[];
@@ -16,7 +18,9 @@ export const TrainingLogList: React.FC<TrainingLogListProps> = ({ logs, onDelete
     return (
         <div className="space-y-6">
             {/* AI Coach Widget - Always visible to encourage usage */}
-            <AICoachWidget logs={logs} />
+            <React.Suspense fallback={<div className="h-32 bg-zinc-900/50 rounded-2xl animate-pulse" />}>
+                <AICoachWidget logs={logs} />
+            </React.Suspense>
 
             {logs.length === 0 ? (
                 <div className="text-center py-12 bg-zinc-900/50 rounded-2xl border border-zinc-800 border-dashed">

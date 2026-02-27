@@ -19,8 +19,10 @@ import {
 import { UserSkill, SkillCategory, SkillStatus, SkillSubcategory, Course } from '../../types';
 import { Shield, Swords, Users, Mountain, Target, User2, Plus, Search, X, FolderPlus, Trophy } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { CombatPowerRadar } from '../CombatPowerRadar';
 import { ErrorScreen } from '../ErrorScreen';
+
+// Lazy load radar chart to reduce initial bundle (recharts ~450KB)
+const CombatPowerRadar = React.lazy(() => import('../CombatPowerRadar').then(m => ({ default: m.CombatPowerRadar })));
 
 const CATEGORIES: { name: SkillCategory; icon: any; color: string }[] = [
     { name: 'Standing', icon: User2, color: 'bg-indigo-500' },
@@ -219,7 +221,9 @@ export const SkillTreeTab: React.FC = () => {
 
             {/* Combat Power Radar Chart */}
             {user && (
-                <CombatPowerRadar stats={arenaStats} />
+                <React.Suspense fallback={<div className="h-64 bg-zinc-900/50 rounded-2xl animate-pulse" />}>
+                    <CombatPowerRadar stats={arenaStats} />
+                </React.Suspense>
             )}
 
             {/* Dashboard Overview */}

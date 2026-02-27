@@ -96,6 +96,17 @@ export default defineConfig({
         'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
     },
     build: {
+        // 무거운 차트 라이브러리를 초기 로딩에서 제외 (Safari 성능 개선)
+        modulePreload: {
+            resolveDependencies: (filename, deps) => {
+                // recharts/d3는 차트 페이지에서만 필요하므로 초기 preload에서 제외
+                return deps.filter(dep =>
+                    !dep.includes('recharts') &&
+                    !dep.includes('vendor-d3') &&
+                    !dep.includes('framer') // 애니메이션도 제외
+                );
+            }
+        },
         rollupOptions: {
             output: {
                 manualChunks: (id) => {

@@ -11,8 +11,10 @@ import { format, subDays, eachDayOfInterval, isSameDay, parseISO, startOfYear, e
 import { ko } from 'date-fns/locale';
 import { supabase } from '../../lib/supabase';
 import { TechniqueTagModal } from '../social/TechniqueTagModal';
-import { TrainingTrendsChart } from './TrainingTrendsChart';
 import { toPng } from 'html-to-image';
+
+// Lazy load chart component to reduce initial bundle (recharts ~450KB)
+const TrainingTrendsChart = React.lazy(() => import('./TrainingTrendsChart').then(m => ({ default: m.TrainingTrendsChart })));
 import { ShareModal } from '../social/ShareModal';
 import { ConfirmModal } from '../common/ConfirmModal';
 
@@ -539,7 +541,9 @@ export const JournalTab: React.FC = () => {
         <div className="max-w-3xl mx-auto space-y-8 pb-20 relative">
             <div className="space-y-6" ref={statsGraphRef}>
                 <div className="relative group">
-                    <TrainingTrendsChart items={timelineItems} metric={selectedMetric} range={graphRange} />
+                    <React.Suspense fallback={<div className="h-48 bg-zinc-900/50 rounded-2xl animate-pulse" />}>
+                        <TrainingTrendsChart items={timelineItems} metric={selectedMetric} range={graphRange} />
+                    </React.Suspense>
                     <button
                         onClick={(e) => {
                             e.preventDefault();

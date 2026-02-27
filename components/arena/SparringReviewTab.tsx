@@ -5,8 +5,10 @@ import { useToast } from '../../contexts/ToastContext';
 import { Button } from '../Button';
 import { Plus, TrendingUp, Target, Hash } from 'lucide-react';
 import { TechniqueTagModal } from '../social/TechniqueTagModal';
-import { AICoachWidget } from '../journal/AICoachWidget';
 import { SparringReview, TrainingLog } from '../../types';
+
+// Lazy load AI coach widget to reduce initial bundle (recharts ~450KB)
+const AICoachWidget = React.lazy(() => import('../journal/AICoachWidget').then(m => ({ default: m.AICoachWidget })));
 import { QuestCompleteModal } from '../QuestCompleteModal';
 // Lazy load ShareModal
 const ShareModal = React.lazy(() => import('../social/ShareModal'));
@@ -356,7 +358,9 @@ export const SparringReviewTab: React.FC<SparringReviewTabProps> = ({ autoRunAI 
             </div>
 
             {/* AI Coach Widget */}
-            <AICoachWidget logs={trainingLogsForAI} autoRun={autoRunAI} isLocked={!isSubscriber} />
+            <React.Suspense fallback={<div className="h-32 bg-zinc-900/50 rounded-2xl animate-pulse" />}>
+                <AICoachWidget logs={trainingLogsForAI} autoRun={autoRunAI} isLocked={!isSubscriber} />
+            </React.Suspense>
 
             {/* Stats Cards */}
             <div className="grid grid-cols-3 gap-4">
