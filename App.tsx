@@ -53,6 +53,7 @@ const MyRoutineSchedule = React.lazy(() => import('./pages/MyRoutineSchedule'));
 const DrillReels = React.lazy(() => import('./pages/DrillReels').then(m => ({ default: m.DrillReels })));
 const AllCompletedRoutines = React.lazy(() => import('./pages/AllCompletedRoutines').then(m => ({ default: m.AllCompletedRoutines })));
 const FeedbackCenter = React.lazy(() => import('./pages/FeedbackCenter').then(m => ({ default: m.FeedbackCenter })));
+const WriteReview = React.lazy(() => import('./pages/WriteReview').then(m => ({ default: m.WriteReview })));
 
 // Admin pages - lazy loaded
 const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
@@ -345,6 +346,11 @@ const App: React.FC = () => {
                     <Route path="/feedback" element={
                       <ProtectedRoute>
                         <FeedbackCenter />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/write-review" element={
+                      <ProtectedRoute>
+                        <WriteReview />
                       </ProtectedRoute>
                     } />
                     <Route path="/my-library" element={<Navigate to="/saved" replace />} />

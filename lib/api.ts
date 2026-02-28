@@ -7740,7 +7740,48 @@ export async function getCreatorPayoutsAdmin() {
 
 // ==================== Testimonials ====================
 
+// Get approved testimonials for landing page (random 3)
 export async function getTestimonials() {
+    const { data, error } = await supabase
+        .from('testimonials')
+        .select('*')
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false });
+
+    if (error || !data) return { data, error };
+
+    // Shuffle and pick 3 random testimonials
+    const shuffled = data.sort(() => Math.random() - 0.5);
+    const randomThree = shuffled.slice(0, 3);
+
+    return { data: randomThree, error: null };
+}
+
+// Get testimonial statistics (total count and average rating)
+export async function getTestimonialStats(): Promise<{ data: { totalCount: number; averageRating: number } | null; error: any }> {
+    const { data, error } = await supabase
+        .from('testimonials')
+        .select('rating')
+        .eq('status', 'approved');
+
+    if (error || !data) return { data: null, error };
+
+    const totalCount = data.length;
+    const averageRating = totalCount > 0
+        ? data.reduce((sum, t) => sum + (t.rating || 5), 0) / totalCount
+        : 0;
+
+    return {
+        data: {
+            totalCount,
+            averageRating: Math.round(averageRating * 10) / 10
+        },
+        error: null
+    };
+}
+
+// Get all testimonials for admin (all statuses)
+export async function getTestimonialsAdmin() {
     const { data, error } = await supabase
         .from('testimonials')
         .select('*')
@@ -7749,10 +7790,23 @@ export async function getTestimonials() {
     return { data, error };
 }
 
+// Create testimonial (for customers - status is pending)
 export async function createTestimonial(testimonial: Omit<Testimonial, 'id' | 'createdAt'>) {
     const { data, error } = await supabase
         .from('testimonials')
-        .insert([testimonial])
+        .insert([{ ...testimonial, status: 'pending' }])
+        .select()
+        .single();
+
+    return { data, error };
+}
+
+// Update testimonial status (for admin approval)
+export async function updateTestimonialStatus(id: string, status: 'approved' | 'rejected') {
+    const { data, error } = await supabase
+        .from('testimonials')
+        .update({ status })
+        .eq('id', id)
         .select()
         .single();
 

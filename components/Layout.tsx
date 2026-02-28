@@ -1,6 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, BookOpen, DollarSign, Upload, LogOut, Settings, Clapperboard, HelpCircle, Network, Dumbbell, Home, Bookmark, Users, MessageSquare } from 'lucide-react';
+import { Menu, X, BookOpen, DollarSign, Upload, LogOut, Settings, Clapperboard, HelpCircle, Network, Dumbbell, Home, Bookmark, Users, MessageSquare, Star } from 'lucide-react';
 import { Button } from './Button';
 import { useAuth as useAuthContext } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
@@ -340,6 +340,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                           <span>1:1 피드백 서비스</span>
                         </Link>
                         <Link
+                          to="/write-review"
+                          className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-zinc-800/50 text-zinc-300 hover:text-white mx-2 font-medium"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          <Star className="mr-2 h-4 w-4" />
+                          <span>후기 작성</span>
+                        </Link>
+                        <Link
                           to="/saved"
                           className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-zinc-800/50 text-zinc-300 hover:text-white mx-2 font-medium"
                           onClick={() => setUserMenuOpen(false)}
@@ -473,6 +481,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </Link>
 
                     <Link
+                      to="/write-review"
+                      className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Star className="w-5 h-5" />
+                      <span>후기 작성</span>
+                    </Link>
+
+                    <Link
                       to="/saved"
                       className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
                       onClick={() => setMobileMenuOpen(false)}
@@ -596,8 +613,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <li><Link to="/instructors" className="text-zinc-400 hover:text-violet-400 transition-colors">인스트럭터 보기</Link></li>
                     <li><Link to="/feedback" className="text-zinc-400 hover:text-violet-400 transition-colors">1:1 피드백 서비스</Link></li>
                     <li><Link to="/library?tab=all" className="text-zinc-400 hover:text-violet-400 transition-colors">강좌 둘러보기</Link></li>
+                    <li><Link to="/write-review" className="text-zinc-400 hover:text-violet-400 transition-colors">후기 작성</Link></li>
                     <li><Link to="/pricing" className="text-zinc-400 hover:text-violet-400 transition-colors">요금제</Link></li>
-
                   </ul>
                 </div>
                 <div>
