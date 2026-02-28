@@ -77,7 +77,7 @@ export const TechniqueDetailPage: React.FC = () => {
     }));
 
     return (
-        <div className="min-h-screen bg-slate-950 py-8 px-4">
+        <div className="min-h-screen bg-slate-950 py-8 pb-24 px-4">
             <div className="max-w-5xl mx-auto">
                 {/* Back Button */}
                 <div className="fixed top-24 left-4 lg:left-8 z-[100] pointer-events-none">

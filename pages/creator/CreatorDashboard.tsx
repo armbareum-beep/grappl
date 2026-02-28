@@ -781,7 +781,7 @@ export const CreatorDashboard: React.FC = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-zinc-950 text-zinc-50 pb-20">
+        <div className="min-h-screen bg-zinc-950 text-zinc-50 pb-24">
             <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
                 {/* Header & Stats */}
                 <div className="space-y-8">

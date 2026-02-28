@@ -108,9 +108,8 @@ html {
 
     /* PWA/Mobile optimizations */
     -webkit-tap-highlight-color: transparent;
-    touch-action: pan-x pan-y;
-    overscroll-behavior-y: none;
-    /* Prevent elastic bounce on mobile */
+    touch-action: manipulation;
+    /* overscroll-behavior-y: none 제거 - iOS Safari에서 스크롤 막는 버그 있음 */
   }
 
   input,

@@ -41,7 +41,7 @@ const MyRoutineSchedule: React.FC = () => {
     const hasSchedule = Object.values(schedule).some(dayRoutines => dayRoutines.length > 0);
 
     return (
-        <div className="min-h-screen bg-zinc-950 text-zinc-100 pb-20">
+        <div className="min-h-screen bg-zinc-950 text-zinc-100 pb-24">
             {/* Header */}
             <header className="sticky top-0 z-30 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-800/50">
                 <div className="max-w-4xl mx-auto px-4 h-16 flex items-center gap-4">

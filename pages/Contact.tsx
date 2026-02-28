@@ -73,7 +73,7 @@ export const Contact: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-zinc-950 pt-20">
+        <div className="min-h-screen bg-zinc-950 pt-20 pb-24">
             <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-violet-900/20 via-zinc-950/0 to-zinc-950/0 pointer-events-none" />
 
             <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">

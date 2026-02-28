@@ -111,7 +111,7 @@ export const FeedbackCenter: React.FC = () => {
     if (loading) return <LoadingScreen />;
 
     return (
-        <div className="bg-zinc-950 min-h-screen pb-20">
+        <div className="bg-zinc-950 min-h-screen pb-24">
             <div className="max-w-7xl mx-auto py-8 space-y-12 px-4 md:px-8">
                 <div>
                     <h1 className="text-3xl font-bold text-white mb-2">피드백 센터</h1>

@@ -181,7 +181,7 @@ export const MyLibrary: React.FC = () => {
   const hasContent = myCourses.length > 0 || savedLessons.length > 0 || allRoutines.length > 0 || savedDrills.length > 0 || mySparring.length > 0 || chains.length > 0;
 
   return (
-    <div className="bg-zinc-950 min-h-screen pb-20">
+    <div className="bg-zinc-950 min-h-screen pb-24">
       <div className="max-w-full py-8 space-y-12 px-4 md:px-12">
         <h1 className="text-3xl font-bold text-white mb-2">저장됨</h1>
 

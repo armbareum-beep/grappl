@@ -8,6 +8,8 @@ const VERSION_CHECK_INTERVAL = 10 * 60 * 1000; // 10 minutes
 const VISIBILITY_CHECK_THROTTLE = 5 * 60 * 1000; // 5 minutes
 const SESSION_RELOAD_KEY = 'grapplay_version_reloaded';
 const LAST_VERSION_CHECK_KEY = 'grapplay_last_version_check';
+const UPDATE_DISMISSED_KEY = 'grapplay_update_dismissed';
+const DISMISS_DURATION = 30 * 60 * 1000; // 30 minutes - show again after this
 
 export const VersionChecker: React.FC = () => {
     const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
@@ -84,6 +86,13 @@ export const VersionChecker: React.FC = () => {
             if (currentVersion && newestVersion !== currentVersion) {
                 console.log('[VersionChecker] New version available:', newestVersion, '(current:', currentVersion, ')');
 
+                // Check if user dismissed recently
+                const dismissedAt = localStorage.getItem(UPDATE_DISMISSED_KEY);
+                if (dismissedAt && now - parseInt(dismissedAt) < DISMISS_DURATION) {
+                    console.log('[VersionChecker] Update prompt was dismissed recently, waiting...');
+                    return;
+                }
+
                 // Only show prompt - NEVER auto-reload
                 setLatestVersion(newestVersion);
                 setShowUpdatePrompt(true);
@@ -91,6 +100,46 @@ export const VersionChecker: React.FC = () => {
         } catch (error) {
             console.error('[VersionChecker] Version check failed:', error);
         }
+    }, []);
+
+    // Handle chunk load errors (cache mismatch after deployment)
+    useEffect(() => {
+        const handleChunkError = (event: ErrorEvent) => {
+            const error = event.error || event.message;
+            const errorString = String(error);
+
+            // Detect chunk load failures
+            if (
+                errorString.includes('Failed to fetch dynamically imported module') ||
+                errorString.includes('Loading chunk') ||
+                errorString.includes('ChunkLoadError') ||
+                errorString.includes('Loading CSS chunk')
+            ) {
+                console.log('[VersionChecker] Chunk load error detected, triggering reload');
+
+                // Prevent multiple reloads
+                const sessionReloaded = sessionStorage.getItem(SESSION_RELOAD_KEY);
+                if (sessionReloaded === 'true') {
+                    console.log('[VersionChecker] Already reloaded this session, skipping auto-reload');
+                    return;
+                }
+
+                sessionStorage.setItem(SESSION_RELOAD_KEY, 'true');
+
+                // Auto-reload with cache bust
+                hardReload([], true).catch(() => {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('_t', Date.now().toString());
+                    window.location.href = url.toString();
+                });
+            }
+        };
+
+        window.addEventListener('error', handleChunkError);
+
+        return () => {
+            window.removeEventListener('error', handleChunkError);
+        };
     }, []);
 
     useEffect(() => {
@@ -130,11 +179,11 @@ export const VersionChecker: React.FC = () => {
         };
     }, [isDev, checkVersion]);
 
-    // Dismiss handler
+    // Dismiss handler - will show again after DISMISS_DURATION
     const handleDismiss = useCallback(() => {
         setShowUpdatePrompt(false);
-        // Don't show again for 1 hour after dismissing
-        sessionStorage.setItem('grapplay_update_dismissed', Date.now().toString());
+        localStorage.setItem(UPDATE_DISMISSED_KEY, Date.now().toString());
+        console.log('[VersionChecker] Update dismissed, will show again in 30 minutes');
     }, []);
 
     return (

@@ -152,7 +152,7 @@ export const DrillRoutineDetail: React.FC = () => {
                 </button>
             </div>
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
                 {/* Header */}
                 <div className="bg-white rounded-xl p-8 shadow-sm border border-slate-200 mb-8">
                     <div className="grid lg:grid-cols-2 gap-8">

@@ -335,7 +335,7 @@ export const Checkout: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-zinc-950 py-12 md:py-20 selection:bg-violet-500/30">
+        <div className="min-h-screen bg-zinc-950 py-12 md:py-20 pb-24 selection:bg-violet-500/30">
             <div className="max-w-4xl mx-auto px-4">
                 <button
                     onClick={() => navigate(-1)}

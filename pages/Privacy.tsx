@@ -4,7 +4,7 @@ import { Star } from 'lucide-react';
 
 export const Privacy: React.FC = () => {
     return (
-        <div className="min-h-screen bg-slate-950 py-12 relative overflow-hidden">
+        <div className="min-h-screen bg-slate-950 py-12 pb-24 relative overflow-hidden">
             {/* Background Gradients */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full max-w-7xl pointer-events-none">
                 <div className="absolute top-[-20%] right-[-10%] w-[40%] h-[40%] bg-violet-500/10 rounded-full blur-[120px]" />

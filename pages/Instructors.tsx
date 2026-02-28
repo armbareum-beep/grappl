@@ -46,7 +46,7 @@ export const Instructors: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-zinc-950 text-white pb-20">
+        <div className="min-h-screen bg-zinc-950 text-white pb-24">
             {/* Header */}
             <div className="relative bg-zinc-900 border-b border-zinc-800 py-16 px-4 overflow-hidden">
                 <div className="absolute inset-0 bg-violet-600/5 blur-[100px] pointer-events-none"></div>
