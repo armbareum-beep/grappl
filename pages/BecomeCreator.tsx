@@ -31,7 +31,7 @@ export const BecomeCreator: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-zinc-950 relative overflow-hidden pt-20">
+        <div className="min-h-screen bg-zinc-950 relative overflow-hidden pt-20 pb-24">
             {/* Background Effects */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-violet-600/20 blur-[120px] rounded-full pointer-events-none" />
 

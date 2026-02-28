@@ -118,7 +118,7 @@ export const VideoDetail: React.FC = () => {
 
 
   return (
-    <div className="bg-white min-h-screen pb-20 relative">
+    <div className="bg-white min-h-screen pb-24 relative">
       {/* Floating Back Button */}
       <button
         onClick={() => navigate(-1)}

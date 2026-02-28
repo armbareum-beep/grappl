@@ -656,7 +656,7 @@ export const Settings: React.FC = () => {
     };
 
     return (
-        <div className="bg-slate-950 min-h-screen py-12">
+        <div className="bg-slate-950 min-h-screen py-12 pb-24">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center gap-3 mb-8">
                     <div className="w-10 h-10 rounded-xl bg-violet-600 flex items-center justify-center shadow-lg shadow-violet-600/20">

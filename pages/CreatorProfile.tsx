@@ -186,7 +186,7 @@ export const CreatorProfile: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-black text-white pb-20 relative">
+        <div className="min-h-screen bg-black text-white pb-24 relative">
             {/* Floating Back Button */}
             <button
                 onClick={() => navigate(-1)}

@@ -387,7 +387,7 @@ export const Home: React.FC = () => {
             />
 
             {/* 5-10. Netflix Style Content Rows (6 Rows) */}
-            < div className="pb-20" >
+            < div className="pb-24" >
 
                 {/* 1. Popular Courses (Standard - No Numbers) */}
                 {

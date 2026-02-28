@@ -31,7 +31,7 @@ export const Bundles: React.FC = () => {
     if (loading) return <LoadingScreen message="번들 목록을 불러오는 중..." />;
 
     return (
-        <div className="min-h-screen bg-zinc-950 pb-20">
+        <div className="min-h-screen bg-zinc-950 pb-24">
             {/* Header Section */}
             <div className="relative pt-20 pb-16 overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-b from-violet-600/10 to-transparent"></div>

@@ -155,7 +155,7 @@ export default function UserProfile() {
     const beltInfo = progress ? getBeltInfo(progress.beltLevel) : getBeltInfo(0);
 
     return (
-        <div className="min-h-screen bg-slate-950 pb-20">
+        <div className="min-h-screen bg-slate-950 pb-24">
             {/* Header */}
             <div className="sticky top-0 z-10 bg-slate-950/80 backdrop-blur-md border-b border-slate-800">
                 <div className="max-w-4xl mx-auto px-4 h-14 flex items-center gap-4">

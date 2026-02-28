@@ -74,7 +74,7 @@ export const History: React.FC = () => {
     }, {} as Record<string, HistoryItem[]>);
 
     return (
-        <div className="min-h-screen bg-[#09090b] text-white pb-20">
+        <div className="min-h-screen bg-[#09090b] text-white pb-24">
             {/* Header */}
             <header className="sticky top-0 z-50 bg-[#09090b]/90 backdrop-blur-md border-b border-white/5">
                 <div className="flex items-center gap-4 px-4 h-16 max-w-2xl mx-auto md:px-0">

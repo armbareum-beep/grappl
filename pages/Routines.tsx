@@ -127,7 +127,7 @@ export const Routines: React.FC<{
     };
 
     if (loading) return (
-        <div className="min-h-screen bg-zinc-950 text-zinc-100 md:pl-28 pt-8 pb-20 px-6 md:px-10">
+        <div className="min-h-screen bg-zinc-950 text-zinc-100 md:pl-28 pt-8 pb-24 px-6 md:px-10">
             <div className="max-w-[1600px] mx-auto p-4 md:px-12">
                 <div className="h-10 w-32 bg-zinc-800 rounded-lg animate-pulse mb-8" />
                 <GridSkeleton count={12} columns={4} />

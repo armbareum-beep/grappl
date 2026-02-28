@@ -47,7 +47,7 @@ export const AllCompletedRoutines: React.FC = () => {
     }, [user?.id, navigate]);
 
     return (
-        <div className="min-h-screen bg-[#09090b] text-zinc-100 pb-20">
+        <div className="min-h-screen bg-[#09090b] text-zinc-100 pb-24">
             {/* Header */}
             <header className="sticky top-0 z-50 bg-[#09090b]/80 backdrop-blur-md border-b border-zinc-800 px-4 md:px-6 h-16 flex items-center gap-4">
                 <button

@@ -1099,7 +1099,7 @@ export const CourseDetail: React.FC = () => {
             </div>
 
             {/* Main Content Area */}
-            <div className="pt-24 pb-20 px-4 lg:px-8 max-w-[1800px] mx-auto">
+            <div className="pt-24 pb-24 px-4 lg:px-8 max-w-[1800px] mx-auto">
                 {/* Mobile Layout: Video -> Curriculum -> Instructor -> Payment -> Info */}
                 <div className="flex flex-col gap-6 lg:hidden">
                     {!isDesktop && renderVideoPlayer()}

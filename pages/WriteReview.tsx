@@ -159,7 +159,7 @@ export const WriteReview: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-black">
+        <div className="min-h-screen bg-black pb-24">
             <div className="max-w-2xl mx-auto px-4 py-12">
                 {/* Header */}
                 <button
