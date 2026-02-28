@@ -8,10 +8,14 @@ export function useHomeQueries(userId?: string) {
 
     // Check for cached data (for instant render on mount)
     const hasCachedData = useMemo(() => {
-        const cached = queryClient.getQueryData(['home', 'data']);
-        // 캐시가 있어도 에러 상태면 캐시 없는 것으로 처리
+        const cached = queryClient.getQueryData(['home', 'data']) as HomePageData | undefined;
+        // 캐시가 있어도 에러 상태거나 데이터가 비어있으면 캐시 없는 것으로 처리
         const queryState = queryClient.getQueryState(['home', 'data']);
-        return !!cached && queryState?.status !== 'error';
+        if (!cached || queryState?.status === 'error') return false;
+        // 실제 데이터가 있는지 확인 (빈 캐시 방지)
+        const hasActualData = !!(cached.dailyDrill || cached.dailyLesson || cached.dailySparring ||
+            (cached.trendingCourses && cached.trendingCourses.length > 0));
+        return hasActualData;
     }, [queryClient]);
 
     // Single optimized query for all home data

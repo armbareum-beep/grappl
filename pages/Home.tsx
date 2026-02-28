@@ -12,6 +12,7 @@ import { ContentRow } from '../components/home/ContentRow';
 import { useHomeQueries } from '../hooks/use-home-queries';
 import { useVideoPreloadSafe } from '../contexts/VideoPreloadContext';
 import { getOptimizedThumbnail } from '../lib/utils';
+import { LoadingTimeoutGuard } from '../components/common/LoadingTimeoutGuard';
 
 export const Home: React.FC = () => {
     const navigate = useNavigate();
@@ -90,6 +91,7 @@ export const Home: React.FC = () => {
     if (loading && slides.length === 0 && trendingCourses.length === 0) {
         return (
             <div className="min-h-screen bg-black text-white p-4 md:p-12 animate-pulse">
+                <LoadingTimeoutGuard loading={true} />
                 {/* Header Skeleton */}
                 <div className="flex justify-between items-center mb-12">
                     <div className="h-12 w-64 bg-zinc-800 rounded-lg" />
