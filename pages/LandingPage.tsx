@@ -27,6 +27,7 @@ export const LandingPage: React.FC = () => {
         dailyLesson,
         dailySparring,
         testimonials,
+        testimonialStats,
         siteSettings,
         prefetchData
     } = useLandingPageData();
@@ -307,6 +308,20 @@ export const LandingPage: React.FC = () => {
                                     <p className="text-zinc-400 text-xl max-w-2xl mx-auto leading-relaxed break-keep">
                                         {siteSettings?.sectionContent?.testimonials?.subtitle || <>블랙벨트의 디테일을 경험한 수련생들의 생생한 목소리를 확인하세요.</>}
                                     </p>
+                                    {/* Review Stats */}
+                                    {testimonialStats && testimonialStats.totalCount > 0 && (
+                                        <div className="flex items-center justify-center gap-6 mt-8">
+                                            <div className="flex items-center gap-2">
+                                                <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
+                                                <span className="text-2xl font-black text-white">{testimonialStats.averageRating}</span>
+                                                <span className="text-zinc-500 text-sm">/ 5.0</span>
+                                            </div>
+                                            <div className="w-px h-6 bg-zinc-800" />
+                                            <div className="text-zinc-400">
+                                                <span className="text-white font-bold">{testimonialStats.totalCount}</span>개의 리뷰
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="grid md:grid-cols-3 gap-6 md:gap-8">
                                     {testimonials.map((review, i) => (
@@ -328,6 +343,16 @@ export const LandingPage: React.FC = () => {
                                             </div>
                                         </div>
                                     ))}
+                                </div>
+                                {/* Write Review CTA */}
+                                <div className="text-center mt-12">
+                                    <button
+                                        onClick={() => navigate('/write-review')}
+                                        className="inline-flex items-center gap-2 px-8 py-4 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-violet-500/50 text-white rounded-full font-bold transition-all hover:scale-105"
+                                    >
+                                        <Star className="w-5 h-5 text-violet-400" />
+                                        나도 후기 작성하기
+                                    </button>
                                 </div>
                             </div>
                         </section>

@@ -843,6 +843,14 @@ export interface Testimonial {
   comment: string;
   rating: number;
   createdAt: string;
+  status?: 'pending' | 'approved' | 'rejected';
+  user_id?: string;
+  profile_image?: string;
+}
+
+export interface TestimonialStats {
+  totalCount: number;
+  averageRating: number;
 }
 
 

@@ -1,13 +1,14 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     getTestimonials,
+    getTestimonialStats,
     getDailyFreeDrill,
     getDailyFreeLesson,
     getDailyFreeSparring,
     getRoutines,
     getSparringVideos
 } from '../lib/api';
-import { Testimonial } from '../types';
+import { Testimonial, TestimonialStats } from '../types';
 
 // Default testimonials fallback
 const DEFAULT_TESTIMONIALS: Testimonial[] = [
@@ -68,7 +69,7 @@ export function useLandingPageData() {
         staleTime: 1000 * 60 * 60,
     });
 
-    // Testimonials
+    // Testimonials (random 3 approved)
     const { data: testimonials = DEFAULT_TESTIMONIALS } = useQuery({
         queryKey: ['testimonials'],
         queryFn: async () => {
@@ -76,6 +77,16 @@ export function useLandingPageData() {
             return data && data.length > 0 ? data : DEFAULT_TESTIMONIALS;
         },
         staleTime: 1000 * 60 * 30, // 30 minutes
+    });
+
+    // Testimonial stats (total count and average rating)
+    const { data: testimonialStats } = useQuery({
+        queryKey: ['testimonials', 'stats'],
+        queryFn: async () => {
+            const { data } = await getTestimonialStats();
+            return data;
+        },
+        staleTime: 1000 * 60 * 30,
     });
 
     // Site settings
@@ -117,6 +128,7 @@ export function useLandingPageData() {
         dailyLesson,
         dailySparring,
         testimonials,
+        testimonialStats,
         siteSettings,
         prefetchData,
         isLoading: !dailyDrill && !dailyLesson && !dailySparring
