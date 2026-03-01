@@ -431,7 +431,7 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
                 .select(`
                     *,
                     creator:creators!creator_id(name, profile_image),
-                    lessons:lessons(vimeo_url, lesson_number)
+                    lessons:lessons(vimeo_url, lesson_number, title)
                 `)
                 .eq('published', true)
                 .order('created_at', { ascending: false })
@@ -447,7 +447,7 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
                     .from('courses')
                     .select(`
                         *,
-                        lessons:lessons(vimeo_url, lesson_number)
+                        lessons:lessons(vimeo_url, lesson_number, title)
                     `)
                     .eq('published', true)
                     .order('created_at', { ascending: false })
@@ -478,6 +478,7 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
             return {
                 ...course,
                 lessonCount: d.lessons?.length || 0,
+                lessonTitles: (d.lessons || []).map((l: any) => l.title).filter(Boolean),
                 creatorProfileImage: d.creator?.profile_image || null,
                 previewVideoUrl: firstLesson?.vimeo_url,
                 // Override previewVimeoId with the first lesson's ID
