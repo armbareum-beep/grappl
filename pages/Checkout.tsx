@@ -49,7 +49,7 @@ export const Checkout: React.FC = () => {
     }>({ courses: [], drills: [], routines: [], sparring: [] });
     const [ownedItemsDiscount, setOwnedItemsDiscount] = useState(0);
 
-    const isYearly = productTitle.includes('(연간)');
+    const isYearly = productTitle.includes('(연간)') || productTitle.includes('(1년권)');
 
     useEffect(() => {
         if (user) {
@@ -592,7 +592,7 @@ export const Checkout: React.FC = () => {
                                                 setLoading(true);
                                                 try {
                                                     const isUpgrade = type === 'subscription_upgrade';
-                                                    const isMonthlySubscription = type === 'subscription' && !productTitle.includes('(연간)');
+                                                    const isMonthlySubscription = type === 'subscription' && !productTitle.includes('(연간)') && !productTitle.includes('(1년권)');
 
                                                     // Determine Channel Key (V2 Specific)
                                                     // User Request: Yearly Subscription should use GENERAL Channel (One-time payment)
@@ -754,7 +754,7 @@ export const Checkout: React.FC = () => {
                                             disabled={loading}
                                             className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 px-6 rounded-[20px] transition-all duration-300 shadow-lg shadow-emerald-900/20 active:scale-95 uppercase tracking-tighter italic text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
-                                            {loading ? '처리 중...' : (type === 'subscription' && !productTitle.includes('(연간)') ? '정기결제 시작하기' : '결제하기')}
+                                            {loading ? '처리 중...' : (type === 'subscription' && !productTitle.includes('(연간)') && !productTitle.includes('(1년권)') ? '정기결제 시작하기' : '결제하기')}
                                         </button>
                                     </div>
                                 )}
