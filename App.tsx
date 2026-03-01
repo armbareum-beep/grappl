@@ -112,7 +112,8 @@ const RootRedirect: React.FC = () => {
       const accessToken = hashParams.get('access_token');
 
       // If it's a password reset related redirect, send to /reset-password
-      if (errorCode === 'otp_expired' || type === 'recovery' || accessToken) {
+      // Note: Do NOT check for accessToken alone — OAuth sign-ins (Google) also include access_token in the hash
+      if (errorCode === 'otp_expired' || type === 'recovery') {
         window.location.href = `/reset-password${hash}`;
         return;
       }
