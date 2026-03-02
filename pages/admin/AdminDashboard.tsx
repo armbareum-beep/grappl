@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom';
 import {
     Star, BookOpen, Users, Home, Package, DollarSign,
     Dumbbell, Activity, Shield, AlertTriangle, MessageSquare,
-    Video, Swords, Bell, Download, TrendingUp,
-    ArrowRight, Map, RefreshCw
+    Video, Swords, Bell, Download, TrendingUp, TrendingDown,
+    ArrowRight, Map, RefreshCw, Wallet
 } from 'lucide-react';
 import {
     getAdminStats, AdminStats, getAdminChartData,
-    getAdminRecentActivity, getAdminTopPerformers
+    getAdminRecentActivity, getAdminTopPerformers,
+    getPlatformFinancials, PlatformFinancials
 } from '../../lib/api-admin';
 import { ActivityItem, AdminTopPerformers } from '../../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -29,6 +30,7 @@ export const AdminDashboard: React.FC = () => {
     const [topPerformers, setTopPerformers] = useState<AdminTopPerformers | null>(null);
     const [hasNewActivity, setHasNewActivity] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
+    const [financials, setFinancials] = useState<PlatformFinancials | null>(null);
 
     const [loading, setLoading] = useState(true);
 
@@ -65,17 +67,20 @@ export const AdminDashboard: React.FC = () => {
     const loadData = async () => {
         try {
             setLoading(true);
-            const [statsData, charts, activity, performers] = await Promise.all([
+            const currentMonth = new Date().getMonth() + 1;
+            const currentYear = new Date().getFullYear();
+            const [statsData, charts, activity, performers, finData] = await Promise.all([
                 getAdminStats(),
                 getAdminChartData(30),
                 getAdminRecentActivity(),
                 getAdminTopPerformers(),
-
+                getPlatformFinancials(currentYear, currentMonth)
             ]);
             setStats(statsData);
             setChartData(charts);
             setRecentActivity(activity);
             setTopPerformers(performers);
+            setFinancials(finData);
 
         } catch (error) {
             console.error('Error loading dashboard data:', error);
@@ -385,18 +390,27 @@ export const AdminDashboard: React.FC = () => {
                             <div className="bg-zinc-900/40 border border-zinc-800/50 rounded-3xl p-6 backdrop-blur-xl">
                                 <div className="flex items-center gap-2 mb-6">
                                     <TrendingUp className="w-5 h-5 text-violet-400" />
-                                    <h3 className="font-bold">인기 강좌 Top 3</h3>
+                                    <div>
+                                        <h3 className="font-bold">인기 강좌 Top 3</h3>
+                                        <p className="text-[10px] text-zinc-500">유료 구독자 시청시간 기준</p>
+                                    </div>
                                 </div>
                                 <div className="space-y-4">
-                                    {topPerformers?.courses.map((course, i) => (
-                                        <div key={i} className="flex items-center justify-between p-3 bg-zinc-950/50 rounded-xl border border-zinc-800/50 hover:border-zinc-700 transition-all cursor-pointer">
-                                            <div>
-                                                <div className="text-sm font-bold text-zinc-100">{course.title}</div>
-                                                <div className="text-[10px] text-zinc-500">{course.instructor} • 조회수 {(course.views || course.salesCount || 0).toLocaleString()}회</div>
-                                            </div>
-                                            <div className="text-sm font-mono font-bold text-violet-400">₩{formatCurrency(course.revenue)}</div>
+                                    {(!topPerformers?.courses || topPerformers.courses.length === 0) ? (
+                                        <div className="text-center py-8 text-zinc-500 text-sm">
+                                            시청 데이터가 없습니다
                                         </div>
-                                    ))}
+                                    ) : (
+                                        topPerformers.courses.map((course, i) => (
+                                            <div key={i} className="flex items-center justify-between p-3 bg-zinc-950/50 rounded-xl border border-zinc-800/50 hover:border-zinc-700 transition-all cursor-pointer">
+                                                <div>
+                                                    <div className="text-sm font-bold text-zinc-100">{course.title}</div>
+                                                    <div className="text-[10px] text-zinc-500">{course.instructor}</div>
+                                                </div>
+                                                <div className="text-sm font-mono font-bold text-violet-400">{(course.views || 0).toLocaleString()}분</div>
+                                            </div>
+                                        ))
+                                    )}
                                 </div>
                             </div>
 
@@ -472,7 +486,48 @@ export const AdminDashboard: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* System Health Removed */}
+                        {/* Platform Financials Summary */}
+                        <Link to="/admin/payouts" className="block">
+                            <div className="bg-gradient-to-br from-emerald-500/5 to-zinc-900/40 border border-emerald-500/20 rounded-3xl p-6 backdrop-blur-xl hover:border-emerald-500/40 transition-all group">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2">
+                                        <Wallet className="w-5 h-5 text-emerald-400" />
+                                        <h3 className="font-bold text-white">이번 달 플랫폼 재무</h3>
+                                    </div>
+                                    <ArrowRight className="w-4 h-4 text-zinc-500 group-hover:text-emerald-400 transition-colors" />
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-4 mb-4">
+                                    <div>
+                                        <div className="text-[10px] font-bold text-zinc-500 uppercase mb-1">매출</div>
+                                        <div className="text-lg font-bold text-blue-400">
+                                            ₩{((financials?.totalRevenue || 0) / 10000).toFixed(1)}만
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="text-[10px] font-bold text-zinc-500 uppercase mb-1">비용</div>
+                                        <div className="text-lg font-bold text-rose-400">
+                                            ₩{((financials?.totalCosts || 0) / 10000).toFixed(1)}만
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="text-[10px] font-bold text-zinc-500 uppercase mb-1">수익</div>
+                                        <div className={`text-lg font-bold ${(financials?.netProfit || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                            ₩{((financials?.netProfit || 0) / 10000).toFixed(1)}만
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="text-zinc-500">
+                                        구독 ₩{(financials?.subscriptionRevenue || 0).toLocaleString()}
+                                    </span>
+                                    <span className="text-zinc-500">
+                                        정산 ₩{(financials?.creatorPayouts || 0).toLocaleString()}
+                                    </span>
+                                </div>
+                            </div>
+                        </Link>
                     </div>
                 </div>
 

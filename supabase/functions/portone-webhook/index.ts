@@ -303,6 +303,164 @@ Deno.serve(async (req) => {
                     })
                     .eq('id', subscription.id)
             }
+        } else if (type === 'Transaction.Cancelled' || type === 'Transaction.PartialCancelled') {
+            // 환불/취소 처리
+            const paymentId = data?.paymentId
+            const cancelledAmount = data?.cancellation?.totalAmount || data?.amount?.total || 0
+
+            console.log(`Processing cancellation for payment: ${paymentId}, amount: ${cancelledAmount}`)
+
+            if (!paymentId) {
+                console.log('No paymentId in cancellation webhook')
+                return new Response(JSON.stringify({ success: true }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                    status: 200,
+                })
+            }
+
+            // 1. Find subscription by payment ID
+            const { data: subscription } = await supabaseClient
+                .from('subscriptions')
+                .select('*')
+                .eq('portone_payment_id', paymentId)
+                .single()
+
+            if (subscription) {
+                const isFullRefund = type === 'Transaction.Cancelled'
+
+                if (isFullRefund) {
+                    // 전액 환불: 구독 취소 + 미래 revenue_ledger 삭제
+                    console.log(`Full refund for subscription: ${subscription.id}`)
+
+                    // 구독 상태 변경
+                    await supabaseClient
+                        .from('subscriptions')
+                        .update({ status: 'cancelled' })
+                        .eq('id', subscription.id)
+
+                    // 유저 구독 해제
+                    await supabaseClient
+                        .from('users')
+                        .update({
+                            is_subscriber: false,
+                            subscription_tier: null,
+                            subscription_end_date: null
+                        })
+                        .eq('id', subscription.user_id)
+
+                    // 미래 revenue_ledger 삭제 (아직 인식 안 된 것들)
+                    const today = new Date().toISOString().split('T')[0]
+                    await supabaseClient
+                        .from('revenue_ledger')
+                        .delete()
+                        .eq('subscription_id', subscription.id)
+                        .gte('recognition_date', today)
+
+                    // 환불 레코드 추가 (음수 금액)
+                    await supabaseClient.from('revenue_ledger').insert({
+                        subscription_id: subscription.id,
+                        amount: -cancelledAmount,
+                        platform_fee: -cancelledAmount,
+                        creator_revenue: 0,
+                        product_type: 'refund',
+                        status: 'refunded',
+                        recognition_date: today
+                    })
+
+                    // payments 테이블 업데이트
+                    await supabaseClient
+                        .from('payments')
+                        .update({ status: 'refunded' })
+                        .eq('portone_payment_id', paymentId)
+
+                    console.log(`Subscription ${subscription.id} fully refunded and cancelled`)
+                } else {
+                    // 부분 환불: 환불 레코드만 추가
+                    console.log(`Partial refund for subscription: ${subscription.id}, amount: ${cancelledAmount}`)
+
+                    const today = new Date().toISOString().split('T')[0]
+                    await supabaseClient.from('revenue_ledger').insert({
+                        subscription_id: subscription.id,
+                        amount: -cancelledAmount,
+                        platform_fee: -cancelledAmount,
+                        creator_revenue: 0,
+                        product_type: 'refund',
+                        status: 'refunded',
+                        recognition_date: today
+                    })
+
+                    // payments 테이블에 부분 환불 기록
+                    await supabaseClient
+                        .from('payments')
+                        .update({ status: 'partially_refunded' })
+                        .eq('portone_payment_id', paymentId)
+                }
+
+                // 알림 생성
+                await supabaseClient.from('notifications').insert({
+                    user_id: subscription.user_id,
+                    type: 'refund_processed',
+                    title: isFullRefund ? '환불 완료' : '부분 환불 완료',
+                    message: `₩${cancelledAmount.toLocaleString()} 환불이 처리되었습니다.`,
+                    link: '/settings',
+                    is_read: false
+                })
+            } else {
+                // 구독이 아닌 일반 결제 환불 처리 (코스, 드릴 등)
+                const { data: payment } = await supabaseClient
+                    .from('payments')
+                    .select('*')
+                    .eq('portone_payment_id', paymentId)
+                    .single()
+
+                if (payment) {
+                    console.log(`Refund for non-subscription payment: ${payment.id}, mode: ${payment.mode}`)
+
+                    // payments 상태 업데이트
+                    await supabaseClient
+                        .from('payments')
+                        .update({ status: type === 'Transaction.Cancelled' ? 'refunded' : 'partially_refunded' })
+                        .eq('id', payment.id)
+
+                    // revenue_ledger에 환불 기록
+                    const today = new Date().toISOString().split('T')[0]
+                    await supabaseClient.from('revenue_ledger').insert({
+                        amount: -cancelledAmount,
+                        platform_fee: Math.floor(-cancelledAmount * 0.2),
+                        creator_revenue: Math.floor(-cancelledAmount * 0.8),
+                        product_type: 'refund',
+                        product_id: payment.target_id,
+                        status: 'refunded',
+                        recognition_date: today
+                    })
+
+                    // 구매 기록 삭제 (전액 환불인 경우)
+                    if (type === 'Transaction.Cancelled' && payment.mode && payment.target_id) {
+                        let tableName = ''
+                        if (payment.mode === 'course') tableName = 'course_enrollments'
+                        else if (payment.mode === 'drill') tableName = 'user_drills'
+                        else if (payment.mode === 'routine') tableName = 'user_routines'
+                        else if (payment.mode === 'sparring') tableName = 'user_videos'
+                        else if (payment.mode === 'bundle') tableName = 'user_bundles'
+
+                        if (tableName) {
+                            const idColumn = payment.mode === 'course' ? 'course_id' :
+                                payment.mode === 'drill' ? 'drill_id' :
+                                    payment.mode === 'routine' ? 'routine_id' :
+                                        payment.mode === 'sparring' ? 'video_id' :
+                                            'bundle_id'
+
+                            await supabaseClient
+                                .from(tableName)
+                                .delete()
+                                .eq('user_id', payment.user_id)
+                                .eq(idColumn, payment.target_id)
+
+                            console.log(`Removed ${tableName} record for user ${payment.user_id}`)
+                        }
+                    }
+                }
+            }
         }
 
         return new Response(JSON.stringify({ success: true }), {
