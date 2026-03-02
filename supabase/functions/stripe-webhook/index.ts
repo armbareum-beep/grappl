@@ -1,6 +1,31 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import Stripe from 'npm:stripe@^14.21.0'
 
+// 텔레그램 알림 함수
+async function sendTelegramNotification(message: string) {
+    const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')
+    const chatId = Deno.env.get('TELEGRAM_CHAT_ID')
+
+    if (!botToken || !chatId) {
+        console.warn('Telegram credentials not configured')
+        return
+    }
+
+    try {
+        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: chatId,
+                text: message,
+                parse_mode: 'HTML'
+            })
+        })
+    } catch (error) {
+        console.error('Telegram notification failed:', error)
+    }
+}
+
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
     apiVersion: '2023-10-16',
     httpClient: Stripe.createFetchHttpClient(),
@@ -126,6 +151,14 @@ Deno.serve(async (req) => {
 
                     console.log(`Subscription activated (payment_intent) for user ${userId} with tier ${tier}`)
                     await logWebhook('success', event.type, { userId, tier, subscription: subscription_id }, null);
+
+                    // 텔레그램 알림
+                    await sendTelegramNotification(
+                        `💳 <b>구독 결제 완료!</b>\n` +
+                        `• 티어: ${tier}\n` +
+                        `• 금액: ${(paymentIntent.amount / 100).toLocaleString()}${paymentIntent.currency.toUpperCase()}\n` +
+                        `• 결제수단: Stripe`
+                    )
                 }
 
                 // Course Purchase
@@ -158,6 +191,13 @@ Deno.serve(async (req) => {
 
                     console.log(`Course access granted: ${courseId} to user ${userId}`)
                     await logWebhook('success', event.type, { mode, courseId, userId }, null);
+
+                    await sendTelegramNotification(
+                        `📚 <b>코스 구매 완료!</b>\n` +
+                        `• 코스 ID: ${courseId}\n` +
+                        `• 금액: ${(paymentIntent.amount / 100).toLocaleString()}${paymentIntent.currency.toUpperCase()}\n` +
+                        `• 결제수단: Stripe`
+                    )
                 }
 
                 // Routine Purchase
@@ -190,6 +230,13 @@ Deno.serve(async (req) => {
 
                     console.log(`Routine access granted: ${routineId} to user ${userId}`)
                     await logWebhook('success', event.type, { mode, routineId, userId }, null);
+
+                    await sendTelegramNotification(
+                        `🥋 <b>루틴 구매 완료!</b>\n` +
+                        `• 루틴 ID: ${routineId}\n` +
+                        `• 금액: ${(paymentIntent.amount / 100).toLocaleString()}${paymentIntent.currency.toUpperCase()}\n` +
+                        `• 결제수단: Stripe`
+                    )
                 }
 
                 // Drill Purchase
@@ -222,6 +269,13 @@ Deno.serve(async (req) => {
 
                     console.log(`Drill access granted: ${drillId} to user ${userId}`)
                     await logWebhook('success', event.type, { mode, drillId, userId }, null);
+
+                    await sendTelegramNotification(
+                        `🎯 <b>드릴 구매 완료!</b>\n` +
+                        `• 드릴 ID: ${drillId}\n` +
+                        `• 금액: ${(paymentIntent.amount / 100).toLocaleString()}${paymentIntent.currency.toUpperCase()}\n` +
+                        `• 결제수단: Stripe`
+                    )
                 }
 
                 // Feedback Request Payment
@@ -254,6 +308,13 @@ Deno.serve(async (req) => {
 
                     console.log(`Feedback payment recorded: ${feedbackRequestId}`)
                     await logWebhook('success', event.type, { mode, feedbackRequestId, userId }, null);
+
+                    await sendTelegramNotification(
+                        `📝 <b>피드백 결제 완료!</b>\n` +
+                        `• 요청 ID: ${feedbackRequestId}\n` +
+                        `• 금액: ${(paymentIntent.amount / 100).toLocaleString()}${paymentIntent.currency.toUpperCase()}\n` +
+                        `• 결제수단: Stripe`
+                    )
                 }
 
                 // Bundle Purchase
@@ -317,6 +378,14 @@ Deno.serve(async (req) => {
 
                     console.log(`Bundle access granted: ${bundleId} to user ${userId}`)
                     await logWebhook('success', event.type, { mode, bundleId, userId, courseCount: bundle?.course_ids?.length || 0, drillCount: bundle?.drill_ids?.length || 0 }, null);
+
+                    await sendTelegramNotification(
+                        `📦 <b>번들 구매 완료!</b>\n` +
+                        `• 번들 ID: ${bundleId}\n` +
+                        `• 코스 ${bundle?.course_ids?.length || 0}개, 드릴 ${bundle?.drill_ids?.length || 0}개\n` +
+                        `• 금액: ${(paymentIntent.amount / 100).toLocaleString()}${paymentIntent.currency.toUpperCase()}\n` +
+                        `• 결제수단: Stripe`
+                    )
                 }
                 break
             }
@@ -414,6 +483,13 @@ Deno.serve(async (req) => {
 
                             console.log(`Subscription activated (invoice) for user ${userId} with tier ${tier}`)
                             await logWebhook('success', event.type, { userId, tier, subscription: subscriptionId }, null);
+
+                            await sendTelegramNotification(
+                                `🔄 <b>구독 갱신 완료!</b>\n` +
+                                `• 티어: ${tier}\n` +
+                                `• 금액: ${(invoice.amount_paid / 100).toLocaleString()}${invoice.currency.toUpperCase()}\n` +
+                                `• 결제수단: Stripe`
+                            )
                         } else {
                             console.warn('No userId found in subscription metadata');
                             await logWebhook('warning', event.type, { subscription: subscriptionId, metadata: stripeSubscription.metadata }, 'No userId in metadata');

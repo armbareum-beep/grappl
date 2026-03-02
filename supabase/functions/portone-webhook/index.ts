@@ -1,5 +1,30 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
+// 텔레그램 알림 함수
+async function sendTelegramNotification(message: string) {
+    const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')
+    const chatId = Deno.env.get('TELEGRAM_CHAT_ID')
+
+    if (!botToken || !chatId) {
+        console.warn('Telegram credentials not configured')
+        return
+    }
+
+    try {
+        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: chatId,
+                text: message,
+                parse_mode: 'HTML'
+            })
+        })
+    } catch (error) {
+        console.error('Telegram notification failed:', error)
+    }
+}
+
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, webhook-id, webhook-timestamp, webhook-signature',
@@ -252,6 +277,13 @@ Deno.serve(async (req) => {
                 }
 
                 console.log(`Subscription ${subscription.id} renewed successfully`)
+
+                // 텔레그램 알림
+                await sendTelegramNotification(
+                    `💳 <b>구독 갱신 완료! (PortOne)</b>\n` +
+                    `• 금액: ₩${amountValue.toLocaleString()}\n` +
+                    `• 결제수단: PortOne 정기결제`
+                )
             }
         } else if (type === 'Transaction.Failed') {
             // Scheduled payment failed

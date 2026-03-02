@@ -128,7 +128,7 @@ export const SparringDetail: React.FC = () => {
 
             // Record history for logged-in users
             if (contextUser) {
-                recordSparringView(contextUser.id, id).catch(console.error);
+                recordSparringView(id).catch(console.error);
             }
         } catch (err: any) {
             console.error(err);

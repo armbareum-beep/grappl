@@ -431,7 +431,7 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
                 .select(`
                     *,
                     creator:creators!creator_id(name, profile_image),
-                    lessons:lessons(vimeo_url, lesson_number, title)
+                    lessons:lessons(vimeo_url, lesson_number, title, views)
                 `)
                 .eq('published', true)
                 .order('created_at', { ascending: false })
@@ -447,7 +447,7 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
                     .from('courses')
                     .select(`
                         *,
-                        lessons:lessons(vimeo_url, lesson_number, title)
+                        lessons:lessons(vimeo_url, lesson_number, title, views)
                     `)
                     .eq('published', true)
                     .order('created_at', { ascending: false })
@@ -475,8 +475,12 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
             // User requested: "Get rid of manual upload, use first lesson 1 min preview"
             const autoPreviewId = firstLesson?.vimeo_url ? extractVimeoId(firstLesson.vimeo_url) : null;
 
+            // Calculate total views as sum of all lesson views
+            const totalLessonViews = (d.lessons || []).reduce((sum: number, l: any) => sum + (l.views || 0), 0);
+
             return {
                 ...course,
+                views: totalLessonViews, // Override with sum of lesson views
                 lessonCount: d.lessons?.length || 0,
                 lessonTitles: (d.lessons || []).map((l: any) => l.title).filter(Boolean),
                 creatorProfileImage: d.creator?.profile_image || null,
@@ -693,7 +697,7 @@ export async function getCourseById(id: string): Promise<Course | null> {
             .select(`
       *,
       creator:creators(name, profile_image),
-      lessons:lessons(vimeo_url, lesson_number, is_preview, id)
+      lessons:lessons(vimeo_url, lesson_number, is_preview, id, views)
     `)
             .eq('id', id)
             .maybeSingle(), 10000);
@@ -708,8 +712,12 @@ export async function getCourseById(id: string): Promise<Course | null> {
     const firstLesson = lessons.sort((a: any, b: any) => a.lesson_number - b.lesson_number)[0];
     const autoPreviewId = firstLesson?.vimeo_url ? extractVimeoId(firstLesson.vimeo_url) : null;
 
+    // Calculate total views as sum of all lesson views
+    const totalLessonViews = lessons.reduce((sum: number, l: any) => sum + (l.views || 0), 0);
+
     return data ? {
         ...transformCourse(data),
+        views: totalLessonViews, // Override with sum of lesson views
         lessonCount: lessons.length || 0,
         previewVideoUrl: firstLesson?.vimeo_url,
         previewVimeoId: autoPreviewId || data.preview_vimeo_id
@@ -724,7 +732,7 @@ export async function getCoursesByCreator(creatorId: string): Promise<Course[]> 
         .select(`
       *,
       creator:creators(name, profile_image),
-      lessons:lessons(count),
+      lessons:lessons(id, views),
       preview_lessons:lessons(vimeo_url, lesson_number)
     `)
         .eq('creator_id', creatorId)
@@ -739,9 +747,13 @@ export async function getCoursesByCreator(creatorId: string): Promise<Course[]> 
         // Find first lesson for preview
         const firstLesson = course.preview_lessons?.sort((a: any, b: any) => a.lesson_number - b.lesson_number)[0];
 
+        // Calculate total views as sum of all lesson views
+        const totalLessonViews = (course.lessons || []).reduce((sum: number, l: any) => sum + (l.views || 0), 0);
+
         return {
             ...transformCourse(course),
-            lessonCount: course.lessons?.[0]?.count || 0,
+            views: totalLessonViews, // Override with sum of lesson views
+            lessonCount: course.lessons?.length || 0,
             previewVideoUrl: firstLesson?.vimeo_url
         };
     });
@@ -5636,7 +5648,12 @@ export async function searchDrillsAndLessons(query: string) {
 export async function getRoutines(creatorId?: string) {
     let query = supabase
         .from('routines')
-        .select('*')
+        .select(`
+            *,
+            items:routine_drills(
+                drill:drills(views)
+            )
+        `)
         .order('created_at', { ascending: false });
 
     if (creatorId) {
@@ -5672,6 +5689,12 @@ export async function getRoutines(creatorId?: string) {
     // Map data with manual creator join
     return routines.map((routine: any) => {
         const creator = userMap[routine.creator_id];
+
+        // Calculate total views as sum of all drill views
+        const totalDrillViews = (routine.items || []).reduce((sum: number, item: any) => {
+            return sum + (item.drill?.views || 0);
+        }, 0);
+
         // Inject creator object for transformDrillRoutine to use
         const enrichedRoutine = {
             ...routine,
@@ -5680,7 +5703,10 @@ export async function getRoutines(creatorId?: string) {
                 profile_image: creator.avatar_url
             } : null
         };
-        return transformDrillRoutine(enrichedRoutine);
+        return {
+            ...transformDrillRoutine(enrichedRoutine),
+            views: totalDrillViews // Override with sum of drill views
+        };
     });
 }
 
@@ -6094,7 +6120,12 @@ export async function fetchRoutines(limit: number = 20) {
         const { data, error } = await withTimeout(
             supabase
                 .from('routines')
-                .select('*')
+                .select(`
+                    *,
+                    items:routine_drills(
+                        drill:drills(views)
+                    )
+                `)
                 .order('created_at', { ascending: false })
                 .limit(limit),
             5000
@@ -6108,10 +6139,20 @@ export async function fetchRoutines(limit: number = 20) {
         // Fetch creator details using unified logic (Users + Creators table)
         const userMap = await fetchCreatorsByIds(creatorIds);
 
-        const result = (data || []).map(routine => transformDrillRoutine({
-            ...routine,
-            creator: userMap[routine.creator_id]
-        }));
+        const result = (data || []).map(routine => {
+            // Calculate total views as sum of all drill views
+            const totalDrillViews = (routine.items || []).reduce((sum: number, item: any) => {
+                return sum + (item.drill?.views || 0);
+            }, 0);
+
+            return {
+                ...transformDrillRoutine({
+                    ...routine,
+                    creator: userMap[routine.creator_id]
+                }),
+                views: totalDrillViews // Override with sum of drill views
+            };
+        });
 
         return { data: result, error: null };
     } catch (error) {
@@ -6196,8 +6237,15 @@ export async function getRoutineById(id: string) {
 
     // 3. Transform to match DrillRoutine interface
     const rawDrills = data.items || [];
+
+    // Calculate total views as sum of all drill views
+    const totalDrillViews = rawDrills.reduce((sum: number, item: any) => {
+        return sum + (item.drill?.views || 0);
+    }, 0);
+
     const routine = {
         ...transformDrillRoutine(data),
+        views: totalDrillViews, // Override with sum of drill views
         creatorName: creatorName,
         creatorImage: creatorProfileImage, // Align with RoutineDetail.tsx
         creatorProfileImage: creatorProfileImage,
@@ -6217,7 +6265,12 @@ export async function getRelatedRoutines(currentRoutineId: string, category: str
     try {
         let query = supabase
             .from('routines')
-            .select('*')
+            .select(`
+                *,
+                items:routine_drills(
+                    drill:drills(views)
+                )
+            `)
             .neq('id', currentRoutineId) // Exclude current
             .limit(limit);
 
@@ -6232,7 +6285,17 @@ export async function getRelatedRoutines(currentRoutineId: string, category: str
             return { data: [], error };
         }
 
-        const routines = (data || []).map((item: any) => transformDrillRoutine(item));
+        const routines = (data || []).map((item: any) => {
+            // Calculate total views as sum of all drill views
+            const totalDrillViews = (item.items || []).reduce((sum: number, i: any) => {
+                return sum + (i.drill?.views || 0);
+            }, 0);
+
+            return {
+                ...transformDrillRoutine(item),
+                views: totalDrillViews // Override with sum of drill views
+            };
+        });
         return { data: routines, error: null };
     } catch (e: any) {
         console.error('getRelatedRoutines exception:', e);
