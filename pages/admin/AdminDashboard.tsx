@@ -4,7 +4,7 @@ import {
     Star, BookOpen, Users, Home, Package, DollarSign,
     Dumbbell, Activity, Shield, AlertTriangle, MessageSquare,
     Video, Swords, Bell, Download, TrendingUp, TrendingDown,
-    ArrowRight, Map, RefreshCw, Wallet
+    ArrowRight, Map, RefreshCw, Wallet, Eye
 } from 'lucide-react';
 import {
     getAdminStats, AdminStats, getAdminChartData,
@@ -168,6 +168,13 @@ export const AdminDashboard: React.FC = () => {
                     icon: Bell,
                     bg: "bg-orange-400/10",
                     link: "/admin/notifications"
+                },
+                {
+                    title: "시청 기록 현황",
+                    desc: "고객별 영상 시청 기록 조회",
+                    icon: Eye,
+                    bg: "bg-cyan-400/10",
+                    link: "/admin/watch-logs"
                 }
             ]
         },
