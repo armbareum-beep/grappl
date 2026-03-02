@@ -18,6 +18,145 @@ import { ReelLoginModal } from '../components/auth/ReelLoginModal';
 import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabase';
 
+// SEO: Dynamic meta tags for social sharing
+const useCourseMeta = (course: Course | null | undefined, creator: Creator | null) => {
+    useEffect(() => {
+        if (!course) return;
+
+        const originalTitle = document.title;
+        const title = `${course.title} - ${creator?.name || 'Grapplay'}`;
+        const description = course.description?.slice(0, 160) || '프리미엄 주짓수 기술 영상 플랫폼';
+        const url = `https://grapplay.com/courses/${course.id}`;
+        const image = course.thumbnailUrl || 'https://grapplay.com/og-image.png';
+
+        // Update title
+        document.title = title;
+
+        // Helper to update meta tags
+        const setMeta = (property: string, content: string) => {
+            let el = document.querySelector(`meta[property="${property}"]`) as HTMLMetaElement;
+            if (!el) {
+                el = document.createElement('meta');
+                el.setAttribute('property', property);
+                document.head.appendChild(el);
+            }
+            el.content = content;
+        };
+
+        const setMetaName = (name: string, content: string) => {
+            let el = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement;
+            if (!el) {
+                el = document.createElement('meta');
+                el.setAttribute('name', name);
+                document.head.appendChild(el);
+            }
+            el.content = content;
+        };
+
+        // Open Graph
+        setMeta('og:title', title);
+        setMeta('og:description', description);
+        setMeta('og:url', url);
+        setMeta('og:image', image);
+        setMeta('og:type', 'video.other');
+
+        // Twitter
+        setMeta('twitter:title', title);
+        setMeta('twitter:description', description);
+        setMeta('twitter:image', image);
+
+        // Standard meta
+        setMetaName('description', description);
+
+        return () => {
+            document.title = originalTitle;
+        };
+    }, [course, creator]);
+};
+
+// SEO: Dynamic JSON-LD Schema for Course pages
+const useCourseSchema = (course: Course | null | undefined, creator: Creator | null, lessons: Lesson[]) => {
+    useEffect(() => {
+        if (!course) return;
+
+        const totalDuration = lessons.reduce((total, lesson) => {
+            if (!lesson.length) return total;
+            const numericDuration = Number(lesson.length);
+            if (!isNaN(numericDuration) && !lesson.length.toString().includes(':')) {
+                return total + numericDuration;
+            }
+            if (typeof lesson.length === 'string' && lesson.length.includes(':')) {
+                const parts = lesson.length.split(':').map(Number);
+                if (parts.length === 2) return total + parts[0] * 60 + parts[1];
+                if (parts.length === 3) return total + parts[0] * 3600 + parts[1] * 60 + parts[2];
+            }
+            return total;
+        }, 0);
+
+        const hours = Math.floor(totalDuration / 3600);
+        const minutes = Math.floor((totalDuration % 3600) / 60);
+        const isoDuration = `PT${hours > 0 ? hours + 'H' : ''}${minutes}M`;
+
+        const schema = {
+            "@context": "https://schema.org",
+            "@type": "Course",
+            "name": course.title,
+            "description": course.description,
+            "url": `https://grapplay.com/courses/${course.id}`,
+            "image": course.thumbnailUrl,
+            "inLanguage": "ko",
+            "provider": {
+                "@type": "Organization",
+                "name": "Grapplay",
+                "url": "https://grapplay.com"
+            },
+            ...(creator && {
+                "instructor": {
+                    "@type": "Person",
+                    "name": creator.name,
+                    "description": creator.bio,
+                    "image": creator.profileImage,
+                    "url": `https://grapplay.com/creator/${creator.id}`
+                }
+            }),
+            "hasCourseInstance": {
+                "@type": "CourseInstance",
+                "courseMode": "online",
+                "courseWorkload": isoDuration
+            },
+            "offers": {
+                "@type": "Offer",
+                "price": course.price || 0,
+                "priceCurrency": "KRW",
+                "availability": "https://schema.org/InStock",
+                "url": `https://grapplay.com/courses/${course.id}`
+            },
+            "educationalLevel": course.difficulty,
+            "about": {
+                "@type": "Thing",
+                "name": course.category
+            },
+            "numberOfCredits": lessons.length
+        };
+
+        const script = document.createElement('script');
+        script.type = 'application/ld+json';
+        script.id = 'course-schema';
+        script.textContent = JSON.stringify(schema);
+
+        // Remove existing schema if present
+        const existing = document.getElementById('course-schema');
+        if (existing) existing.remove();
+
+        document.head.appendChild(script);
+
+        return () => {
+            const el = document.getElementById('course-schema');
+            if (el) el.remove();
+        };
+    }, [course, creator, lessons]);
+};
+
 
 
 export const CourseDetail: React.FC = () => {
@@ -54,6 +193,10 @@ export const CourseDetail: React.FC = () => {
     const error = courseError ? '클래스 정보를 불러오는 중 오류가 발생했습니다.' : null;
 
     const [creator, setCreator] = useState<Creator | null>(null);
+
+    // SEO: Inject dynamic JSON-LD schema and meta tags
+    useCourseSchema(course, creator, lessons);
+    useCourseMeta(course, creator);
     const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
     const [ownsCourse, setOwnsCourse] = useState(false);
     const [purchasing, setPurchasing] = useState(false);

@@ -13,6 +13,104 @@ import { cn } from '../lib/utils';
 import { ReelLoginModal } from '../components/auth/ReelLoginModal';
 import { useVideoPreloadSafe } from '../contexts/VideoPreloadContext';
 
+// SEO: Dynamic meta tags for social sharing
+const useRoutineMeta = (routine: DrillRoutine | null) => {
+    useEffect(() => {
+        if (!routine) return;
+
+        const originalTitle = document.title;
+        const title = `${routine.title} - Grapplay 루틴`;
+        const description = routine.description?.slice(0, 160) || '주짓수 드릴 루틴';
+        const url = `https://grapplay.com/routines/${routine.id}`;
+        const image = routine.thumbnailUrl || 'https://grapplay.com/og-image.png';
+
+        document.title = title;
+
+        const setMeta = (property: string, content: string) => {
+            let el = document.querySelector(`meta[property="${property}"]`) as HTMLMetaElement;
+            if (!el) {
+                el = document.createElement('meta');
+                el.setAttribute('property', property);
+                document.head.appendChild(el);
+            }
+            el.content = content;
+        };
+
+        const setMetaName = (name: string, content: string) => {
+            let el = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement;
+            if (!el) {
+                el = document.createElement('meta');
+                el.setAttribute('name', name);
+                document.head.appendChild(el);
+            }
+            el.content = content;
+        };
+
+        setMeta('og:title', title);
+        setMeta('og:description', description);
+        setMeta('og:url', url);
+        setMeta('og:image', image);
+        setMeta('og:type', 'video.other');
+        setMeta('twitter:title', title);
+        setMeta('twitter:description', description);
+        setMeta('twitter:image', image);
+        setMetaName('description', description);
+
+        return () => { document.title = originalTitle; };
+    }, [routine]);
+};
+
+// SEO: Dynamic JSON-LD Schema for Routine pages
+const useRoutineSchema = (routine: DrillRoutine | null) => {
+    useEffect(() => {
+        if (!routine) return;
+
+        const drillCount = routine.drills?.length || 0;
+        const totalDuration = routine.drills?.reduce((sum, d) => sum + (d.duration || 0), 0) || 0;
+        const minutes = Math.floor(totalDuration / 60);
+
+        const schema = {
+            "@context": "https://schema.org",
+            "@type": "HowTo",
+            "name": routine.title,
+            "description": routine.description,
+            "url": `https://grapplay.com/routines/${routine.id}`,
+            "image": routine.thumbnailUrl,
+            "totalTime": `PT${minutes}M`,
+            "step": routine.drills?.map((drill, index) => ({
+                "@type": "HowToStep",
+                "position": index + 1,
+                "name": drill.title,
+                "url": `https://grapplay.com/drills/${drill.id}`
+            })) || [],
+            "provider": {
+                "@type": "Organization",
+                "name": "Grapplay",
+                "url": "https://grapplay.com"
+            },
+            "about": {
+                "@type": "Thing",
+                "name": routine.category || "Brazilian Jiu-Jitsu"
+            }
+        };
+
+        const script = document.createElement('script');
+        script.type = 'application/ld+json';
+        script.id = 'routine-schema';
+        script.textContent = JSON.stringify(schema);
+
+        const existing = document.getElementById('routine-schema');
+        if (existing) existing.remove();
+
+        document.head.appendChild(script);
+
+        return () => {
+            const el = document.getElementById('routine-schema');
+            if (el) el.remove();
+        };
+    }, [routine]);
+};
+
 // Internal component for Vimeo tracking (Removed - integrated into VideoPlayer)
 
 
@@ -38,6 +136,10 @@ export const RoutineDetail: React.FC = () => {
     const [muted, setMuted] = useState(true);
 
     const toggleMute = () => setMuted(prev => !prev);
+
+    // SEO hooks
+    useRoutineMeta(routine);
+    useRoutineSchema(routine);
 
     // Completion & Sharing State
     const [showQuestComplete, setShowQuestComplete] = useState(false);

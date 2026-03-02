@@ -10,6 +10,29 @@ import { ErrorScreen } from '../components/ErrorScreen';
 import { ReelLoginModal } from '../components/auth/ReelLoginModal';
 import { useVideoPreloadSafe } from '../contexts/VideoPreloadContext';
 
+// SEO: Dynamic meta tags
+const useRoutineMeta = (routine: DrillRoutine | null) => {
+    React.useEffect(() => {
+        if (!routine) return;
+        const originalTitle = document.title;
+        const title = `${routine.title} - Grapplay 루틴`;
+        document.title = title;
+
+        const setMeta = (property: string, content: string) => {
+            let el = document.querySelector(`meta[property="${property}"]`) as HTMLMetaElement;
+            if (!el) { el = document.createElement('meta'); el.setAttribute('property', property); document.head.appendChild(el); }
+            el.content = content;
+        };
+
+        setMeta('og:title', title);
+        setMeta('og:description', routine.description?.slice(0, 160) || '주짓수 드릴 루틴');
+        setMeta('og:url', `https://grapplay.com/routines/${routine.id}`);
+        setMeta('og:image', routine.thumbnailUrl || 'https://grapplay.com/og-image.png');
+
+        return () => { document.title = originalTitle; };
+    }, [routine]);
+};
+
 const ShareModal = React.lazy(() => import('../components/social/ShareModal'));
 
 export const DrillRoutineDetail: React.FC = () => {
@@ -23,6 +46,9 @@ export const DrillRoutineDetail: React.FC = () => {
     const [user, setUser] = useState<any>(null);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
+    // SEO hook
+    useRoutineMeta(routine);
 
     useEffect(() => {
         if (id) {

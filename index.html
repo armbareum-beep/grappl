@@ -63,6 +63,68 @@
   <meta property="twitter:description" content="세계 최고의 주짓수 선수들과 함께 배우는 프리미엄 기술 영상 플랫폼" />
   <meta property="twitter:image" content="https://grapplay.com/og-image.png?v=20260207" />
 
+  <!-- Structured Data (Schema.org) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://grapplay.com/#organization",
+        "name": "Grapplay",
+        "url": "https://grapplay.com",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://grapplay.com/og-image.png"
+        },
+        "description": "프리미엄 주짓수 기술 영상 플랫폼",
+        "sameAs": []
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://grapplay.com/#website",
+        "url": "https://grapplay.com",
+        "name": "Grapplay",
+        "description": "세계 최고의 주짓수 선수들과 함께 배우는 프리미엄 기술 영상 플랫폼",
+        "publisher": {
+          "@id": "https://grapplay.com/#organization"
+        },
+        "inLanguage": "ko-KR",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://grapplay.com/browse?q={search_term_string}"
+          },
+          "query-input": "required name=search_term_string"
+        }
+      },
+      {
+        "@type": "WebPage",
+        "@id": "https://grapplay.com/#webpage",
+        "url": "https://grapplay.com",
+        "name": "Grapplay - 프리미엄 주짓수 기술 영상 플랫폼",
+        "isPartOf": {
+          "@id": "https://grapplay.com/#website"
+        },
+        "about": {
+          "@id": "https://grapplay.com/#organization"
+        },
+        "description": "세계 최고의 주짓수 선수들과 함께 배우는 프리미엄 기술 영상 플랫폼. 수련일지, 스킬 트리, 토너먼트 시스템으로 체계적인 성장을 경험하세요.",
+        "inLanguage": "ko-KR"
+      },
+      {
+        "@type": "SportsActivityLocation",
+        "@id": "https://grapplay.com/#service",
+        "name": "Grapplay 주짓수 온라인 강좌",
+        "description": "브라질리안 주짓수(BJJ) 기술 영상 강좌 플랫폼",
+        "url": "https://grapplay.com",
+        "sport": "Brazilian Jiu-Jitsu"
+      }
+    ]
+  }
+  </script>
+
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="/favicon.png?v=20260207" />
   <link rel="apple-touch-icon" href="/pwa-192x192.png?v=20260207" />

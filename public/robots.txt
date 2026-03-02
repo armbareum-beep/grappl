@@ -4,5 +4,6 @@ Disallow: /admin/
 Disallow: /creator/
 Disallow: /api/
 
-# Sitemap
+# Sitemaps
 Sitemap: https://grapplay.com/sitemap.xml
+Sitemap: https://vbfxwlhngyvafskyukxa.supabase.co/functions/v1/sitemap
