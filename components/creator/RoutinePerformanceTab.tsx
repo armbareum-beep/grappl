@@ -37,11 +37,45 @@ export const RoutinePerformanceTab: React.FC = () => {
                 return;
             }
 
-            // Get real performance data for each routine
+            // 1. 크리에이터의 총 구독 분배 수익 조회
+            const { data: subDistributions } = await supabase
+                .from('revenue_ledger')
+                .select('creator_revenue')
+                .eq('creator_id', user.id)
+                .eq('product_type', 'subscription_distribution');
+
+            const totalSubscriptionRevenue = subDistributions?.reduce((sum, r) => sum + (r.creator_revenue || 0), 0) || 0;
+
+            // 2. 각 루틴별 시청 시간 먼저 계산
+            const routineWatchTimes: { routineId: string; watchSeconds: number }[] = [];
+
+            for (const routine of routinesData) {
+                const { data: routineDrills } = await supabase
+                    .from('routine_drills')
+                    .select('drill_id')
+                    .eq('routine_id', routine.id);
+
+                const drillIds = routineDrills?.map(rd => rd.drill_id) || [];
+                let watchSeconds = 0;
+
+                if (drillIds.length > 0) {
+                    const { data: watchLogs } = await supabase
+                        .from('video_watch_logs')
+                        .select('watch_seconds')
+                        .in('drill_id', drillIds);
+
+                    watchSeconds = watchLogs?.reduce((sum, log) => sum + (log.watch_seconds || 0), 0) || 0;
+                }
+
+                routineWatchTimes.push({ routineId: routine.id, watchSeconds });
+            }
+
+            // 3. 총 시청 시간 계산
+            const totalWatchSeconds = routineWatchTimes.reduce((sum, r) => sum + r.watchSeconds, 0);
+
+            // 4. 각 루틴별 성과 데이터 생성
             const performanceData: RoutinePerformance[] = await Promise.all(
                 routinesData.map(async (routine) => {
-                    // Get sales count directly from payments (or user_routine_purchases)
-                    // We use payments table for revenue and count
                     const { data: purchases } = await supabase
                         .from('payments')
                         .select('amount')
@@ -52,29 +86,13 @@ export const RoutinePerformanceTab: React.FC = () => {
                     const directRevenue = purchases?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
                     const salesCount = purchases?.length || 0;
 
-                    // Get watch time for this routine's drills
-                    // 1. Get drill IDs in this routine
-                    const { data: routineDrills } = await supabase
-                        .from('routine_drills')
-                        .select('drill_id')
-                        .eq('routine_id', routine.id);
+                    const routineWatchTime = routineWatchTimes.find(r => r.routineId === routine.id);
+                    const watchTimeMinutes = Math.floor((routineWatchTime?.watchSeconds || 0) / 60);
 
-                    const drillIds = routineDrills?.map(rd => rd.drill_id) || [];
-
-                    let watchTimeMinutes = 0;
-                    if (drillIds.length > 0) {
-                        const { data: watchLogs } = await supabase
-                            .from('video_watch_logs')
-                            .select('watch_seconds')
-                            .in('drill_id', drillIds);
-
-                        const totalSeconds = watchLogs?.reduce((sum, log) => sum + (log.watch_seconds || 0), 0) || 0;
-                        watchTimeMinutes = Math.floor(totalSeconds / 60);
-                    }
-
-                    // Calculate subscription revenue based on watch time share
-                    // This is a simplified calculation - actual calculation is done in calculateCreatorEarnings
-                    const subscriptionRevenue = 0; // Will be calculated server-side
+                    // 구독 수익 = 총 구독 수익 × (해당 루틴 시청시간 / 전체 시청시간)
+                    const subscriptionRevenue = totalWatchSeconds > 0
+                        ? Math.floor(totalSubscriptionRevenue * (routineWatchTime?.watchSeconds || 0) / totalWatchSeconds)
+                        : 0;
 
                     return {
                         ...routine,

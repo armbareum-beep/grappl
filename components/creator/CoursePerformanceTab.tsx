@@ -32,7 +32,43 @@ export const CoursePerformanceTab: React.FC = () => {
         try {
             const coursesData = await getCreatorCourses(user.id);
 
-            // Get real performance data for each course
+            // 1. 먼저 크리에이터의 총 구독 분배 수익 조회
+            const { data: subDistributions } = await supabase
+                .from('revenue_ledger')
+                .select('creator_revenue')
+                .eq('creator_id', user.id)
+                .eq('product_type', 'subscription_distribution');
+
+            const totalSubscriptionRevenue = subDistributions?.reduce((sum, r) => sum + (r.creator_revenue || 0), 0) || 0;
+
+            // 2. 각 강좌별 시청 시간 계산
+            const courseWatchTimes: { courseId: string; watchSeconds: number }[] = [];
+
+            for (const course of coursesData) {
+                const { data: lessons } = await supabase
+                    .from('lessons')
+                    .select('id')
+                    .eq('course_id', course.id);
+
+                const lessonIds = lessons?.map(l => l.id) || [];
+                let watchSeconds = 0;
+
+                if (lessonIds.length > 0) {
+                    const { data: watchLogs } = await supabase
+                        .from('video_watch_logs')
+                        .select('watch_seconds')
+                        .in('lesson_id', lessonIds);
+
+                    watchSeconds = watchLogs?.reduce((sum, log) => sum + (log.watch_seconds || 0), 0) || 0;
+                }
+
+                courseWatchTimes.push({ courseId: course.id, watchSeconds });
+            }
+
+            // 3. 총 시청 시간 계산
+            const totalWatchSeconds = courseWatchTimes.reduce((sum, c) => sum + c.watchSeconds, 0);
+
+            // 4. 각 강좌별 성과 데이터 생성
             const performanceData: CoursePerformance[] = await Promise.all(
                 coursesData.map(async (course) => {
                     // Get direct revenue and purchase count (course purchases)
@@ -46,28 +82,14 @@ export const CoursePerformanceTab: React.FC = () => {
                     const directRevenue = purchases?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
                     const purchaseCount = purchases?.length || 0;
 
-                    // Get watch time for this course's lessons
-                    const { data: lessons } = await supabase
-                        .from('lessons')
-                        .select('id')
-                        .eq('course_id', course.id);
+                    // 시청 시간 가져오기
+                    const courseWatchTime = courseWatchTimes.find(c => c.courseId === course.id);
+                    const watchTimeMinutes = Math.floor((courseWatchTime?.watchSeconds || 0) / 60);
 
-                    const lessonIds = lessons?.map(l => l.id) || [];
-
-                    let watchTimeMinutes = 0;
-                    if (lessonIds.length > 0) {
-                        const { data: watchLogs } = await supabase
-                            .from('video_watch_logs')
-                            .select('watch_seconds')
-                            .in('lesson_id', lessonIds);
-
-                        const totalSeconds = watchLogs?.reduce((sum, log) => sum + (log.watch_seconds || 0), 0) || 0;
-                        watchTimeMinutes = Math.floor(totalSeconds / 60);
-                    }
-
-                    // Calculate subscription revenue based on watch time share
-                    // This is a simplified calculation - actual calculation is done in calculateCreatorEarnings
-                    const subscriptionRevenue = 0; // Will be calculated server-side
+                    // 구독 수익 = 총 구독 수익 × (해당 강좌 시청시간 / 전체 시청시간)
+                    const subscriptionRevenue = totalWatchSeconds > 0
+                        ? Math.floor(totalSubscriptionRevenue * (courseWatchTime?.watchSeconds || 0) / totalWatchSeconds)
+                        : 0;
 
                     return {
                         ...course,
