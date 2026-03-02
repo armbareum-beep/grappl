@@ -1,5 +1,30 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
+// 텔레그램 알림 함수
+async function sendTelegramNotification(message: string) {
+    const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')
+    const chatId = Deno.env.get('TELEGRAM_CHAT_ID')
+
+    if (!botToken || !chatId) {
+        console.warn('Telegram credentials not configured')
+        return
+    }
+
+    try {
+        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: chatId,
+                text: message,
+                parse_mode: 'HTML'
+            })
+        })
+    } catch (error) {
+        console.error('Telegram notification failed:', error)
+    }
+}
+
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -405,6 +430,24 @@ Deno.serve(async (req) => {
                 mode: mode,
                 target_id: id
             })
+
+        // 4. 텔레그램 알림
+        const modeLabels: Record<string, string> = {
+            course: '📚 코스',
+            routine: '🥋 루틴',
+            drill: '🎯 드릴',
+            sparring: '🥊 스파링',
+            bundle: '📦 번들',
+            subscription: '💳 구독',
+            subscription_upgrade: '⬆️ 구독 업그레이드',
+            feedback: '📝 피드백'
+        }
+        await sendTelegramNotification(
+            `${modeLabels[mode] || '💰 결제'} <b>구매 완료!</b>\n` +
+            `• 상품 ID: ${id || 'N/A'}\n` +
+            `• 금액: ₩${amountValue.toLocaleString()}\n` +
+            `• 결제수단: PortOne`
+        )
 
         return new Response(JSON.stringify({ success: true }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
