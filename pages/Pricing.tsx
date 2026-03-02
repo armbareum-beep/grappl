@@ -79,7 +79,7 @@ export const Pricing: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-zinc-950 overflow-hidden pt-8 pb-24 md:pt-12 font-sans selection:bg-violet-500/30">
+    <div className="relative min-h-screen bg-zinc-950 pt-8 pb-24 md:pt-12 font-sans selection:bg-violet-500/30">
       {/* Background Interaction: Violet Radial Gradient */}
       <div className="pointer-events-none absolute inset-0 flex justify-center overflow-hidden">
         <div className="h-[1000px] w-[1000px] flex-shrink-0 bg-violet-600/15 blur-[120px] rounded-full mix-blend-screen opacity-50 -translate-y-2/3" />
