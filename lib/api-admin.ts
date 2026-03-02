@@ -2200,3 +2200,221 @@ async function getCreatorWatchTimeStatsFallback(startDate: string, endDate: stri
     })).sort((a, b) => b.paid_subscriber_watch_seconds - a.paid_subscriber_watch_seconds);
 }
 
+
+// ==================== All Watch Logs (Admin Overview) ====================
+
+export interface WatchLogItem {
+    id: string;
+    userId: string;
+    userName: string;
+    userEmail: string;
+    isSubscriber: boolean;
+    isComplimentary: boolean;
+    membershipType: 'paid' | 'free_trial' | 'free';
+    contentType: 'lesson' | 'drill' | 'sparring';
+    contentId: string;
+    contentTitle: string;
+    courseTitle?: string;
+    creatorName: string;
+    watchSeconds: number;
+    date: string;
+    updatedAt: string;
+}
+
+export interface AllWatchLogsResponse {
+    logs: WatchLogItem[];
+    totalCount: number;
+    hasMore: boolean;
+}
+
+/**
+ * Get all watch logs for admin dashboard (paginated)
+ */
+export async function getAllWatchLogs(
+    page: number = 1,
+    limit: number = 50,
+    filters?: {
+        userId?: string;
+        contentType?: 'lesson' | 'drill' | 'sparring';
+        dateFrom?: string;
+        dateTo?: string;
+    }
+): Promise<AllWatchLogsResponse> {
+    try {
+        const offset = (page - 1) * limit;
+
+        // Build query
+        let query = supabase
+            .from('video_watch_logs')
+            .select(`
+                id,
+                user_id,
+                lesson_id,
+                drill_id,
+                video_id,
+                watch_seconds,
+                date,
+                updated_at,
+                user:users!video_watch_logs_user_id_fkey(id, name, email, is_subscriber, is_complimentary_subscription),
+                lesson:lessons(id, title, course:courses(title, creator:creators(name))),
+                drill:drills(id, title, creator:creators(name)),
+                video:sparring_videos(id, title, creator:creators(name))
+            `, { count: 'exact' })
+            .order('updated_at', { ascending: false });
+
+        // Apply filters
+        if (filters?.userId) {
+            query = query.eq('user_id', filters.userId);
+        }
+        if (filters?.dateFrom) {
+            query = query.gte('date', filters.dateFrom);
+        }
+        if (filters?.dateTo) {
+            query = query.lte('date', filters.dateTo);
+        }
+
+        // Pagination
+        query = query.range(offset, offset + limit - 1);
+
+        const { data, error, count } = await query;
+
+        if (error) {
+            console.error('Error fetching watch logs:', error);
+            return { logs: [], totalCount: 0, hasMore: false };
+        }
+
+        // Transform data
+        const logs: WatchLogItem[] = (data || []).map((item: any) => {
+            let contentType: 'lesson' | 'drill' | 'sparring' = 'lesson';
+            let contentId = '';
+            let contentTitle = '';
+            let courseTitle = '';
+            let creatorName = '';
+
+            if (item.lesson_id && item.lesson) {
+                contentType = 'lesson';
+                contentId = item.lesson_id;
+                contentTitle = item.lesson.title || 'Unknown';
+                courseTitle = item.lesson.course?.title || '';
+                creatorName = item.lesson.course?.creator?.name || 'Unknown';
+            } else if (item.drill_id && item.drill) {
+                contentType = 'drill';
+                contentId = item.drill_id;
+                contentTitle = item.drill.title || 'Unknown';
+                creatorName = item.drill.creator?.name || 'Unknown';
+            } else if (item.video_id && item.video) {
+                contentType = 'sparring';
+                contentId = item.video_id;
+                contentTitle = item.video.title || 'Unknown';
+                creatorName = item.video.creator?.name || 'Unknown';
+            }
+
+            // Determine membership type
+            const isSubscriber = item.user?.is_subscriber === true;
+            const isComplimentary = item.user?.is_complimentary_subscription === true;
+            let membershipType: 'paid' | 'free_trial' | 'free' = 'free';
+            if (isSubscriber && !isComplimentary) {
+                membershipType = 'paid';
+            } else if (isSubscriber && isComplimentary) {
+                membershipType = 'free_trial';
+            }
+
+            return {
+                id: item.id,
+                userId: item.user_id,
+                userName: item.user?.name || 'Unknown',
+                userEmail: item.user?.email || '',
+                isSubscriber,
+                isComplimentary,
+                membershipType,
+                contentType,
+                contentId,
+                contentTitle,
+                courseTitle,
+                creatorName,
+                watchSeconds: item.watch_seconds || 0,
+                date: item.date,
+                updatedAt: item.updated_at
+            };
+        });
+
+        // Filter by content type if specified
+        const filteredLogs = filters?.contentType
+            ? logs.filter(log => log.contentType === filters.contentType)
+            : logs;
+
+        return {
+            logs: filteredLogs,
+            totalCount: count || 0,
+            hasMore: (count || 0) > offset + limit
+        };
+    } catch (error) {
+        console.error('Error in getAllWatchLogs:', error);
+        return { logs: [], totalCount: 0, hasMore: false };
+    }
+}
+
+/**
+ * Get watch stats summary for admin dashboard
+ */
+export async function getWatchStatsSummary(): Promise<{
+    todayWatchMinutes: number;
+    todayUniqueViewers: number;
+    weekWatchMinutes: number;
+    weekUniqueViewers: number;
+    monthWatchMinutes: number;
+    monthUniqueViewers: number;
+}> {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+        // Today's stats
+        const { data: todayData } = await supabase
+            .from('video_watch_logs')
+            .select('user_id, watch_seconds')
+            .eq('date', today);
+
+        // Week stats
+        const { data: weekData } = await supabase
+            .from('video_watch_logs')
+            .select('user_id, watch_seconds')
+            .gte('date', weekAgo);
+
+        // Month stats
+        const { data: monthData } = await supabase
+            .from('video_watch_logs')
+            .select('user_id, watch_seconds')
+            .gte('date', monthAgo);
+
+        const calcStats = (data: any[] | null) => ({
+            minutes: Math.round((data?.reduce((sum, d) => sum + (d.watch_seconds || 0), 0) || 0) / 60),
+            viewers: new Set(data?.map(d => d.user_id) || []).size
+        });
+
+        const todayStats = calcStats(todayData);
+        const weekStats = calcStats(weekData);
+        const monthStats = calcStats(monthData);
+
+        return {
+            todayWatchMinutes: todayStats.minutes,
+            todayUniqueViewers: todayStats.viewers,
+            weekWatchMinutes: weekStats.minutes,
+            weekUniqueViewers: weekStats.viewers,
+            monthWatchMinutes: monthStats.minutes,
+            monthUniqueViewers: monthStats.viewers
+        };
+    } catch (error) {
+        console.error('Error in getWatchStatsSummary:', error);
+        return {
+            todayWatchMinutes: 0,
+            todayUniqueViewers: 0,
+            weekWatchMinutes: 0,
+            weekUniqueViewers: 0,
+            monthWatchMinutes: 0,
+            monthUniqueViewers: 0
+        };
+    }
+}
+

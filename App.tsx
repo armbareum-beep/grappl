@@ -75,6 +75,7 @@ const AdminActivityFeed = React.lazy(() => import('./pages/admin/AdminActivityFe
 const AdminNotifications = React.lazy(() => import('./pages/admin/AdminNotifications').then(m => ({ default: m.AdminNotifications })));
 const AdminVimeoManagement = React.lazy(() => import('./pages/admin/AdminVimeoManagement').then(m => ({ default: m.AdminVimeoManagement })));
 const AdminDurationSync = React.lazy(() => import('./pages/admin/AdminDurationSync').then(m => ({ default: m.AdminDurationSync })));
+const AdminWatchLogs = React.lazy(() => import('./pages/admin/AdminWatchLogs').then(m => ({ default: m.AdminWatchLogs })));
 
 // Creator pages - lazy loaded
 const CreatorDashboard = React.lazy(() => import('./pages/creator/CreatorDashboard').then(m => ({ default: m.CreatorDashboard })));
@@ -409,6 +410,7 @@ const App: React.FC = () => {
                     <Route path="/admin/notifications" element={<AdminRoute><AdminNotifications /></AdminRoute>} />
                     <Route path="/admin/vimeo" element={<AdminRoute><AdminVimeoManagement /></AdminRoute>} />
                     <Route path="/admin/vimeo-sync" element={<AdminRoute><AdminDurationSync /></AdminRoute>} />
+                    <Route path="/admin/watch-logs" element={<AdminRoute><AdminWatchLogs /></AdminRoute>} />
                     <Route path="/payment/complete" element={<PaymentComplete />} />
                     <Route path="/checkout/:type/:id" element={<Checkout />} />
                     <Route path="/login" element={<Login />} />
