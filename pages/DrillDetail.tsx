@@ -16,6 +16,96 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import '@mux/mux-video';
 
+// SEO: Dynamic meta tags
+const useDrillMeta = (drill: Drill | null) => {
+    React.useEffect(() => {
+        if (!drill) return;
+        const originalTitle = document.title;
+        const title = `${drill.title} - ${drill.creatorName || 'Grapplay'} 드릴`;
+        document.title = title;
+
+        const setMeta = (property: string, content: string) => {
+            let el = document.querySelector(`meta[property="${property}"]`) as HTMLMetaElement;
+            if (!el) { el = document.createElement('meta'); el.setAttribute('property', property); document.head.appendChild(el); }
+            el.content = content;
+        };
+
+        const setMetaName = (name: string, content: string) => {
+            let el = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement;
+            if (!el) { el = document.createElement('meta'); el.setAttribute('name', name); document.head.appendChild(el); }
+            el.content = content;
+        };
+
+        const description = drill.description?.slice(0, 160) || `${drill.title} - 주짓수 드릴 by ${drill.creatorName || 'Grapplay'}`;
+
+        setMeta('og:title', title);
+        setMeta('og:description', description);
+        setMeta('og:url', `https://grapplay.com/drills/${drill.id}`);
+        setMeta('og:image', drill.thumbnailUrl || 'https://grapplay.com/og-image.png');
+        setMeta('og:type', 'video.other');
+        setMetaName('twitter:card', 'summary_large_image');
+        setMetaName('twitter:title', title);
+        setMetaName('twitter:description', description);
+        setMetaName('twitter:image', drill.thumbnailUrl || 'https://grapplay.com/og-image.png');
+
+        return () => { document.title = originalTitle; };
+    }, [drill]);
+};
+
+// SEO: Dynamic JSON-LD Schema for Drill pages
+const useDrillSchema = (drill: Drill | null) => {
+    React.useEffect(() => {
+        if (!drill) return;
+
+        const schema = {
+            '@context': 'https://schema.org',
+            '@type': 'VideoObject',
+            name: drill.title,
+            description: drill.description || `${drill.title} - 주짓수 드릴`,
+            thumbnailUrl: drill.thumbnailUrl,
+            uploadDate: drill.createdAt || new Date().toISOString(),
+            duration: drill.duration ? `PT${drill.duration.replace(':', 'M')}S` : undefined,
+            contentUrl: `https://grapplay.com/drills/${drill.id}`,
+            embedUrl: drill.vimeoUrl || drill.videoUrl,
+            interactionStatistic: {
+                '@type': 'InteractionCounter',
+                interactionType: 'https://schema.org/WatchAction',
+                userInteractionCount: drill.views || 0
+            },
+            author: {
+                '@type': 'Person',
+                name: drill.creatorName || 'Grapplay'
+            },
+            publisher: {
+                '@type': 'Organization',
+                name: 'Grapplay',
+                logo: {
+                    '@type': 'ImageObject',
+                    url: 'https://grapplay.com/logo.png'
+                }
+            },
+            about: {
+                '@type': 'Thing',
+                name: 'Brazilian Jiu-Jitsu Drill'
+            }
+        };
+
+        const script = document.createElement('script');
+        script.type = 'application/ld+json';
+        script.id = 'drill-schema';
+        script.textContent = JSON.stringify(schema);
+
+        const existingScript = document.getElementById('drill-schema');
+        if (existingScript) existingScript.remove();
+        document.head.appendChild(script);
+
+        return () => {
+            const el = document.getElementById('drill-schema');
+            if (el) el.remove();
+        };
+    }, [drill]);
+};
+
 const ShareModal = React.lazy(() => import('../components/social/ShareModal'));
 
 export const DrillDetail: React.FC = () => {
@@ -51,6 +141,10 @@ export const DrillDetail: React.FC = () => {
     // Mastery Tracking Refs
     const hasRecordedStartRef = useRef(false);
     const hasRecordedHalfRef = useRef(false);
+
+    // SEO hooks
+    useDrillMeta(drill);
+    useDrillSchema(drill);
 
     const handleMasteryUpdate = (percent: number, isFinished: boolean) => {
         if (!contextUser || !drill) return;

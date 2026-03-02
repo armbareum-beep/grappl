@@ -20,6 +20,81 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { VideoPlayer } from '../components/VideoPlayer';
 
+// SEO: Dynamic meta tags for sparring videos
+const useSparringMeta = (video: SparringVideo | null) => {
+    useEffect(() => {
+        if (!video) return;
+        const originalTitle = document.title;
+        const title = `${video.title} - Grapplay 스파링`;
+        const description = video.description?.slice(0, 160) || '주짓수 스파링 분석 영상';
+        const url = `https://grapplay.com/sparring/${video.id}`;
+        const image = video.thumbnailUrl || 'https://grapplay.com/og-image.png';
+
+        document.title = title;
+
+        const setMeta = (property: string, content: string) => {
+            let el = document.querySelector(`meta[property="${property}"]`) as HTMLMetaElement;
+            if (!el) { el = document.createElement('meta'); el.setAttribute('property', property); document.head.appendChild(el); }
+            el.content = content;
+        };
+
+        setMeta('og:title', title);
+        setMeta('og:description', description);
+        setMeta('og:url', url);
+        setMeta('og:image', image);
+        setMeta('og:type', 'video.other');
+        setMeta('twitter:title', title);
+        setMeta('twitter:description', description);
+        setMeta('twitter:image', image);
+
+        return () => { document.title = originalTitle; };
+    }, [video]);
+};
+
+// SEO: Dynamic JSON-LD Schema for Sparring videos
+const useSparringSchema = (video: SparringVideo | null) => {
+    useEffect(() => {
+        if (!video) return;
+
+        const schema = {
+            "@context": "https://schema.org",
+            "@type": "VideoObject",
+            "name": video.title,
+            "description": video.description,
+            "thumbnailUrl": video.thumbnailUrl,
+            "uploadDate": video.createdAt,
+            "contentUrl": `https://grapplay.com/sparring/${video.id}`,
+            "embedUrl": `https://player.vimeo.com/video/${video.vimeoUrl}`,
+            "duration": video.duration ? `PT${Math.floor(video.duration / 60)}M${video.duration % 60}S` : undefined,
+            "interactionStatistic": {
+                "@type": "InteractionCounter",
+                "interactionType": "https://schema.org/WatchAction",
+                "userInteractionCount": video.views || 0
+            },
+            "provider": {
+                "@type": "Organization",
+                "name": "Grapplay",
+                "url": "https://grapplay.com"
+            }
+        };
+
+        const script = document.createElement('script');
+        script.type = 'application/ld+json';
+        script.id = 'sparring-schema';
+        script.textContent = JSON.stringify(schema);
+
+        const existing = document.getElementById('sparring-schema');
+        if (existing) existing.remove();
+
+        document.head.appendChild(script);
+
+        return () => {
+            const el = document.getElementById('sparring-schema');
+            if (el) el.remove();
+        };
+    }, [video]);
+};
+
 const ShareModal = React.lazy(() => import('../components/social/ShareModal'));
 
 export const SparringDetail: React.FC = () => {
@@ -34,6 +109,10 @@ export const SparringDetail: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [owns, setOwns] = useState(false);
+
+    // SEO hooks
+    useSparringMeta(video);
+    useSparringSchema(video);
 
     // Interactions
     const [liked, setLiked] = useState(false);
