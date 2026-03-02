@@ -252,10 +252,12 @@ Deno.serve(async (req) => {
             }
 
             // Update user subscription status
+            // is_complimentary_subscription = false indicates this is a PAID subscriber
             const { error: userUpdateError } = await supabaseClient
                 .from('users')
                 .update({
                     is_subscriber: true,
+                    is_complimentary_subscription: false,
                     subscription_tier: tier,
                     subscription_end_date: endDate.toISOString(),
                 })
@@ -268,14 +270,15 @@ Deno.serve(async (req) => {
 
             console.log(`User ${userId} subscription status updated: tier=${tier}, end=${endDate.toISOString()}`)
 
-            // Create new subscription (upgrades always create yearly)
+            // Create new subscription
+            const isYearlyPlan = isUpgrade || (id?.includes('price_1SYHw') || id?.includes('price_1SYI2'))
             const { data: subData, error: subError } = await supabaseClient
                 .from('subscriptions')
                 .insert({
                     user_id: userId,
                     status: 'active',
                     subscription_tier: tier,
-                    plan_interval: 'year',
+                    plan_interval: isYearlyPlan ? 'year' : 'month',
                     current_period_start: new Date().toISOString(),
                     current_period_end: endDate.toISOString(),
                     portone_payment_id: effectivePaymentId,
@@ -293,19 +296,24 @@ Deno.serve(async (req) => {
 
             if (subData) {
                 // For annual subscriptions, recognition is split into 12 months in revenue_ledger
+                // For monthly subscriptions, record single month
                 // Note: Subscription revenue split among creators is usually handled by a separate monthly job.
                 // For now, we record the platform-level revenue.
-                const months = 12
+                const months = isYearlyPlan ? 12 : 1
                 const monthlyAmount = Math.floor(amountValue / months)
+                const remainder = amountValue - (monthlyAmount * months)
 
                 for (let i = 0; i < months; i++) {
                     const recognitionDate = new Date()
                     recognitionDate.setMonth(recognitionDate.getMonth() + i)
 
+                    // Add remainder to the last month to ensure exact total
+                    const amount = i === months - 1 ? monthlyAmount + remainder : monthlyAmount
+
                     await supabaseClient.from('revenue_ledger').insert({
                         subscription_id: subData.id,
-                        amount: monthlyAmount,
-                        platform_fee: monthlyAmount,
+                        amount: amount,
+                        platform_fee: amount,
                         creator_revenue: 0,
                         product_type: isUpgrade ? 'subscription_upgrade' : 'subscription',
                         status: 'pending',

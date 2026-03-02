@@ -128,9 +128,15 @@ export const Browse: React.FC<{
 
   // Filter logic uses processedCourses instead of courses state
   const filteredCourses = processedCourses.filter(course => {
-    const matchesSearch = course.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (course.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (course.creatorName || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const searchLower = searchTerm.toLowerCase();
+    const lessonTitles = (course as any).lessonTitles || [];
+    const matchesLessonTitle = lessonTitles.some((title: string) =>
+      title.toLowerCase().includes(searchLower)
+    );
+    const matchesSearch = course.title?.toLowerCase().includes(searchLower) ||
+      (course.description || '').toLowerCase().includes(searchLower) ||
+      (course.creatorName || '').toLowerCase().includes(searchLower) ||
+      matchesLessonTitle;
 
     // Category mapping
     let matchesCategory = selectedCategory === 'All';

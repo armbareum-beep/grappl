@@ -23,7 +23,10 @@ export const getAdminStats = async (): Promise<AdminStats> => {
         const [rpcResult, routinesResult, subscribersResult] = await Promise.all([
             supabase.rpc('get_admin_dashboard_stats'),
             supabase.from('routines').select('id', { count: 'exact', head: true }),
-            supabase.from('subscriptions').select('id', { count: 'exact', head: true }).eq('status', 'active')
+            // 유료 구독자만: is_complimentary_subscription이 false이거나 null인 구독자
+            supabase.from('users').select('id', { count: 'exact', head: true })
+                .eq('is_subscriber', true)
+                .or('is_complimentary_subscription.is.null,is_complimentary_subscription.eq.false')
         ]);
 
         if (rpcResult.error) {
@@ -618,18 +621,18 @@ export async function getAdminRecentActivity() {
             .order('created_at', { ascending: false })
             .limit(5));
 
-        // 2. Fetch recent Sales (Revenue Ledger or User Courses)
-        // Using revenue_ledger for monetary events
+        // 2. Fetch recent Sales (Revenue Ledger)
+        // Note: subscriptions->users FK doesn't exist, so we fetch separately if needed
         const { data: newSales } = await withTimeout(supabase
             .from('revenue_ledger')
             .select(`
                 id,
                 amount,
                 created_at,
-                subscription:subscriptions(
-                    user:users(name, email)
-                )
+                product_type,
+                subscription_id
             `)
+            .gt('amount', 0)
             .order('created_at', { ascending: false })
             .limit(5));
 
@@ -663,15 +666,25 @@ export async function getAdminRecentActivity() {
         });
 
         newSales?.forEach((sale: any) => {
-            const userName = sale.subscription?.user?.name || sale.subscription?.user?.email || 'Unknown';
+            const productTypeKo: Record<string, string> = {
+                'subscription': '구독',
+                'subscription_upgrade': '구독 업그레이드',
+                'course': '강좌',
+                'drill': '드릴',
+                'routine': '루틴',
+                'sparring': '스파링',
+                'feedback': '피드백',
+                'bundle': '번들'
+            };
+            const typeLabel = productTypeKo[sale.product_type] || sale.product_type || '결제';
             activities.push({
                 id: `sale_${sale.id}`,
                 type: 'purchase',
-                title: '결제 발생',
-                description: `${userName}님의 결제가 처리되었습니다.`,
+                title: `${typeLabel} 결제`,
+                description: `₩${sale.amount?.toLocaleString()} 결제가 처리되었습니다.`,
                 amount: sale.amount,
                 timestamp: sale.created_at,
-                user: { id: 'system', name: userName }
+                user: { id: 'system', name: typeLabel }
             });
         });
 
@@ -712,12 +725,62 @@ export async function getAdminRecentActivity() {
 
 export async function getAdminTopPerformers() {
     try {
-        // Fetch top courses by views
-        const topCourses = await supabase
-            .from('courses')
-            .select('id, title, views, creator:creators(name)')
-            .order('views', { ascending: false })
-            .limit(5);
+        // Fetch top courses by paid subscriber watch time
+        const { data: watchData } = await supabase
+            .from('video_watch_logs')
+            .select(`
+                watch_seconds,
+                user_id,
+                lesson:lessons(course_id)
+            `)
+            .not('lesson', 'is', null);
+
+        // Get paid subscribers
+        const { data: paidUsers } = await supabase
+            .from('users')
+            .select('id')
+            .eq('is_subscriber', true)
+            .or('is_complimentary_subscription.is.null,is_complimentary_subscription.eq.false');
+
+        const paidUserIds = new Set(paidUsers?.map(u => u.id) || []);
+
+        // Aggregate watch time by course (only paid subscribers)
+        const courseWatchTime = new Map<string, number>();
+        watchData?.forEach((log: any) => {
+            if (paidUserIds.has(log.user_id) && log.lesson?.course_id) {
+                const current = courseWatchTime.get(log.lesson.course_id) || 0;
+                courseWatchTime.set(log.lesson.course_id, current + (log.watch_seconds || 0));
+            }
+        });
+
+        // Get top 5 courses by watch time
+        const topCourseIds = Array.from(courseWatchTime.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([id]) => id);
+
+        // Fetch course details
+        const { data: topCoursesData } = topCourseIds.length > 0
+            ? await supabase
+                .from('courses')
+                .select('id, title, creator:creators(name)')
+                .in('id', topCourseIds)
+            : { data: [] };
+
+        // Build top courses array with watch time
+        const topCourses = {
+            data: topCourseIds.map(id => {
+                const course = topCoursesData?.find((c: any) => c.id === id);
+                const watchMinutes = Math.round((courseWatchTime.get(id) || 0) / 60);
+                return {
+                    id,
+                    title: course?.title || 'Unknown',
+                    views: watchMinutes, // Using views field for watch minutes
+                    revenue: 0,
+                    creator: course?.creator
+                };
+            })
+        };
 
         // Fetch creators with their revenue from settlements
         const { data: settlements } = await supabase
@@ -825,10 +888,12 @@ export async function getAdminChartData(days = 30) {
         startDate.setDate(startDate.getDate() - days);
 
         // 1. Fetch Sales Data (Revenue Ledger)
-        // Adjust query based on actual schema: 'created_at' and 'amount'
+        // Use created_at for actual transaction date (matches 정산 모니터링)
+        // Exclude subscription_distribution (크리에이터 정산 분배) - only actual revenue
         const { data: salesData } = await supabase
             .from('revenue_ledger')
             .select('amount, created_at')
+            .neq('product_type', 'subscription_distribution')
             .gte('created_at', startDate.toISOString())
             .lte('created_at', endDate.toISOString())
             .order('created_at', { ascending: true });
@@ -1128,10 +1193,11 @@ export async function getAdminPayouts(year?: number, month?: number) {
 }
 
 export async function calculatePayouts(year: number, month: number) {
+    // calculate_monthly_subscription_distribution 함수는 target_month를 DATE 형식으로 받음
+    const targetMonth = `${year}-${String(month).padStart(2, '0')}-01`;
     const { data, error } = await supabase
-        .rpc('calculate_monthly_payouts', {
-            p_year: year,
-            p_month: month
+        .rpc('calculate_monthly_subscription_distribution', {
+            target_month: targetMonth
         });
     return { data, error };
 }
@@ -1867,5 +1933,270 @@ export async function getSettlementStats(year?: number, month?: number): Promise
     });
 
     return stats;
+}
+
+// ==================== Platform Financials ====================
+
+export interface PlatformFinancials {
+    // 매출 (총 수입)
+    totalRevenue: number;
+    subscriptionRevenue: number;
+    productRevenue: number; // courses, drills, sparring, etc.
+
+    // 비용 (지출)
+    totalCosts: number;
+    creatorPayouts: number;
+    refunds: number;
+
+    // 수익 (순이익)
+    netProfit: number;
+    platformFees: number; // 20% from subscriptions + products
+
+    // 월별 데이터
+    monthlyData: {
+        month: string;
+        revenue: number;
+        costs: number;
+        profit: number;
+    }[];
+}
+
+export async function getPlatformFinancials(year?: number, month?: number): Promise<PlatformFinancials> {
+    try {
+        let dateFilter = '';
+        if (year && month) {
+            const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+            const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+            dateFilter = `AND recognition_date >= '${startDate}' AND recognition_date <= '${endDate}'`;
+        }
+
+        // Get all revenue ledger data
+        const { data: ledgerData, error } = await supabase
+            .from('revenue_ledger')
+            .select('*')
+            .order('recognition_date', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching platform financials:', error);
+            return getEmptyFinancials();
+        }
+
+        // Filter by date if specified
+        let filteredData = ledgerData || [];
+        if (year && month) {
+            const startDate = new Date(year, month - 1, 1);
+            const endDate = new Date(year, month, 0);
+            filteredData = filteredData.filter(r => {
+                const date = new Date(r.recognition_date);
+                return date >= startDate && date <= endDate;
+            });
+        }
+
+        // Calculate totals
+        let subscriptionRevenue = 0;
+        let productRevenue = 0;
+        let creatorPayouts = 0;
+        let refunds = 0;
+        let platformFees = 0;
+
+        filteredData.forEach(record => {
+            const amount = record.amount || 0;
+            const platformFee = record.platform_fee || 0;
+
+            switch (record.product_type) {
+                case 'subscription':
+                    subscriptionRevenue += amount;
+                    platformFees += Math.floor(amount * 0.2); // 20% platform fee
+                    break;
+                case 'subscription_distribution':
+                    creatorPayouts += amount;
+                    break;
+                case 'refund':
+                    refunds += Math.abs(amount);
+                    break;
+                case 'course':
+                case 'drill':
+                case 'routine':
+                case 'sparring':
+                case 'feedback':
+                case 'bundle':
+                    productRevenue += amount;
+                    platformFees += platformFee;
+                    break;
+            }
+        });
+
+        const totalRevenue = subscriptionRevenue + productRevenue;
+        const totalCosts = creatorPayouts + refunds;
+        const netProfit = platformFees - refunds;
+
+        // Calculate monthly data (last 6 months)
+        const monthlyData: { month: string; revenue: number; costs: number; profit: number }[] = [];
+        const allData = ledgerData || [];
+
+        for (let i = 5; i >= 0; i--) {
+            const date = new Date();
+            date.setMonth(date.getMonth() - i);
+            const monthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+            const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+
+            const monthRecords = allData.filter(r => {
+                const recDate = new Date(r.recognition_date);
+                return recDate >= monthStart && recDate <= monthEnd;
+            });
+
+            let monthRevenue = 0;
+            let monthCosts = 0;
+            let monthPlatformFee = 0;
+
+            monthRecords.forEach(r => {
+                if (r.product_type === 'subscription') {
+                    monthRevenue += r.amount || 0;
+                    monthPlatformFee += Math.floor((r.amount || 0) * 0.2);
+                } else if (r.product_type === 'subscription_distribution') {
+                    monthCosts += r.amount || 0;
+                } else if (r.product_type === 'refund') {
+                    monthCosts += Math.abs(r.amount || 0);
+                } else if (!['subscription_distribution', 'refund'].includes(r.product_type)) {
+                    monthRevenue += r.amount || 0;
+                    monthPlatformFee += r.platform_fee || 0;
+                }
+            });
+
+            monthlyData.push({
+                month: monthStr,
+                revenue: monthRevenue,
+                costs: monthCosts,
+                profit: monthPlatformFee - monthRecords.filter(r => r.product_type === 'refund').reduce((sum, r) => sum + Math.abs(r.amount || 0), 0)
+            });
+        }
+
+        return {
+            totalRevenue,
+            subscriptionRevenue,
+            productRevenue,
+            totalCosts,
+            creatorPayouts,
+            refunds,
+            netProfit,
+            platformFees,
+            monthlyData
+        };
+    } catch (error) {
+        console.error('Error in getPlatformFinancials:', error);
+        return getEmptyFinancials();
+    }
+}
+
+function getEmptyFinancials(): PlatformFinancials {
+    return {
+        totalRevenue: 0,
+        subscriptionRevenue: 0,
+        productRevenue: 0,
+        totalCosts: 0,
+        creatorPayouts: 0,
+        refunds: 0,
+        netProfit: 0,
+        platformFees: 0,
+        monthlyData: []
+    };
+}
+
+// ==================== Creator Watch Time Stats ====================
+
+export interface CreatorWatchTimeStats {
+    creator_id: string;
+    creator_name: string;
+    total_watch_seconds: number;
+    total_watch_minutes: number;
+    paid_subscriber_watch_seconds: number;
+}
+
+/**
+ * 크리에이터별 시청시간 통계 (월별)
+ * 정산에 반영되는 유료 구독자 시청시간만 집계
+ */
+export async function getCreatorWatchTimeStats(year: number, month: number): Promise<CreatorWatchTimeStats[]> {
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const endDate = new Date(year, month, 0).toISOString().split('T')[0]; // last day of month
+
+    const { data, error } = await supabase.rpc('get_creator_watch_time_stats', {
+        start_date: startDate,
+        end_date: endDate
+    });
+
+    if (error) {
+        console.error('Error fetching creator watch time stats:', error);
+        // Fallback: 직접 쿼리
+        return await getCreatorWatchTimeStatsFallback(startDate, endDate);
+    }
+
+    return data || [];
+}
+
+/**
+ * RPC 함수가 없을 경우 직접 쿼리
+ */
+async function getCreatorWatchTimeStatsFallback(startDate: string, endDate: string): Promise<CreatorWatchTimeStats[]> {
+    // video_watch_logs에서 크리에이터별 시청시간 집계
+    const { data: watchLogs, error } = await supabase
+        .from('video_watch_logs')
+        .select(`
+            watch_seconds,
+            user_id,
+            lesson:lessons(creator_id, course:courses(creator_id)),
+            drill:drills(creator_id),
+            video:sparring_videos(creator_id)
+        `)
+        .gte('date', startDate)
+        .lte('date', endDate);
+
+    if (error || !watchLogs) {
+        console.error('Fallback query error:', error);
+        return [];
+    }
+
+    // 유료 구독자 목록 조회
+    const { data: paidUsers } = await supabase
+        .from('users')
+        .select('id')
+        .eq('is_subscriber', true)
+        .or('is_complimentary_subscription.is.null,is_complimentary_subscription.eq.false');
+
+    const paidUserIds = new Set(paidUsers?.map(u => u.id) || []);
+
+    // 크리에이터 정보 조회
+    const { data: creators } = await supabase
+        .from('creators')
+        .select('id, name');
+
+    const creatorMap = new Map(creators?.map(c => [c.id, c.name]) || []);
+
+    // 크리에이터별 집계
+    const statsMap = new Map<string, { total: number; paid: number }>();
+
+    watchLogs.forEach((log: any) => {
+        const creatorId = log.lesson?.creator_id || log.lesson?.course?.creator_id || log.drill?.creator_id || log.video?.creator_id;
+        if (!creatorId) return;
+
+        const current = statsMap.get(creatorId) || { total: 0, paid: 0 };
+        current.total += log.watch_seconds || 0;
+
+        if (paidUserIds.has(log.user_id)) {
+            current.paid += log.watch_seconds || 0;
+        }
+
+        statsMap.set(creatorId, current);
+    });
+
+    // 결과 변환
+    return Array.from(statsMap.entries()).map(([creatorId, stats]) => ({
+        creator_id: creatorId,
+        creator_name: creatorMap.get(creatorId) || 'Unknown',
+        total_watch_seconds: stats.total,
+        total_watch_minutes: Math.round(stats.total / 60),
+        paid_subscriber_watch_seconds: stats.paid
+    })).sort((a, b) => b.paid_subscriber_watch_seconds - a.paid_subscriber_watch_seconds);
 }
 

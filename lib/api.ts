@@ -431,7 +431,7 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
                 .select(`
                     *,
                     creator:creators!creator_id(name, profile_image),
-                    lessons:lessons(vimeo_url, lesson_number)
+                    lessons:lessons(vimeo_url, lesson_number, title)
                 `)
                 .eq('published', true)
                 .order('created_at', { ascending: false })
@@ -447,7 +447,7 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
                     .from('courses')
                     .select(`
                         *,
-                        lessons:lessons(vimeo_url, lesson_number)
+                        lessons:lessons(vimeo_url, lesson_number, title)
                     `)
                     .eq('published', true)
                     .order('created_at', { ascending: false })
@@ -478,6 +478,7 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
             return {
                 ...course,
                 lessonCount: d.lessons?.length || 0,
+                lessonTitles: (d.lessons || []).map((l: any) => l.title).filter(Boolean),
                 creatorProfileImage: d.creator?.profile_image || null,
                 previewVideoUrl: firstLesson?.vimeo_url,
                 // Override previewVimeoId with the first lesson's ID
@@ -2281,6 +2282,30 @@ export async function calculateCreatorEarnings(creatorId: string) {
 
     const totalRefunds = refunds?.reduce((sum, r) => sum + Math.abs(r.amount || 0), 0) || 0;
 
+    // 5. Get total watch time for this creator's content (from video_watch_logs)
+    // Lessons
+    const { data: lessonWatchData } = await supabase
+        .from('video_watch_logs')
+        .select('watch_seconds, lesson:lessons!inner(creator_id)')
+        .eq('lessons.creator_id', creatorId);
+
+    // Drills
+    const { data: drillWatchData } = await supabase
+        .from('video_watch_logs')
+        .select('watch_seconds, drill:drills!inner(creator_id)')
+        .eq('drills.creator_id', creatorId);
+
+    // Sparring
+    const { data: sparringWatchData } = await supabase
+        .from('video_watch_logs')
+        .select('watch_seconds, video:sparring_videos!inner(creator_id)')
+        .eq('sparring_videos.creator_id', creatorId);
+
+    const creatorWatchTime =
+        (lessonWatchData?.reduce((sum, r) => sum + (r.watch_seconds || 0), 0) || 0) +
+        (drillWatchData?.reduce((sum, r) => sum + (r.watch_seconds || 0), 0) || 0) +
+        (sparringWatchData?.reduce((sum, r) => sum + (r.watch_seconds || 0), 0) || 0);
+
     // Calculate total (refunds are already negative in the ledger, but we display as deduction)
     const totalRevenue = directRevenue + bundleRevenue + feedbackRevenue + subscriptionRevenue;
 
@@ -2291,7 +2316,8 @@ export async function calculateCreatorEarnings(creatorId: string) {
             feedbackRevenue,
             subscriptionRevenue,
             totalRevenue,
-            totalRefunds
+            totalRefunds,
+            creatorWatchTime
         },
         error: null
     };
@@ -2299,15 +2325,11 @@ export async function calculateCreatorEarnings(creatorId: string) {
 
 /**
  * Get creator revenue stats (monthly breakdown)
- * Aggregates real sales data from:
- * 1. Course Sales (user_courses)
- * 2. Feedback Sales (feedback_requests)
- * 3. Bundle Bundles (user_bundles - TODO: if implemented)
+ * Aggregates from creator_monthly_settlements view (includes direct sales, feedback, subscription distribution)
  */
 export async function getCreatorRevenueStats(creatorId: string) {
     try {
         // Fetch monthly settlement stats from the centralized SQL view
-        // This ensures the Admin Dashboard and Creator Dashboard show the EXACT same numbers (80% settlement)
         const { data, error } = await supabase
             .from('creator_monthly_settlements')
             .select('*')
@@ -2323,43 +2345,23 @@ export async function getCreatorRevenueStats(creatorId: string) {
             throw error;
         }
 
+        // Transform to expected format for RevenueAnalyticsTab
+        const currentMonth = new Date().toISOString().slice(0, 7); // "2024-03"
+        const transformedData = (data || []).map((row: any) => {
+            const settlementDate = new Date(row.settlement_month);
+            const period = settlementDate.toISOString().slice(0, 7); // "2024-03"
 
-        (data || []).forEach((_row: any) => {
-            // Wait, the View combines raw sales. It does NOT aggregate sum per month in the `combined_sales` part, 
-            // BUT the final select DOES `GROUP BY ... settlement_month`.
-            // Ah, looking at the view definition:
-            /*
-               GROUP BY cs.creator_id, ..., DATE_TRUNC('month', cs.created_at);
-            */
-            // The view returns SUMMED properties per month. It does NOT return individual rows.
-            // Therefore, we CANNOT get individual item titles from this view!
-            // "c.title as item_title" in the CTE is lost in the final GROUP BY because it's not in the GROUP BY clause (or it would group by title too).
+            // Determine status: current/future months are 'pending', past months are 'paid'
+            const isPaid = period < currentMonth;
 
-            // WE MADE A MISTAKE IN THE VIEW DEFINITION IF WE WANTED DETAILS.
-            // The View aggregates.
-
-            // To fix this properly, we need to either:
-            // 1. Modify the View to NOT group by, just return raw unioned list.
-            // 2. Or create a separate function to get specific sales history.
-
-            // Since I cannot change the View definition in this step easily without SQL migration again (which is fine but heavier),
-            // I will stick to what the user wants: "Where can I see routine/feedback sales?"
-            // Showing them in the "RevenueAnalyticsTab" is the goal.
-            // The view `creator_monthly_settlements` currently GROUPS BY month.
-            // So `item_title` is actually NOT available in the final result if it wasn't grouped by.
-            // Let's check the SQL I wrote earlier:
-            /*
-               GROUP BY cs.creator_id, c.name, u.email, c.payout_settings, DATE_TRUNC('month', cs.created_at);
-            */
-            // Yes, `cs.item_title` is NOT in the select list of the final query, nor in group by.
-            // So we CANNOT get item details from this View.
+            return {
+                period,
+                amount: row.settlement_amount || 0,
+                status: isPaid ? 'paid' : 'pending'
+            };
         });
 
-        // RE-STRATEGY:
-        // I need to fetch the detailed sales history separately to show "What sold".
-        // I will add a method to fetch "Recent Sales History" from the underlying tables directly.
-
-        return { data: [], error: null }; // Placeholder to stop this tool call and switch strategy
+        return { data: transformedData, error: null };
     } catch (error) {
         console.error('Error calculating creator revenue stats:', error);
         return { data: null, error };

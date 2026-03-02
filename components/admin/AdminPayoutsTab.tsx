@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Copy, Building, User, Clock, Download, RefreshCw, MinusCircle, Plus, Trash2 } from 'lucide-react';
+import { Copy, Building, User, Clock, Download, RefreshCw, MinusCircle, Plus, Trash2, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
 import { getCreatorPayoutsAdmin } from '../../lib/api';
-import { getAdminSettlements, exportSettlementsToCSV, getRevenueLedger, addRefundRecord, RevenueLedgerRecord, processRefund, getRecentPayments, deleteRefundRecords } from '../../lib/api-admin';
+import { getAdminSettlements, exportSettlementsToCSV, getRevenueLedger, addRefundRecord, RevenueLedgerRecord, processRefund, getRecentPayments, deleteRefundRecords, getCreatorWatchTimeStats, CreatorWatchTimeStats, getPlatformFinancials, PlatformFinancials } from '../../lib/api-admin';
 import { useToast } from '../../contexts/ToastContext';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { Button } from '../Button';
@@ -28,8 +28,9 @@ export const AdminPayoutsTab: React.FC = () => {
     const [loading, setLoading] = useState(true);
 
     const [settlements, setSettlements] = useState<any[]>([]);
-    const [viewMode, setViewMode] = useState<'info' | 'settlement' | 'processing' | 'revenue'>('processing');
+    const [viewMode, setViewMode] = useState<'info' | 'settlement' | 'processing' | 'revenue' | 'finance'>('processing');
     const [payouts, setPayouts] = useState<any[]>([]);
+    const [financials, setFinancials] = useState<PlatformFinancials | null>(null);
 
     // Revenue Ledger State
     const [revenueLedger, setRevenueLedger] = useState<RevenueLedgerRecord[]>([]);
@@ -47,6 +48,9 @@ export const AdminPayoutsTab: React.FC = () => {
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth()); // 0-11
     const [calculating, setCalculating] = useState(false);
+
+    // Watch Time Stats
+    const [watchTimeStats, setWatchTimeStats] = useState<CreatorWatchTimeStats[]>([]);
     const [confirmModal, setConfirmModal] = useState<{isOpen: boolean; action: () => void; title: string; message: string}>({isOpen: false, action: () => {}, title: '', message: ''});
 
     useEffect(() => {
@@ -58,8 +62,15 @@ export const AdminPayoutsTab: React.FC = () => {
             loadPayouts();
         } else if (viewMode === 'revenue') {
             loadRevenueLedger();
+        } else if (viewMode === 'finance') {
+            loadFinancials();
         }
     }, [viewMode, selectedYear, selectedMonth]);
+
+    const loadFinancials = async () => {
+        const data = await getPlatformFinancials(selectedYear, selectedMonth + 1);
+        setFinancials(data);
+    };
 
     const loadRevenueLedger = async () => {
         const [ledgerData, paymentsData] = await Promise.all([
@@ -135,8 +146,12 @@ export const AdminPayoutsTab: React.FC = () => {
     const loadPayouts = async () => {
         // Dynamic import to avoid circular dependencies if any, or just standard import
         const { getAdminPayouts } = await import('../../lib/api-admin');
-        const { data } = await getAdminPayouts(selectedYear, selectedMonth + 1);
+        const [{ data }, watchStats] = await Promise.all([
+            getAdminPayouts(selectedYear, selectedMonth + 1),
+            getCreatorWatchTimeStats(selectedYear, selectedMonth + 1)
+        ]);
         setPayouts(data || []);
+        setWatchTimeStats(watchStats);
     }
 
     const handleCalculate = async () => {
@@ -219,6 +234,12 @@ export const AdminPayoutsTab: React.FC = () => {
                         >
                             매출 원장
                         </button>
+                        <button
+                            onClick={() => setViewMode('finance')}
+                            className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${viewMode === 'finance' ? 'bg-emerald-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.2)]' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'}`}
+                        >
+                            플랫폼 재무
+                        </button>
                     </div>
                 </div>
             </div>
@@ -258,37 +279,57 @@ export const AdminPayoutsTab: React.FC = () => {
                             <thead>
                                 <tr className="bg-zinc-900/50 border-b border-zinc-800">
                                     <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 uppercase">크리에이터</th>
-                                    <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 uppercase">정산 금액</th>
+                                    <th className="px-6 py-4 text-right text-xs font-bold text-zinc-500 uppercase">시청시간</th>
+                                    <th className="px-6 py-4 text-right text-xs font-bold text-zinc-500 uppercase">정산 금액</th>
                                     <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 uppercase">상태</th>
                                     <th className="px-6 py-4 text-right text-xs font-bold text-zinc-500 uppercase">작업</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-zinc-800/50">
                                 {payouts.length === 0 ? (
-                                    <tr><td colSpan={4} className="px-6 py-12 text-center text-zinc-500">데이터가 없습니다.</td></tr>
+                                    <tr><td colSpan={5} className="px-6 py-12 text-center text-zinc-500">데이터가 없습니다.</td></tr>
                                 ) : (
-                                    payouts.map(p => (
-                                        <tr key={p.id}>
-                                            <td className="px-6 py-4 font-bold text-white">{p.creator?.name}</td>
-                                            <td className="px-6 py-4 font-bold text-emerald-400">₩{p.amount.toLocaleString()}</td>
-                                            <td className="px-6 py-4">
-                                                <span className={`px-2 py-1 rounded-md text-xs font-bold uppercase ${p.status === 'paid' ? 'bg-green-500/10 text-green-500' :
-                                                        p.status === 'processing' ? 'bg-amber-500/10 text-amber-500' :
-                                                            'bg-zinc-800 text-zinc-400'
-                                                    }`}>
-                                                    {p.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                                {p.status === 'draft' && (
-                                                    <button onClick={() => handleStatusUpdate(p.id, 'processing')} className="text-indigo-400 hover:text-indigo-300 text-sm font-bold">Process</button>
-                                                )}
-                                                {p.status === 'processing' && (
-                                                    <button onClick={() => handleStatusUpdate(p.id, 'paid')} className="text-green-500 hover:text-green-400 text-sm font-bold">Confirm Paid</button>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))
+                                    payouts.map(p => {
+                                        const watchTime = watchTimeStats.find(w => w.creator_id === p.creator_id);
+                                        const watchMinutes = watchTime ? Math.round(watchTime.paid_subscriber_watch_seconds / 60) : 0;
+                                        const watchHours = Math.floor(watchMinutes / 60);
+                                        const remainingMins = watchMinutes % 60;
+
+                                        return (
+                                            <tr key={p.id}>
+                                                <td className="px-6 py-4 font-bold text-white">{p.creator?.name}</td>
+                                                <td className="px-6 py-4 text-right">
+                                                    {watchMinutes > 0 ? (
+                                                        <div>
+                                                            <span className="text-cyan-400 font-bold">
+                                                                {watchHours > 0 ? `${watchHours}시간 ${remainingMins}분` : `${watchMinutes}분`}
+                                                            </span>
+                                                            <div className="text-xs text-zinc-500">유료 구독자</div>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-zinc-600">-</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4 text-right font-bold text-emerald-400">₩{p.amount.toLocaleString()}</td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`px-2 py-1 rounded-md text-xs font-bold uppercase ${p.status === 'paid' ? 'bg-green-500/10 text-green-500' :
+                                                            p.status === 'processing' ? 'bg-amber-500/10 text-amber-500' :
+                                                                'bg-zinc-800 text-zinc-400'
+                                                        }`}>
+                                                        {p.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    {p.status === 'draft' && (
+                                                        <button onClick={() => handleStatusUpdate(p.id, 'processing')} className="text-indigo-400 hover:text-indigo-300 text-sm font-bold">Process</button>
+                                                    )}
+                                                    {p.status === 'processing' && (
+                                                        <button onClick={() => handleStatusUpdate(p.id, 'paid')} className="text-green-500 hover:text-green-400 text-sm font-bold">Confirm Paid</button>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>
@@ -437,7 +478,7 @@ export const AdminPayoutsTab: React.FC = () => {
                         <div>
                             <h3 className="text-xl font-bold text-white">결제 및 환불 관리</h3>
                             <p className="text-sm text-zinc-500 mt-1">
-                                총 매출: ₩{revenueLedger.reduce((sum, r) => sum + r.amount, 0).toLocaleString()}
+                                총 매출: ₩{revenueLedger.filter(r => r.product_type !== 'subscription_distribution').reduce((sum, r) => sum + r.amount, 0).toLocaleString()}
                                 {' '}({revenueLedger.filter(r => r.amount < 0).length}건 환불 포함)
                             </p>
                         </div>
@@ -547,10 +588,10 @@ export const AdminPayoutsTab: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-zinc-800/50">
-                                {revenueLedger.length === 0 ? (
+                                {revenueLedger.filter(r => r.product_type !== 'subscription_distribution').length === 0 ? (
                                     <tr><td colSpan={5} className="px-6 py-8 text-center text-zinc-500">데이터가 없습니다.</td></tr>
                                 ) : (
-                                    revenueLedger.map(record => (
+                                    revenueLedger.filter(r => r.product_type !== 'subscription_distribution').map(record => (
                                         <tr key={record.id} className={record.amount < 0 ? 'bg-rose-500/5' : ''}>
                                             <td className="px-6 py-3 text-sm text-zinc-400">
                                                 {new Date(record.created_at).toLocaleDateString('ko-KR')}
@@ -594,6 +635,148 @@ export const AdminPayoutsTab: React.FC = () => {
                                 )}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            )}
+
+            {/* Platform Financials View */}
+            {viewMode === 'finance' && (
+                <div className="space-y-8">
+                    {/* Period Selector */}
+                    <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 flex flex-col md:flex-row items-center gap-6">
+                        <div className="flex items-center gap-4">
+                            <select
+                                value={selectedYear}
+                                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                                className="bg-zinc-900 border border-zinc-700 text-white rounded-lg px-4 py-2 text-sm font-bold"
+                            >
+                                {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}년</option>)}
+                            </select>
+                            <select
+                                value={selectedMonth}
+                                onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                                className="bg-zinc-900 border border-zinc-700 text-white rounded-lg px-4 py-2 text-sm font-bold"
+                            >
+                                {Array.from({ length: 12 }).map((_, i) => (
+                                    <option key={i} value={i}>{i + 1}월</option>
+                                ))}
+                            </select>
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={loadFinancials}
+                            className="border-zinc-700"
+                        >
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                            새로고침
+                        </Button>
+                    </div>
+
+                    {/* KPI Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* 매출 */}
+                        <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-2xl p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <span className="text-blue-400 text-sm font-bold">매출 (총 수입)</span>
+                                <TrendingUp className="w-5 h-5 text-blue-400" />
+                            </div>
+                            <div className="text-3xl font-bold text-white mb-4">
+                                ₩{(financials?.totalRevenue || 0).toLocaleString()}
+                            </div>
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-zinc-500">구독 수익</span>
+                                    <span className="text-zinc-300">₩{(financials?.subscriptionRevenue || 0).toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-zinc-500">상품 판매</span>
+                                    <span className="text-zinc-300">₩{(financials?.productRevenue || 0).toLocaleString()}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 비용 */}
+                        <div className="bg-gradient-to-br from-rose-500/10 to-rose-600/5 border border-rose-500/20 rounded-2xl p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <span className="text-rose-400 text-sm font-bold">비용 (지출)</span>
+                                <TrendingDown className="w-5 h-5 text-rose-400" />
+                            </div>
+                            <div className="text-3xl font-bold text-white mb-4">
+                                ₩{(financials?.totalCosts || 0).toLocaleString()}
+                            </div>
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-zinc-500">크리에이터 정산</span>
+                                    <span className="text-zinc-300">₩{(financials?.creatorPayouts || 0).toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-zinc-500">환불</span>
+                                    <span className="text-zinc-300">₩{(financials?.refunds || 0).toLocaleString()}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 수익 */}
+                        <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border border-emerald-500/20 rounded-2xl p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <span className="text-emerald-400 text-sm font-bold">플랫폼 수익</span>
+                                <Wallet className="w-5 h-5 text-emerald-400" />
+                            </div>
+                            <div className="text-3xl font-bold text-white mb-4">
+                                ₩{(financials?.netProfit || 0).toLocaleString()}
+                            </div>
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-zinc-500">플랫폼 수수료 (20%)</span>
+                                    <span className="text-zinc-300">₩{(financials?.platformFees || 0).toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-zinc-500">환불 차감</span>
+                                    <span className="text-rose-400">-₩{(financials?.refunds || 0).toLocaleString()}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Monthly Trend */}
+                    <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800/50 overflow-hidden backdrop-blur-xl">
+                        <div className="p-4 border-b border-zinc-800 bg-zinc-900/50">
+                            <h4 className="font-bold text-white">월별 추이 (최근 6개월)</h4>
+                        </div>
+                        <table className="w-full">
+                            <thead>
+                                <tr className="bg-zinc-900/50 border-b border-zinc-800">
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-zinc-500 uppercase">월</th>
+                                    <th className="px-6 py-3 text-right text-xs font-bold text-zinc-500 uppercase">매출</th>
+                                    <th className="px-6 py-3 text-right text-xs font-bold text-zinc-500 uppercase">비용</th>
+                                    <th className="px-6 py-3 text-right text-xs font-bold text-zinc-500 uppercase">수익</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-800/50">
+                                {(financials?.monthlyData || []).length === 0 ? (
+                                    <tr><td colSpan={4} className="px-6 py-8 text-center text-zinc-500">데이터가 없습니다.</td></tr>
+                                ) : (
+                                    financials?.monthlyData.map((row, i) => (
+                                        <tr key={i} className="hover:bg-zinc-800/30">
+                                            <td className="px-6 py-4 text-sm text-white font-medium">{row.month}</td>
+                                            <td className="px-6 py-4 text-right text-sm text-blue-400">₩{row.revenue.toLocaleString()}</td>
+                                            <td className="px-6 py-4 text-right text-sm text-rose-400">₩{row.costs.toLocaleString()}</td>
+                                            <td className={`px-6 py-4 text-right text-sm font-bold ${row.profit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                ₩{row.profit.toLocaleString()}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Summary Note */}
+                    <div className="bg-zinc-900/30 rounded-xl border border-zinc-800/50 p-4">
+                        <p className="text-xs text-zinc-500">
+                            <strong className="text-zinc-400">계산 방식:</strong> 플랫폼 수익 = 구독수익의 20% + 상품판매 수수료(20%) - 환불금액
+                        </p>
                     </div>
                 </div>
             )}
