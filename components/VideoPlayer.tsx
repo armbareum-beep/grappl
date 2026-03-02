@@ -192,7 +192,11 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
                 muxVideo.setAttribute('playback-id', vimeoIdStr);
                 muxVideo.setAttribute('controls', showControls ? 'true' : 'false');
                 muxVideo.setAttribute('autoplay', autoplay ? 'true' : 'false');
-                muxVideo.setAttribute('muted', muted ? 'true' : 'false');
+                // Use both attribute (for initial state) and property (for runtime control)
+                if (muted) {
+                    muxVideo.setAttribute('muted', '');
+                }
+                // Property will be set after element is added to DOM
                 muxVideo.setAttribute('playsinline', 'true');
                 muxVideo.className = 'w-full h-full object-cover';
                 muxVideo.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
@@ -203,6 +207,8 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
                 }
 
                 const videoElement = muxVideo as HTMLVideoElement;
+                // Set muted property AFTER adding to DOM for reliable behavior
+                videoElement.muted = muted;
                 let hasNotifiedReady = false;
 
                 const notifyParentReady = () => {
@@ -746,6 +752,13 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
 
     // Sync muted state - and resume playback immediately after unmuting
     useEffect(() => {
+        // Handle Mux video muted sync
+        if (muxVideoRef.current) {
+            muxVideoRef.current.muted = muted;
+            return;
+        }
+
+        // Handle Vimeo player muted sync
         if (!playerRef.current) return;
 
         const syncMuted = async () => {
