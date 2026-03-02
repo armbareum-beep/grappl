@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCourse, useCourseLessons, useCourseDrills, useCourseSparring, useRelatedCourses } from '../hooks/use-queries';
-import { getCreatorById, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, toggleCourseLike, checkCourseLiked, getCourseLikeCount, toggleCreatorFollow, checkCreatorFollowStatus, toggleCourseSave, checkCourseSaved } from '../lib/api';
+import { getCreatorById, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, toggleCourseLike, checkCourseLiked, getCourseLikeCount, toggleCreatorFollow, checkCreatorFollowStatus, toggleCourseSave, checkCourseSaved, incrementLessonViews } from '../lib/api';
 import { Course, Lesson, Creator } from '../types';
 import { Button } from '../components/Button';
 import { VideoPlayer } from '../components/VideoPlayer';
@@ -101,6 +101,17 @@ export const CourseDetail: React.FC = () => {
             updateLastWatched(user.id, selectedLesson.id).catch(console.error);
         }
     }, [user?.id, selectedLesson?.id]);
+
+    // Increment lesson view count after 10 seconds (for authorized users)
+    React.useEffect(() => {
+        if (!selectedLesson || !ownsCourse || !selectedLesson.id) return;
+
+        const timer = setTimeout(() => {
+            incrementLessonViews(selectedLesson.id).catch(console.error);
+        }, 10000); // 10 seconds
+
+        return () => clearTimeout(timer);
+    }, [selectedLesson?.id, ownsCourse]);
 
     // Save progress on page leave (unmount / beforeunload)
     React.useEffect(() => {
