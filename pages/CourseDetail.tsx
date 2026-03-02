@@ -163,6 +163,18 @@ export const CourseDetail: React.FC = () => {
 
                     let owns = await checkCourseOwnership(user.id, id);
 
+                    // Admin and subscribers have access to all courses
+                    if (!owns && directUserData && !userQueryError) {
+                        const dbIsAdmin = !!(directUserData.is_admin);
+                        const dbIsSubscribed = !!(
+                            directUserData.is_subscriber ||
+                            directUserData.is_complimentary_subscription
+                        );
+                        if (dbIsAdmin || dbIsSubscribed) {
+                            owns = true;
+                        }
+                    }
+
                     // Check ownership via user.ownedVideoIds from AuthContext
                     if (!owns && user.ownedVideoIds) {
                         const normalizedOwnedIds = user.ownedVideoIds.map((oid: any) => String(oid).trim().toLowerCase());
