@@ -37,10 +37,34 @@ export const SparringPerformanceTab: React.FC = () => {
                 return;
             }
 
-            // Get real performance data for each video
+            // 1. 크리에이터의 총 구독 분배 수익 조회
+            const { data: subDistributions } = await supabase
+                .from('revenue_ledger')
+                .select('creator_revenue')
+                .eq('creator_id', user.id)
+                .eq('product_type', 'subscription_distribution');
+
+            const totalSubscriptionRevenue = subDistributions?.reduce((sum, r) => sum + (r.creator_revenue || 0), 0) || 0;
+
+            // 2. 각 영상별 시청 시간 먼저 계산
+            const videoWatchTimes: { videoId: string; watchSeconds: number }[] = [];
+
+            for (const video of sparringData) {
+                const { data: watchLogs } = await supabase
+                    .from('video_watch_logs')
+                    .select('watch_seconds')
+                    .eq('video_id', video.id);
+
+                const watchSeconds = watchLogs?.reduce((sum, log) => sum + (log.watch_seconds || 0), 0) || 0;
+                videoWatchTimes.push({ videoId: video.id, watchSeconds });
+            }
+
+            // 3. 총 시청 시간 계산
+            const totalWatchSeconds = videoWatchTimes.reduce((sum, v) => sum + v.watchSeconds, 0);
+
+            // 4. 각 영상별 성과 데이터 생성
             const performanceData: SparringPerformance[] = await Promise.all(
                 sparringData.map(async (video: SparringVideo) => {
-                    // Get sales count directly from payments
                     const { data: purchases } = await supabase
                         .from('payments')
                         .select('amount')
@@ -51,18 +75,13 @@ export const SparringPerformanceTab: React.FC = () => {
                     const directRevenue = purchases?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
                     const salesCount = purchases?.length || 0;
 
-                    // Get watch time for this video
-                    const { data: watchLogs } = await supabase
-                        .from('video_watch_logs')
-                        .select('watch_seconds')
-                        .eq('video_id', video.id);
+                    const videoWatchTime = videoWatchTimes.find(v => v.videoId === video.id);
+                    const watchTimeMinutes = Math.floor((videoWatchTime?.watchSeconds || 0) / 60);
 
-                    const totalSeconds = watchLogs?.reduce((sum, log) => sum + (log.watch_seconds || 0), 0) || 0;
-                    const watchTimeMinutes = Math.floor(totalSeconds / 60);
-
-                    // Calculate subscription revenue based on watch time share
-                    // This is a simplified calculation - actual calculation is done in calculateCreatorEarnings
-                    const subscriptionRevenue = 0; // Will be calculated server-side
+                    // 구독 수익 = 총 구독 수익 × (해당 영상 시청시간 / 전체 시청시간)
+                    const subscriptionRevenue = totalWatchSeconds > 0
+                        ? Math.floor(totalSubscriptionRevenue * (videoWatchTime?.watchSeconds || 0) / totalWatchSeconds)
+                        : 0;
 
                     return {
                         ...video,
