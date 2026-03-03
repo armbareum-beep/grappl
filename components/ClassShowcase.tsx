@@ -96,9 +96,19 @@ export const ClassShowcase: React.FC<ClassShowcaseProps> = ({ title, subtitle })
 
     if (loading) {
         return (
-            <div className="py-24 flex items-center justify-center min-h-[400px]">
-                <div className="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
-            </div>
+            <section className="py-24 md:py-40 relative overflow-hidden">
+                <div className="max-w-[1400px] mx-auto relative z-10 px-4">
+                    <div className="text-center mb-16">
+                        <div className="h-8 w-40 bg-zinc-800/50 rounded-full mx-auto mb-6 animate-pulse" />
+                        <div className="h-14 w-full max-w-2xl bg-zinc-800/50 rounded-lg mx-auto mb-4 animate-pulse" />
+                        <div className="h-6 w-full max-w-xl bg-zinc-800/30 rounded-lg mx-auto animate-pulse" />
+                    </div>
+                    <div className="aspect-video max-w-5xl mx-auto rounded-3xl bg-zinc-800/50 animate-pulse" />
+                    <div className="mt-16 flex justify-center">
+                        <div className="h-12 w-40 bg-zinc-800/30 rounded-full animate-pulse" />
+                    </div>
+                </div>
+            </section>
         );
     }
 

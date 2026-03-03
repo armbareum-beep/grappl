@@ -7790,6 +7790,30 @@ export async function createTestimonial(testimonial: Omit<Testimonial, 'id' | 'c
         .select()
         .single();
 
+    // Notify Admins about new testimonial pending approval
+    if (!error && data) {
+        try {
+            const { data: admins } = await supabase
+                .from('users')
+                .select('id')
+                .eq('is_admin', true);
+
+            if (admins) {
+                await Promise.all(admins.map(admin =>
+                    createNotify(
+                        admin.id,
+                        'support_ticket', // Reuse support_ticket type for admin alerts
+                        '새로운 후기 승인 요청',
+                        `${testimonial.name || '익명'}님이 새로운 후기를 작성했습니다.`,
+                        '/admin/dashboard' // Navigate to testimonials tab in admin dashboard
+                    )
+                ));
+            }
+        } catch (notifyError) {
+            console.error('Failed to notify admins about testimonial:', notifyError);
+        }
+    }
+
     return { data, error };
 }
 

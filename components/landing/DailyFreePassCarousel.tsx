@@ -41,8 +41,15 @@ export const DailyFreePassCarousel: React.FC<DailyFreePassCarouselProps> = ({
 
     if (slides.length === 0) {
         return (
-            <div className="bg-zinc-900/40 border border-zinc-800 p-12 rounded-[32px] text-center w-full max-w-6xl">
-                <p className="text-zinc-500 font-medium tracking-widest uppercase">Initializing Daily Pass Items...</p>
+            <div className="w-full relative">
+                <div className={`relative overflow-hidden rounded-[24px] md:rounded-[32px] shadow-2xl shadow-black/50 border border-white/5 mx-auto w-full bg-zinc-900/40 ${getCarouselAspect()}`}>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="flex flex-col items-center gap-4">
+                            <div className="w-8 h-8 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
+                            <p className="text-zinc-500 font-medium tracking-widest uppercase text-sm">Loading...</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         );
     }
