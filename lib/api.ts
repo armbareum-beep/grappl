@@ -4356,99 +4356,14 @@ export async function clearComplimentaryPeriod(userId: string) {
  * Record watch time for a video or lesson
  * Adds the delta seconds to the daily log
  *
- * SETTLEMENT LOGIC:
- * - Only records for PAID subscribers (is_subscriber=true AND is_complimentary_subscription=false)
- * - Excludes content that the user has purchased (doesn't count toward subscription revenue)
+ * Records ALL users' watch time for admin dashboard.
+ * Settlement calculation filters for paid subscribers separately.
  */
 export async function recordWatchTime(userId: string, seconds: number, videoId?: string, lessonId?: string, drillId?: string) {
     if (!videoId && !lessonId && !drillId) return { error: new Error('VideoId, LessonId or DrillId required') };
     if (seconds <= 0) return { error: null };
 
-    // 1. Check if user is a PAID subscriber (not complimentary)
-    const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('is_subscriber, is_complimentary_subscription')
-        .eq('id', userId)
-        .maybeSingle();
-
-    if (userError || !userData) {
-        // Can't verify subscriber status, skip recording
-        return { error: null };
-    }
-
-    const isPaidSubscriber = userData.is_subscriber === true && !userData.is_complimentary_subscription;
-    if (!isPaidSubscriber) {
-        // Not a paid subscriber, don't record for settlement purposes
-        return { error: null };
-    }
-
-    // 2. Check if user owns this content (purchased)
-    let isOwned = false;
-
-    if (lessonId) {
-        // Get the course_id for this lesson
-        const { data: lesson } = await supabase
-            .from('lessons')
-            .select('course_id')
-            .eq('id', lessonId)
-            .maybeSingle();
-
-        if (lesson?.course_id) {
-            // Check if user owns this course
-            const { data: ownership } = await supabase
-                .from('user_courses')
-                .select('course_id')
-                .eq('user_id', userId)
-                .eq('course_id', lesson.course_id)
-                .maybeSingle();
-            isOwned = !!ownership;
-        }
-    } else if (videoId) {
-        // Check sparring video ownership
-        const { data: ownership } = await supabase
-            .from('user_videos')
-            .select('video_id')
-            .eq('user_id', userId)
-            .eq('video_id', videoId)
-            .maybeSingle();
-        isOwned = !!ownership;
-    } else if (drillId) {
-        // Check drill ownership (via user_drills or user_routines)
-        const { data: drillOwnership } = await supabase
-            .from('user_drills')
-            .select('drill_id')
-            .eq('user_id', userId)
-            .eq('drill_id', drillId)
-            .maybeSingle();
-
-        if (drillOwnership) {
-            isOwned = true;
-        } else {
-            // Check if user owns a routine containing this drill
-            const { data: routineDrills } = await supabase
-                .from('routine_drills')
-                .select('routine_id')
-                .eq('drill_id', drillId);
-
-            if (routineDrills && routineDrills.length > 0) {
-                const routineIds = routineDrills.map(rd => rd.routine_id);
-                const { data: routineOwnership } = await supabase
-                    .from('user_routines')
-                    .select('routine_id')
-                    .eq('user_id', userId)
-                    .in('routine_id', routineIds)
-                    .limit(1);
-                isOwned = !!(routineOwnership && routineOwnership.length > 0);
-            }
-        }
-    }
-
-    if (isOwned) {
-        // User owns this content, don't count toward subscription settlement
-        return { error: null };
-    }
-
-    // 3. Record watch time (only for paid subscribers watching non-owned content)
+    // Record watch time for all users
     const today = new Date().toISOString().split('T')[0];
     const matchQuery: any = { user_id: userId, date: today };
 

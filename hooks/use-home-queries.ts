@@ -39,13 +39,13 @@ export function useHomeQueries(userId?: string) {
         retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
     });
 
-    // 에러 상태에서 자동 복구: 10초 후 자동 재시도
+    // 에러 상태에서 자동 복구: 15초 후 자동 재시도
     useEffect(() => {
         if (homeData.isError) {
             const timer = setTimeout(() => {
                 console.warn('[useHomeQueries] Auto-recovering from error state');
                 queryClient.invalidateQueries({ queryKey: ['home', 'data'] });
-            }, 10000);
+            }, 15000);
             return () => clearTimeout(timer);
         }
     }, [homeData.isError, queryClient]);

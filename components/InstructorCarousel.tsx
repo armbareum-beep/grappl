@@ -1,8 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { Users, BookOpen, Dumbbell, Shield, CheckCircle, Video } from 'lucide-react';
 import { useCreators } from '../hooks/use-queries';
+
+const MOBILE_PAGE_SIZE = 5;
 
 interface InstructorCarouselProps {
     searchQuery?: string;
@@ -32,6 +34,15 @@ const InstructorAvatar: React.FC<{ src: string; name: string }> = ({ src, name }
 
 export const InstructorCarousel: React.FC<InstructorCarouselProps> = ({ searchQuery = '' }) => {
     const { data: instructorsResult = [], isLoading: loading } = useCreators();
+    const [isMobile, setIsMobile] = useState(false);
+    const [currentPage, setCurrentPage] = useState(0);
+
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     const creators = useMemo(() => {
         return [...instructorsResult].sort(() => Math.random() - 0.5);
@@ -45,6 +56,14 @@ export const InstructorCarousel: React.FC<InstructorCarouselProps> = ({ searchQu
             (creator.bio && creator.bio.toLowerCase().includes(query))
         );
     }, [creators, searchQuery]);
+
+    const totalPages = Math.ceil(filteredCreators.length / MOBILE_PAGE_SIZE);
+
+    const displayedCreators = useMemo(() => {
+        if (!isMobile) return filteredCreators;
+        const start = currentPage * MOBILE_PAGE_SIZE;
+        return filteredCreators.slice(start, start + MOBILE_PAGE_SIZE);
+    }, [filteredCreators, isMobile, currentPage]);
 
     const [emblaRef] = useEmblaCarousel({ loop: true, align: 'center' }, [
         Autoplay({ delay: 3000, stopOnInteraction: false })
@@ -61,7 +80,7 @@ export const InstructorCarousel: React.FC<InstructorCarouselProps> = ({ searchQu
             {/* Carousel Viewport */}
             <div className="overflow-hidden" ref={emblaRef}>
                 <div className="flex -ml-4">
-                    {filteredCreators.map((creator) => (
+                    {displayedCreators.map((creator) => (
                         <div key={creator.id} className="flex-[0_0_85%] md:flex-[0_0_300px] min-w-0 pl-4">
                             <div
                                 onClick={() => window.location.href = `/creator/${creator.id}`}
@@ -108,6 +127,25 @@ export const InstructorCarousel: React.FC<InstructorCarouselProps> = ({ searchQu
                     ))}
                 </div>
             </div>
+
+            {/* Mobile Pagination */}
+            {isMobile && totalPages > 1 && (
+                <div className="flex justify-center items-center gap-2 mt-6">
+                    {Array.from({ length: totalPages }, (_, i) => (
+                        <button
+                            key={i}
+                            onClick={() => setCurrentPage(i)}
+                            className={`w-8 h-8 rounded-full text-sm font-medium transition-all duration-200 ${
+                                currentPage === i
+                                    ? 'bg-violet-600 text-white'
+                                    : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                            }`}
+                        >
+                            {i + 1}
+                        </button>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };
