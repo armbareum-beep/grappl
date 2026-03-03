@@ -576,9 +576,8 @@ export const CourseDetail: React.FC = () => {
             const timeToSend = Math.floor(accumulatedTimeRef.current);
             accumulatedTimeRef.current -= timeToSend;
 
-            if (user.isSubscriber && !ownsCourse) {
-                recordWatchTime(user.id, timeToSend, undefined, selectedLesson.id);
-            }
+            // Record watch time for all logged-in users
+            recordWatchTime(user.id, timeToSend, undefined, selectedLesson.id);
         }
 
         // 2. Save playback position

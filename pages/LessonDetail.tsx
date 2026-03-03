@@ -118,9 +118,8 @@ export const LessonDetail: React.FC = () => {
             const timeToSend = Math.floor(accumulatedTimeRef.current);
             accumulatedTimeRef.current -= timeToSend;
 
-            if (user.isSubscriber && !owns) {
-                recordWatchTime(user.id, timeToSend, undefined, lesson.id);
-            }
+            // Record watch time for all logged-in users
+            recordWatchTime(user.id, timeToSend, undefined, lesson.id);
         }
     }, [user, lesson, owns]);
 
