@@ -9,7 +9,7 @@ import { Course, DrillRoutine, SparringVideo } from '../../types';
 import { LoadingScreen } from '../LoadingScreen';
 import { UnifiedContentCard, UnifiedContentItem, ContentType } from './UnifiedContentCard';
 import { LibraryTabs, LibraryTabType } from './LibraryTabs';
-import { batchCheckInteractions } from '../../lib/api-user-interactions';
+import { batchCheckInteractions, getCreatorsWithNewContent, recordView } from '../../lib/api-user-interactions';
 import { useCreators } from '../../hooks/use-queries';
 
 
@@ -65,6 +65,7 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
     const [startX, setStartX] = useState(0);
     const [scrollLeft, setScrollLeft] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [creatorsWithNew, setCreatorsWithNew] = useState<Set<string>>(new Set());
 
     // Randomize creators on mount
     const creators = useMemo(() => {
@@ -246,7 +247,7 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
             const sorted = smartSort(allContentInOrder);
             setAllItems(sorted);
 
-            // Batch fetch saved status for all items (if user is logged in)
+            // Batch fetch saved status and new content indicators (if user is logged in)
             if (user) {
                 try {
                     // Group items by type and fetch in parallel
@@ -254,10 +255,11 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                     const routineIds = routineItems.map(i => i.id);
                     const sparringIds = sparringItems.map(i => i.id);
 
-                    const [courseSaved, routineSaved, sparringSaved] = await Promise.all([
+                    const [courseSaved, routineSaved, sparringSaved, newContentCreators] = await Promise.all([
                         courseIds.length > 0 ? batchCheckInteractions('course', courseIds, 'save') : new Map(),
                         routineIds.length > 0 ? batchCheckInteractions('routine', routineIds, 'save') : new Map(),
-                        sparringIds.length > 0 ? batchCheckInteractions('sparring', sparringIds, 'save') : new Map()
+                        sparringIds.length > 0 ? batchCheckInteractions('sparring', sparringIds, 'save') : new Map(),
+                        getCreatorsWithNewContent(user.id)
                     ]);
 
                     // Merge all saved maps
@@ -266,6 +268,7 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                     routineSaved.forEach((v, k) => mergedMap.set(k, v));
                     sparringSaved.forEach((v, k) => mergedMap.set(k, v));
                     setSavedMap(mergedMap);
+                    setCreatorsWithNew(newContentCreators);
                 } catch (err) {
                     console.error('[AllContentFeed] Failed to batch check saved status:', err);
                 }
@@ -353,28 +356,43 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                                         e.preventDefault();
                                         return;
                                     }
+                                    // Record creator profile view to clear the new content indicator
+                                    if (creatorsWithNew.has(creator.id)) {
+                                        recordView('creator', creator.id);
+                                        setCreatorsWithNew(prev => {
+                                            const next = new Set(prev);
+                                            next.delete(creator.id);
+                                            return next;
+                                        });
+                                    }
                                     setSelectedCreatorId(
                                         selectedCreatorId === creator.id ? null : creator.id
                                     );
                                 }}
                                 className="flex flex-col items-center gap-2 shrink-0 group select-none"
                             >
-                                <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-zinc-800 transition-all ${
-                                    selectedCreatorId === creator.id
-                                        ? 'ring-2 ring-violet-500 ring-offset-2 ring-offset-zinc-950'
-                                        : 'group-hover:ring-2 group-hover:ring-zinc-600 group-hover:ring-offset-2 group-hover:ring-offset-zinc-950'
-                                }`}>
-                                    {creator.profileImage ? (
-                                        <img
-                                            src={creator.profileImage}
-                                            alt={creator.name}
-                                            className="w-full h-full object-cover pointer-events-none"
-                                            draggable={false}
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-zinc-500 text-xl font-bold">
-                                            {creator.name.charAt(0)}
-                                        </div>
+                                <div className="relative">
+                                    <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-zinc-800 transition-all ${
+                                        selectedCreatorId === creator.id
+                                            ? 'ring-2 ring-violet-500 ring-offset-2 ring-offset-zinc-950'
+                                            : 'group-hover:ring-2 group-hover:ring-zinc-600 group-hover:ring-offset-2 group-hover:ring-offset-zinc-950'
+                                    }`}>
+                                        {creator.profileImage ? (
+                                            <img
+                                                src={creator.profileImage}
+                                                alt={creator.name}
+                                                className="w-full h-full object-cover pointer-events-none"
+                                                draggable={false}
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-zinc-500 text-xl font-bold">
+                                                {creator.name.charAt(0)}
+                                            </div>
+                                        )}
+                                    </div>
+                                    {/* New content indicator - red dot */}
+                                    {creatorsWithNew.has(creator.id) && (
+                                        <div className="absolute top-0 right-0 w-3.5 h-3.5 md:w-4 md:h-4 bg-red-500 rounded-full border-2 border-zinc-950 animate-pulse" />
                                     )}
                                 </div>
                                 <span className={`text-xs font-medium max-w-[80px] truncate transition-colors ${
