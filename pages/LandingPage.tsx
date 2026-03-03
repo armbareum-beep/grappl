@@ -166,7 +166,7 @@ export const LandingPage: React.FC = () => {
 
                 {/* 4. Sub Copy */}
                 <p className="z-10 mt-6 md:mt-8 max-w-[600px] text-center text-zinc-400 text-base md:text-lg leading-relaxed break-keep">
-                    {siteSettings?.hero?.subtitle ? <HighlightedText text={siteSettings.hero.subtitle} highlightClass="text-zinc-200 font-medium" /> : <>파편화된 유튜브 영상은 실전에서 당신을 배신합니다. <br className="hidden md:block" /> 상위 1% 블랙벨트의 <span className="text-zinc-200 font-medium">'체계'</span>를 이식하십시오.</>}
+                    {siteSettings?.hero?.subtitle ? <HighlightedText text={siteSettings.hero.subtitle} highlightClass="text-zinc-200 font-medium" /> : <>파편화된 유튜브 영상은 실전에서 당신을 배신합니다. <br className="hidden md:block" /> 가짜 정보의 홍수 속에서 보호받아야 할 <span className="text-zinc-200 font-medium">'진짜'</span>들의 유산</>}
                 </p>
 
                 {/* 5. CTA Button */}
@@ -214,7 +214,7 @@ export const LandingPage: React.FC = () => {
                         </h2>
 
                         <p className="text-violet-300/80 text-xl font-medium max-w-2xl mx-auto break-keep">
-                            {siteSettings?.sectionContent?.dailyFreePass?.subtitle ? <HighlightedText text={siteSettings.sectionContent.dailyFreePass.subtitle} /> : '가격에 대한 고민은 성장을 늦출 뿐입니다. 매일 업데이트되는 프리미엄 콘텐츠로 그래플레이를 먼저 경험하세요.'}
+                            {siteSettings?.sectionContent?.dailyFreePass?.subtitle ? <HighlightedText text={siteSettings.sectionContent.dailyFreePass.subtitle} /> : '단순한 맛보기가 아닙니다. 대한민국 주짓수 레전드의 피와 땀의 일부를 오늘 공개합니다.'}
                         </p>
                     </div>
 
@@ -281,10 +281,10 @@ export const LandingPage: React.FC = () => {
                                         <span className="text-[10px] font-bold text-violet-400 uppercase tracking-[0.2em]">COMMUNITY REVIEWS</span>
                                     </div>
                                     <h2 className="text-3xl md:text-6xl font-black mb-6 text-zinc-50 leading-tight">
-                                        {siteSettings?.sectionContent?.testimonials?.title || <>이미 수많은 동행자들이 <br className="md:hidden" /> <span className="text-violet-400">'압도적인 격차'</span>를 증명하고 있습니다.</>}
+                                        {siteSettings?.sectionContent?.testimonials?.title || <>이미 수많은 선구자들이 <br className="md:hidden" /> <span className="text-violet-400">주짓수의 새로운 기준</span>을 세우고 있습니다.</>}
                                     </h2>
                                     <p className="text-zinc-400 text-xl max-w-2xl mx-auto leading-relaxed break-keep">
-                                        {siteSettings?.sectionContent?.testimonials?.subtitle || <>실제 수련생들이 경험한 경이로운 변화에 합류하세요.</>}
+                                        {siteSettings?.sectionContent?.testimonials?.subtitle || <>그래플레이 동행자들이 경험한 경이로운 변화에 합류하세요.</>}
                                     </p>
                                     {/* Review Stats */}
                                     {testimonialStats && testimonialStats.totalCount > 0 && (
@@ -371,10 +371,10 @@ export const LandingPage: React.FC = () => {
                         <div className="max-w-7xl mx-auto px-4 relative z-10 flex flex-col items-center gap-y-12 text-center">
                             <div className="space-y-6">
                                 <h2 className="text-zinc-50 text-4xl md:text-6xl font-black tracking-tighter leading-tight">
-                                    {siteSettings?.sectionContent?.finalCTA?.title ? <HighlightedText text={siteSettings.sectionContent.finalCTA.title} /> : <>매트 위에서 길을 잃지 마세요. <br className="hidden md:block" />이제 당신이 전장을 지배할 차례입니다.</>}
+                                    {siteSettings?.sectionContent?.finalCTA?.title ? <HighlightedText text={siteSettings.sectionContent.finalCTA.title} /> : <>당신의 실력은 압도적으로, <br className="hidden md:block" />대한민국 주짓수의 가치는 더 높게.</>}
                                 </h2>
                                 <p className="text-zinc-400 text-lg md:text-xl mt-8 max-w-3xl mx-auto leading-relaxed break-keep">
-                                    {siteSettings?.sectionContent?.finalCTA?.subtitle ? <HighlightedText text={siteSettings.sectionContent.finalCTA.subtitle} /> : <>더 이상 운에 맡기지 마세요. <br className="hidden md:block" />설계된 움직임이 본능이 되는 순간, 압도적인 격차를 경험하게 됩니다.</>}
+                                    {siteSettings?.sectionContent?.finalCTA?.subtitle ? <HighlightedText text={siteSettings.sectionContent.finalCTA.subtitle} /> : <>압도적인 성장을 넘어, 주짓수 생태계의 선구자가 되십시오. <br className="hidden md:block" />수익의 일부는 지도자들의 연구 환경과 대한민국 주짓수의 내일을 만드는 데 투명하게 사용됩니다.</>}
                                 </p>
                             </div>
                             <div className="flex flex-col items-center gap-6">
@@ -382,7 +382,7 @@ export const LandingPage: React.FC = () => {
                                     className="relative group bg-zinc-100 text-black rounded-full px-14 py-6 text-xl font-bold shadow-[0_0_50px_rgba(124,58,237,0.4)] hover:bg-violet-600 hover:text-white hover:scale-105 transition-all duration-300 overflow-hidden"
                                     onClick={() => navigate('/pricing')}
                                 >
-                                    <span className="relative z-10">{siteSettings?.sectionContent?.finalCTA?.buttonText || '시스템 구축하기'}</span>
+                                    <span className="relative z-10">{siteSettings?.sectionContent?.finalCTA?.buttonText || '그래플레이 멤버 되기'}</span>
                                     <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/40 to-transparent z-0 w-full h-full skew-x-12"></div>
                                 </button>
                                 <p className="text-zinc-600 text-sm font-medium">

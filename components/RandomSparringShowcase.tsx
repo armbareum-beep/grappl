@@ -97,7 +97,7 @@ export function RandomSparringShowcase({ title, subtitle }: { title?: string; su
                         </h2>
 
                         <p className="text-zinc-400 text-lg mb-10 leading-relaxed max-w-xl mx-auto lg:mx-0">
-                            {subtitle ? <HighlightedText text={subtitle} /> : <>컷 편집 없는 생생한 스파링 영상을 통해 마스터의 타이밍과 호흡을 동기화하세요. <br className="hidden md:block" /> 보고 나면 당신의 다음 스파링이 바뀝니다.</>}
+                            {subtitle ? <HighlightedText text={subtitle} /> : <>레전드의 유산은 매트 위에서 완성됩니다. 편집 없는 생생한 실전 영상을 통해 지도자와 동기화 하십시오. <br className="hidden md:block" /> 당신은 이제 대한민국 최고들의 판단력을 갖게 됩니다.</>}
                         </p>
 
                         <div className="hidden lg:flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">

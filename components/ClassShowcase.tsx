@@ -121,7 +121,7 @@ export const ClassShowcase: React.FC<ClassShowcaseProps> = ({ title, subtitle })
                         {title ? <HighlightedText text={title} highlightClass="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600" /> : <>정체기라는 늪을 건너는 <br className="md:hidden" /> <span className="text-violet-400 text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600">가장 확실한 지도를 펼치십시오.</span></>}
                     </h2>
                     <p className="text-zinc-400 text-xl max-w-2xl mx-auto leading-relaxed font-medium break-keep">
-                        {subtitle ? <HighlightedText text={subtitle} /> : <>더 이상 관장님의 입만 바라보지 마세요. <br className="md:hidden" /> 스스로 상황을 해석하고 다음 수를 설계하는 능력을 갖추게 됩니다.</>}
+                        {subtitle ? <HighlightedText text={subtitle} /> : <>대한민국 레전드의 기술 체계를 구축했습니다. <br className="md:hidden" /> 당신이 이 지도를 따라가면 길을 잃지 않습니다.</>}
                     </p>
                 </div>
 
