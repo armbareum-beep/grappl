@@ -119,21 +119,23 @@ export async function getHomePageData(): Promise<HomePageData> {
                 .limit(30),
             API_TIMEOUT
         ),
-        // Drills for daily selection
+        // Drills for daily selection (only from paid routines)
         withTimeout(
             supabase
                 .from('routine_drills')
-                .select('drill_id, drills!inner(*)')
+                .select('drill_id, drills!inner(*), routines!inner(price)')
+                .gt('routines.price', 0)
                 .neq('drills.vimeo_url', '')
                 .not('drills.vimeo_url', 'like', 'ERROR%')
                 .limit(100),
             API_TIMEOUT
         ),
-        // Lessons for daily selection
+        // Lessons for daily selection (only from paid courses)
         withTimeout(
             supabase
                 .from('lessons')
-                .select('*, courses!inner(id, title, thumbnail_url, creator_id)')
+                .select('*, courses!inner(id, title, thumbnail_url, creator_id, price)')
+                .gt('courses.price', 0)
                 .not('vimeo_url', 'is', null)
                 .neq('vimeo_url', '')
                 .limit(100),
@@ -179,17 +181,21 @@ export async function getHomePageData(): Promise<HomePageData> {
         dailyLesson = lessonsData.find((l: any) => l.id === featuredLessonId);
     }
     if (!dailyLesson && lessonsData.length > 0) {
-        dailyLesson = lessonsData[getDailyIndex(lessonsData.length, 123)];
+        dailyLesson = lessonsData[getDailyIndex(lessonsData.length, 789)];
     }
 
-    // Daily Sparring
+    // Daily Sparring (only paid sparring videos, matching LandingPage logic)
     let dailySparring = null;
     const featuredSparringId = featuredMap.get('sparring');
     if (featuredSparringId) {
         dailySparring = sparringVideos.find((s: any) => s.id === featuredSparringId);
     }
     if (!dailySparring && sparringVideos.length > 0) {
-        dailySparring = sparringVideos[getDailyIndex(sparringVideos.length, 789)];
+        // Filter to only paid sparring (price > 0) to match LandingPage
+        const paidSparring = sparringVideos.filter((s: any) => (s.price || 0) > 0);
+        if (paidSparring.length > 0) {
+            dailySparring = paidSparring[getDailyIndex(paidSparring.length, 123)];
+        }
     }
 
     // ===== BATCH 2: Fetch all creators at once =====
