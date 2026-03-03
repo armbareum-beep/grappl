@@ -81,10 +81,8 @@ export const VideoDetail: React.FC = () => {
       const timeToSend = Math.floor(accumulatedTimeRef.current);
       accumulatedTimeRef.current -= timeToSend;
 
-      // Record watch time if user is a subscriber
-      if (user.isSubscriber) {
-        recordWatchTime(user.id, timeToSend, video.id, undefined);
-      }
+      // Record watch time for all logged-in users
+      recordWatchTime(user.id, timeToSend, video.id, undefined);
     }
   };
 

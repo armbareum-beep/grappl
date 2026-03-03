@@ -285,7 +285,7 @@ export const RoutineDetail: React.FC = () => {
     const accumulatedTimeRef = useRef<number>(0);
 
     const handleProgress = async (_seconds: number) => {
-        if (!user || owns || !isSubscribed || !currentDrill) return;
+        if (!user || !currentDrill) return;
         const now = Date.now();
         if (lastTickRef.current === 0) { lastTickRef.current = now; return; }
         const elapsed = (now - lastTickRef.current) / 1000;
@@ -294,7 +294,7 @@ export const RoutineDetail: React.FC = () => {
         if (accumulatedTimeRef.current >= 10) {
             const timeToSend = Math.floor(accumulatedTimeRef.current);
             accumulatedTimeRef.current -= timeToSend;
-            try { await recordWatchTime(user.id, timeToSend, currentDrill.id); } catch (e) { console.warn('Failed to record watch time:', e); }
+            try { await recordWatchTime(user.id, timeToSend, undefined, undefined, currentDrill.id); } catch (e) { console.warn('Failed to record watch time:', e); }
         }
     };
 
