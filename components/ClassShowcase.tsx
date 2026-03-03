@@ -6,7 +6,7 @@ import { getCourses, getDailyFreeLesson, extractVimeoId } from '../lib/api';
 import { Course } from '../types';
 import { Button } from './Button';
 import { VideoPlayer } from './VideoPlayer';
-import { ConfirmModal } from './common/ConfirmModal';
+import { ReelLoginModal } from './auth/ReelLoginModal';
 import { useAuth } from '../contexts/AuthContext';
 import { HighlightedText } from './common/HighlightedText';
 
@@ -22,7 +22,7 @@ export const ClassShowcase: React.FC<ClassShowcaseProps> = ({ title, subtitle })
     const [isActuallyPaused, setIsActuallyPaused] = useState(false);
     const [isPaywallOpen, setIsPaywallOpen] = useState(false);
     const navigate = useNavigate();
-    const { isSubscribed, isAdmin } = useAuth();
+    const { user, isSubscribed, isAdmin } = useAuth();
 
     const [emblaRef, emblaApi] = useEmblaCarousel({
         align: 'center',
@@ -118,10 +118,10 @@ export const ClassShowcase: React.FC<ClassShowcaseProps> = ({ title, subtitle })
                         </span>
                     </div>
                     <h2 className="text-4xl md:text-6xl font-black text-zinc-50 mb-6 tracking-tight break-keep">
-                        {title ? <HighlightedText text={title} highlightClass="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600" /> : <>블랙벨트의 독점 <br className="md:hidden" /> <span className="text-violet-400 text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600">마스터리 커리큘럼</span></>}
+                        {title ? <HighlightedText text={title} highlightClass="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600" /> : <>정체기라는 늪을 건너는 <br className="md:hidden" /> <span className="text-violet-400 text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600">가장 확실한 지도를 펼치십시오.</span></>}
                     </h2>
                     <p className="text-zinc-400 text-xl max-w-2xl mx-auto leading-relaxed font-medium break-keep">
-                        {subtitle ? <HighlightedText text={subtitle} /> : <>1분 미리보기로 강의 스타일을 확인하고, 자신에게 맞는 기술을 찾으세요. <br className="md:hidden" /> 기초부터 심화까지 이어지는 블랙벨트의 완성된 로드맵을 제시합니다.</>}
+                        {subtitle ? <HighlightedText text={subtitle} /> : <>더 이상 관장님의 입만 바라보지 마세요. <br className="md:hidden" /> 스스로 상황을 해석하고 다음 수를 설계하는 능력을 갖추게 됩니다.</>}
                     </p>
                 </div>
 
@@ -141,7 +141,7 @@ export const ClassShowcase: React.FC<ClassShowcaseProps> = ({ title, subtitle })
                                                         vimeoId={course.previewVimeoId || ''}
                                                         title={course.title}
                                                         isPreviewMode={true}
-                                                        maxPreviewDuration={(!isSubscribed && !isAdmin) ? 60 : undefined}
+                                                        maxPreviewDuration={(!user || (!isSubscribed && !isAdmin)) ? 60 : undefined}
                                                         onPreviewLimitReached={() => setIsPaywallOpen(true)}
                                                         showControls={isPlaying}
                                                         playing={isPlaying && !isActuallyPaused}
@@ -165,8 +165,8 @@ export const ClassShowcase: React.FC<ClassShowcaseProps> = ({ title, subtitle })
                                                     </div>
                                                 )}
 
-                                                {/* Centered Action Button */}
-                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-auto z-20">
+                                                {/* Centered Action Button - 재생 중일 때는 클릭 통과 */}
+                                                <div className={`absolute inset-0 flex items-center justify-center z-20 ${isPlaying && !isActuallyPaused ? 'pointer-events-none' : 'pointer-events-auto'}`}>
                                                     <button
                                                         onClick={() => {
                                                             if (isPlaying) {
@@ -176,7 +176,7 @@ export const ClassShowcase: React.FC<ClassShowcaseProps> = ({ title, subtitle })
                                                                 setIsActuallyPaused(false);
                                                             }
                                                         }}
-                                                        className={`w-16 h-16 md:w-20 md:h-20 rounded-full bg-violet-600/90 hover:bg-violet-500 text-white backdrop-blur-md shadow-[0_0_40px_rgba(124,58,237,0.5)] flex items-center justify-center transform hover:scale-110 active:scale-95 transition-all group/btn ${isPlaying && !isActuallyPaused ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}
+                                                        className={`w-16 h-16 md:w-20 md:h-20 rounded-full bg-violet-600/90 hover:bg-violet-500 text-white backdrop-blur-md shadow-[0_0_40px_rgba(124,58,237,0.5)] flex items-center justify-center transform hover:scale-110 active:scale-95 transition-all group/btn pointer-events-auto ${isPlaying && !isActuallyPaused ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}
                                                     >
                                                         {isPlaying && !isActuallyPaused ? (
                                                             <Pause className="w-6 h-6 md:w-8 md:h-8 fill-current group-hover:rotate-12 transition-transform" />
@@ -237,21 +237,16 @@ export const ClassShowcase: React.FC<ClassShowcaseProps> = ({ title, subtitle })
                         className="text-zinc-400 hover:text-white group px-8 py-3 rounded-full border border-zinc-800 hover:border-violet-500/50 hover:bg-zinc-900 transition-all font-medium"
                         onClick={() => navigate('/library?tab=classes')}
                     >
-                        모든 클래스 둘러보기
+                        클래스 전체보기
                         <ChevronRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
                     </Button>
                 </div>
             </div>
 
-            <ConfirmModal
-                isOpen={isPaywallOpen}
+            <ReelLoginModal
+                isOpen={isPaywallOpen && !user}
                 onClose={() => setIsPaywallOpen(false)}
-                onConfirm={() => navigate('/pricing')}
-                title="무료 체험 기간 종료"
-                message="전체 영상을 시청하고 모든 블랙벨트의 커리큘럼을 무제한으로 이용하려면 그래플레이 구독을 시작하세요."
-                confirmText="구독 요금제 보기"
-                cancelText="더 둘러보기"
-                variant="info"
+                redirectUrl="/library?tab=classes"
             />
         </section>
     );

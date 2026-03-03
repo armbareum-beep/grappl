@@ -785,7 +785,6 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         <div
             className={fillContainer ? 'relative w-full h-full' : 'relative w-full'}
             style={!fillContainer ? { aspectRatio: aspectRatio || 16 / 9 } : undefined}
-            onContextMenu={(e) => e.preventDefault()}
             onClick={async (_e) => {
                 // Ignore clicks if native controls are shown - let the iframe handle it
                 if (showControls) return;
@@ -848,8 +847,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
             {!showControls && (
                 <div
                     className="absolute inset-0 z-[5] cursor-pointer"
-                    onContextMenu={(e) => e.preventDefault()}
-                />
+                        />
             )}
 
             {/* Direct Video Fallback */}

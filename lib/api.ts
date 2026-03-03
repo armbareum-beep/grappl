@@ -7737,6 +7737,17 @@ export async function getTestimonials() {
     return { data: randomThree, error: null };
 }
 
+// Get all approved testimonials (for reviews page)
+export async function getAllApprovedTestimonials() {
+    const { data, error } = await supabase
+        .from('testimonials')
+        .select('*')
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false });
+
+    return { data, error };
+}
+
 // Get testimonial statistics (total count and average rating)
 export async function getTestimonialStats(): Promise<{ data: { totalCount: number; averageRating: number } | null; error: any }> {
     const { data, error } = await supabase

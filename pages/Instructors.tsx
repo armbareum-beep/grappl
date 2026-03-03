@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Shield, CheckCircle, Search, BookOpen, Dumbbell, Video } from 'lucide-react';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { useCreators } from '../hooks/use-queries';
 import { Creator } from '../types';
+
+const MOBILE_PAGE_SIZE = 5;
 
 const InstructorAvatar: React.FC<{ src: string; name: string }> = ({ src, name }) => {
     const [error, setError] = useState(false);
@@ -31,6 +33,15 @@ export const Instructors: React.FC = () => {
     const navigate = useNavigate();
     const { data: creatorsResult = [], isLoading: loading } = useCreators();
     const [searchTerm, setSearchTerm] = useState('');
+    const [isMobile, setIsMobile] = useState(false);
+    const [currentPage, setCurrentPage] = useState(0);
+
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     const creators = React.useMemo(() => {
         return [...creatorsResult].sort(() => Math.random() - 0.5);
@@ -40,6 +51,19 @@ export const Instructors: React.FC = () => {
         creator.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         creator.bio?.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const totalPages = Math.ceil(filteredCreators.length / MOBILE_PAGE_SIZE);
+
+    const displayedCreators = useMemo(() => {
+        if (!isMobile) return filteredCreators;
+        const start = currentPage * MOBILE_PAGE_SIZE;
+        return filteredCreators.slice(start, start + MOBILE_PAGE_SIZE);
+    }, [filteredCreators, isMobile, currentPage]);
+
+    // 검색어 변경 시 페이지 리셋
+    useEffect(() => {
+        setCurrentPage(0);
+    }, [searchTerm]);
 
     if (loading) {
         return <LoadingScreen message="인스트럭터 목록 불러오는 중..." />;
@@ -78,7 +102,7 @@ export const Instructors: React.FC = () => {
             <div className="max-w-7xl mx-auto px-4 py-12">
                 {filteredCreators.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {filteredCreators.map((creator) => (
+                        {displayedCreators.map((creator) => (
                             <div
                                 key={creator.id}
                                 onClick={() => navigate(`/creator/${creator.id}`)}
@@ -172,6 +196,25 @@ export const Instructors: React.FC = () => {
                         <Search className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
                         <h3 className="text-xl font-bold text-zinc-300 mb-2">검색 결과가 없습니다</h3>
                         <p className="text-zinc-500">다른 키워드로 검색해보세요.</p>
+                    </div>
+                )}
+
+                {/* Mobile Pagination */}
+                {isMobile && totalPages > 1 && (
+                    <div className="flex justify-center items-center gap-2 mt-8">
+                        {Array.from({ length: totalPages }, (_, i) => (
+                            <button
+                                key={i}
+                                onClick={() => setCurrentPage(i)}
+                                className={`w-10 h-10 rounded-full text-sm font-bold transition-all duration-200 ${
+                                    currentPage === i
+                                        ? 'bg-violet-600 text-white'
+                                        : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                                }`}
+                            >
+                                {i + 1}
+                            </button>
+                        ))}
                     </div>
                 )}
             </div>

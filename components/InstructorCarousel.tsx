@@ -8,6 +8,8 @@ const MOBILE_PAGE_SIZE = 5;
 
 interface InstructorCarouselProps {
     searchQuery?: string;
+    hideStats?: boolean;
+    enablePagination?: boolean;
 }
 
 const InstructorAvatar: React.FC<{ src: string; name: string }> = ({ src, name }) => {
@@ -32,7 +34,7 @@ const InstructorAvatar: React.FC<{ src: string; name: string }> = ({ src, name }
     );
 };
 
-export const InstructorCarousel: React.FC<InstructorCarouselProps> = ({ searchQuery = '' }) => {
+export const InstructorCarousel: React.FC<InstructorCarouselProps> = ({ searchQuery = '', hideStats = false, enablePagination = false }) => {
     const { data: instructorsResult = [], isLoading: loading } = useCreators();
     const [isMobile, setIsMobile] = useState(false);
     const [currentPage, setCurrentPage] = useState(0);
@@ -60,10 +62,10 @@ export const InstructorCarousel: React.FC<InstructorCarouselProps> = ({ searchQu
     const totalPages = Math.ceil(filteredCreators.length / MOBILE_PAGE_SIZE);
 
     const displayedCreators = useMemo(() => {
-        if (!isMobile) return filteredCreators;
+        if (!enablePagination || !isMobile) return filteredCreators;
         const start = currentPage * MOBILE_PAGE_SIZE;
         return filteredCreators.slice(start, start + MOBILE_PAGE_SIZE);
-    }, [filteredCreators, isMobile, currentPage]);
+    }, [filteredCreators, isMobile, currentPage, enablePagination]);
 
     const [emblaRef] = useEmblaCarousel({ loop: true, align: 'center' }, [
         Autoplay({ delay: 3000, stopOnInteraction: false })
@@ -120,7 +122,7 @@ export const InstructorCarousel: React.FC<InstructorCarouselProps> = ({ searchQu
                                         </p>
                                     </div>
 
-                                    {StatStat(creator)}
+                                    {!hideStats && StatStat(creator)}
                                 </div>
                             </div>
                         </div>
@@ -129,7 +131,7 @@ export const InstructorCarousel: React.FC<InstructorCarouselProps> = ({ searchQu
             </div>
 
             {/* Mobile Pagination */}
-            {isMobile && totalPages > 1 && (
+            {enablePagination && isMobile && totalPages > 1 && (
                 <div className="flex justify-center items-center gap-2 mt-6">
                     {Array.from({ length: totalPages }, (_, i) => (
                         <button

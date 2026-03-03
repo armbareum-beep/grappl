@@ -5,13 +5,18 @@ import { getDailyFreeSparring, extractVimeoId } from '../lib/api';
 import { SparringVideo } from '../types';
 import { VideoPlayer } from './VideoPlayer';
 import { HighlightedText } from './common/HighlightedText';
+import { useAuth } from '../contexts/AuthContext';
+import { ReelLoginModal } from './auth/ReelLoginModal';
 
 export function RandomSparringShowcase({ title, subtitle }: { title?: string; subtitle?: string }) {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [video, setVideo] = useState<SparringVideo | null>(null);
     const [loading, setLoading] = useState(true);
     const [isPaused, setIsPaused] = useState(false);
     const [isInView, setIsInView] = useState(false);
+    const [previewEnded, setPreviewEnded] = useState(false);
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const sectionRef = useRef<HTMLElement>(null);
 
     // Intersection Observer: 섹션이 뷰포트에 들어오면 비디오 재생 시작
@@ -31,6 +36,18 @@ export function RandomSparringShowcase({ title, subtitle }: { title?: string; su
 
         return () => observer.disconnect();
     }, []);
+
+    // 비로그인 사용자 45초 제한 타이머 (일시정지와 관계없이 진행)
+    useEffect(() => {
+        if (user || !isInView || previewEnded) return;
+
+        const timer = setTimeout(() => {
+            setPreviewEnded(true);
+            setIsLoginModalOpen(true);
+        }, 45000); // 45초
+
+        return () => clearTimeout(timer);
+    }, [user, isInView, previewEnded]);
 
     // Use exported extractVimeoId from lib/api
 
@@ -76,11 +93,11 @@ export function RandomSparringShowcase({ title, subtitle }: { title?: string; su
                         </div>
 
                         <h2 className="text-4xl md:text-5xl font-black mb-6 leading-tight text-zinc-50">
-                            {title ? <HighlightedText text={title} /> : <>이론이 실전이 되는 <br /> 순간을 확인하세요.</>}
+                            {title ? <HighlightedText text={title} /> : <>이론이 본능이 되는 <br /> 찰나를 목격하십시오.</>}
                         </h2>
 
                         <p className="text-zinc-400 text-lg mb-10 leading-relaxed max-w-xl mx-auto lg:mx-0">
-                            {subtitle ? <HighlightedText text={subtitle} /> : <>블랙벨트의 기술은 스파링에서 완성됩니다. <br className="hidden md:block" /> 컷 편집 없는 생생한 스파링 영상으로 기술의 타이밍과 흐름을 직접 체득하세요.</>}
+                            {subtitle ? <HighlightedText text={subtitle} /> : <>컷 편집 없는 생생한 스파링 영상을 통해 마스터의 타이밍과 호흡을 동기화하세요. <br className="hidden md:block" /> 보고 나면 당신의 다음 스파링이 바뀝니다.</>}
                         </p>
 
                         <div className="hidden lg:flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
@@ -96,7 +113,7 @@ export function RandomSparringShowcase({ title, subtitle }: { title?: string; su
                                 className="px-8 py-4 bg-transparent border border-zinc-800 hover:bg-zinc-900 text-zinc-400 font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
                                 onClick={() => navigate('/library?tab=sparring')}
                             >
-                                <span>더 많은 스파링</span>
+                                <span>스파링 전체보기</span>
                                 <ChevronRight className="w-4 h-4" />
                             </button>
                         </div>
@@ -111,22 +128,49 @@ export function RandomSparringShowcase({ title, subtitle }: { title?: string; su
                             <VideoPlayer
                                 vimeoId={vimeoIdToSend}
                                 title={video.title}
-                                isPreviewMode={true}
-                                maxPreviewDuration={60}
+                                isPreviewMode={!user}
+                                maxPreviewDuration={!user ? 45 : undefined}
+                                onProgress={(seconds) => {
+                                    if (!user && !previewEnded && seconds >= 45) {
+                                        setPreviewEnded(true);
+                                        setIsLoginModalOpen(true);
+                                    }
+                                }}
+                                onPreviewLimitReached={() => {
+                                    if (!previewEnded) {
+                                        setPreviewEnded(true);
+                                        if (!user) {
+                                            setIsLoginModalOpen(true);
+                                        }
+                                    }
+                                }}
                                 showControls={false}
                                 fillContainer={true}
-                                playing={isInView && !isPaused}
+                                playing={isInView && !isPaused && !previewEnded}
                                 autoplay={isInView}
-                                isPaused={isPaused}
+                                isPaused={isPaused || previewEnded}
                                 forceSquareRatio={true}
                                 muted={true}
+                                hideInternalOverlay={true}
                             />
 
+                            {/* Preview Ended Overlay */}
+                            {previewEnded && (
+                                <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center z-20">
+                                    <div className="w-14 h-14 rounded-full bg-violet-600 flex items-center justify-center mb-4">
+                                        <Play className="w-7 h-7 text-white fill-white ml-0.5" />
+                                    </div>
+                                    <p className="text-white text-sm font-bold text-center leading-tight">
+                                        로그인 후<br />전체 영상 보기
+                                    </p>
+                                </div>
+                            )}
+
                             {/* Gradient Overlay */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent opacity-90"></div>
+                            <div className={`absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent opacity-90 transition-opacity ${previewEnded ? 'opacity-0' : ''}`}></div>
 
                             {/* Text Overlay */}
-                            <div className="absolute bottom-6 left-6 right-6">
+                            <div className={`absolute bottom-6 left-6 right-6 transition-opacity ${previewEnded ? 'opacity-0' : ''}`}>
                                 <div className="flex items-center gap-2 mb-2">
                                     <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
                                     <span className="text-zinc-400 text-xs font-bold tracking-wider uppercase">Live Sparring</span>
@@ -150,7 +194,7 @@ export function RandomSparringShowcase({ title, subtitle }: { title?: string; su
                                 className="flex-1 px-8 py-4 bg-transparent border border-zinc-800 hover:bg-zinc-900 text-zinc-400 font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
                                 onClick={() => navigate('/library?tab=sparring')}
                             >
-                                <span>더 많은 스파링</span>
+                                <span>스파링 전체보기</span>
                                 <ChevronRight className="w-4 h-4" />
                             </button>
                         </div>
@@ -158,6 +202,12 @@ export function RandomSparringShowcase({ title, subtitle }: { title?: string; su
 
                 </div>
             </div>
+
+            <ReelLoginModal
+                isOpen={isLoginModalOpen}
+                onClose={() => setIsLoginModalOpen(false)}
+                redirectUrl="/library?tab=sparring"
+            />
         </section>
     );
 }

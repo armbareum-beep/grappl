@@ -54,6 +54,7 @@ const DrillReels = React.lazy(() => import('./pages/DrillReels').then(m => ({ de
 const AllCompletedRoutines = React.lazy(() => import('./pages/AllCompletedRoutines').then(m => ({ default: m.AllCompletedRoutines })));
 const FeedbackCenter = React.lazy(() => import('./pages/FeedbackCenter').then(m => ({ default: m.FeedbackCenter })));
 const WriteReview = React.lazy(() => import('./pages/WriteReview').then(m => ({ default: m.WriteReview })));
+const Reviews = React.lazy(() => import('./pages/Reviews').then(m => ({ default: m.Reviews })));
 
 // Admin pages - lazy loaded
 const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
@@ -355,6 +356,7 @@ const App: React.FC = () => {
                         <WriteReview />
                       </ProtectedRoute>
                     } />
+                    <Route path="/reviews" element={<Reviews />} />
                     <Route path="/my-library" element={<Navigate to="/saved" replace />} />
                     <Route path="/watch" element={<Navigate to="/drills" replace />} />
                     <Route path="/training-routines" element={<MyRoutines />} />
