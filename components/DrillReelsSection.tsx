@@ -252,10 +252,10 @@ export const DrillReelsSection: React.FC<DrillReelsSectionProps> = ({ title, sub
                         </span>
                     </div>
                     <h2 className="text-zinc-50 text-4xl md:text-5xl font-black tracking-tighter leading-[1.1] mb-6 text-center">
-                        {title ? <HighlightedText text={title} /> : "오늘 스파링의 결과를 바꿀\n60초의 '실전 패치'."}
+                        {title ? <HighlightedText text={title} /> : "생각하기 전에 몸이 먼저 반응할 때까지,\n60초의 무한 반복."}
                     </h2>
                     <p className="text-zinc-400 text-lg max-w-xl mx-auto text-center">
-                        {subtitle ? <HighlightedText text={subtitle} /> : <>복잡한 설명은 걷어냈습니다. <br /> 매트 위에서 바로 써먹는 챔피언의 디테일을 지금 즉시 체득하세요.</>}
+                        {subtitle ? <HighlightedText text={subtitle} /> : <>주짓수의 정수는 앎이 아니라 '반응'에 있습니다. <br /> 무한히 반복하여 당신의 신경계에 이식하십시오. 반복만이 실전에서 당신을 구원할 유일한 방법입니다.</>}
                     </p>
                 </div>
 
