@@ -72,10 +72,30 @@ export function RandomSparringShowcase({ title, subtitle }: { title?: string; su
 
     const vimeoIdToSend = video ? extractVimeoId(video.videoUrl) : null;
 
-    if (loading) return null;
+    // 로딩 중 - 스켈레톤 표시로 CLS 방지
+    if (loading) {
+        return (
+            <section className="py-24 relative overflow-hidden">
+                <div className="max-w-7xl mx-auto px-4 relative z-10">
+                    <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
+                        <div className="flex-1 text-center lg:text-left">
+                            <div className="h-8 w-48 bg-zinc-800/50 rounded-full mb-8 animate-pulse" />
+                            <div className="h-12 w-full max-w-md bg-zinc-800/50 rounded-lg mb-4 animate-pulse" />
+                            <div className="h-12 w-3/4 max-w-sm bg-zinc-800/50 rounded-lg mb-6 animate-pulse" />
+                            <div className="h-20 w-full max-w-xl bg-zinc-800/30 rounded-lg animate-pulse" />
+                        </div>
+                        <div className="flex-1 w-full max-w-2xl">
+                            <div className="aspect-square rounded-2xl bg-zinc-800/50 animate-pulse" />
+                        </div>
+                    </div>
+                </div>
+            </section>
+        );
+    }
 
+    // 데이터 없음 - 섹션 숨김 (의도된 동작)
     if (!video || !vimeoIdToSend) {
-        return null; // Silent hide if no data
+        return null;
     }
 
     return (

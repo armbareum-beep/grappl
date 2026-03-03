@@ -1350,12 +1350,43 @@ export async function requestContentPublishing(id: string, type: 'course' | 'dri
         'lesson': 'lessons'
     };
 
+    const typeNameMap = {
+        'course': '강좌',
+        'drill': '드릴',
+        'sparring': '스파링',
+        'lesson': '레슨'
+    };
+
     const { data, error } = await supabase
         .from(tableMap[type])
         .update({ status: 'pending' })
         .eq('id', id)
         .select()
         .single();
+
+    // Notify Admins about new content pending approval
+    if (!error && data) {
+        try {
+            const { data: admins } = await supabase
+                .from('users')
+                .select('id')
+                .eq('is_admin', true);
+
+            if (admins) {
+                await Promise.all(admins.map(admin =>
+                    createNotification(
+                        admin.id,
+                        'support_ticket', // Reuse support_ticket type for admin alerts
+                        '새로운 콘텐츠 승인 요청',
+                        `새로운 ${typeNameMap[type]} "${data.title || '제목 없음'}"이(가) 승인 대기 중입니다.`,
+                        '/admin/content-approval'
+                    )
+                ));
+            }
+        } catch (notifyError) {
+            console.error('Failed to notify admins about content approval:', notifyError);
+        }
+    }
 
     return { data, error };
 }

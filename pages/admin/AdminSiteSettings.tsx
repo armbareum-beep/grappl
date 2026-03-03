@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getSiteSettings, updateSiteSettings } from '../../lib/api-admin';
 import { SiteSettings } from '../../types';
-import { ArrowLeft, Globe, Building, Type, Save, Loader2, ChevronRight, Star } from 'lucide-react';
+import { ArrowLeft, Building, Save, Loader2, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../contexts/ToastContext';
 import { AdminTestimonialsTab } from '../../components/admin/AdminTestimonialsTab';
@@ -12,7 +12,7 @@ export const AdminSiteSettings: React.FC = () => {
     const [settings, setSettings] = useState<SiteSettings | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [activeTab, setActiveTab] = useState<'hero' | 'content' | 'business' | 'testimonials'>('hero');
+    const [activeTab, setActiveTab] = useState<'business' | 'testimonials'>('testimonials');
 
     useEffect(() => {
         fetchSettings();
@@ -127,18 +127,6 @@ export const AdminSiteSettings: React.FC = () => {
 
     if (loading) return <div className="min-h-screen bg-zinc-950 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-500"></div></div>;
 
-    const sectionsList = [
-        { id: 'dailyFreePass', label: '무료 릴스 (Free Pass)', desc: 'Daily Free Pass 섹션' },
-        { id: 'instructors', label: '인스트럭터', desc: '강사진 소개 섹션' },
-        { id: 'classShowcase', label: '클래스 (Class)', desc: '주요 클래스 카드 리스트' },
-        { id: 'drillReels', label: '드릴 릴스 (Drill)', desc: '모바일형 숏폼 영상 섹션' },
-        { id: 'sparringShowcase', label: '스파링 (Sparring)', desc: '실전 영상 섹션' },
-        { id: 'roadmap', label: '로드맵 (Roadmap)', desc: '성장 경로 비쥬얼 섹션' },
-        { id: 'routinePromotion', label: '루틴 (Routine)', desc: '훈련 루틴 기능 소개' },
-        { id: 'testimonials', label: '수강 후기', desc: '사용자 리뷰 섹션' },
-        { id: 'finalCTA', label: '하단 가입 유도', desc: '페이지 최하단 CTA' }
-    ];
-
     return (
         <div className="min-h-screen bg-zinc-950 text-white pb-20">
             <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -148,7 +136,7 @@ export const AdminSiteSettings: React.FC = () => {
                         <button type="button" onClick={() => navigate(-1)} className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl transition-all"><ArrowLeft className="w-5 h-5" /></button>
                         <div>
                             <h1 className="text-3xl font-black tracking-tight">사이트 상세 설정</h1>
-                            <p className="text-zinc-500 text-sm mt-1">강조할 문구는 <span className="text-violet-400 font-bold">{"{괄호}"}</span>로 감싸주세요. <span className="text-zinc-400 font-bold ml-2">Enter</span> 키로 자유롭게 줄을 바꿀 수 있습니다.</p>
+                            <p className="text-zinc-500 text-sm mt-1">사이트 설정 및 후기를 관리합니다.</p>
                         </div>
                     </div>
                     <button
@@ -165,8 +153,6 @@ export const AdminSiteSettings: React.FC = () => {
                 {/* Navigation Tabs */}
                 <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-1.5 mb-12 flex flex-wrap gap-1">
                     {[
-                        { id: 'hero', label: '히어로 (대문)', icon: Globe },
-                        { id: 'content', label: '섹션 문구 수정', icon: Type },
                         { id: 'testimonials', label: '수강 후기 관리', icon: Star },
                         { id: 'business', label: '사업자 정보', icon: Building }
                     ].map(tab => (
@@ -188,133 +174,7 @@ export const AdminSiteSettings: React.FC = () => {
                 {/* Tab Content */}
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-
-                    {/* 2. Hero Tab */}
-                    {activeTab === 'hero' && (
-                        <div className="bg-zinc-900/60 border border-zinc-800/50 rounded-3xl p-8 space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div className="space-y-6">
-                                    <div>
-                                        <label className="block text-sm font-bold text-zinc-400 mb-2">메인 타이틀 (Title)</label>
-                                        <textarea
-                                            rows={2}
-                                            value={settings?.hero.title || ''}
-                                            onChange={(e) => setSettings(prev => prev ? ({ ...prev, hero: { ...prev.hero, title: e.target.value } }) : null)}
-                                            className="w-full px-4 py-3.5 bg-zinc-950 border border-zinc-800 rounded-2xl focus:border-violet-500 outline-none resize-none transition-all font-bold"
-                                            placeholder="유튜브엔 없는..."
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold text-zinc-400 mb-2">서브 타이틀 (Subtitle)</label>
-                                        <textarea
-                                            rows={4}
-                                            value={settings?.hero.subtitle || ''}
-                                            onChange={(e) => setSettings(prev => prev ? ({ ...prev, hero: { ...prev.hero, subtitle: e.target.value } }) : null)}
-                                            className="w-full px-4 py-3.5 bg-zinc-950 border border-zinc-800 rounded-2xl focus:border-violet-500 outline-none resize-none transition-all"
-                                            placeholder="파편화된 영상은 이제 그만..."
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-6">
-                                    <div>
-                                        <label className="block text-sm font-bold text-zinc-400 mb-2">미디어 타입 & URL</label>
-                                        <div className="flex gap-2 mb-3">
-                                            {['image', 'video'].map(type => (
-                                                <button
-                                                    key={type}
-                                                    type="button"
-                                                    onClick={() => setSettings(prev => prev ? ({ ...prev, hero: { ...prev.hero, mediaType: type as any } }) : null)}
-                                                    className={`flex-1 py-3 rounded-xl border text-xs font-black uppercase tracking-widest transition-all ${settings?.hero.mediaType === type ? 'bg-violet-600 border-violet-500 text-white' : 'bg-transparent border-zinc-800 text-zinc-500'}`}
-                                                >
-                                                    {type === 'image' ? 'Image' : 'Video'}
-                                                </button>
-                                            ))}
-                                        </div>
-                                        <input
-                                            type="text"
-                                            value={settings?.hero.mediaUrl || ''}
-                                            onChange={(e) => setSettings(prev => prev ? ({ ...prev, hero: { ...prev.hero, mediaUrl: e.target.value } }) : null)}
-                                            className="w-full px-4 py-3.5 bg-zinc-950 border border-zinc-800 rounded-2xl focus:border-violet-500 outline-none"
-                                            placeholder="https://..."
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 3. Content Tab ( 문구 수정 ) */}
-                    {activeTab === 'content' && (
-                        <div className="space-y-6">
-                            {sectionsList.map((section) => (
-                                <div key={section.id} className="bg-zinc-900/60 border border-zinc-800/50 rounded-3xl p-8 hover:border-zinc-700 transition-all">
-                                    <div className="flex items-center gap-3 mb-6">
-                                        <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-400">
-                                            <ChevronRight className="w-4 h-4" />
-                                        </div>
-                                        <h3 className="text-xl font-black">{section.label} 문구 설정</h3>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-tighter mb-2">섹션 타이틀</label>
-                                            <textarea
-                                                rows={2}
-                                                value={(settings?.sectionContent?.[section.id as keyof typeof settings.sectionContent] as any)?.title || ''}
-                                                onChange={(e) => setSettings(prev => {
-                                                    if (!prev) return null;
-                                                    const content = { ...prev.sectionContent } as any;
-                                                    content[section.id] = {
-                                                        ...(content[section.id] || {}),
-                                                        title: e.target.value
-                                                    };
-                                                    return { ...prev, sectionContent: content };
-                                                })}
-                                                className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl focus:border-violet-500 outline-none resize-none transition-all font-bold"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-tighter mb-2">섹션 설명 (Subtitle)</label>
-                                            <textarea
-                                                rows={3}
-                                                value={(settings?.sectionContent?.[section.id as keyof typeof settings.sectionContent] as any)?.subtitle || ''}
-                                                onChange={(e) => setSettings(prev => {
-                                                    if (!prev) return null;
-                                                    const content = { ...prev.sectionContent } as any;
-                                                    content[section.id] = {
-                                                        ...(content[section.id] || {}),
-                                                        subtitle: e.target.value
-                                                    };
-                                                    return { ...prev, sectionContent: content };
-                                                })}
-                                                className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl focus:border-violet-500 outline-none resize-none transition-all"
-                                            />
-                                        </div>
-                                        {section.id === 'finalCTA' && (
-                                            <div className="md:col-span-2">
-                                                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-tighter mb-2">버튼 텍스트 (CTA Button)</label>
-                                                <input
-                                                    type="text"
-                                                    value={(settings?.sectionContent?.finalCTA as any)?.buttonText || ''}
-                                                    onChange={(e) => setSettings(prev => {
-                                                        if (!prev) return null;
-                                                        const content = { ...prev.sectionContent };
-                                                        content.finalCTA = {
-                                                            ...(content.finalCTA || {}),
-                                                            buttonText: e.target.value
-                                                        } as any;
-                                                        return { ...prev, sectionContent: content };
-                                                    })}
-                                                    className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl focus:border-violet-500 outline-none"
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* 4. Business Tab */}
+                    {/* Business Tab */}
                     {activeTab === 'business' && (
                         <div className="bg-zinc-900/60 border border-zinc-800/50 rounded-3xl p-8 animate-in fade-in duration-300">
                             <h3 className="text-xl font-black mb-8 flex items-center gap-3">
@@ -345,7 +205,7 @@ export const AdminSiteSettings: React.FC = () => {
                         </div>
                     )}
 
-                    {/* 5. Testimonials Tab */}
+                    {/* Testimonials Tab */}
                     {activeTab === 'testimonials' && (
                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                             <AdminTestimonialsTab />
