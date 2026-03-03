@@ -762,3 +762,108 @@ export const checkSparringSaved = (_userId: string, sparringId: string) => hasIn
 export const checkLessonSaved = (_userId: string, lessonId: string) => hasInteraction('lesson', lessonId, 'save');
 export const checkDrillSaved = (_userId: string, drillId: string) => hasInteraction('drill', drillId, 'save');
 
+// ============================================================================
+// Creator New Content Detection
+// ============================================================================
+
+/**
+ * Get set of creator IDs that have unwatched new content for the user
+ * Content is considered "new" if:
+ * 1. Created within last 7 days AND
+ * 2. User hasn't viewed the content AND
+ * 3. User hasn't clicked on the creator profile since the content was created
+ */
+export async function getCreatorsWithNewContent(userId: string | null): Promise<Set<string>> {
+    const creatorsWithNew = new Set<string>();
+
+    if (!userId) return creatorsWithNew;
+
+    try {
+        // 1. Get user's view history (both content and creator profile views)
+        const { data: viewData } = await supabase
+            .from('user_interactions')
+            .select('content_id, content_type, last_interacted_at')
+            .eq('user_id', userId)
+            .eq('interaction_type', 'view');
+
+        // Build maps for content views and creator profile views
+        const viewedContentMap = new Map<string, string>();
+        const creatorLastVisitMap = new Map<string, string>();
+
+        (viewData || []).forEach(v => {
+            if (v.content_type === 'creator') {
+                // Track when user last clicked on creator profile
+                creatorLastVisitMap.set(v.content_id, v.last_interacted_at);
+            } else {
+                viewedContentMap.set(`${v.content_type}:${v.content_id}`, v.last_interacted_at);
+            }
+        });
+
+        // 2. Get all recent content (last 7 days) grouped by creator
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+        // Fetch recent courses
+        const { data: recentCourses } = await supabase
+            .from('courses')
+            .select('id, creator_id, created_at')
+            .gte('created_at', sevenDaysAgo)
+            .eq('published', true);
+
+        // Fetch recent routines
+        const { data: recentRoutines } = await supabase
+            .from('routines')
+            .select('id, creator_id, created_at')
+            .gte('created_at', sevenDaysAgo)
+            .eq('status', 'approved');
+
+        // Fetch recent sparring videos
+        const { data: recentSparring } = await supabase
+            .from('sparring_videos')
+            .select('id, creator_id, created_at')
+            .gte('created_at', sevenDaysAgo)
+            .eq('is_published', true);
+
+        // Helper to check if content should show as new
+        const shouldShowNew = (creatorId: string, contentKey: string, contentCreatedAt: string) => {
+            const contentViewed = viewedContentMap.get(contentKey);
+            const creatorVisited = creatorLastVisitMap.get(creatorId);
+            const contentDate = new Date(contentCreatedAt);
+
+            // If user viewed the content, not new
+            if (contentViewed) return false;
+
+            // If user visited creator profile after content was created, not new
+            if (creatorVisited && new Date(creatorVisited) >= contentDate) return false;
+
+            return true;
+        };
+
+        // 3. Check each recent content
+        (recentCourses || []).forEach(course => {
+            if (!course.creator_id) return;
+            if (shouldShowNew(course.creator_id, `course:${course.id}`, course.created_at)) {
+                creatorsWithNew.add(course.creator_id);
+            }
+        });
+
+        (recentRoutines || []).forEach(routine => {
+            if (!routine.creator_id) return;
+            if (shouldShowNew(routine.creator_id, `routine:${routine.id}`, routine.created_at)) {
+                creatorsWithNew.add(routine.creator_id);
+            }
+        });
+
+        (recentSparring || []).forEach(sparring => {
+            if (!sparring.creator_id) return;
+            if (shouldShowNew(sparring.creator_id, `sparring:${sparring.id}`, sparring.created_at)) {
+                creatorsWithNew.add(sparring.creator_id);
+            }
+        });
+
+        return creatorsWithNew;
+    } catch (error) {
+        console.error('[getCreatorsWithNewContent] Error:', error);
+        return creatorsWithNew;
+    }
+}
+
