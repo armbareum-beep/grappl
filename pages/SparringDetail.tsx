@@ -8,7 +8,8 @@ import {
     getSparringInteractionStatus,
     getSparringVideos,
     recordSparringView,
-    extractVimeoId
+    extractVimeoId,
+    recordWatchTime
 } from '../lib/api';
 import { SparringVideo, Drill } from '../types';
 import { Button } from '../components/Button';
@@ -127,6 +128,37 @@ export const SparringDetail: React.FC = () => {
     const [muted, setMuted] = useState(true);
     const [showLikeAnimation, setShowLikeAnimation] = useState(false);
     const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Watch time tracking
+    const lastTickRef = useRef<number>(0);
+    const accumulatedTimeRef = useRef<number>(0);
+
+    const handleProgress = (seconds: number) => {
+        if (!contextUser || !video) return;
+
+        const now = Date.now();
+        if (lastTickRef.current === 0) {
+            lastTickRef.current = now;
+            return;
+        }
+
+        const elapsed = (now - lastTickRef.current) / 1000;
+        lastTickRef.current = now;
+
+        if (elapsed > 0 && elapsed < 5) {
+            accumulatedTimeRef.current += elapsed;
+        }
+
+        // Record watch time every 10 seconds
+        if (accumulatedTimeRef.current >= 10) {
+            const timeToSend = Math.floor(accumulatedTimeRef.current);
+            accumulatedTimeRef.current -= timeToSend;
+            recordWatchTime(contextUser.id, timeToSend, video.id, undefined);
+        }
+
+        // Update progress bar
+        setProgress(seconds);
+    };
 
     // authLoading 타임아웃: 5초 후에도 authLoading이면 강제로 데이터 로드
     const [authTimedOut, setAuthTimedOut] = useState(false);
@@ -354,7 +386,8 @@ export const SparringDetail: React.FC = () => {
                     showControls={false}
                     fillContainer={true}
                     forceSquareRatio={true}
-                    onProgress={(_s, _d, percent) => {
+                    onProgress={(s, _d, percent) => {
+                        handleProgress(s);
                         if (percent !== undefined) setProgress(percent * 100);
                     }}
                     onDoubleTap={handleLike}

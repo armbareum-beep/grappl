@@ -5737,7 +5737,7 @@ export async function getDailyFreeDrill() {
                 supabase
                     .from('routine_drills')
                     .select('drill_id, drills!inner(*), routines!inner(price)')
-                    // Removed price restriction to allow free content
+                    .gt('routines.price', 0)
                     .neq('drills.vimeo_url', '')
                     .not('drills.vimeo_url', 'like', 'ERROR%')
                     .limit(100),
@@ -5850,12 +5850,13 @@ export async function getDailyFreeLesson() {
 
         // 2. Fallback to deterministic random if no featured or not found
         if (!selectedLesson) {
-            // Only select lessons that are part of courses (similar to drills in routines)
+            // Only select lessons that are part of paid courses (price > 0)
             const { data: lessons, error } = await withTimeout(
                 supabase
                     .from('lessons')
-                    .select('*, courses!inner(id, title, creator_id, published)')
+                    .select('*, courses!inner(id, title, creator_id, published, price)')
                     .not('course_id', 'is', null)
+                    .gt('courses.price', 0)
                     .neq('vimeo_url', '')
                     .not('vimeo_url', 'like', 'ERROR%')
                     .limit(50),
