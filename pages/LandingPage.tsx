@@ -10,9 +10,8 @@ import { InstructorCarousel } from '../components/InstructorCarousel';
 import { RandomSparringShowcase } from '../components/RandomSparringShowcase';
 import { ClassShowcase } from '../components/ClassShowcase';
 import { DrillReelsSection } from '../components/DrillReelsSection';
-import { RoutinePromotionSection } from '../components/landing/RoutinePromotionSection';
-import { CapsuleRoadmapSection } from '../components/landing/CapsuleRoadmapSection';
 import { DailyFreePassCarousel } from '../components/landing/DailyFreePassCarousel';
+import { ReviewStackCards } from '../components/landing/ReviewStackCards';
 import { HighlightedText } from '../components/common/HighlightedText';
 
 import { cn } from '../lib/utils';
@@ -162,12 +161,12 @@ export const LandingPage: React.FC = () => {
 
                 {/* 3. Main Copy */}
                 <h1 className="z-10 text-center text-4xl md:text-7xl font-bold tracking-tight text-white leading-[1.1]">
-                    {siteSettings?.hero?.title ? <HighlightedText text={siteSettings.hero.title} highlightClass="text-transparent bg-clip-text bg-gradient-to-r from-violet-300 via-violet-500 to-violet-600" /> : <>유튜브엔 없는 <br /> <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-300 via-violet-500 to-violet-600">블랙벨트의 진짜 디테일</span></>}
+                    {siteSettings?.hero?.title ? <HighlightedText text={siteSettings.hero.title} highlightClass="text-transparent bg-clip-text bg-gradient-to-r from-violet-300 via-violet-500 to-violet-600" /> : <>당신의 주짓수가 정체된 이유, <br className="hidden md:block" /> <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-300 via-violet-500 to-violet-600">기술이 부족해서가 아닙니다.</span></>}
                 </h1>
 
                 {/* 4. Sub Copy */}
                 <p className="z-10 mt-6 md:mt-8 max-w-[600px] text-center text-zinc-400 text-base md:text-lg leading-relaxed break-keep">
-                    {siteSettings?.hero?.subtitle ? <HighlightedText text={siteSettings.hero.subtitle} highlightClass="text-zinc-200 font-medium" /> : <>파편화된 영상은 이제 그만. <br className="hidden md:block" /> 매트 위에서 실제로 작동하는 <span className="text-zinc-200 font-medium">단 1%의 디테일</span>을 경험하세요.</>}
+                    {siteSettings?.hero?.subtitle ? <HighlightedText text={siteSettings.hero.subtitle} highlightClass="text-zinc-200 font-medium" /> : <>파편화된 유튜브 영상은 실전에서 당신을 배신합니다. <br className="hidden md:block" /> 상위 1% 블랙벨트의 <span className="text-zinc-200 font-medium">'체계'</span>를 이식하십시오.</>}
                 </p>
 
                 {/* 5. CTA Button */}
@@ -210,12 +209,12 @@ export const LandingPage: React.FC = () => {
                             </div>
                         </div>
 
-                        <h2 className="text-5xl md:text-7xl font-black text-zinc-50 mb-6 leading-[1.2] tracking-tight uppercase italic overflow-visible">
-                            {siteSettings?.sectionContent?.dailyFreePass?.title ? <HighlightedText text={siteSettings.sectionContent.dailyFreePass.title} highlightClass="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600" /> : <><span>TODAY'S</span> <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600">FREE PASS</span></>}
+                        <h2 className="text-4xl md:text-6xl font-black text-zinc-50 mb-6 leading-[1.2] tracking-tight overflow-visible">
+                            {siteSettings?.sectionContent?.dailyFreePass?.title ? <HighlightedText text={siteSettings.sectionContent.dailyFreePass.title} highlightClass="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600" /> : <>압도적인 격차, <br className="md:hidden" /><span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600">오늘 단 0원으로 확인하십시오.</span></>}
                         </h2>
 
                         <p className="text-violet-300/80 text-xl font-medium max-w-2xl mx-auto break-keep">
-                            {siteSettings?.sectionContent?.dailyFreePass?.subtitle ? <HighlightedText text={siteSettings.sectionContent.dailyFreePass.subtitle} /> : '매일 프리미엄 콘텐츠가 무료로 공개됩니다.'}
+                            {siteSettings?.sectionContent?.dailyFreePass?.subtitle ? <HighlightedText text={siteSettings.sectionContent.dailyFreePass.subtitle} /> : '가격에 대한 고민은 성장을 늦출 뿐입니다. 매일 업데이트되는 프리미엄 콘텐츠로 그래플레이를 먼저 경험하세요.'}
                         </p>
                     </div>
 
@@ -238,10 +237,10 @@ export const LandingPage: React.FC = () => {
                                     <span className="text-violet-400 text-[10px] font-bold uppercase tracking-[0.2em]">WORLD CLASS INSTRUCTORS</span>
                                 </div>
                                 <h2 className="text-3xl md:text-6xl font-black mb-6 leading-tight text-white">
-                                    {siteSettings?.sectionContent?.instructors?.title ? <HighlightedText text={siteSettings.sectionContent.instructors.title} /> : <>검증되지 않은 기술은 <br /> <span className="text-violet-500">배우지 마세요</span></>}
+                                    {siteSettings?.sectionContent?.instructors?.title ? <HighlightedText text={siteSettings.sectionContent.instructors.title} /> : <>검증되지 않은 기술은 <br /> <span className="text-violet-500">배우지 마세요.</span></>}
                                 </h2>
                                 <p className="text-zinc-400 text-xl max-w-2xl leading-relaxed">
-                                    {siteSettings?.sectionContent?.instructors?.subtitle ? <HighlightedText text={siteSettings.sectionContent.instructors.subtitle} /> : <>IBJJF, ADCC 챔피언부터 전,현직 국가대표까지. <br className="hidden md:block" /> 최고들의 노하우만 담았습니다.</>}
+                                    {siteSettings?.sectionContent?.instructors?.subtitle ? <HighlightedText text={siteSettings.sectionContent.instructors.subtitle} /> : <>ADCC, IBJJF 챔피언부터 국가대표까지. <br className="hidden md:block" /> 우리는 오직 매트 위에서 승리로 증명된 데이터만 수집합니다.</>}
                                 </p>
                             </div>
                             <div className="relative w-full md:w-[320px]">
@@ -263,33 +262,12 @@ export const LandingPage: React.FC = () => {
                                 className="px-10 py-4 bg-transparent border border-zinc-800 text-zinc-400 font-bold rounded-full transition-all hover:border-violet-500 hover:text-violet-400 hover:bg-violet-900/10 hover:shadow-[0_0_20px_rgba(124,58,237,0.2)]"
                                 onClick={() => navigate('/instructors')}
                             >
-                                전체 인스트럭터 보기
+                                인스트럭터 보기
                             </button>
                         </div>
                     </div>
                 </section>
             )}
-
-            {(!siteSettings || siteSettings.sections?.classShowcase !== false) && <ClassShowcase
-                title={siteSettings?.sectionContent?.classShowcase?.title}
-                subtitle={siteSettings?.sectionContent?.classShowcase?.subtitle}
-            />}
-            {(!siteSettings || siteSettings.sections?.drillReels !== false) && <DrillReelsSection
-                title={siteSettings?.sectionContent?.drillReels?.title}
-                subtitle={siteSettings?.sectionContent?.drillReels?.subtitle}
-            />}
-            {(!siteSettings || siteSettings.sections?.sparringShowcase !== false) && <RandomSparringShowcase
-                title={siteSettings?.sectionContent?.sparringShowcase?.title}
-                subtitle={siteSettings?.sectionContent?.sparringShowcase?.subtitle}
-            />}
-            {(!siteSettings || siteSettings.sections?.roadmap !== false) && <CapsuleRoadmapSection
-                title={siteSettings?.sectionContent?.roadmap?.title}
-                subtitle={siteSettings?.sectionContent?.roadmap?.subtitle}
-            />}
-            {(!siteSettings || siteSettings.sections?.routinePromotion !== false) && <RoutinePromotionSection
-                title={siteSettings?.sectionContent?.routinePromotion?.title}
-                subtitle={siteSettings?.sectionContent?.routinePromotion?.subtitle}
-            />}
 
             {
                 (!siteSettings || siteSettings.sections?.testimonials !== false) && (
@@ -303,10 +281,10 @@ export const LandingPage: React.FC = () => {
                                         <span className="text-[10px] font-bold text-violet-400 uppercase tracking-[0.2em]">COMMUNITY REVIEWS</span>
                                     </div>
                                     <h2 className="text-3xl md:text-6xl font-black mb-6 text-zinc-50 leading-tight">
-                                        {siteSettings?.sectionContent?.testimonials?.title || <>매트 위에서 시작된 <br className="md:hidden" /> <span className="text-violet-400">놀라운 변화</span></>}
+                                        {siteSettings?.sectionContent?.testimonials?.title || <>이미 수많은 동행자들이 <br className="md:hidden" /> <span className="text-violet-400">'압도적인 격차'</span>를 증명하고 있습니다.</>}
                                     </h2>
                                     <p className="text-zinc-400 text-xl max-w-2xl mx-auto leading-relaxed break-keep">
-                                        {siteSettings?.sectionContent?.testimonials?.subtitle || <>블랙벨트의 디테일을 경험한 수련생들의 생생한 목소리를 확인하세요.</>}
+                                        {siteSettings?.sectionContent?.testimonials?.subtitle || <>실제 수련생들이 경험한 경이로운 변화에 합류하세요.</>}
                                     </p>
                                     {/* Review Stats */}
                                     {testimonialStats && testimonialStats.totalCount > 0 && (
@@ -323,7 +301,13 @@ export const LandingPage: React.FC = () => {
                                         </div>
                                     )}
                                 </div>
-                                <div className="grid md:grid-cols-3 gap-6 md:gap-8">
+                                {/* Mobile: Stack Cards */}
+                                <div className="md:hidden">
+                                    <ReviewStackCards reviews={testimonials} />
+                                </div>
+
+                                {/* Desktop: Grid */}
+                                <div className="hidden md:grid md:grid-cols-3 gap-8">
                                     {testimonials.map((review, i) => (
                                         <div key={i} className="bg-zinc-900/40 backdrop-blur-xl rounded-2xl border border-zinc-800 p-8 hover:border-violet-500/30 transition-all duration-500 hover:shadow-violet-500/5 hover:-translate-y-2 group">
                                             <div className="flex gap-1 mb-6">
@@ -331,7 +315,7 @@ export const LandingPage: React.FC = () => {
                                                     <Star key={j} className="w-4 h-4 fill-violet-500 text-violet-500" />
                                                 ))}
                                             </div>
-                                            <p className="text-zinc-300 mb-8 leading-relaxed text-base md:text-lg italic group-hover:text-zinc-100 transition-colors">"{review.comment}"</p>
+                                            <p className="text-zinc-300 mb-8 leading-relaxed text-lg italic group-hover:text-zinc-100 transition-colors">"{review.comment}"</p>
                                             <div className="flex items-center gap-4">
                                                 <div className="w-12 h-12 rounded-full bg-violet-600 flex items-center justify-center shrink-0 shadow-lg shadow-violet-500/20 group-hover:scale-110 transition-transform">
                                                     <span className="text-white font-bold text-lg">{review.name[0]}</span>
@@ -344,14 +328,14 @@ export const LandingPage: React.FC = () => {
                                         </div>
                                     ))}
                                 </div>
-                                {/* Write Review CTA */}
+                                {/* View All Reviews CTA */}
                                 <div className="text-center mt-12">
                                     <button
-                                        onClick={() => navigate('/write-review')}
+                                        onClick={() => navigate('/reviews')}
                                         className="inline-flex items-center gap-2 px-8 py-4 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-violet-500/50 text-white rounded-full font-bold transition-all hover:scale-105"
                                     >
                                         <Star className="w-5 h-5 text-violet-400" />
-                                        나도 후기 작성하기
+                                        모든 리뷰 보기
                                     </button>
                                 </div>
                             </div>
@@ -360,6 +344,26 @@ export const LandingPage: React.FC = () => {
                 )
             }
 
+            {/* 커리큘럼, 드릴, 스파링 섹션 */}
+            {(!siteSettings || siteSettings.sections?.classShowcase !== false) && (
+                <ClassShowcase
+                    title={siteSettings?.sectionContent?.classShowcase?.title}
+                    subtitle={siteSettings?.sectionContent?.classShowcase?.subtitle}
+                />
+            )}
+            {(!siteSettings || siteSettings.sections?.drillReels !== false) && (
+                <DrillReelsSection
+                    title={siteSettings?.sectionContent?.drillReels?.title}
+                    subtitle={siteSettings?.sectionContent?.drillReels?.subtitle}
+                />
+            )}
+            {(!siteSettings || siteSettings.sections?.sparring !== false) && (
+                <RandomSparringShowcase
+                    title={siteSettings?.sectionContent?.sparring?.title}
+                    subtitle={siteSettings?.sectionContent?.sparring?.subtitle}
+                />
+            )}
+
             {
                 (!siteSettings || siteSettings.sections?.finalCTA !== false) && (
                     <section className="relative py-32 md:py-48 bg-black flex flex-col items-center justify-center overflow-hidden">
@@ -367,10 +371,10 @@ export const LandingPage: React.FC = () => {
                         <div className="max-w-7xl mx-auto px-4 relative z-10 flex flex-col items-center gap-y-12 text-center">
                             <div className="space-y-6">
                                 <h2 className="text-zinc-50 text-4xl md:text-6xl font-black tracking-tighter leading-tight">
-                                    {siteSettings?.sectionContent?.finalCTA?.title ? <HighlightedText text={siteSettings.sectionContent.finalCTA.title} /> : <>성실함이 성장을 보장하던<br className="md:hidden" /> 시대는 끝났습니다. 차이를 만드세요.</>}
+                                    {siteSettings?.sectionContent?.finalCTA?.title ? <HighlightedText text={siteSettings.sectionContent.finalCTA.title} /> : <>매트 위에서 길을 잃지 마세요. <br className="hidden md:block" />이제 당신이 전장을 지배할 차례입니다.</>}
                                 </h2>
                                 <p className="text-zinc-400 text-lg md:text-xl mt-8 max-w-3xl mx-auto leading-relaxed break-keep">
-                                    {siteSettings?.sectionContent?.finalCTA?.subtitle ? <HighlightedText text={siteSettings.sectionContent.finalCTA.subtitle} /> : <>똑같은 시간 수련하고도 나만 뒤처지는 기분, 단순히 재능 탓일까요?<br className="hidden md:block" /> 전략 없는 땀방울은 가장 느린 성장의 지름길입니다.</>}
+                                    {siteSettings?.sectionContent?.finalCTA?.subtitle ? <HighlightedText text={siteSettings.sectionContent.finalCTA.subtitle} /> : <>더 이상 운에 맡기지 마세요. <br className="hidden md:block" />설계된 움직임이 본능이 되는 순간, 압도적인 격차를 경험하게 됩니다.</>}
                                 </p>
                             </div>
                             <div className="flex flex-col items-center gap-6">
@@ -378,7 +382,7 @@ export const LandingPage: React.FC = () => {
                                     className="relative group bg-zinc-100 text-black rounded-full px-14 py-6 text-xl font-bold shadow-[0_0_50px_rgba(124,58,237,0.4)] hover:bg-violet-600 hover:text-white hover:scale-105 transition-all duration-300 overflow-hidden"
                                     onClick={() => navigate('/pricing')}
                                 >
-                                    <span className="relative z-10">{siteSettings?.sectionContent?.finalCTA?.buttonText || '지금 바로 훈련 시작'}</span>
+                                    <span className="relative z-10">{siteSettings?.sectionContent?.finalCTA?.buttonText || '시스템 구축하기'}</span>
                                     <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/40 to-transparent z-0 w-full h-full skew-x-12"></div>
                                 </button>
                                 <p className="text-zinc-600 text-sm font-medium">

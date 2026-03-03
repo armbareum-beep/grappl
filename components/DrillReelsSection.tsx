@@ -252,10 +252,10 @@ export const DrillReelsSection: React.FC<DrillReelsSectionProps> = ({ title, sub
                         </span>
                     </div>
                     <h2 className="text-zinc-50 text-4xl md:text-5xl font-black tracking-tighter leading-[1.1] mb-6 text-center">
-                        {title ? <HighlightedText text={title} /> : "오늘의 무료 드릴부터,\n언제든지 체험 가능한 무료 기술까지."}
+                        {title ? <HighlightedText text={title} /> : "오늘 스파링의 결과를 바꿀\n60초의 '실전 패치'."}
                     </h2>
                     <p className="text-zinc-400 text-lg max-w-xl mx-auto text-center">
-                        {subtitle ? <HighlightedText text={subtitle} /> : <>따로 결제 없이 지금 바로 체험해보세요. <br /> 상하로 넘겨 60초의 핵심 디테일을 경험하실 수 있습니다.</>}
+                        {subtitle ? <HighlightedText text={subtitle} /> : <>복잡한 설명은 걷어냈습니다. <br /> 매트 위에서 바로 써먹는 챔피언의 디테일을 지금 즉시 체득하세요.</>}
                     </p>
                 </div>
 
@@ -308,7 +308,7 @@ export const DrillReelsSection: React.FC<DrillReelsSectionProps> = ({ title, sub
                         onClick={() => navigate('/library?tab=routines')}
                         className="relative group bg-zinc-100 text-black px-10 py-5 rounded-full font-bold text-lg hover:bg-violet-600 hover:text-white transition-all duration-300 overflow-hidden"
                     >
-                        <span className="relative z-10">루틴 전체 보기</span>
+                        <span className="relative z-10">루틴 전체보기</span>
                         <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-zinc-300/30 to-transparent z-0 w-full h-full skew-x-12"></div>
                     </button>
                     <p className="mt-4 text-zinc-500 text-sm font-medium">
