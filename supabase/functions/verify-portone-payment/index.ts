@@ -186,6 +186,21 @@ Deno.serve(async (req) => {
         const amountValue = paymentDetails.amount.total
         const currencyCode = paymentDetails.currency
 
+        // Idempotency check: Skip if payment already processed
+        const { data: existingPayment } = await supabaseClient
+            .from('payments')
+            .select('id')
+            .eq('portone_payment_id', effectivePaymentId)
+            .single()
+
+        if (existingPayment) {
+            console.log(`Payment ${effectivePaymentId} already processed, skipping duplicate`)
+            return new Response(JSON.stringify({ success: true, duplicate: true }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 200,
+            })
+        }
+
         // 2. Update Database based on mode
         if (mode === 'course') {
             await supabaseClient

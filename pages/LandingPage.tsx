@@ -161,7 +161,7 @@ export const LandingPage: React.FC = () => {
 
                 {/* 3. Main Copy */}
                 <h1 className="z-10 text-center text-4xl md:text-7xl font-bold tracking-tight text-white leading-[1.1]">
-                    {siteSettings?.hero?.title ? <HighlightedText text={siteSettings.hero.title} highlightClass="text-transparent bg-clip-text bg-gradient-to-r from-violet-300 via-violet-500 to-violet-600" /> : <>당신의 주짓수가 정체된 이유, <br className="hidden md:block" /> <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-300 via-violet-500 to-violet-600">기술이 부족해서가 아닙니다.</span></>}
+                    {siteSettings?.hero?.title ? <HighlightedText text={siteSettings.hero.title} highlightClass="text-transparent bg-clip-text bg-gradient-to-r from-violet-300 via-violet-500 to-violet-600" /> : <>당신의 실력이 정체된 이유, <br className="hidden md:block" /> <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-300 via-violet-500 to-violet-600">기술이 부족해서가 아닙니다.</span></>}
                 </h1>
 
                 {/* 4. Sub Copy */}
