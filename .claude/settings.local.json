@@ -82,7 +82,8 @@
       "Bash(gh.exe pr create:*)",
       "Bash(git rebase:*)",
       "Bash(where:*)",
-      "WebFetch(domain:supabase.com)"
+      "WebFetch(domain:supabase.com)",
+      "Bash(gh pr list:*)"
     ]
   }
 }

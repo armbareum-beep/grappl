@@ -133,8 +133,13 @@ export const SparringDetail: React.FC = () => {
     const lastTickRef = useRef<number>(0);
     const accumulatedTimeRef = useRef<number>(0);
 
-    const handleProgress = (seconds: number) => {
-        if (!contextUser || !video) return;
+    const handleProgress = (seconds: number, playing?: boolean) => {
+        // Skip if paused
+        if (playing === false) return;
+
+        if (!contextUser || !video) {
+            return;
+        }
 
         const now = Date.now();
         if (lastTickRef.current === 0) {
@@ -153,11 +158,8 @@ export const SparringDetail: React.FC = () => {
         if (accumulatedTimeRef.current >= 10) {
             const timeToSend = Math.floor(accumulatedTimeRef.current);
             accumulatedTimeRef.current -= timeToSend;
-            recordWatchTime(contextUser.id, timeToSend, video.id, undefined);
+            recordWatchTime(contextUser.id, timeToSend, undefined, undefined, undefined, video.id);
         }
-
-        // Update progress bar
-        setProgress(seconds);
     };
 
     // authLoading 타임아웃: 5초 후에도 authLoading이면 강제로 데이터 로드
@@ -387,7 +389,7 @@ export const SparringDetail: React.FC = () => {
                     fillContainer={true}
                     forceSquareRatio={true}
                     onProgress={(s, _d, percent) => {
-                        handleProgress(s);
+                        handleProgress(s, isPlaying);
                         if (percent !== undefined) setProgress(percent * 100);
                     }}
                     onDoubleTap={handleLike}

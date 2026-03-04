@@ -28,7 +28,7 @@ export const AdminWatchLogs: React.FC = () => {
 
     // Filters
     const [contentTypeFilter, setContentTypeFilter] = useState<'all' | 'lesson' | 'drill' | 'sparring'>('all');
-    const [membershipFilter, setMembershipFilter] = useState<'all' | 'paid' | 'free_trial' | 'free'>('all');
+    const [membershipFilter, setMembershipFilter] = useState<'all' | 'admin' | 'paid' | 'free_trial' | 'free'>('all');
     const [searchTerm, setSearchTerm] = useState('');
 
     const ITEMS_PER_PAGE = 30;
@@ -217,6 +217,7 @@ export const AdminWatchLogs: React.FC = () => {
                                 className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
                             >
                                 <option value="all">전체 회원</option>
+                                <option value="admin">관리자</option>
                                 <option value="paid">유료구독자</option>
                                 <option value="free_trial">무료구독자</option>
                                 <option value="free">무료회원</option>
@@ -275,6 +276,11 @@ export const AdminWatchLogs: React.FC = () => {
                                                 >
                                                     <div className="flex items-center gap-2">
                                                         <span className="font-medium text-white">{log.userName}</span>
+                                                        {log.membershipType === 'admin' && (
+                                                            <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-violet-500/20 text-violet-400 border border-violet-500/30">
+                                                                관리자
+                                                            </span>
+                                                        )}
                                                         {log.membershipType === 'paid' && (
                                                             <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                                                                 유료구독

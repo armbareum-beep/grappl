@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { extractVimeoId } from '../lib/api';
+import { extractVimeoId, recordWatchTime } from '../lib/api';
 import { SparringVideo } from '../types';
 import { Heart, Share2, ChevronLeft, Volume2, VolumeX, Bookmark, Search, PlayCircle, ChevronDown, MoreHorizontal, ArrowUpRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -42,6 +42,11 @@ export const SparringFeed: React.FC<{
     const [sessionProgress, setSessionProgress] = useState<{ [id: string]: number }>({});
     const totalSessionSeconds = Object.values(sessionProgress).reduce((acc, curr) => acc + curr, 0);
 
+    // Watch time tracking refs
+    const lastTickRef = useRef<number>(0);
+    const accumulatedTimeRef = useRef<number>(0);
+    const lastVideoIdRef = useRef<string | null>(null);
+
     const handleProgressUpdate = useCallback((id: string, seconds: number) => {
         const roundedSec = Math.floor(seconds);
         setSessionProgress(prev => {
@@ -51,7 +56,37 @@ export const SparringFeed: React.FC<{
                 [id]: roundedSec
             };
         });
-    }, []);
+
+        // Watch time tracking
+        if (!user) return;
+
+        // Reset tracking when video changes
+        if (lastVideoIdRef.current !== id) {
+            lastVideoIdRef.current = id;
+            lastTickRef.current = 0;
+            accumulatedTimeRef.current = 0;
+        }
+
+        const now = Date.now();
+        if (lastTickRef.current === 0) {
+            lastTickRef.current = now;
+            return;
+        }
+
+        const elapsed = (now - lastTickRef.current) / 1000;
+        lastTickRef.current = now;
+
+        if (elapsed > 0 && elapsed < 5) {
+            accumulatedTimeRef.current += elapsed;
+        }
+
+        // Record watch time every 10 seconds
+        if (accumulatedTimeRef.current >= 10) {
+            const timeToSend = Math.floor(accumulatedTimeRef.current);
+            accumulatedTimeRef.current -= timeToSend;
+            recordWatchTime(user.id, timeToSend, undefined, undefined, undefined, id);
+        }
+    }, [user]);
 
     // Reset progress when switching videos - Handled internally in VideoItem
 
