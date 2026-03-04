@@ -94,8 +94,8 @@ export const RevenueAnalyticsTab: React.FC = () => {
     };
 
     const handlePayoutRequest = () => {
-        if (availableBalance < 10000) {
-            toastError('최소 정산 신청 금액은 10,000원입니다.');
+        if (availableBalance < 100000) {
+            toastError('최소 출금 신청 금액은 100,000원입니다.');
             return;
         }
         setShowPayoutConfirm(true);

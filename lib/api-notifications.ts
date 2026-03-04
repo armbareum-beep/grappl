@@ -15,6 +15,8 @@ export type NotificationType =
     | 'settlement_completed'
     | 'views_milestone'
     | 'subscribers_milestone'
+    | 'payout_request'
+    | 'support_reply'
     // Existing types fallback
     | 'info' | 'success' | 'warning' | 'error';
 

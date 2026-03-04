@@ -1557,6 +1557,32 @@ export async function createSupportTicket(ticketData: {
     return { error };
 }
 
+export interface UserSupportTicket {
+    id: string;
+    subject: string;
+    message: string;
+    category: string;
+    status: 'open' | 'in_progress' | 'resolved';
+    admin_response: string | null;
+    created_at: string;
+    responded_at: string | null;
+}
+
+export async function getUserSupportTickets(userId: string): Promise<UserSupportTicket[]> {
+    const { data, error } = await supabase
+        .from('support_tickets')
+        .select('id, subject, message, category, status, admin_response, created_at, responded_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching user support tickets:', error);
+        return [];
+    }
+
+    return data || [];
+}
+
 
 export async function getPublicLessons(limit: number = 50) {
     const { data, error } = await supabase
@@ -1999,6 +2025,38 @@ export async function getCreatorBalance(creatorId: string): Promise<number> {
  */
 export async function submitPayout(amount: number) {
     const { data, error } = await supabase.rpc('submit_payout_request', { p_amount: amount });
+
+    if (!error) {
+        // Notify Admins
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            const { data: creator } = await supabase
+                .from('creators')
+                .select('name')
+                .eq('id', user?.id)
+                .single();
+
+            const { data: admins } = await supabase
+                .from('users')
+                .select('id')
+                .eq('is_admin', true);
+
+            if (admins) {
+                await Promise.all(admins.map(admin =>
+                    createNotify(
+                        admin.id,
+                        'payout_request',
+                        '새로운 출금 신청',
+                        `${creator?.name || '크리에이터'}님이 ₩${amount.toLocaleString()} 출금을 신청했습니다.`,
+                        '/admin/payouts'
+                    )
+                ));
+            }
+        } catch (notifyError) {
+            console.error('Failed to notify admins:', notifyError);
+        }
+    }
+
     return { data, error };
 }
 

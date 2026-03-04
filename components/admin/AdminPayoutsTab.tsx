@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Copy, Building, User, Clock, Download, RefreshCw, MinusCircle, Plus, Trash2, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
+import { Copy, Building, User, Clock, Download, RefreshCw, MinusCircle, Plus, Trash2, TrendingUp, TrendingDown, Wallet, Banknote, CheckCircle, XCircle } from 'lucide-react';
 import { getCreatorPayoutsAdmin } from '../../lib/api';
-import { getAdminSettlements, exportSettlementsToCSV, getRevenueLedger, addRefundRecord, RevenueLedgerRecord, processRefund, getRecentPayments, deleteRefundRecords, getCreatorWatchTimeStats, CreatorWatchTimeStats, getPlatformFinancials, PlatformFinancials } from '../../lib/api-admin';
+import { getAdminSettlements, exportSettlementsToCSV, getRevenueLedger, addRefundRecord, RevenueLedgerRecord, processRefund, getRecentPayments, deleteRefundRecords, getCreatorWatchTimeStats, CreatorWatchTimeStats, getPlatformFinancials, PlatformFinancials, getPayoutRequestsAdmin, updatePayoutRequestStatus, PayoutRequestAdmin } from '../../lib/api-admin';
 import { useToast } from '../../contexts/ToastContext';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { Button } from '../Button';
@@ -28,9 +28,13 @@ export const AdminPayoutsTab: React.FC = () => {
     const [loading, setLoading] = useState(true);
 
     const [settlements, setSettlements] = useState<any[]>([]);
-    const [viewMode, setViewMode] = useState<'info' | 'settlement' | 'processing' | 'revenue' | 'finance'>('processing');
+    const [viewMode, setViewMode] = useState<'info' | 'settlement' | 'processing' | 'revenue' | 'finance' | 'withdrawals'>('processing');
     const [payouts, setPayouts] = useState<any[]>([]);
     const [financials, setFinancials] = useState<PlatformFinancials | null>(null);
+
+    // Payout Requests (출금 신청)
+    const [payoutRequests, setPayoutRequests] = useState<PayoutRequestAdmin[]>([]);
+    const [processingRequest, setProcessingRequest] = useState<string | null>(null);
 
     // Revenue Ledger State
     const [revenueLedger, setRevenueLedger] = useState<RevenueLedgerRecord[]>([]);
@@ -55,6 +59,8 @@ export const AdminPayoutsTab: React.FC = () => {
 
     useEffect(() => {
         loadData();
+        // Load payout requests count for badge
+        getPayoutRequestsAdmin().then(setPayoutRequests);
     }, []);
 
     useEffect(() => {
@@ -64,8 +70,28 @@ export const AdminPayoutsTab: React.FC = () => {
             loadRevenueLedger();
         } else if (viewMode === 'finance') {
             loadFinancials();
+        } else if (viewMode === 'withdrawals') {
+            loadPayoutRequests();
         }
     }, [viewMode, selectedYear, selectedMonth]);
+
+    const loadPayoutRequests = async () => {
+        const data = await getPayoutRequestsAdmin();
+        setPayoutRequests(data);
+    };
+
+    const handlePayoutRequestAction = async (requestId: string, action: 'completed' | 'rejected') => {
+        setProcessingRequest(requestId);
+        const result = await updatePayoutRequestStatus(requestId, action);
+        setProcessingRequest(null);
+
+        if (result.success) {
+            success(action === 'completed' ? '출금 완료 처리되었습니다' : '출금 거절 처리되었습니다');
+            loadPayoutRequests();
+        } else {
+            toastError(result.error || '처리 실패');
+        }
+    };
 
     const loadFinancials = async () => {
         const data = await getPlatformFinancials(selectedYear, selectedMonth + 1);
@@ -166,8 +192,10 @@ export const AdminPayoutsTab: React.FC = () => {
                 setCalculating(false);
 
                 if (error) {
-                    toastError("Calculation failed");
+                    console.error('Calculation error:', error);
+                    toastError(`계산 실패: ${error.message || error.code || JSON.stringify(error)}`);
                 } else {
+                    success('정산 계산 완료');
                     loadPayouts();
                 }
                 setConfirmModal(prev => ({...prev, isOpen: false}));
@@ -239,6 +267,17 @@ export const AdminPayoutsTab: React.FC = () => {
                             className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${viewMode === 'finance' ? 'bg-emerald-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.2)]' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'}`}
                         >
                             플랫폼 재무
+                        </button>
+                        <button
+                            onClick={() => setViewMode('withdrawals')}
+                            className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${viewMode === 'withdrawals' ? 'bg-amber-600 text-white shadow-[0_0_15px_rgba(245,158,11,0.2)]' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'}`}
+                        >
+                            출금 신청
+                            {payoutRequests.filter(r => r.status === 'pending').length > 0 && (
+                                <span className="ml-2 px-1.5 py-0.5 bg-red-500 text-white text-[10px] rounded-full">
+                                    {payoutRequests.filter(r => r.status === 'pending').length}
+                                </span>
+                            )}
                         </button>
                     </div>
                 </div>
@@ -777,6 +816,107 @@ export const AdminPayoutsTab: React.FC = () => {
                         <p className="text-xs text-zinc-500">
                             <strong className="text-zinc-400">계산 방식:</strong> 플랫폼 수익 = 구독수익의 20% + 상품판매 수수료(20%) - 환불금액
                         </p>
+                    </div>
+                </div>
+            )}
+
+            {/* Withdrawal Requests (출금 신청) */}
+            {viewMode === 'withdrawals' && (
+                <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                <Banknote className="w-5 h-5 text-amber-400" />
+                                출금 신청 내역
+                            </h3>
+                            <p className="text-sm text-zinc-500 mt-1">
+                                대기 중: {payoutRequests.filter(r => r.status === 'pending').length}건
+                            </p>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={loadPayoutRequests} className="border-zinc-700">
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                            새로고침
+                        </Button>
+                    </div>
+
+                    <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800/50 overflow-hidden backdrop-blur-xl">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="bg-zinc-900/50 border-b border-zinc-800">
+                                    <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 uppercase">신청일</th>
+                                    <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 uppercase">크리에이터</th>
+                                    <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 uppercase">계좌 정보</th>
+                                    <th className="px-6 py-4 text-right text-xs font-bold text-zinc-500 uppercase">출금 금액</th>
+                                    <th className="px-6 py-4 text-center text-xs font-bold text-zinc-500 uppercase">상태</th>
+                                    <th className="px-6 py-4 text-right text-xs font-bold text-zinc-500 uppercase">작업</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-800/50">
+                                {payoutRequests.length === 0 ? (
+                                    <tr><td colSpan={6} className="px-6 py-12 text-center text-zinc-500">출금 신청 내역이 없습니다.</td></tr>
+                                ) : (
+                                    payoutRequests.map(req => (
+                                        <tr key={req.id} className={req.status === 'pending' ? 'bg-amber-500/5' : ''}>
+                                            <td className="px-6 py-4 text-sm text-zinc-400">
+                                                {new Date(req.requested_at).toLocaleDateString('ko-KR')}
+                                                <div className="text-xs text-zinc-600">
+                                                    {new Date(req.requested_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="font-bold text-white">{req.creator?.name || '-'}</div>
+                                                <div className="text-xs text-zinc-500">{req.creator?.email}</div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="text-sm text-zinc-300">{req.bank_name}</div>
+                                                <div className="text-xs text-zinc-500 font-mono">{req.account_number}</div>
+                                                <div className="text-xs text-zinc-500">{req.account_holder}</div>
+                                            </td>
+                                            <td className="px-6 py-4 text-right font-bold text-emerald-400">
+                                                ₩{req.amount.toLocaleString()}
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className={`px-2 py-1 rounded-md text-xs font-bold uppercase ${
+                                                    req.status === 'pending' ? 'bg-amber-500/10 text-amber-400' :
+                                                    req.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400' :
+                                                    'bg-rose-500/10 text-rose-400'
+                                                }`}>
+                                                    {req.status === 'pending' ? '대기중' :
+                                                     req.status === 'completed' ? '완료' : '거절'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                {req.status === 'pending' && (
+                                                    <div className="flex gap-2 justify-end">
+                                                        <button
+                                                            onClick={() => handlePayoutRequestAction(req.id, 'completed')}
+                                                            disabled={processingRequest === req.id}
+                                                            className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-50"
+                                                        >
+                                                            <CheckCircle className="w-3.5 h-3.5" />
+                                                            완료
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handlePayoutRequestAction(req.id, 'rejected')}
+                                                            disabled={processingRequest === req.id}
+                                                            className="flex items-center gap-1 px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 text-xs font-bold rounded-lg transition-colors disabled:opacity-50"
+                                                        >
+                                                            <XCircle className="w-3.5 h-3.5" />
+                                                            거절
+                                                        </button>
+                                                    </div>
+                                                )}
+                                                {req.status !== 'pending' && req.processed_at && (
+                                                    <div className="text-xs text-zinc-500">
+                                                        {new Date(req.processed_at).toLocaleDateString('ko-KR')}
+                                                    </div>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             )}

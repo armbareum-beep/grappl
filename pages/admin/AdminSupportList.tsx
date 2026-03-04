@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getSupportTickets, respondToTicket } from '../../lib/api-admin';
-import { ArrowLeft, MessageSquare, Clock, CheckCircle2, Send, Trash2 } from 'lucide-react';
+import { getSupportTickets, respondToTicket, resendTicketNotification } from '../../lib/api-admin';
+import { ArrowLeft, MessageSquare, Clock, CheckCircle2, Send, Trash2, Bell } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 
 export const AdminSupportList: React.FC = () => {
@@ -41,6 +41,21 @@ export const AdminSupportList: React.FC = () => {
         } catch (error) {
             console.error('Error responding to ticket:', error);
             toastError('답변 전송에 실패했습니다.');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleResendNotification = async () => {
+        if (!selectedTicket) return;
+        setSubmitting(true);
+        try {
+            const { error } = await resendTicketNotification(selectedTicket.id);
+            if (error) throw error;
+            success('알림이 재전송되었습니다.');
+        } catch (error: any) {
+            console.error('Error resending notification:', error);
+            toastError(error.message || '알림 재전송에 실패했습니다.');
         } finally {
             setSubmitting(false);
         }
@@ -122,10 +137,20 @@ export const AdminSupportList: React.FC = () => {
 
                                 {selectedTicket.admin_response && (
                                     <div className="space-y-4">
-                                        <h4 className="text-xs font-black uppercase tracking-widest text-violet-400 flex items-center gap-2">
-                                            <CheckCircle2 className="w-4 h-4" />
-                                            Admin Response
-                                        </h4>
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="text-xs font-black uppercase tracking-widest text-violet-400 flex items-center gap-2">
+                                                <CheckCircle2 className="w-4 h-4" />
+                                                Admin Response
+                                            </h4>
+                                            <button
+                                                onClick={handleResendNotification}
+                                                disabled={submitting}
+                                                className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 rounded-lg text-xs font-bold transition-all disabled:opacity-50"
+                                            >
+                                                <Bell className="w-3 h-3" />
+                                                알림 재전송
+                                            </button>
+                                        </div>
                                         <div className="bg-violet-500/5 border border-violet-500/20 rounded-2xl p-6 text-zinc-300 leading-relaxed whitespace-pre-wrap">
                                             {selectedTicket.admin_response}
                                         </div>
