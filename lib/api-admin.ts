@@ -1414,11 +1414,12 @@ export async function getUserActivityStats(userId: string) {
 // ==================== User Watch History (For Refund Verification) ====================
 
 export interface UserWatchHistoryItem {
-    lessonId: string;
-    lessonTitle: string;
-    lessonNumber: number;
-    courseId: string;
-    courseTitle: string;
+    contentId: string;
+    contentType: 'lesson' | 'drill' | 'sparring';
+    contentTitle: string;
+    lessonNumber?: number;
+    courseId?: string;
+    courseTitle?: string;
     creatorName: string;
     thumbnailUrl: string;
     progress: number;
@@ -1432,6 +1433,8 @@ export interface UserWatchHistorySummary {
     userName: string;
     userEmail: string;
     totalLessonsWatched: number;
+    totalDrillsWatched: number;
+    totalSparringWatched: number;
     totalWatchTimeMinutes: number;
     watchHistory: UserWatchHistoryItem[];
 }
@@ -1450,51 +1453,145 @@ export async function getUserWatchHistory(userId: string): Promise<UserWatchHist
             return null;
         }
 
-        // 2. Fetch lesson progress with lesson and course details
-        const { data: progressData, error: progressError } = await supabase
-            .from('lesson_progress')
-            .select(`
-                *,
-                lesson:lessons(
-                    id,
-                    title,
-                    thumbnail_url,
-                    duration_minutes,
-                    lesson_number,
-                    course_id,
-                    course:courses(
-                        id,
-                        title,
-                        creator:creators(name)
-                    )
-                )
-            `)
+        // 2. Fetch all watch logs for this user
+        const { data: watchLogs, error: watchError } = await supabase
+            .from('video_watch_logs')
+            .select('lesson_id, drill_id, sparring_video_id, watch_seconds, date, updated_at')
             .eq('user_id', userId)
             .order('updated_at', { ascending: false });
 
-        if (progressError) {
-            console.error('Error fetching watch history:', progressError);
+        if (watchError) {
+            console.error('Error fetching watch logs:', watchError);
             return null;
         }
 
-        // 3. Transform data
-        const watchHistory: UserWatchHistoryItem[] = (progressData || [])
-            .filter((item: any) => item.lesson) // Filter out deleted lessons
-            .map((item: any) => ({
-                lessonId: item.lesson_id,
-                lessonTitle: item.lesson?.title || 'Unknown',
-                lessonNumber: item.lesson?.lesson_number || 0,
-                courseId: item.lesson?.course_id || '',
-                courseTitle: item.lesson?.course?.title || 'Unknown',
-                creatorName: item.lesson?.course?.creator?.name || 'Unknown',
-                thumbnailUrl: item.lesson?.thumbnail_url || '',
-                progress: item.progress || 0,
-                watchedSeconds: item.watched_seconds || 0,
-                durationMinutes: item.lesson?.duration_minutes || 0,
-                lastWatched: item.updated_at
-            }));
+        // 3. Get unique IDs for each content type
+        const lessonIds = [...new Set((watchLogs || []).map(l => l.lesson_id).filter(Boolean))];
+        const drillIds = [...new Set((watchLogs || []).map(l => l.drill_id).filter(Boolean))];
+        const sparringIds = [...new Set((watchLogs || []).map(l => l.sparring_video_id).filter(Boolean))];
 
-        // 4. Calculate totals
+        // 4. Fetch content details
+        const [lessonsRes, drillsRes, sparringRes] = await Promise.all([
+            lessonIds.length > 0
+                ? supabase.from('lessons').select('id, title, thumbnail_url, duration_minutes, lesson_number, course_id').in('id', lessonIds)
+                : { data: [] },
+            drillIds.length > 0
+                ? supabase.from('drills').select('id, title, thumbnail_url, duration, creator_id').in('id', drillIds)
+                : { data: [] },
+            sparringIds.length > 0
+                ? supabase.from('sparring_videos').select('id, title, thumbnail_url, duration, creator_id').in('id', sparringIds)
+                : { data: [] }
+        ]);
+
+        // 5. Fetch course and creator info
+        const courseIds = [...new Set((lessonsRes.data || []).map((l: any) => l.course_id).filter(Boolean))];
+        const creatorIds = [...new Set([
+            ...(drillsRes.data || []).map((d: any) => d.creator_id),
+            ...(sparringRes.data || []).map((s: any) => s.creator_id)
+        ].filter(Boolean))];
+
+        const [coursesRes, creatorsRes] = await Promise.all([
+            courseIds.length > 0
+                ? supabase.from('courses').select('id, title, creator_id').in('id', courseIds)
+                : { data: [] },
+            creatorIds.length > 0
+                ? supabase.from('creators').select('id, name').in('id', creatorIds)
+                : { data: [] }
+        ]);
+
+        // Fetch course creators
+        const courseCreatorIds = [...new Set((coursesRes.data || []).map((c: any) => c.creator_id).filter(Boolean))];
+        const { data: courseCreatorsData } = courseCreatorIds.length > 0
+            ? await supabase.from('creators').select('id, name').in('id', courseCreatorIds)
+            : { data: [] };
+
+        // Build maps
+        const lessonsMap = new Map((lessonsRes.data || []).map((l: any) => [l.id, l]));
+        const drillsMap = new Map((drillsRes.data || []).map((d: any) => [d.id, d]));
+        const sparringMap = new Map((sparringRes.data || []).map((s: any) => [s.id, s]));
+        const coursesMap = new Map((coursesRes.data || []).map((c: any) => [c.id, c]));
+        const creatorsMap = new Map([
+            ...(creatorsRes.data || []).map((c: any) => [c.id, c.name] as [string, string]),
+            ...(courseCreatorsData || []).map((c: any) => [c.id, c.name] as [string, string])
+        ]);
+
+        // 6. Aggregate watch time by content
+        const contentWatchTime = new Map<string, { seconds: number; lastWatched: string }>();
+        (watchLogs || []).forEach((log: any) => {
+            const key = log.lesson_id || log.drill_id || log.sparring_video_id;
+            if (!key) return;
+            const existing = contentWatchTime.get(key);
+            if (existing) {
+                existing.seconds += log.watch_seconds || 0;
+                if (log.updated_at > existing.lastWatched) {
+                    existing.lastWatched = log.updated_at;
+                }
+            } else {
+                contentWatchTime.set(key, { seconds: log.watch_seconds || 0, lastWatched: log.updated_at });
+            }
+        });
+
+        // 7. Transform to watch history items
+        const watchHistory: UserWatchHistoryItem[] = [];
+
+        contentWatchTime.forEach((data, contentId) => {
+            const lesson = lessonsMap.get(contentId);
+            const drill = drillsMap.get(contentId);
+            const sparring = sparringMap.get(contentId);
+
+            if (lesson) {
+                const course = coursesMap.get(lesson.course_id);
+                const creatorName = course?.creator_id ? creatorsMap.get(course.creator_id) || 'Unknown' : 'Unknown';
+                const durationSec = (lesson.duration_minutes || 0) * 60;
+                watchHistory.push({
+                    contentId,
+                    contentType: 'lesson',
+                    contentTitle: lesson.title || 'Unknown',
+                    lessonNumber: lesson.lesson_number,
+                    courseId: lesson.course_id,
+                    courseTitle: course?.title || '',
+                    creatorName,
+                    thumbnailUrl: lesson.thumbnail_url || '',
+                    progress: durationSec > 0 ? Math.min(100, Math.round((data.seconds / durationSec) * 100)) : 0,
+                    watchedSeconds: data.seconds,
+                    durationMinutes: lesson.duration_minutes || 0,
+                    lastWatched: data.lastWatched
+                });
+            } else if (drill) {
+                const creatorName = drill.creator_id ? creatorsMap.get(drill.creator_id) || 'Unknown' : 'Unknown';
+                const durationSec = drill.duration || 0;
+                watchHistory.push({
+                    contentId,
+                    contentType: 'drill',
+                    contentTitle: drill.title || 'Unknown',
+                    creatorName,
+                    thumbnailUrl: drill.thumbnail_url || '',
+                    progress: durationSec > 0 ? Math.min(100, Math.round((data.seconds / durationSec) * 100)) : 0,
+                    watchedSeconds: data.seconds,
+                    durationMinutes: Math.round((drill.duration || 0) / 60),
+                    lastWatched: data.lastWatched
+                });
+            } else if (sparring) {
+                const creatorName = sparring.creator_id ? creatorsMap.get(sparring.creator_id) || 'Unknown' : 'Unknown';
+                const durationSec = sparring.duration || 0;
+                watchHistory.push({
+                    contentId,
+                    contentType: 'sparring',
+                    contentTitle: sparring.title || 'Unknown',
+                    creatorName,
+                    thumbnailUrl: sparring.thumbnail_url || '',
+                    progress: durationSec > 0 ? Math.min(100, Math.round((data.seconds / durationSec) * 100)) : 0,
+                    watchedSeconds: data.seconds,
+                    durationMinutes: Math.round((sparring.duration || 0) / 60),
+                    lastWatched: data.lastWatched
+                });
+            }
+        });
+
+        // Sort by last watched
+        watchHistory.sort((a, b) => new Date(b.lastWatched).getTime() - new Date(a.lastWatched).getTime());
+
+        // 8. Calculate totals
         const totalWatchTimeMinutes = Math.round(
             watchHistory.reduce((acc, item) => acc + item.watchedSeconds, 0) / 60
         );
@@ -1503,7 +1600,9 @@ export async function getUserWatchHistory(userId: string): Promise<UserWatchHist
             userId: userData.id,
             userName: userData.name || 'Unknown',
             userEmail: userData.email || '',
-            totalLessonsWatched: watchHistory.filter(h => h.progress > 0).length,
+            totalLessonsWatched: watchHistory.filter(h => h.contentType === 'lesson' && h.progress > 0).length,
+            totalDrillsWatched: watchHistory.filter(h => h.contentType === 'drill' && h.progress > 0).length,
+            totalSparringWatched: watchHistory.filter(h => h.contentType === 'sparring' && h.progress > 0).length,
             totalWatchTimeMinutes,
             watchHistory
         };

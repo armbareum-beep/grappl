@@ -74,8 +74,10 @@ export const AdminUserDetail: React.FC = () => {
                             {watchHistory && (
                                 <>
                                     <div className="flex justify-between items-center py-2 border-b border-zinc-800">
-                                        <span className="text-zinc-500 font-bold text-xs uppercase">Lessons Watched</span>
-                                        <span className="text-cyan-400 font-bold">{watchHistory.totalLessonsWatched}</span>
+                                        <span className="text-zinc-500 font-bold text-xs uppercase">Content Watched</span>
+                                        <span className="text-cyan-400 font-bold">
+                                            {watchHistory.totalLessonsWatched + watchHistory.totalDrillsWatched + watchHistory.totalSparringWatched}개
+                                        </span>
                                     </div>
                                     <div className="flex justify-between items-center py-2 border-b border-zinc-800">
                                         <span className="text-zinc-500 font-bold text-xs uppercase">Total Watch Time</span>
@@ -193,12 +195,18 @@ export const AdminUserDetail: React.FC = () => {
                                 시청 기록 상세
                             </h3>
                             {watchHistory && (
-                                <div className="flex items-center gap-4 text-sm">
+                                <div className="flex items-center gap-4 text-sm flex-wrap">
                                     <span className="text-zinc-400">
-                                        총 <span className="text-cyan-400 font-bold">{watchHistory.totalLessonsWatched}</span>개 레슨 시청
+                                        레슨 <span className="text-cyan-400 font-bold">{watchHistory.totalLessonsWatched}</span>개
                                     </span>
                                     <span className="text-zinc-400">
-                                        총 <span className="text-cyan-400 font-bold">{watchHistory.totalWatchTimeMinutes}</span>분
+                                        드릴 <span className="text-yellow-400 font-bold">{watchHistory.totalDrillsWatched}</span>개
+                                    </span>
+                                    <span className="text-zinc-400">
+                                        스파링 <span className="text-violet-400 font-bold">{watchHistory.totalSparringWatched}</span>개
+                                    </span>
+                                    <span className="text-zinc-400">
+                                        총 <span className="text-emerald-400 font-bold">{watchHistory.totalWatchTimeMinutes}</span>분
                                     </span>
                                 </div>
                             )}
@@ -229,18 +237,26 @@ export const AdminUserDetail: React.FC = () => {
                             <div className="space-y-3 max-h-[600px] overflow-y-auto">
                                 {watchHistory.watchHistory.map((item, index) => (
                                     <div
-                                        key={`${item.lessonId}-${index}`}
+                                        key={`${item.contentId}-${index}`}
                                         className="flex gap-4 bg-zinc-950/50 p-4 rounded-2xl border border-zinc-800/50 hover:border-zinc-700 transition-colors"
                                     >
                                         {/* Thumbnail */}
                                         <div className="relative w-32 aspect-video flex-shrink-0 bg-zinc-800 rounded-lg overflow-hidden">
                                             {item.thumbnailUrl ? (
-                                                <img src={item.thumbnailUrl} alt={item.lessonTitle} className="w-full h-full object-cover" />
+                                                <img src={item.thumbnailUrl} alt={item.contentTitle} className="w-full h-full object-cover" />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center text-zinc-600">
                                                     <Play className="w-6 h-6" />
                                                 </div>
                                             )}
+                                            {/* Content Type Badge */}
+                                            <div className={`absolute top-1 left-1 px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                                item.contentType === 'lesson' ? 'bg-cyan-500/80 text-white' :
+                                                item.contentType === 'drill' ? 'bg-yellow-500/80 text-black' :
+                                                'bg-violet-500/80 text-white'
+                                            }`}>
+                                                {item.contentType === 'lesson' ? '레슨' : item.contentType === 'drill' ? '드릴' : '스파링'}
+                                            </div>
                                             {/* Progress Bar */}
                                             <div className="absolute bottom-0 left-0 w-full h-1 bg-zinc-700">
                                                 <div
@@ -255,10 +271,10 @@ export const AdminUserDetail: React.FC = () => {
                                             <div className="flex items-start justify-between gap-4">
                                                 <div>
                                                     <h4 className="text-white font-bold text-sm line-clamp-1">
-                                                        {item.lessonNumber}. {item.lessonTitle}
+                                                        {item.lessonNumber ? `${item.lessonNumber}. ` : ''}{item.contentTitle}
                                                     </h4>
                                                     <p className="text-zinc-500 text-xs mt-0.5">
-                                                        {item.courseTitle} • {item.creatorName}
+                                                        {item.courseTitle ? `${item.courseTitle} • ` : ''}{item.creatorName}
                                                     </p>
                                                 </div>
                                                 {/* Progress Badge */}
