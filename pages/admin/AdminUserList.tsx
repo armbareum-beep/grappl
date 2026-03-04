@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getAllUsersAdmin, promoteToCreator, grantComplimentarySubscription, extendSubscriptionComplimentary, revokeComplimentarySubscription, clearComplimentaryPeriod } from '../../lib/api';
-import { User, Search, Shield, UserCheck, ArrowLeft, Gift, X, Calendar, Plus } from 'lucide-react';
+import { registerManualPayment } from '../../lib/api-admin';
+import { User, Search, Shield, UserCheck, ArrowLeft, Gift, X, Calendar, Plus, DollarSign, CreditCard } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../contexts/ToastContext';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
@@ -33,6 +34,17 @@ export const AdminUserList: React.FC = () => {
     const [subscriptionEndDate, setSubscriptionEndDate] = useState('');
     const [subscriptionMode, setSubscriptionMode] = useState<'full' | 'extend'>('full');
     const [confirmModal, setConfirmModal] = useState<{isOpen: boolean; action: () => void; title: string; message: string}>({isOpen: false, action: () => {}, title: '', message: ''});
+
+    // Manual Payment Modal
+    const [showManualPaymentModal, setShowManualPaymentModal] = useState(false);
+    const [manualPaymentUser, setManualPaymentUser] = useState<AdminUser | null>(null);
+    const [paymentAmount, setPaymentAmount] = useState('');
+    const [paymentCurrency, setPaymentCurrency] = useState<'USD' | 'KRW'>('KRW');
+    const [paymentMethod, setPaymentMethod] = useState<'cash' | 'bank_transfer' | 'other'>('cash');
+    const [subscriptionType, setSubscriptionType] = useState<'monthly' | 'yearly'>('monthly');
+    const [paymentStartDate, setPaymentStartDate] = useState('');
+    const [paymentEndDate, setPaymentEndDate] = useState('');
+    const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
     useEffect(() => {
         fetchUsers();
@@ -198,6 +210,86 @@ export const AdminUserList: React.FC = () => {
         });
     };
 
+    const handleOpenManualPaymentModal = (user: AdminUser) => {
+        setManualPaymentUser(user);
+        setPaymentAmount('');
+        setPaymentCurrency('KRW');
+        setPaymentMethod('cash');
+        setSubscriptionType('monthly');
+
+        const today = new Date();
+        setPaymentStartDate(today.toISOString().split('T')[0]);
+
+        const defaultEndDate = new Date();
+        defaultEndDate.setMonth(defaultEndDate.getMonth() + 1);
+        setPaymentEndDate(defaultEndDate.toISOString().split('T')[0]);
+
+        setShowManualPaymentModal(true);
+    };
+
+    const handleSubscriptionTypeChange = (type: 'monthly' | 'yearly') => {
+        setSubscriptionType(type);
+        // 종료일 자동 계산
+        if (paymentStartDate) {
+            const start = new Date(paymentStartDate);
+            const end = new Date(start);
+            if (type === 'yearly') {
+                end.setFullYear(end.getFullYear() + 1);
+            } else {
+                end.setMonth(end.getMonth() + 1);
+            }
+            setPaymentEndDate(end.toISOString().split('T')[0]);
+        }
+    };
+
+    const handleRegisterManualPayment = async () => {
+        if (!manualPaymentUser || !paymentAmount || !paymentStartDate || !paymentEndDate) {
+            toastError('모든 필드를 입력해주세요.');
+            return;
+        }
+
+        const amount = parseFloat(paymentAmount);
+        if (isNaN(amount) || amount <= 0) {
+            toastError('올바른 금액을 입력해주세요.');
+            return;
+        }
+
+        setIsProcessingPayment(true);
+        try {
+            const result = await registerManualPayment({
+                userId: manualPaymentUser.id,
+                amount,
+                currency: paymentCurrency,
+                paymentMethod,
+                subscriptionType,
+                subscriptionStartDate: paymentStartDate,
+                subscriptionEndDate: paymentEndDate
+            });
+
+            if (result.error) throw new Error(result.error);
+
+            // Update local state
+            setUsers(users.map(u =>
+                u.id === manualPaymentUser.id ? {
+                    ...u,
+                    is_subscriber: true,
+                    is_complimentary_subscription: false,
+                    subscription_tier: 'premium',
+                    subscription_end_date: paymentEndDate
+                } : u
+            ));
+
+            success(`${manualPaymentUser.name}님의 유료 구독이 등록되었습니다! (${paymentCurrency} ${amount.toLocaleString()})`);
+            setShowManualPaymentModal(false);
+            setManualPaymentUser(null);
+        } catch (error: any) {
+            console.error('Error registering manual payment:', error);
+            toastError('결제 등록 중 오류가 발생했습니다: ' + (error.message || ''));
+        } finally {
+            setIsProcessingPayment(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-950 gap-4">
@@ -358,13 +450,22 @@ export const AdminUserList: React.FC = () => {
                                                         무료 기간 추가
                                                     </button>
                                                 ) : (
-                                                    <button
-                                                        onClick={() => handleOpenSubscriptionModal(user, 'full')}
-                                                        className="inline-flex items-center gap-2 px-4 py-2 bg-pink-600/10 text-pink-400 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-pink-600/20 transition-all border border-pink-500/30"
-                                                    >
-                                                        <Gift className="w-3.5 h-3.5" />
-                                                        무료 구독 부여
-                                                    </button>
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleOpenManualPaymentModal(user)}
+                                                            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600/10 text-emerald-400 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-emerald-600/20 transition-all border border-emerald-500/30"
+                                                        >
+                                                            <CreditCard className="w-3.5 h-3.5" />
+                                                            유료 구독 등록
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleOpenSubscriptionModal(user, 'full')}
+                                                            className="inline-flex items-center gap-2 px-4 py-2 bg-pink-600/10 text-pink-400 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-pink-600/20 transition-all border border-pink-500/30"
+                                                        >
+                                                            <Gift className="w-3.5 h-3.5" />
+                                                            무료 구독 부여
+                                                        </button>
+                                                    </>
                                                 )}
 
                                                 {/* Promote to Instructor Button */}
@@ -470,23 +571,31 @@ export const AdminUserList: React.FC = () => {
                                             <Plus className="w-3 h-3" /> 무료 추가
                                         </button>
                                     ) : (
-                                        <button
-                                            onClick={() => handleOpenSubscriptionModal(user, 'full')}
-                                            className="w-full flex items-center justify-center gap-2 py-3 bg-pink-500/10 text-pink-400 rounded-xl text-[10px] font-black uppercase tracking-widest border border-pink-500/20 active:scale-95 transition-transform"
-                                        >
-                                            <Gift className="w-3 h-3" /> 무료 구독
-                                        </button>
+                                        <>
+                                            <button
+                                                onClick={() => handleOpenManualPaymentModal(user)}
+                                                className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-500/10 text-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-500/20 active:scale-95 transition-transform"
+                                            >
+                                                <CreditCard className="w-3 h-3" /> 유료 등록
+                                            </button>
+                                            <button
+                                                onClick={() => handleOpenSubscriptionModal(user, 'full')}
+                                                className="w-full flex items-center justify-center gap-2 py-3 bg-pink-500/10 text-pink-400 rounded-xl text-[10px] font-black uppercase tracking-widest border border-pink-500/20 active:scale-95 transition-transform"
+                                            >
+                                                <Gift className="w-3 h-3" /> 무료 구독
+                                            </button>
+                                        </>
                                     )}
 
                                     {!user.is_creator ? (
                                         <button
                                             onClick={() => handlePromote(user.id, user.name)}
-                                            className="w-full flex items-center justify-center gap-2 py-3 bg-violet-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest border border-violet-500/30 shadow-lg shadow-violet-500/20 active:scale-95 transition-transform"
+                                            className="w-full flex items-center justify-center gap-2 py-3 bg-violet-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest border border-violet-500/30 shadow-lg shadow-violet-500/20 active:scale-95 transition-transform col-span-2"
                                         >
                                             <UserCheck className="w-3 h-3" /> 승격
                                         </button>
                                     ) : (
-                                        <div className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-950 text-emerald-500/50 rounded-xl text-[10px] font-black uppercase tracking-widest border border-zinc-800">
+                                        <div className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-950 text-emerald-500/50 rounded-xl text-[10px] font-black uppercase tracking-widest border border-zinc-800 col-span-2">
                                             <Shield className="w-3 h-3" /> Authorized
                                         </div>
                                     )}
@@ -598,6 +707,156 @@ export const AdminUserList: React.FC = () => {
                                     }`}
                                 >
                                     {subscriptionMode === 'extend' ? '기간 추가' : '부여하기'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Manual Payment Modal */}
+            {showManualPaymentModal && manualPaymentUser && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 max-w-md w-full shadow-2xl">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-2xl font-black text-white flex items-center gap-3">
+                                <CreditCard className="w-6 h-6 text-emerald-400" />
+                                유료 구독 등록
+                            </h2>
+                            <button
+                                onClick={() => setShowManualPaymentModal(false)}
+                                className="text-zinc-500 hover:text-white transition-colors"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div>
+                                <p className="text-zinc-400 mb-2">사용자</p>
+                                <p className="text-white font-bold text-lg">{manualPaymentUser.name}</p>
+                                <p className="text-zinc-500 text-sm">{manualPaymentUser.email}</p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-zinc-400 mb-2 font-medium">
+                                        <DollarSign className="w-4 h-4 inline mr-1" />
+                                        결제 금액
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={paymentAmount}
+                                        onChange={(e) => setPaymentAmount(e.target.value)}
+                                        placeholder="0"
+                                        className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition-all"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-zinc-400 mb-2 font-medium">통화</label>
+                                    <select
+                                        value={paymentCurrency}
+                                        onChange={(e) => setPaymentCurrency(e.target.value as 'USD' | 'KRW')}
+                                        className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition-all"
+                                    >
+                                        <option value="KRW">KRW (원)</option>
+                                        <option value="USD">USD ($)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-zinc-400 mb-2 font-medium">결제 방법</label>
+                                    <select
+                                        value={paymentMethod}
+                                        onChange={(e) => setPaymentMethod(e.target.value as 'cash' | 'bank_transfer' | 'other')}
+                                        className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition-all"
+                                    >
+                                        <option value="cash">현금</option>
+                                        <option value="bank_transfer">계좌이체</option>
+                                        <option value="other">기타</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-zinc-400 mb-2 font-medium">구독 타입</label>
+                                    <select
+                                        value={subscriptionType}
+                                        onChange={(e) => handleSubscriptionTypeChange(e.target.value as 'monthly' | 'yearly')}
+                                        className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition-all"
+                                    >
+                                        <option value="monthly">1개월권</option>
+                                        <option value="yearly">1년권</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-zinc-400 mb-2 font-medium">
+                                        <Calendar className="w-4 h-4 inline mr-1" />
+                                        시작일
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={paymentStartDate}
+                                        onChange={(e) => setPaymentStartDate(e.target.value)}
+                                        className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition-all"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-zinc-400 mb-2 font-medium">
+                                        <Calendar className="w-4 h-4 inline mr-1" />
+                                        만료일
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={paymentEndDate}
+                                        onChange={(e) => setPaymentEndDate(e.target.value)}
+                                        className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition-all"
+                                        min={paymentStartDate}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
+                                <div className="flex items-start gap-3">
+                                    <CreditCard className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="text-emerald-400 font-bold text-sm mb-1">
+                                            {subscriptionType === 'yearly' ? '1년권 유료 구독' : '1개월권 유료 구독'}
+                                        </p>
+                                        <ul className="text-zinc-400 text-xs space-y-1">
+                                            <li>• 사용자가 <strong className="text-emerald-300">유료 구독자</strong>로 설정됩니다</li>
+                                            {subscriptionType === 'yearly' ? (
+                                                <li>• 정산: <strong className="text-emerald-300">12개월로 나눠서</strong> 매월 정산에 반영</li>
+                                            ) : (
+                                                <li>• 정산: 해당 월 정산에 <strong className="text-emerald-300">전액 반영</strong></li>
+                                            )}
+                                            {paymentAmount && (
+                                                <li className="text-emerald-300 font-medium">
+                                                    → 월 {(parseFloat(paymentAmount) / (subscriptionType === 'yearly' ? 12 : 1)).toLocaleString()}원 정산 반영
+                                                </li>
+                                            )}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowManualPaymentModal(false)}
+                                    className="flex-1 px-6 py-3 bg-zinc-800 text-white rounded-xl font-bold hover:bg-zinc-700 transition-all"
+                                    disabled={isProcessingPayment}
+                                >
+                                    취소
+                                </button>
+                                <button
+                                    onClick={handleRegisterManualPayment}
+                                    disabled={isProcessingPayment || !paymentAmount}
+                                    className="flex-1 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isProcessingPayment ? '처리 중...' : '등록하기'}
                                 </button>
                             </div>
                         </div>

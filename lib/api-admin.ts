@@ -1911,15 +1911,7 @@ export async function processRefund(
 export async function getRecentPayments(limit = 50) {
     const { data, error } = await supabase
         .from('payments')
-        .select(`
-            id,
-            portone_payment_id,
-            amount,
-            status,
-            mode,
-            created_at,
-            user:users(name, email)
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(limit);
 
@@ -2796,6 +2788,108 @@ export async function updatePayoutRequestStatus(
         console.error('Error updating payout request:', error);
         return { success: false, error: error.message };
     }
+    return { success: true };
+}
+
+// ==================== Manual Payment Registration ====================
+
+export interface ManualPaymentInput {
+    userId: string;
+    amount: number;
+    currency: 'USD' | 'KRW';
+    paymentMethod: 'cash' | 'bank_transfer' | 'other';
+    subscriptionType: 'monthly' | 'yearly';
+    subscriptionStartDate: string;
+    subscriptionEndDate: string;
+    note?: string;
+}
+
+export async function registerManualPayment(input: ManualPaymentInput): Promise<{ success: boolean; error?: string }> {
+    const { userId, amount, currency, paymentMethod, subscriptionType, subscriptionStartDate, subscriptionEndDate, note } = input;
+
+    // 1. payments 테이블에 결제 기록 추가
+    const { data: paymentData, error: paymentError } = await supabase
+        .from('payments')
+        .insert({
+            user_id: userId,
+            amount,
+            currency,
+            payment_method: paymentMethod,
+            status: 'completed',
+            mode: 'manual',
+            created_at: new Date().toISOString()
+        })
+        .select('id')
+        .single();
+
+    if (paymentError) {
+        console.error('Error inserting manual payment:', paymentError);
+        return { success: false, error: paymentError.message };
+    }
+
+    // 2. revenue_ledger에 정산용 기록 추가
+    // 1년권: 12개월로 나눠서 기록, 1달권: 1개 기록
+    const today = new Date();
+    const monthsToRecord = subscriptionType === 'yearly' ? 12 : 1;
+    const monthlyAmount = Math.floor(amount / monthsToRecord);
+
+    const revenueRecords = [];
+    for (let i = 0; i < monthsToRecord; i++) {
+        const recognitionDate = new Date(today);
+        recognitionDate.setMonth(recognitionDate.getMonth() + i);
+
+        revenueRecords.push({
+            amount: monthlyAmount,
+            platform_fee: monthlyAmount,
+            creator_revenue: 0,
+            product_type: 'subscription',
+            status: 'pending',
+            recognition_date: recognitionDate.toISOString().split('T')[0]
+        });
+    }
+
+    const { error: revenueError } = await supabase
+        .from('revenue_ledger')
+        .insert(revenueRecords);
+
+    if (revenueError) {
+        console.error('Error inserting revenue ledger:', revenueError);
+        // 실패해도 구독은 계속 진행 (경고만)
+    }
+
+    // 3. 사용자를 유료구독자로 설정
+    const { error: userError } = await supabase
+        .from('users')
+        .update({
+            is_subscriber: true,
+            is_complimentary_subscription: false,
+            subscription_tier: 'premium',
+            subscription_end_date: subscriptionEndDate
+        })
+        .eq('id', userId);
+
+    if (userError) {
+        console.error('Error updating user subscription:', userError);
+        return { success: false, error: userError.message };
+    }
+
+    // 4. 감사 로그 기록
+    await supabase.from('audit_logs').insert({
+        action: 'manual_payment_registered',
+        details: {
+            user_id: userId,
+            amount,
+            currency,
+            payment_method: paymentMethod,
+            subscription_type: subscriptionType,
+            subscription_start: subscriptionStartDate,
+            subscription_end: subscriptionEndDate,
+            months_recorded: monthsToRecord,
+            monthly_amount: monthlyAmount,
+            note: note || null
+        }
+    });
+
     return { success: true };
 }
 
