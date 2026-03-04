@@ -35,55 +35,21 @@ export async function toggleInteraction(
     contentId: string,
     interactionType: 'save' | 'like' | 'follow'
 ): Promise<boolean> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    // Single atomic round-trip: INSERT ... ON CONFLICT DO NOTHING, then DELETE if no insert.
+    // This prevents race conditions from the old 2-step SELECT + INSERT/DELETE pattern.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.rpc as any)('toggle_user_interaction', {
+        p_content_type: contentType,
+        p_content_id: contentId,
+        p_interaction_type: interactionType,
+    });
 
-    // Optimized client-side toggle without RPC (fallback)
-
-    // 1. Try to fetch existing interaction
-    const { data: existing, error: fetchError } = await supabase
-        .from('user_interactions')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('content_type', contentType)
-        .eq('content_id', contentId)
-        .eq('interaction_type', interactionType)
-        .maybeSingle();
-
-    if (fetchError) {
-        console.error('Error fetching interaction status:', fetchError);
-        throw fetchError;
+    if (error) {
+        console.error('Error toggling interaction:', error);
+        throw error;
     }
 
-    if (existing) {
-        // Remove interaction
-        const { error: deleteError } = await supabase
-            .from('user_interactions')
-            .delete()
-            .eq('id', existing.id);
-
-        if (deleteError) {
-            console.error('Error deleting interaction:', deleteError);
-            throw deleteError;
-        }
-        return false; // Removed
-    } else {
-        // Add interaction
-        const { error: insertError } = await supabase
-            .from('user_interactions')
-            .insert({
-                user_id: user.id,
-                content_type: contentType,
-                content_id: contentId,
-                interaction_type: interactionType
-            });
-
-        if (insertError) {
-            console.error('Error inserting interaction:', insertError);
-            throw insertError;
-        }
-        return true; // Added
-    }
+    return data as boolean;
 }
 
 /**
