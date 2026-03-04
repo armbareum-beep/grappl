@@ -3,8 +3,8 @@ import { QueryClient } from '@tanstack/react-query';
 export const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
-            staleTime: 1000 * 60 * 5, // 5분으로 줄임 (30분 → 5분) - 더 자주 새 데이터 확인
-            gcTime: 1000 * 60 * 30, // 30분으로 줄임 (2시간 → 30분)
+            staleTime: 1000 * 60 * 5, // 5분 - 이후 stale 상태
+            gcTime: 1000 * 60 * 60 * 25, // 25시간 - IndexedDB persist maxAge(24시간)보다 길게
             retry: 3,
             retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
             refetchOnWindowFocus: true, // 탭 돌아올 때 stale 데이터 자동 갱신 (idle 후 복귀 시 콘텐츠 표시 문제 해결)

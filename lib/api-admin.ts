@@ -433,6 +433,13 @@ export async function getSupportTickets() {
 }
 
 export async function respondToTicket(ticketId: string, response: string, status: 'resolved' | 'in_progress') {
+    // First get the ticket to find user_id
+    const { data: ticket } = await supabase
+        .from('support_tickets')
+        .select('user_id, subject')
+        .eq('id', ticketId)
+        .single();
+
     const { error } = await supabase
         .from('support_tickets')
         .update({
@@ -442,7 +449,51 @@ export async function respondToTicket(ticketId: string, response: string, status
             updated_at: new Date().toISOString()
         })
         .eq('id', ticketId);
+
+    // Send notification to user if update successful
+    if (!error && ticket?.user_id) {
+        await createNotification(
+            ticket.user_id,
+            'support_reply',
+            '1:1 문의 답변 도착',
+            `"${ticket.subject}" 문의에 대한 답변이 등록되었습니다.`,
+            '/contact'
+        );
+    }
+
     return { error };
+}
+
+export async function resendTicketNotification(ticketId: string) {
+    // Get ticket info
+    const { data: ticket, error } = await supabase
+        .from('support_tickets')
+        .select('user_id, subject, admin_response')
+        .eq('id', ticketId)
+        .single();
+
+    if (error || !ticket) {
+        return { error: error || new Error('Ticket not found') };
+    }
+
+    if (!ticket.user_id) {
+        return { error: new Error('No user associated with this ticket') };
+    }
+
+    if (!ticket.admin_response) {
+        return { error: new Error('No admin response to notify') };
+    }
+
+    // Send notification
+    await createNotification(
+        ticket.user_id,
+        'support_reply',
+        '1:1 문의 답변 도착',
+        `"${ticket.subject}" 문의에 대한 답변이 등록되었습니다.`,
+        '/contact'
+    );
+
+    return { error: null };
 }
 
 export async function deleteCreator(creatorId: string) {
@@ -2249,7 +2300,9 @@ export interface CreatorWatchTimeStats {
  */
 export async function getCreatorWatchTimeStats(year: number, month: number): Promise<CreatorWatchTimeStats[]> {
     const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-    const endDate = new Date(year, month, 0).toISOString().split('T')[0]; // last day of month
+    // Fix: Calculate last day of month without timezone issues
+    const lastDay = new Date(year, month, 0).getDate();
+    const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
     const { data, error } = await supabase.rpc('get_creator_watch_time_stats', {
         start_date: startDate,
@@ -2269,6 +2322,9 @@ export async function getCreatorWatchTimeStats(year: number, month: number): Pro
  * RPC 함수가 없을 경우 직접 쿼리
  */
 async function getCreatorWatchTimeStatsFallback(startDate: string, endDate: string): Promise<CreatorWatchTimeStats[]> {
+    const runId = Math.random().toString(36).substring(7);
+    console.log(`[Run ${runId}] START - Query params:`, { startDate, endDate });
+
     // video_watch_logs에서 크리에이터별 시청시간 집계
     const { data: watchLogs, error } = await supabase
         .from('video_watch_logs')
@@ -2281,6 +2337,8 @@ async function getCreatorWatchTimeStatsFallback(startDate: string, endDate: stri
         `)
         .gte('date', startDate)
         .lte('date', endDate);
+
+    console.log('[getCreatorWatchTimeStatsFallback] Watch logs count:', watchLogs?.length, 'Error:', error);
 
     if (error || !watchLogs) {
         console.error('Fallback query error:', error);
@@ -2303,9 +2361,9 @@ async function getCreatorWatchTimeStatsFallback(startDate: string, endDate: stri
         sparringVideoIds.length > 0
             ? supabase.from('sparring_videos').select('id, creator_id').in('id', sparringVideoIds)
             : { data: [] },
-        supabase.from('users').select('id')
-            .eq('is_subscriber', true)
-            .or('is_complimentary_subscription.is.null,is_complimentary_subscription.eq.false'),
+        // Simplified query - filter complimentary in code
+        supabase.from('users').select('id, is_complimentary_subscription')
+            .eq('is_subscriber', true),
         supabase.from('creators').select('id, name')
     ]);
 
@@ -2320,11 +2378,33 @@ async function getCreatorWatchTimeStatsFallback(startDate: string, endDate: stri
     const courseToCreatorMap = new Map((coursesData || []).map((c: any) => [c.id, c.creator_id]));
     const drillToCreatorMap = new Map((drillsRes.data || []).map((d: any) => [d.id, d.creator_id]));
     const sparringToCreatorMap = new Map((sparringRes.data || []).map((s: any) => [s.id, s.creator_id]));
-    const paidUserIds = new Set((paidUsersRes.data || []).map((u: any) => u.id));
+    // Filter out complimentary subscribers in code
+    const paidUserIds = new Set(
+        (paidUsersRes.data || [])
+            .filter((u: any) => !u.is_complimentary_subscription)
+            .map((u: any) => u.id)
+    );
     const creatorMap = new Map((creatorsRes.data || []).map((c: any) => [c.id, c.name]));
+
+    console.log('[getCreatorWatchTimeStatsFallback] Data:', {
+        lessonsCount: lessonsRes.data?.length,
+        coursesCount: coursesData?.length,
+        drillsCount: drillsRes.data?.length,
+        sparringCount: sparringRes.data?.length,
+        subscribersCount: paidUsersRes.data?.length,
+        paidUsersCount: paidUserIds.size,
+        paidUsersError: (paidUsersRes as any).error,
+        creatorsCount: creatorsRes.data?.length,
+        lessonToCourseMapSize: lessonToCourseMap.size,
+        courseToCreatorMapSize: courseToCreatorMap.size
+    });
 
     // 크리에이터별 집계
     const statsMap = new Map<string, { total: number; paid: number }>();
+
+    // Debug: Check specific user
+    const debugUserId = 'cd379c43-deb2-472e-9663-b24ff4aba644'; // kms8693
+    console.log(`[Run ${runId}] Is kms8693 in paidUserIds?`, paidUserIds.has(debugUserId));
 
     watchLogs.forEach((log: any) => {
         let creatorId: string | undefined;
@@ -2343,21 +2423,36 @@ async function getCreatorWatchTimeStatsFallback(startDate: string, endDate: stri
         const current = statsMap.get(creatorId) || { total: 0, paid: 0 };
         current.total += log.watch_seconds || 0;
 
-        if (paidUserIds.has(log.user_id)) {
+        const isPaid = paidUserIds.has(log.user_id);
+        if (isPaid) {
             current.paid += log.watch_seconds || 0;
+        }
+
+        // Debug: log kms8693's records
+        if (log.user_id === debugUserId) {
+            console.log(`[Run ${runId}] kms8693 watch:`, {
+                lesson_id: log.lesson_id,
+                watch_seconds: log.watch_seconds,
+                isPaidUser: isPaid,
+                creatorId,
+                currentPaid: current.paid
+            });
         }
 
         statsMap.set(creatorId, current);
     });
 
     // 결과 변환
-    return Array.from(statsMap.entries()).map(([creatorId, stats]) => ({
+    const results = Array.from(statsMap.entries()).map(([creatorId, stats]) => ({
         creator_id: creatorId,
         creator_name: creatorMap.get(creatorId) || 'Unknown',
         total_watch_seconds: stats.total,
         total_watch_minutes: Math.round(stats.total / 60),
         paid_subscriber_watch_seconds: stats.paid
     })).sort((a, b) => b.paid_subscriber_watch_seconds - a.paid_subscriber_watch_seconds);
+
+    console.log(`[Run ${runId}] RESULTS:`, results);
+    return results;
 }
 
 
@@ -2646,5 +2741,61 @@ export async function getWatchStatsSummary(): Promise<{
             monthUniqueViewers: 0
         };
     }
+}
+
+// ==================== PAYOUT REQUESTS (출금 신청) ====================
+
+export interface PayoutRequestAdmin {
+    id: string;
+    creator_id: string;
+    amount: number;
+    status: 'pending' | 'completed' | 'rejected';
+    bank_name: string;
+    account_number: string;
+    account_holder: string;
+    requested_at: string;
+    processed_at: string | null;
+    admin_note: string | null;
+    creator?: {
+        name: string;
+        email: string;
+    };
+}
+
+export async function getPayoutRequestsAdmin(): Promise<PayoutRequestAdmin[]> {
+    const { data, error } = await supabase
+        .from('payout_requests')
+        .select(`
+            *,
+            creator:creators(name, email)
+        `)
+        .order('requested_at', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching payout requests:', error);
+        return [];
+    }
+    return data || [];
+}
+
+export async function updatePayoutRequestStatus(
+    requestId: string,
+    status: 'completed' | 'rejected',
+    adminNote?: string
+): Promise<{ success: boolean; error?: string }> {
+    const { error } = await supabase
+        .from('payout_requests')
+        .update({
+            status,
+            processed_at: new Date().toISOString(),
+            admin_note: adminNote || null
+        })
+        .eq('id', requestId);
+
+    if (error) {
+        console.error('Error updating payout request:', error);
+        return { success: false, error: error.message };
+    }
+    return { success: true };
 }
 

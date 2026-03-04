@@ -29,8 +29,9 @@ import { AuthProvider } from './contexts/AuthContext';
 
 import { PayPalScriptProvider } from "@paypal/react-paypal-js";
 
-import { QueryClientProvider } from '@tanstack/react-query';
-import { queryClient } from './lib/react-query'; // Ensure path is correct
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { queryClient } from './lib/react-query';
+import { indexedDBPersister, CACHE_MAX_AGE } from './lib/query-persister';
 
 // Lazy load dev tools only in development
 const ReactQueryDevtools = import.meta.env.DEV
@@ -49,7 +50,14 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister: indexedDBPersister,
+        maxAge: CACHE_MAX_AGE,
+        buster: import.meta.env.VITE_APP_VERSION || '1.0.0', // 버전 바뀌면 캐시 무효화
+      }}
+    >
       <AuthProvider>
         <PayPalScriptProvider deferLoading={true} options={{
           clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID,
@@ -64,6 +72,6 @@ root.render(
           <ReactQueryDevtools initialIsOpen={false} />
         </React.Suspense>
       )}
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   </React.StrictMode>
 );
