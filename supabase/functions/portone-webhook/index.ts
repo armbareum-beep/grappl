@@ -45,8 +45,9 @@ async function verifyWebhookSignature(
     }
 
     try {
-        // PortOne V2 uses "whsec_" prefix
-        const secretBytes = new TextEncoder().encode(webhookSecret.replace('whsec_', ''))
+        // PortOne V2 uses "whsec_" prefix, secret is base64 encoded
+        const secretBase64 = webhookSecret.replace('whsec_', '')
+        const secretBytes = Uint8Array.from(atob(secretBase64), c => c.charCodeAt(0))
 
         // Create signed payload: webhook_id.webhook_timestamp.body
         const signedPayload = `${webhookId}.${webhookTimestamp}.${body}`
@@ -187,6 +188,21 @@ Deno.serve(async (req) => {
             if (!paymentId) {
                 console.log('No paymentId in webhook data');
                 return new Response(JSON.stringify({ success: true }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                    status: 200,
+                })
+            }
+
+            // Idempotency check: Skip if payment already processed
+            const { data: existingPayment } = await supabaseClient
+                .from('payments')
+                .select('id')
+                .eq('portone_payment_id', paymentId)
+                .single()
+
+            if (existingPayment) {
+                console.log(`Webhook: Payment ${paymentId} already processed, skipping duplicate`)
+                return new Response(JSON.stringify({ success: true, duplicate: true }), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                     status: 200,
                 })
