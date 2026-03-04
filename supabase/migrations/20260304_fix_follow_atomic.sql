@@ -6,9 +6,11 @@
 --    causing insert to fail when toggling creator follow.
 -- 2. toggle_user_interaction RPC was non-atomic (2 round trips, race condition).
 --    Replaced with INSERT ... ON CONFLICT DO NOTHING pattern.
--- 3. update_creator_subscriber_count trigger could produce negative counts.
---    Fixed with GREATEST(0, ...) guard.
--- 4. Repairs any existing negative subscriber_count values.
+-- 3. subscriber_count was updated by a separate trigger that is NOT SECURITY
+--    DEFINER, causing it to silently fail when called from the SECURITY DEFINER
+--    RPC. Moved the count update inside the RPC itself.
+-- 4. Removed the trigger entirely to avoid double-counting.
+-- 5. Repairs any existing negative subscriber_count values.
 -- ==========================================================================
 
 
@@ -26,16 +28,16 @@ ALTER TABLE public.user_interactions
   CHECK (interaction_type IN ('save', 'like', 'view', 'follow'));
 
 
--- 2. Replace toggle_user_interaction with an atomic INSERT-or-DELETE version.
---    Uses auth.uid() directly so the caller never needs to pass a user_id,
---    and the function is safe even if called concurrently.
-
--- Drop old signature (UUID, TEXT, UUID, TEXT) that is no longer used.
+-- 2. Drop old 4-param signature that required a user_id argument.
 DROP FUNCTION IF EXISTS public.toggle_user_interaction(UUID, TEXT, UUID, TEXT);
 
+-- 3. Atomic toggle RPC that also updates subscriber_count inline.
+--    SECURITY DEFINER ensures the UPDATE on creators always has permission,
+--    regardless of RLS or the calling role. All three operations (INSERT/DELETE
+--    on user_interactions + UPDATE on creators) happen in a single transaction.
 CREATE OR REPLACE FUNCTION public.toggle_user_interaction(
-    p_content_type    TEXT,
-    p_content_id      UUID,
+    p_content_type     TEXT,
+    p_content_id       UUID,
     p_interaction_type TEXT
 )
 RETURNS BOOLEAN
@@ -44,68 +46,55 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-    v_user_id UUID := auth.uid();
+    v_user_id     UUID := auth.uid();
+    v_was_inserted BOOLEAN;
 BEGIN
     IF v_user_id IS NULL THEN
         RAISE EXCEPTION 'Not authenticated';
     END IF;
 
-    -- Try to insert. If the unique row already exists, skip (DO NOTHING).
+    -- Attempt INSERT. On UNIQUE conflict the row already exists — skip silently.
     INSERT INTO public.user_interactions (user_id, content_type, content_id, interaction_type)
     VALUES (v_user_id, p_content_type, p_content_id, p_interaction_type)
     ON CONFLICT (user_id, content_type, content_id, interaction_type) DO NOTHING;
 
-    IF FOUND THEN
-        -- Row was newly inserted → interaction is now active
-        RETURN TRUE;
-    ELSE
-        -- Row already existed → remove it (toggle off)
+    v_was_inserted := FOUND;
+
+    IF NOT v_was_inserted THEN
+        -- Row already existed → delete it (unfollow / unlike / unsave)
         DELETE FROM public.user_interactions
-        WHERE user_id         = v_user_id
-          AND content_type    = p_content_type
-          AND content_id      = p_content_id
+        WHERE user_id          = v_user_id
+          AND content_type     = p_content_type
+          AND content_id       = p_content_id
           AND interaction_type = p_interaction_type;
-        RETURN FALSE;
     END IF;
+
+    -- For creator follows: update subscriber_count in the same transaction.
+    -- Doing this inline (rather than via trigger) guarantees the UPDATE runs
+    -- with SECURITY DEFINER privileges and is never skipped.
+    IF p_content_type = 'creator' AND p_interaction_type = 'follow' THEN
+        IF v_was_inserted THEN
+            UPDATE public.creators
+               SET subscriber_count = subscriber_count + 1
+             WHERE id = p_content_id;
+        ELSE
+            -- GREATEST(0, ...) prevents the count from going negative
+            UPDATE public.creators
+               SET subscriber_count = GREATEST(0, subscriber_count - 1)
+             WHERE id = p_content_id;
+        END IF;
+    END IF;
+
+    RETURN v_was_inserted;  -- TRUE = followed/liked/saved, FALSE = removed
 END;
 $$;
 
 
--- 3. Fix subscriber_count trigger: GREATEST(0, ...) prevents negative values.
---    Re-create the function and trigger idempotently.
-
-CREATE OR REPLACE FUNCTION public.update_creator_subscriber_count()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    IF TG_OP = 'INSERT'
-        AND NEW.content_type    = 'creator'
-        AND NEW.interaction_type = 'follow'
-    THEN
-        UPDATE public.creators
-        SET subscriber_count = subscriber_count + 1
-        WHERE id = NEW.content_id;
-
-    ELSIF TG_OP = 'DELETE'
-        AND OLD.content_type    = 'creator'
-        AND OLD.interaction_type = 'follow'
-    THEN
-        -- GREATEST(0, ...) ensures the count never goes below zero
-        UPDATE public.creators
-        SET subscriber_count = GREATEST(0, subscriber_count - 1)
-        WHERE id = OLD.content_id;
-    END IF;
-
-    RETURN NULL;
-END;
-$$;
-
--- Ensure trigger exists on user_interactions (drop first to handle re-runs)
+-- 4. Drop the old trigger and its function.
+--    The count update now lives inside the RPC above; keeping both would
+--    double-count every follow/unfollow.
 DROP TRIGGER IF EXISTS on_creator_follow_change ON public.user_interactions;
-CREATE TRIGGER on_creator_follow_change
-AFTER INSERT OR DELETE ON public.user_interactions
-FOR EACH ROW EXECUTE FUNCTION public.update_creator_subscriber_count();
+DROP FUNCTION IF EXISTS public.update_creator_subscriber_count();
 
 -- Remove the stale trigger from creator_follows if that table still exists
 DO $$
@@ -117,12 +106,12 @@ END
 $$;
 
 
--- 4. Repair any negative subscriber_count values caused by prior drift
+-- 5. Repair any subscriber_count values that went negative from prior drift
 UPDATE public.creators
 SET subscriber_count = (
     SELECT COUNT(*)::INTEGER
     FROM public.user_interactions
-    WHERE content_type    = 'creator'
+    WHERE content_type     = 'creator'
       AND interaction_type = 'follow'
       AND content_id       = creators.id
 )
