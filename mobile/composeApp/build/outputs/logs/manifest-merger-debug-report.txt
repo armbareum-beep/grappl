@@ -1,0 +1,676 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:2:1-25:12
+INJECTED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:2:1-25:12
+INJECTED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:2:1-25:12
+INJECTED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:2:1-25:12
+MERGED from [androidx.media3:media3-ui:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/6fc8f25028be05435b383731720fd327/transformed/media3-ui-1.5.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.media3:media3-extractor:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/f269309c40876de4c527f73fed6e3f89/transformed/media3-extractor-1.5.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.media3:media3-container:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/b57fd3e19103f5981053a9de69b68c1b/transformed/media3-container-1.5.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.media3:media3-datasource:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed8c09b1050c64da9954f0198b46d856/transformed/media3-datasource-1.5.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.media3:media3-decoder:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/1be72c84a18fd072da9a6829857c92ca/transformed/media3-decoder-1.5.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.media3:media3-database:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/cc1a53370ce59a33e62c7dedc43b4562/transformed/media3-database-1.5.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.media3:media3-common:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/8bf6152862a30d607ff910d871e89856/transformed/media3-common-1.5.1/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.media3:media3-exoplayer-hls:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/6d93fe44b5aac978ccfcebedeea7a21e/transformed/media3-exoplayer-hls-1.5.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.media3:media3-exoplayer:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/d0063f400ce060c1aa2a98e2ec440ab8/transformed/media3-exoplayer-1.5.1/AndroidManifest.xml:17:1-24:12
+MERGED from [com.materialkolor:material-kolor-android:2.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/1aefa1f9ebec3dbfb21bff027aa03611/transformed/material-kolor-release/AndroidManifest.xml:2:1-7:12
+MERGED from [io.github.jan-tennert.supabase:compose-auth-ui-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/79d34de9609bcc7a029ddb1a6e64b270/transformed/compose-auth-ui-debug/AndroidManifest.xml:2:1-7:12
+MERGED from [org.jetbrains.compose.components:components-resources-android:1.7.3] /Users/hanshin/.gradle/caches/8.11.1/transforms/94d30dea1adce0a7723e6cf4de72da4a/transformed/library-release/AndroidManifest.xml:2:1-16:12
+MERGED from [io.coil-kt.coil3:coil-compose-android:3.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/a4f7764715374a2685fbd0d850c6233f/transformed/coil-compose-release/AndroidManifest.xml:2:1-7:12
+MERGED from [io.coil-kt.coil3:coil-compose-core-android:3.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/6b6ecb5a4b08af48e0ede8357c916f91/transformed/coil-compose-core-release/AndroidManifest.xml:2:1-7:12
+MERGED from [cafe.adriel.voyager:voyager-koin-android:1.1.0-beta03] /Users/hanshin/.gradle/caches/8.11.1/transforms/649697b863b863073f1b7bcdef37fab9/transformed/voyager-koin-release/AndroidManifest.xml:2:1-7:12
+MERGED from [io.github.jan-tennert.supabase:compose-auth-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/0a57b8717f26d7cdb993f0d95465c244/transformed/compose-auth-debug/AndroidManifest.xml:2:1-20:12
+MERGED from [org.jetbrains.compose.components:components-ui-tooling-preview-android:1.7.3] /Users/hanshin/.gradle/caches/8.11.1/transforms/a43fb726c2f392c57e51937b93775a89/transformed/library-release/AndroidManifest.xml:2:1-7:12
+MERGED from [io.coil-kt.coil3:coil-network-ktor3-android:3.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/98fb448998de577d36f37271ac1e3d77/transformed/coil-network-ktor3-release/AndroidManifest.xml:2:1-7:12
+MERGED from [cafe.adriel.voyager:voyager-screenmodel-android:1.1.0-beta03] /Users/hanshin/.gradle/caches/8.11.1/transforms/f8c5a851aeecb77474d87fe61207ce09/transformed/voyager-screenmodel-release/AndroidManifest.xml:2:1-7:12
+MERGED from [cafe.adriel.voyager:voyager-tab-navigator-android:1.1.0-beta03] /Users/hanshin/.gradle/caches/8.11.1/transforms/7259b0819a1bc82907d4f1ef0cbf9ba3/transformed/voyager-tab-navigator-release/AndroidManifest.xml:2:1-7:12
+MERGED from [cafe.adriel.voyager:voyager-transitions-android:1.1.0-beta03] /Users/hanshin/.gradle/caches/8.11.1/transforms/2a767cc58562c427f797052fbf0e5ac1/transformed/voyager-transitions-release/AndroidManifest.xml:2:1-7:12
+MERGED from [cafe.adriel.voyager:voyager-navigator-android:1.1.0-beta03] /Users/hanshin/.gradle/caches/8.11.1/transforms/c598d45fbe159581b0c265ae72f91f33/transformed/voyager-navigator-release/AndroidManifest.xml:2:1-7:12
+MERGED from [io.github.jan-tennert.supabase:functions-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/1abe586bffe609e35b9b7b1552f28af5/transformed/functions-kt-debug/AndroidManifest.xml:2:1-7:12
+MERGED from [io.github.jan-tennert.supabase:postgrest-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/5b5688a8c546c4842c9df1abc0316b06/transformed/postgrest-kt-debug/AndroidManifest.xml:2:1-7:12
+MERGED from [io.github.jan-tennert.supabase:coil3-integration-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/587c1e23e84e3571d33edc82072f7933/transformed/coil3-integration-debug/AndroidManifest.xml:2:1-7:12
+MERGED from [io.github.jan-tennert.supabase:storage-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/a8aa489d751a9a98ad11e5c90502729a/transformed/storage-kt-debug/AndroidManifest.xml:2:1-20:12
+MERGED from [io.github.jan-tennert.supabase:auth-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/a8be472108f88bd40fbe1975fd756e72/transformed/auth-kt-debug/AndroidManifest.xml:2:1-20:12
+MERGED from [com.russhwolf:multiplatform-settings-coroutines-android-debug:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/3d2771de37513bcbc08d1ec129cc0efb/transformed/multiplatform-settings-coroutines-debug/AndroidManifest.xml:2:1-7:12
+MERGED from [com.russhwolf:multiplatform-settings-no-arg-android-debug:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/b61db452bc3ea5ce6e91809dc89b034b/transformed/multiplatform-settings-no-arg-debug/AndroidManifest.xml:17:1-35:12
+MERGED from [com.russhwolf:multiplatform-settings-android-debug:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/aab91eae7160abefd3c6ed6f3c3711be/transformed/multiplatform-settings-debug/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.recyclerview:recyclerview:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/9277c3e441869758a0134d4951c6815c/transformed/recyclerview-1.3.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.compose.material3:material3-android:1.3.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/baa9578591bcd9f13653744bc1ac918c/transformed/material3-release/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.compose.animation:animation-core-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/698fc66bc460eb381c3940dad49ef0d2/transformed/animation-core-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.material:material-ripple-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/be16c8fd34e11bf7967b3b9a03ada9e0/transformed/material-ripple-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.animation:animation-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/50c1de732215e6c2ee872f505019e8ba/transformed/animation-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.foundation:foundation-layout-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/42e38245982effa0d519e0c1c95c39a6/transformed/foundation-layout-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.foundation:foundation-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/db7ffc6a3c587b0d8a2a6648d7c2e289/transformed/foundation-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-unit-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/fac8c23d67bc285db2bca239f7b7c475/transformed/ui-unit-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-geometry-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/959c49299149507a5b955931262f3532/transformed/ui-geometry-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-graphics-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/aa2a070efe680e3b89103267e3ecaf00/transformed/ui-graphics-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-util-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/ce90a856000f1157690b15f1363c4179/transformed/ui-util-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-text-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/4835b3f7d49c96d29d48994c17b1c8d2/transformed/ui-text-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-tooling-preview-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/4882ab878813e0e4a2414f3e0f5a0687/transformed/ui-tooling-preview-release/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.compose.material:material-icons-extended-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/ea138f9c156b990ee92b3aaea4d30dfe/transformed/material-icons-extended-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.material:material-icons-core-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/3aa85d253b33a4be92c8730dcbc35465/transformed/material-icons-core-release/AndroidManifest.xml:2:1-7:12
+MERGED from [cafe.adriel.voyager:voyager-core-android:1.1.0-beta03] /Users/hanshin/.gradle/caches/8.11.1/transforms/3b2a944fb9ef4aa272e265af37d0e683/transformed/voyager-core-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:17:1-52:12
+MERGED from [com.google.android.libraries.identity.googleid:googleid:1.1.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/94644531d707e9a374a7a69d34a3f16c/transformed/googleid-1.1.1/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.credentials:credentials:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/8817249d90ccad7750bca965f2e25c5d/transformed/credentials-1.5.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.biometric:biometric:1.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/fcc988f62b6fdf10cf2dfbf1864e9a75/transformed/biometric-1.1.0/AndroidManifest.xml:17:1-29:12
+MERGED from [com.google.android.gms:play-services-auth:21.1.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/4a221b83ec5cfc71b923993c88e499b7/transformed/play-services-auth-21.1.1/AndroidManifest.xml:17:1-40:12
+MERGED from [com.google.android.gms:play-services-auth-blockstore:16.4.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/c1fc7477d625b67360055400fa5043a7/transformed/play-services-auth-blockstore-16.4.0/AndroidManifest.xml:2:1-9:12
+MERGED from [com.google.android.gms:play-services-fido:21.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/358061ae3f391bc4b641544913a32bb0/transformed/play-services-fido-21.0.0/AndroidManifest.xml:2:1-10:12
+MERGED from [com.google.android.gms:play-services-identity-credentials:16.0.0-alpha02] /Users/hanshin/.gradle/caches/8.11.1/transforms/daeea9e7e6b7a10ede7fe09001e71da6/transformed/play-services-identity-credentials-16.0.0-alpha02/AndroidManifest.xml:2:1-7:12
+MERGED from [com.google.android.gms:play-services-auth-api-phone:18.0.2] /Users/hanshin/.gradle/caches/8.11.1/transforms/84fa6d79e273c4b1ab3579dd5a9a55c8/transformed/play-services-auth-api-phone-18.0.2/AndroidManifest.xml:2:1-7:12
+MERGED from [com.google.android.gms:play-services-auth-base:18.0.10] /Users/hanshin/.gradle/caches/8.11.1/transforms/fd3fb2816bdc9a9c3760524301e7d8e6/transformed/play-services-auth-base-18.0.10/AndroidManifest.xml:2:1-7:12
+MERGED from [com.google.android.gms:play-services-base:18.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/bb06e028f6145aad2e2aa5a5d98779c3/transformed/play-services-base-18.5.0/AndroidManifest.xml:2:1-7:12
+MERGED from [com.google.android.gms:play-services-tasks:18.2.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/48f36e39f89bd4ecd03baf8f16290b69/transformed/play-services-tasks-18.2.0/AndroidManifest.xml:2:1-5:12
+MERGED from [com.google.android.gms:play-services-basement:18.4.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/fe383b6a0c86957f5187f9beb5e058d6/transformed/play-services-basement-18.4.0/AndroidManifest.xml:2:1-9:12
+MERGED from [io.coil-kt.coil3:coil-android:3.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/87814491921e43cbb5940e3b920e480c/transformed/coil-release/AndroidManifest.xml:2:1-7:12
+MERGED from [io.coil-kt.coil3:coil-network-core-android:3.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/6e4b4c1158b79b041eb9b476cb3d4a4e/transformed/coil-network-core-release/AndroidManifest.xml:2:1-7:12
+MERGED from [io.coil-kt.coil3:coil-core-android:3.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/4d265727000ca1b6ffad0d6c83edfb69/transformed/coil-core-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.appcompat:appcompat-resources:1.7.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/b88bc88f61b1ecc38af51a034862da39/transformed/appcompat-resources-1.7.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.appcompat:appcompat:1.7.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/92b954dc1057e101ede38a8013cefc21/transformed/appcompat-1.7.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.fragment:fragment:1.5.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/c477a30f82e174499d1075bc6fe072db/transformed/fragment-1.5.7/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.activity:activity:1.10.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/1ace3a908ba83aae874093b7dad1f659/transformed/activity-1.10.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.activity:activity-ktx:1.10.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/8a2634cf8f6bde0a55ec9eb22bf32a23/transformed/activity-ktx-1.10.1/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.activity:activity-compose:1.10.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/ff8bfe896bd16777f27c6ebee09f2711/transformed/activity-compose-1.10.1/AndroidManifest.xml:2:1-7:12
+MERGED from [com.google.accompanist:accompanist-drawablepainter:0.36.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/3d1d6fe3af166b9c3f762a4e99257cf4/transformed/accompanist-drawablepainter-0.36.0/AndroidManifest.xml:17:1-23:12
+MERGED from [androidx.emoji2:emoji2-views-helper:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/c64ff8b2061663662e7a334f845fa3ad/transformed/emoji2-views-helper-1.3.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.emoji2:emoji2:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/c089e029c77d2c7cc2dc1bbb79712317/transformed/emoji2-1.3.0/AndroidManifest.xml:17:1-35:12
+MERGED from [io.github.jan-tennert.supabase:supabase-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/71d4ff1ae781e018c0a17b5fd632e92e/transformed/supabase-kt-debug/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.media:media:1.7.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/f15253e39a80739d70d742db439b21e0/transformed/media-1.7.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.viewpager:viewpager:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/2b97335f7ed09a8ca826a656a22b460a/transformed/viewpager-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.drawerlayout:drawerlayout:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/fbefb2022c37decae23c68762b4f65ad/transformed/drawerlayout-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.customview:customview:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/279e1731b2401fb9c3113b45476cd1c8/transformed/customview-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.autofill:autofill:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/a1b6def21a4f42ed5d3de0a5d7f3e463/transformed/autofill-1.0.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.browser:browser:1.8.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/f5ed7a3f3a85d0d38b9f34dae454926c/transformed/browser-1.8.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.graphics:graphics-path:1.0.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/4e8615e9c0def62f6331bdf0bdb4b749/transformed/graphics-path-1.0.1/AndroidManifest.xml:2:1-7:12
+MERGED from [org.jetbrains.androidx.core:core-bundle-android-debug:1.0.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/24c785b70d7895dc6c79a6f96ba2a5e2/transformed/core-bundle-debug/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/3d9f7a032877bfc4640b49aff6b9c2c0/transformed/savedstate-ktx-1.2.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.savedstate:savedstate:1.2.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/2f89af509d182d26fee86e94795edba9/transformed/savedstate-1.2.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.loader:loader:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ac005e21c472b2f5dc8c22e80eb7d2fb/transformed/loader-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/c5bf7a38e725d023e1934c0554f34b48/transformed/lifecycle-livedata-core-ktx-2.8.7/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/9ae772a0c6a14b17ffc343c327164134/transformed/lifecycle-livedata-2.8.7/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/e77e0146b02bef2c165a567003a878c0/transformed/lifecycle-viewmodel-2.8.7/AndroidManifest.xml:2:1-5:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-android:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/c3c90b8802ce4b3fe663206c840ac3ec/transformed/lifecycle-viewmodel-release/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx-android:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/eae403e68e4697943165454d147e6a19/transformed/lifecycle-runtime-ktx-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-runtime-compose-android:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/4379028f385cf6358b73f5d15caae26b/transformed/lifecycle-runtime-compose-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/fcc26d5ae7d8949f4f4560b1ab9a7908/transformed/lifecycle-viewmodel-ktx-2.8.7/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/a39bd607c493f14e018be8b4577604e4/transformed/lifecycle-livedata-core-2.8.7/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/78731cc49ea7ac5179b54f71d6ce4e98/transformed/lifecycle-viewmodel-savedstate-2.8.7/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.core:core-ktx:1.15.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/1ca75e68ff041ec6008d16862bd9af70/transformed/core-ktx-1.15.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/50702b53dfe43937ea858e06ed11506c/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/eafc12a9fe41ec16e7472eac866d4c2e/transformed/vectordrawable-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.core:core:1.15.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/901347cddc83b33ddcfd7612141fdcff/transformed/core-1.15.0/AndroidManifest.xml:17:1-30:12
+MERGED from [androidx.lifecycle:lifecycle-runtime-android:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/3eb8d8ee25ea49c696cedd1e5f3850d3/transformed/lifecycle-runtime-release/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/a3886d2c9fde56d32ff6278c3366b744/transformed/lifecycle-process-2.8.7/AndroidManifest.xml:17:1-35:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-compose-android:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/1a7dfeeef1e0de85b9304d308d325525/transformed/lifecycle-viewmodel-compose-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/458bf3e4109dae4192678504a1b36e61/transformed/ui-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.customview:customview-poolingcontainer:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/3aa809072f74ee5101c8933871055619/transformed/customview-poolingcontainer-1.0.0/AndroidManifest.xml:17:1-23:12
+MERGED from [androidx.compose.runtime:runtime-saveable-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/f46416431016a9e0a068026c7503d587/transformed/runtime-saveable-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.runtime:runtime-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/dc9fa278152a4e6226fad40d36a375e9/transformed/runtime-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.annotation:annotation-experimental:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/eb0c60b6bdf1c5ba0095a3c26b2ab25a/transformed/annotation-experimental-1.4.1/AndroidManifest.xml:2:1-7:12
+MERGED from [com.materialkolor:material-color-utilities-android:2.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/0f676ee20c49df55e475d25d5a2e20c8/transformed/material-color-utilities-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/b1a297b220ac6a6f2ab33602b598e090/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:17:1-27:12
+MERGED from [androidx.arch.core:core-runtime:2.2.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/6ecb5b13eb2d403cce891207d5d9de40/transformed/core-runtime-2.2.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:17:1-55:12
+MERGED from [androidx.startup:startup-runtime:1.2.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/a093220ce843bbc9ae894b85fccf9442/transformed/startup-runtime-1.2.0/AndroidManifest.xml:17:1-31:12
+MERGED from [androidx.interpolator:interpolator:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/6a1f738b4c498f3242039dcc77e4a370/transformed/interpolator-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.exifinterface:exifinterface:1.3.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/e3e2d3867ca25a1e4f1c620ba70fdd9c/transformed/exifinterface-1.3.7/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.tracing:tracing:1.2.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/feafc0047729f32db5c911c1066c0687/transformed/tracing-1.2.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/bb562fdd831640df832146b7892f733f/transformed/cursoradapter-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [co.touchlab:kermit-android-debug:2.0.5] /Users/hanshin/.gradle/caches/8.11.1/transforms/d378d9909219f380e77b0c7b0a4a8ec4/transformed/kermit-debug/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.core:core-viewtree:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/7f697337df4489bb1c3a12d224d3ad18/transformed/core-viewtree-1.0.0/AndroidManifest.xml:2:1-7:12
+MERGED from [co.touchlab:kermit-core-android-debug:2.0.5] /Users/hanshin/.gradle/caches/8.11.1/transforms/ba8b76ca9bc302d107635e61b4da57de/transformed/kermit-core-debug/AndroidManifest.xml:2:1-7:12
+MERGED from [com.caverock:androidsvg-aar:1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/fef35274e5ef312690d66e8eb29f93de/transformed/androidsvg-aar-1.4/AndroidManifest.xml:2:1-11:12
+	package
+		INJECTED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml
+	android:versionName
+		INJECTED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml
+	android:versionCode
+		INJECTED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml
+	xmlns:android
+		ADDED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:2:11-69
+uses-permission#android.permission.INTERNET
+ADDED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:4:5-67
+	android:name
+		ADDED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:4:22-64
+application
+ADDED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:6:5-23:19
+INJECTED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:6:5-23:19
+MERGED from [org.jetbrains.compose.components:components-resources-android:1.7.3] /Users/hanshin/.gradle/caches/8.11.1/transforms/94d30dea1adce0a7723e6cf4de72da4a/transformed/library-release/AndroidManifest.xml:7:5-14:19
+MERGED from [org.jetbrains.compose.components:components-resources-android:1.7.3] /Users/hanshin/.gradle/caches/8.11.1/transforms/94d30dea1adce0a7723e6cf4de72da4a/transformed/library-release/AndroidManifest.xml:7:5-14:19
+MERGED from [io.github.jan-tennert.supabase:compose-auth-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/0a57b8717f26d7cdb993f0d95465c244/transformed/compose-auth-debug/AndroidManifest.xml:8:5-18:19
+MERGED from [io.github.jan-tennert.supabase:compose-auth-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/0a57b8717f26d7cdb993f0d95465c244/transformed/compose-auth-debug/AndroidManifest.xml:8:5-18:19
+MERGED from [io.github.jan-tennert.supabase:storage-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/a8aa489d751a9a98ad11e5c90502729a/transformed/storage-kt-debug/AndroidManifest.xml:8:5-18:19
+MERGED from [io.github.jan-tennert.supabase:storage-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/a8aa489d751a9a98ad11e5c90502729a/transformed/storage-kt-debug/AndroidManifest.xml:8:5-18:19
+MERGED from [io.github.jan-tennert.supabase:auth-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/a8be472108f88bd40fbe1975fd756e72/transformed/auth-kt-debug/AndroidManifest.xml:8:5-18:19
+MERGED from [io.github.jan-tennert.supabase:auth-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/a8be472108f88bd40fbe1975fd756e72/transformed/auth-kt-debug/AndroidManifest.xml:8:5-18:19
+MERGED from [com.russhwolf:multiplatform-settings-no-arg-android-debug:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/b61db452bc3ea5ce6e91809dc89b034b/transformed/multiplatform-settings-no-arg-debug/AndroidManifest.xml:23:5-33:19
+MERGED from [com.russhwolf:multiplatform-settings-no-arg-android-debug:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/b61db452bc3ea5ce6e91809dc89b034b/transformed/multiplatform-settings-no-arg-debug/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:23:5-50:19
+MERGED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:23:5-50:19
+MERGED from [com.google.android.gms:play-services-auth:21.1.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/4a221b83ec5cfc71b923993c88e499b7/transformed/play-services-auth-21.1.1/AndroidManifest.xml:22:5-38:19
+MERGED from [com.google.android.gms:play-services-auth:21.1.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/4a221b83ec5cfc71b923993c88e499b7/transformed/play-services-auth-21.1.1/AndroidManifest.xml:22:5-38:19
+MERGED from [com.google.android.gms:play-services-auth-blockstore:16.4.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/c1fc7477d625b67360055400fa5043a7/transformed/play-services-auth-blockstore-16.4.0/AndroidManifest.xml:7:5-20
+MERGED from [com.google.android.gms:play-services-auth-blockstore:16.4.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/c1fc7477d625b67360055400fa5043a7/transformed/play-services-auth-blockstore-16.4.0/AndroidManifest.xml:7:5-20
+MERGED from [com.google.android.gms:play-services-fido:21.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/358061ae3f391bc4b641544913a32bb0/transformed/play-services-fido-21.0.0/AndroidManifest.xml:7:5-8:19
+MERGED from [com.google.android.gms:play-services-fido:21.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/358061ae3f391bc4b641544913a32bb0/transformed/play-services-fido-21.0.0/AndroidManifest.xml:7:5-8:19
+MERGED from [com.google.android.gms:play-services-base:18.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/bb06e028f6145aad2e2aa5a5d98779c3/transformed/play-services-base-18.5.0/AndroidManifest.xml:4:5-6:19
+MERGED from [com.google.android.gms:play-services-base:18.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/bb06e028f6145aad2e2aa5a5d98779c3/transformed/play-services-base-18.5.0/AndroidManifest.xml:4:5-6:19
+MERGED from [com.google.android.gms:play-services-tasks:18.2.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/48f36e39f89bd4ecd03baf8f16290b69/transformed/play-services-tasks-18.2.0/AndroidManifest.xml:4:5-20
+MERGED from [com.google.android.gms:play-services-tasks:18.2.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/48f36e39f89bd4ecd03baf8f16290b69/transformed/play-services-tasks-18.2.0/AndroidManifest.xml:4:5-20
+MERGED from [com.google.android.gms:play-services-basement:18.4.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/fe383b6a0c86957f5187f9beb5e058d6/transformed/play-services-basement-18.4.0/AndroidManifest.xml:5:5-7:19
+MERGED from [com.google.android.gms:play-services-basement:18.4.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/fe383b6a0c86957f5187f9beb5e058d6/transformed/play-services-basement-18.4.0/AndroidManifest.xml:5:5-7:19
+MERGED from [androidx.emoji2:emoji2:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/c089e029c77d2c7cc2dc1bbb79712317/transformed/emoji2-1.3.0/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.emoji2:emoji2:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/c089e029c77d2c7cc2dc1bbb79712317/transformed/emoji2-1.3.0/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.core:core:1.15.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/901347cddc83b33ddcfd7612141fdcff/transformed/core-1.15.0/AndroidManifest.xml:28:5-89
+MERGED from [androidx.core:core:1.15.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/901347cddc83b33ddcfd7612141fdcff/transformed/core-1.15.0/AndroidManifest.xml:28:5-89
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/a3886d2c9fde56d32ff6278c3366b744/transformed/lifecycle-process-2.8.7/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/a3886d2c9fde56d32ff6278c3366b744/transformed/lifecycle-process-2.8.7/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/b1a297b220ac6a6f2ab33602b598e090/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:24:5-25:19
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/b1a297b220ac6a6f2ab33602b598e090/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:24:5-25:19
+MERGED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:23:5-53:19
+MERGED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:23:5-53:19
+MERGED from [androidx.startup:startup-runtime:1.2.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/a093220ce843bbc9ae894b85fccf9442/transformed/startup-runtime-1.2.0/AndroidManifest.xml:23:5-29:19
+MERGED from [androidx.startup:startup-runtime:1.2.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/a093220ce843bbc9ae894b85fccf9442/transformed/startup-runtime-1.2.0/AndroidManifest.xml:23:5-29:19
+	android:extractNativeLibs
+		INJECTED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml
+	android:appComponentFactory
+		ADDED from [androidx.core:core:1.15.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/901347cddc83b33ddcfd7612141fdcff/transformed/core-1.15.0/AndroidManifest.xml:28:18-86
+	android:supportsRtl
+		ADDED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:11:9-35
+	android:label
+		ADDED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:10:9-33
+	android:icon
+		ADDED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:9:9-58
+	android:allowBackup
+		ADDED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:8:9-35
+	android:theme
+		ADDED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:12:9-46
+	android:name
+		ADDED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:7:9-40
+activity#com.grapplay.app.MainActivity
+ADDED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:13:9-22:20
+	android:windowSoftInputMode
+		ADDED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:17:13-55
+	android:exported
+		ADDED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:16:13-36
+	android:configChanges
+		ADDED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:15:13-225
+	android:name
+		ADDED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:14:13-41
+intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
+ADDED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:18:13-21:29
+action#android.intent.action.MAIN
+ADDED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:19:17-69
+	android:name
+		ADDED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:19:25-66
+category#android.intent.category.LAUNCHER
+ADDED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:20:17-77
+	android:name
+		ADDED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml:20:27-74
+uses-sdk
+INJECTED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml
+INJECTED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml
+MERGED from [androidx.media3:media3-ui:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/6fc8f25028be05435b383731720fd327/transformed/media3-ui-1.5.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-ui:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/6fc8f25028be05435b383731720fd327/transformed/media3-ui-1.5.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-extractor:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/f269309c40876de4c527f73fed6e3f89/transformed/media3-extractor-1.5.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-extractor:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/f269309c40876de4c527f73fed6e3f89/transformed/media3-extractor-1.5.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-container:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/b57fd3e19103f5981053a9de69b68c1b/transformed/media3-container-1.5.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-container:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/b57fd3e19103f5981053a9de69b68c1b/transformed/media3-container-1.5.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-datasource:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed8c09b1050c64da9954f0198b46d856/transformed/media3-datasource-1.5.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-datasource:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed8c09b1050c64da9954f0198b46d856/transformed/media3-datasource-1.5.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-decoder:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/1be72c84a18fd072da9a6829857c92ca/transformed/media3-decoder-1.5.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-decoder:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/1be72c84a18fd072da9a6829857c92ca/transformed/media3-decoder-1.5.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-database:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/cc1a53370ce59a33e62c7dedc43b4562/transformed/media3-database-1.5.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-database:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/cc1a53370ce59a33e62c7dedc43b4562/transformed/media3-database-1.5.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-common:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/8bf6152862a30d607ff910d871e89856/transformed/media3-common-1.5.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-common:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/8bf6152862a30d607ff910d871e89856/transformed/media3-common-1.5.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-exoplayer-hls:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/6d93fe44b5aac978ccfcebedeea7a21e/transformed/media3-exoplayer-hls-1.5.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-exoplayer-hls:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/6d93fe44b5aac978ccfcebedeea7a21e/transformed/media3-exoplayer-hls-1.5.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-exoplayer:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/d0063f400ce060c1aa2a98e2ec440ab8/transformed/media3-exoplayer-1.5.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-exoplayer:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/d0063f400ce060c1aa2a98e2ec440ab8/transformed/media3-exoplayer-1.5.1/AndroidManifest.xml:20:5-44
+MERGED from [com.materialkolor:material-kolor-android:2.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/1aefa1f9ebec3dbfb21bff027aa03611/transformed/material-kolor-release/AndroidManifest.xml:5:5-44
+MERGED from [com.materialkolor:material-kolor-android:2.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/1aefa1f9ebec3dbfb21bff027aa03611/transformed/material-kolor-release/AndroidManifest.xml:5:5-44
+MERGED from [io.github.jan-tennert.supabase:compose-auth-ui-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/79d34de9609bcc7a029ddb1a6e64b270/transformed/compose-auth-ui-debug/AndroidManifest.xml:5:5-44
+MERGED from [io.github.jan-tennert.supabase:compose-auth-ui-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/79d34de9609bcc7a029ddb1a6e64b270/transformed/compose-auth-ui-debug/AndroidManifest.xml:5:5-44
+MERGED from [org.jetbrains.compose.components:components-resources-android:1.7.3] /Users/hanshin/.gradle/caches/8.11.1/transforms/94d30dea1adce0a7723e6cf4de72da4a/transformed/library-release/AndroidManifest.xml:5:5-44
+MERGED from [org.jetbrains.compose.components:components-resources-android:1.7.3] /Users/hanshin/.gradle/caches/8.11.1/transforms/94d30dea1adce0a7723e6cf4de72da4a/transformed/library-release/AndroidManifest.xml:5:5-44
+MERGED from [io.coil-kt.coil3:coil-compose-android:3.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/a4f7764715374a2685fbd0d850c6233f/transformed/coil-compose-release/AndroidManifest.xml:5:5-44
+MERGED from [io.coil-kt.coil3:coil-compose-android:3.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/a4f7764715374a2685fbd0d850c6233f/transformed/coil-compose-release/AndroidManifest.xml:5:5-44
+MERGED from [io.coil-kt.coil3:coil-compose-core-android:3.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/6b6ecb5a4b08af48e0ede8357c916f91/transformed/coil-compose-core-release/AndroidManifest.xml:5:5-44
+MERGED from [io.coil-kt.coil3:coil-compose-core-android:3.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/6b6ecb5a4b08af48e0ede8357c916f91/transformed/coil-compose-core-release/AndroidManifest.xml:5:5-44
+MERGED from [cafe.adriel.voyager:voyager-koin-android:1.1.0-beta03] /Users/hanshin/.gradle/caches/8.11.1/transforms/649697b863b863073f1b7bcdef37fab9/transformed/voyager-koin-release/AndroidManifest.xml:5:5-44
+MERGED from [cafe.adriel.voyager:voyager-koin-android:1.1.0-beta03] /Users/hanshin/.gradle/caches/8.11.1/transforms/649697b863b863073f1b7bcdef37fab9/transformed/voyager-koin-release/AndroidManifest.xml:5:5-44
+MERGED from [io.github.jan-tennert.supabase:compose-auth-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/0a57b8717f26d7cdb993f0d95465c244/transformed/compose-auth-debug/AndroidManifest.xml:6:5-44
+MERGED from [io.github.jan-tennert.supabase:compose-auth-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/0a57b8717f26d7cdb993f0d95465c244/transformed/compose-auth-debug/AndroidManifest.xml:6:5-44
+MERGED from [org.jetbrains.compose.components:components-ui-tooling-preview-android:1.7.3] /Users/hanshin/.gradle/caches/8.11.1/transforms/a43fb726c2f392c57e51937b93775a89/transformed/library-release/AndroidManifest.xml:5:5-44
+MERGED from [org.jetbrains.compose.components:components-ui-tooling-preview-android:1.7.3] /Users/hanshin/.gradle/caches/8.11.1/transforms/a43fb726c2f392c57e51937b93775a89/transformed/library-release/AndroidManifest.xml:5:5-44
+MERGED from [io.coil-kt.coil3:coil-network-ktor3-android:3.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/98fb448998de577d36f37271ac1e3d77/transformed/coil-network-ktor3-release/AndroidManifest.xml:5:5-44
+MERGED from [io.coil-kt.coil3:coil-network-ktor3-android:3.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/98fb448998de577d36f37271ac1e3d77/transformed/coil-network-ktor3-release/AndroidManifest.xml:5:5-44
+MERGED from [cafe.adriel.voyager:voyager-screenmodel-android:1.1.0-beta03] /Users/hanshin/.gradle/caches/8.11.1/transforms/f8c5a851aeecb77474d87fe61207ce09/transformed/voyager-screenmodel-release/AndroidManifest.xml:5:5-44
+MERGED from [cafe.adriel.voyager:voyager-screenmodel-android:1.1.0-beta03] /Users/hanshin/.gradle/caches/8.11.1/transforms/f8c5a851aeecb77474d87fe61207ce09/transformed/voyager-screenmodel-release/AndroidManifest.xml:5:5-44
+MERGED from [cafe.adriel.voyager:voyager-tab-navigator-android:1.1.0-beta03] /Users/hanshin/.gradle/caches/8.11.1/transforms/7259b0819a1bc82907d4f1ef0cbf9ba3/transformed/voyager-tab-navigator-release/AndroidManifest.xml:5:5-44
+MERGED from [cafe.adriel.voyager:voyager-tab-navigator-android:1.1.0-beta03] /Users/hanshin/.gradle/caches/8.11.1/transforms/7259b0819a1bc82907d4f1ef0cbf9ba3/transformed/voyager-tab-navigator-release/AndroidManifest.xml:5:5-44
+MERGED from [cafe.adriel.voyager:voyager-transitions-android:1.1.0-beta03] /Users/hanshin/.gradle/caches/8.11.1/transforms/2a767cc58562c427f797052fbf0e5ac1/transformed/voyager-transitions-release/AndroidManifest.xml:5:5-44
+MERGED from [cafe.adriel.voyager:voyager-transitions-android:1.1.0-beta03] /Users/hanshin/.gradle/caches/8.11.1/transforms/2a767cc58562c427f797052fbf0e5ac1/transformed/voyager-transitions-release/AndroidManifest.xml:5:5-44
+MERGED from [cafe.adriel.voyager:voyager-navigator-android:1.1.0-beta03] /Users/hanshin/.gradle/caches/8.11.1/transforms/c598d45fbe159581b0c265ae72f91f33/transformed/voyager-navigator-release/AndroidManifest.xml:5:5-44
+MERGED from [cafe.adriel.voyager:voyager-navigator-android:1.1.0-beta03] /Users/hanshin/.gradle/caches/8.11.1/transforms/c598d45fbe159581b0c265ae72f91f33/transformed/voyager-navigator-release/AndroidManifest.xml:5:5-44
+MERGED from [io.github.jan-tennert.supabase:functions-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/1abe586bffe609e35b9b7b1552f28af5/transformed/functions-kt-debug/AndroidManifest.xml:5:5-44
+MERGED from [io.github.jan-tennert.supabase:functions-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/1abe586bffe609e35b9b7b1552f28af5/transformed/functions-kt-debug/AndroidManifest.xml:5:5-44
+MERGED from [io.github.jan-tennert.supabase:postgrest-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/5b5688a8c546c4842c9df1abc0316b06/transformed/postgrest-kt-debug/AndroidManifest.xml:5:5-44
+MERGED from [io.github.jan-tennert.supabase:postgrest-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/5b5688a8c546c4842c9df1abc0316b06/transformed/postgrest-kt-debug/AndroidManifest.xml:5:5-44
+MERGED from [io.github.jan-tennert.supabase:coil3-integration-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/587c1e23e84e3571d33edc82072f7933/transformed/coil3-integration-debug/AndroidManifest.xml:5:5-44
+MERGED from [io.github.jan-tennert.supabase:coil3-integration-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/587c1e23e84e3571d33edc82072f7933/transformed/coil3-integration-debug/AndroidManifest.xml:5:5-44
+MERGED from [io.github.jan-tennert.supabase:storage-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/a8aa489d751a9a98ad11e5c90502729a/transformed/storage-kt-debug/AndroidManifest.xml:6:5-44
+MERGED from [io.github.jan-tennert.supabase:storage-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/a8aa489d751a9a98ad11e5c90502729a/transformed/storage-kt-debug/AndroidManifest.xml:6:5-44
+MERGED from [io.github.jan-tennert.supabase:auth-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/a8be472108f88bd40fbe1975fd756e72/transformed/auth-kt-debug/AndroidManifest.xml:6:5-44
+MERGED from [io.github.jan-tennert.supabase:auth-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/a8be472108f88bd40fbe1975fd756e72/transformed/auth-kt-debug/AndroidManifest.xml:6:5-44
+MERGED from [com.russhwolf:multiplatform-settings-coroutines-android-debug:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/3d2771de37513bcbc08d1ec129cc0efb/transformed/multiplatform-settings-coroutines-debug/AndroidManifest.xml:5:5-44
+MERGED from [com.russhwolf:multiplatform-settings-coroutines-android-debug:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/3d2771de37513bcbc08d1ec129cc0efb/transformed/multiplatform-settings-coroutines-debug/AndroidManifest.xml:5:5-44
+MERGED from [com.russhwolf:multiplatform-settings-no-arg-android-debug:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/b61db452bc3ea5ce6e91809dc89b034b/transformed/multiplatform-settings-no-arg-debug/AndroidManifest.xml:21:5-44
+MERGED from [com.russhwolf:multiplatform-settings-no-arg-android-debug:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/b61db452bc3ea5ce6e91809dc89b034b/transformed/multiplatform-settings-no-arg-debug/AndroidManifest.xml:21:5-44
+MERGED from [com.russhwolf:multiplatform-settings-android-debug:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/aab91eae7160abefd3c6ed6f3c3711be/transformed/multiplatform-settings-debug/AndroidManifest.xml:5:5-44
+MERGED from [com.russhwolf:multiplatform-settings-android-debug:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/aab91eae7160abefd3c6ed6f3c3711be/transformed/multiplatform-settings-debug/AndroidManifest.xml:5:5-44
+MERGED from [androidx.recyclerview:recyclerview:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/9277c3e441869758a0134d4951c6815c/transformed/recyclerview-1.3.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.recyclerview:recyclerview:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/9277c3e441869758a0134d4951c6815c/transformed/recyclerview-1.3.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.material3:material3-android:1.3.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/baa9578591bcd9f13653744bc1ac918c/transformed/material3-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.material3:material3-android:1.3.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/baa9578591bcd9f13653744bc1ac918c/transformed/material3-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.animation:animation-core-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/698fc66bc460eb381c3940dad49ef0d2/transformed/animation-core-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.animation:animation-core-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/698fc66bc460eb381c3940dad49ef0d2/transformed/animation-core-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-ripple-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/be16c8fd34e11bf7967b3b9a03ada9e0/transformed/material-ripple-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-ripple-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/be16c8fd34e11bf7967b3b9a03ada9e0/transformed/material-ripple-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.animation:animation-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/50c1de732215e6c2ee872f505019e8ba/transformed/animation-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.animation:animation-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/50c1de732215e6c2ee872f505019e8ba/transformed/animation-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.foundation:foundation-layout-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/42e38245982effa0d519e0c1c95c39a6/transformed/foundation-layout-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.foundation:foundation-layout-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/42e38245982effa0d519e0c1c95c39a6/transformed/foundation-layout-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.foundation:foundation-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/db7ffc6a3c587b0d8a2a6648d7c2e289/transformed/foundation-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.foundation:foundation-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/db7ffc6a3c587b0d8a2a6648d7c2e289/transformed/foundation-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-unit-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/fac8c23d67bc285db2bca239f7b7c475/transformed/ui-unit-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-unit-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/fac8c23d67bc285db2bca239f7b7c475/transformed/ui-unit-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-geometry-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/959c49299149507a5b955931262f3532/transformed/ui-geometry-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-geometry-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/959c49299149507a5b955931262f3532/transformed/ui-geometry-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-graphics-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/aa2a070efe680e3b89103267e3ecaf00/transformed/ui-graphics-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-graphics-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/aa2a070efe680e3b89103267e3ecaf00/transformed/ui-graphics-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-util-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/ce90a856000f1157690b15f1363c4179/transformed/ui-util-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-util-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/ce90a856000f1157690b15f1363c4179/transformed/ui-util-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-text-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/4835b3f7d49c96d29d48994c17b1c8d2/transformed/ui-text-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-text-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/4835b3f7d49c96d29d48994c17b1c8d2/transformed/ui-text-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-tooling-preview-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/4882ab878813e0e4a2414f3e0f5a0687/transformed/ui-tooling-preview-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.ui:ui-tooling-preview-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/4882ab878813e0e4a2414f3e0f5a0687/transformed/ui-tooling-preview-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.material:material-icons-extended-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/ea138f9c156b990ee92b3aaea4d30dfe/transformed/material-icons-extended-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-icons-extended-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/ea138f9c156b990ee92b3aaea4d30dfe/transformed/material-icons-extended-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-icons-core-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/3aa85d253b33a4be92c8730dcbc35465/transformed/material-icons-core-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-icons-core-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/3aa85d253b33a4be92c8730dcbc35465/transformed/material-icons-core-release/AndroidManifest.xml:5:5-44
+MERGED from [cafe.adriel.voyager:voyager-core-android:1.1.0-beta03] /Users/hanshin/.gradle/caches/8.11.1/transforms/3b2a944fb9ef4aa272e265af37d0e683/transformed/voyager-core-release/AndroidManifest.xml:5:5-44
+MERGED from [cafe.adriel.voyager:voyager-core-android:1.1.0-beta03] /Users/hanshin/.gradle/caches/8.11.1/transforms/3b2a944fb9ef4aa272e265af37d0e683/transformed/voyager-core-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:21:5-44
+MERGED from [com.google.android.libraries.identity.googleid:googleid:1.1.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/94644531d707e9a374a7a69d34a3f16c/transformed/googleid-1.1.1/AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.libraries.identity.googleid:googleid:1.1.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/94644531d707e9a374a7a69d34a3f16c/transformed/googleid-1.1.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.credentials:credentials:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/8817249d90ccad7750bca965f2e25c5d/transformed/credentials-1.5.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.credentials:credentials:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/8817249d90ccad7750bca965f2e25c5d/transformed/credentials-1.5.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.biometric:biometric:1.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/fcc988f62b6fdf10cf2dfbf1864e9a75/transformed/biometric-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.biometric:biometric:1.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/fcc988f62b6fdf10cf2dfbf1864e9a75/transformed/biometric-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.gms:play-services-auth:21.1.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/4a221b83ec5cfc71b923993c88e499b7/transformed/play-services-auth-21.1.1/AndroidManifest.xml:20:5-44
+MERGED from [com.google.android.gms:play-services-auth:21.1.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/4a221b83ec5cfc71b923993c88e499b7/transformed/play-services-auth-21.1.1/AndroidManifest.xml:20:5-44
+MERGED from [com.google.android.gms:play-services-auth-blockstore:16.4.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/c1fc7477d625b67360055400fa5043a7/transformed/play-services-auth-blockstore-16.4.0/AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.gms:play-services-auth-blockstore:16.4.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/c1fc7477d625b67360055400fa5043a7/transformed/play-services-auth-blockstore-16.4.0/AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.gms:play-services-fido:21.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/358061ae3f391bc4b641544913a32bb0/transformed/play-services-fido-21.0.0/AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.gms:play-services-fido:21.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/358061ae3f391bc4b641544913a32bb0/transformed/play-services-fido-21.0.0/AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.gms:play-services-identity-credentials:16.0.0-alpha02] /Users/hanshin/.gradle/caches/8.11.1/transforms/daeea9e7e6b7a10ede7fe09001e71da6/transformed/play-services-identity-credentials-16.0.0-alpha02/AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.gms:play-services-identity-credentials:16.0.0-alpha02] /Users/hanshin/.gradle/caches/8.11.1/transforms/daeea9e7e6b7a10ede7fe09001e71da6/transformed/play-services-identity-credentials-16.0.0-alpha02/AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.gms:play-services-auth-api-phone:18.0.2] /Users/hanshin/.gradle/caches/8.11.1/transforms/84fa6d79e273c4b1ab3579dd5a9a55c8/transformed/play-services-auth-api-phone-18.0.2/AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.gms:play-services-auth-api-phone:18.0.2] /Users/hanshin/.gradle/caches/8.11.1/transforms/84fa6d79e273c4b1ab3579dd5a9a55c8/transformed/play-services-auth-api-phone-18.0.2/AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.gms:play-services-auth-base:18.0.10] /Users/hanshin/.gradle/caches/8.11.1/transforms/fd3fb2816bdc9a9c3760524301e7d8e6/transformed/play-services-auth-base-18.0.10/AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.gms:play-services-auth-base:18.0.10] /Users/hanshin/.gradle/caches/8.11.1/transforms/fd3fb2816bdc9a9c3760524301e7d8e6/transformed/play-services-auth-base-18.0.10/AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.gms:play-services-base:18.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/bb06e028f6145aad2e2aa5a5d98779c3/transformed/play-services-base-18.5.0/AndroidManifest.xml:3:5-44
+MERGED from [com.google.android.gms:play-services-base:18.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/bb06e028f6145aad2e2aa5a5d98779c3/transformed/play-services-base-18.5.0/AndroidManifest.xml:3:5-44
+MERGED from [com.google.android.gms:play-services-tasks:18.2.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/48f36e39f89bd4ecd03baf8f16290b69/transformed/play-services-tasks-18.2.0/AndroidManifest.xml:3:5-44
+MERGED from [com.google.android.gms:play-services-tasks:18.2.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/48f36e39f89bd4ecd03baf8f16290b69/transformed/play-services-tasks-18.2.0/AndroidManifest.xml:3:5-44
+MERGED from [com.google.android.gms:play-services-basement:18.4.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/fe383b6a0c86957f5187f9beb5e058d6/transformed/play-services-basement-18.4.0/AndroidManifest.xml:3:5-44
+MERGED from [com.google.android.gms:play-services-basement:18.4.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/fe383b6a0c86957f5187f9beb5e058d6/transformed/play-services-basement-18.4.0/AndroidManifest.xml:3:5-44
+MERGED from [io.coil-kt.coil3:coil-android:3.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/87814491921e43cbb5940e3b920e480c/transformed/coil-release/AndroidManifest.xml:5:5-44
+MERGED from [io.coil-kt.coil3:coil-android:3.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/87814491921e43cbb5940e3b920e480c/transformed/coil-release/AndroidManifest.xml:5:5-44
+MERGED from [io.coil-kt.coil3:coil-network-core-android:3.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/6e4b4c1158b79b041eb9b476cb3d4a4e/transformed/coil-network-core-release/AndroidManifest.xml:5:5-44
+MERGED from [io.coil-kt.coil3:coil-network-core-android:3.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/6e4b4c1158b79b041eb9b476cb3d4a4e/transformed/coil-network-core-release/AndroidManifest.xml:5:5-44
+MERGED from [io.coil-kt.coil3:coil-core-android:3.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/4d265727000ca1b6ffad0d6c83edfb69/transformed/coil-core-release/AndroidManifest.xml:5:5-44
+MERGED from [io.coil-kt.coil3:coil-core-android:3.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/4d265727000ca1b6ffad0d6c83edfb69/transformed/coil-core-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.appcompat:appcompat-resources:1.7.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/b88bc88f61b1ecc38af51a034862da39/transformed/appcompat-resources-1.7.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.appcompat:appcompat-resources:1.7.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/b88bc88f61b1ecc38af51a034862da39/transformed/appcompat-resources-1.7.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.appcompat:appcompat:1.7.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/92b954dc1057e101ede38a8013cefc21/transformed/appcompat-1.7.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.appcompat:appcompat:1.7.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/92b954dc1057e101ede38a8013cefc21/transformed/appcompat-1.7.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.fragment:fragment:1.5.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/c477a30f82e174499d1075bc6fe072db/transformed/fragment-1.5.7/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.fragment:fragment:1.5.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/c477a30f82e174499d1075bc6fe072db/transformed/fragment-1.5.7/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.activity:activity:1.10.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/1ace3a908ba83aae874093b7dad1f659/transformed/activity-1.10.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.activity:activity:1.10.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/1ace3a908ba83aae874093b7dad1f659/transformed/activity-1.10.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.activity:activity-ktx:1.10.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/8a2634cf8f6bde0a55ec9eb22bf32a23/transformed/activity-ktx-1.10.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity-ktx:1.10.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/8a2634cf8f6bde0a55ec9eb22bf32a23/transformed/activity-ktx-1.10.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity-compose:1.10.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/ff8bfe896bd16777f27c6ebee09f2711/transformed/activity-compose-1.10.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity-compose:1.10.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/ff8bfe896bd16777f27c6ebee09f2711/transformed/activity-compose-1.10.1/AndroidManifest.xml:5:5-44
+MERGED from [com.google.accompanist:accompanist-drawablepainter:0.36.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/3d1d6fe3af166b9c3f762a4e99257cf4/transformed/accompanist-drawablepainter-0.36.0/AndroidManifest.xml:21:5-44
+MERGED from [com.google.accompanist:accompanist-drawablepainter:0.36.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/3d1d6fe3af166b9c3f762a4e99257cf4/transformed/accompanist-drawablepainter-0.36.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.emoji2:emoji2-views-helper:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/c64ff8b2061663662e7a334f845fa3ad/transformed/emoji2-views-helper-1.3.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.emoji2:emoji2-views-helper:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/c64ff8b2061663662e7a334f845fa3ad/transformed/emoji2-views-helper-1.3.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.emoji2:emoji2:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/c089e029c77d2c7cc2dc1bbb79712317/transformed/emoji2-1.3.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.emoji2:emoji2:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/c089e029c77d2c7cc2dc1bbb79712317/transformed/emoji2-1.3.0/AndroidManifest.xml:21:5-44
+MERGED from [io.github.jan-tennert.supabase:supabase-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/71d4ff1ae781e018c0a17b5fd632e92e/transformed/supabase-kt-debug/AndroidManifest.xml:5:5-44
+MERGED from [io.github.jan-tennert.supabase:supabase-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/71d4ff1ae781e018c0a17b5fd632e92e/transformed/supabase-kt-debug/AndroidManifest.xml:5:5-44
+MERGED from [androidx.media:media:1.7.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/f15253e39a80739d70d742db439b21e0/transformed/media-1.7.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.media:media:1.7.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/f15253e39a80739d70d742db439b21e0/transformed/media-1.7.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.viewpager:viewpager:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/2b97335f7ed09a8ca826a656a22b460a/transformed/viewpager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.viewpager:viewpager:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/2b97335f7ed09a8ca826a656a22b460a/transformed/viewpager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.drawerlayout:drawerlayout:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/fbefb2022c37decae23c68762b4f65ad/transformed/drawerlayout-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.drawerlayout:drawerlayout:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/fbefb2022c37decae23c68762b4f65ad/transformed/drawerlayout-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.customview:customview:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/279e1731b2401fb9c3113b45476cd1c8/transformed/customview-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.customview:customview:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/279e1731b2401fb9c3113b45476cd1c8/transformed/customview-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.autofill:autofill:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/a1b6def21a4f42ed5d3de0a5d7f3e463/transformed/autofill-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.autofill:autofill:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/a1b6def21a4f42ed5d3de0a5d7f3e463/transformed/autofill-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.browser:browser:1.8.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/f5ed7a3f3a85d0d38b9f34dae454926c/transformed/browser-1.8.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.browser:browser:1.8.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/f5ed7a3f3a85d0d38b9f34dae454926c/transformed/browser-1.8.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.graphics:graphics-path:1.0.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/4e8615e9c0def62f6331bdf0bdb4b749/transformed/graphics-path-1.0.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.graphics:graphics-path:1.0.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/4e8615e9c0def62f6331bdf0bdb4b749/transformed/graphics-path-1.0.1/AndroidManifest.xml:5:5-44
+MERGED from [org.jetbrains.androidx.core:core-bundle-android-debug:1.0.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/24c785b70d7895dc6c79a6f96ba2a5e2/transformed/core-bundle-debug/AndroidManifest.xml:5:5-44
+MERGED from [org.jetbrains.androidx.core:core-bundle-android-debug:1.0.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/24c785b70d7895dc6c79a6f96ba2a5e2/transformed/core-bundle-debug/AndroidManifest.xml:5:5-44
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/3d9f7a032877bfc4640b49aff6b9c2c0/transformed/savedstate-ktx-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/3d9f7a032877bfc4640b49aff6b9c2c0/transformed/savedstate-ktx-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate:1.2.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/2f89af509d182d26fee86e94795edba9/transformed/savedstate-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate:1.2.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/2f89af509d182d26fee86e94795edba9/transformed/savedstate-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.loader:loader:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ac005e21c472b2f5dc8c22e80eb7d2fb/transformed/loader-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.loader:loader:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ac005e21c472b2f5dc8c22e80eb7d2fb/transformed/loader-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/c5bf7a38e725d023e1934c0554f34b48/transformed/lifecycle-livedata-core-ktx-2.8.7/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/c5bf7a38e725d023e1934c0554f34b48/transformed/lifecycle-livedata-core-ktx-2.8.7/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/9ae772a0c6a14b17ffc343c327164134/transformed/lifecycle-livedata-2.8.7/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/9ae772a0c6a14b17ffc343c327164134/transformed/lifecycle-livedata-2.8.7/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/e77e0146b02bef2c165a567003a878c0/transformed/lifecycle-viewmodel-2.8.7/AndroidManifest.xml:4:5-43
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/e77e0146b02bef2c165a567003a878c0/transformed/lifecycle-viewmodel-2.8.7/AndroidManifest.xml:4:5-43
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-android:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/c3c90b8802ce4b3fe663206c840ac3ec/transformed/lifecycle-viewmodel-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-android:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/c3c90b8802ce4b3fe663206c840ac3ec/transformed/lifecycle-viewmodel-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx-android:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/eae403e68e4697943165454d147e6a19/transformed/lifecycle-runtime-ktx-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx-android:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/eae403e68e4697943165454d147e6a19/transformed/lifecycle-runtime-ktx-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-compose-android:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/4379028f385cf6358b73f5d15caae26b/transformed/lifecycle-runtime-compose-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-compose-android:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/4379028f385cf6358b73f5d15caae26b/transformed/lifecycle-runtime-compose-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/fcc26d5ae7d8949f4f4560b1ab9a7908/transformed/lifecycle-viewmodel-ktx-2.8.7/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/fcc26d5ae7d8949f4f4560b1ab9a7908/transformed/lifecycle-viewmodel-ktx-2.8.7/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/a39bd607c493f14e018be8b4577604e4/transformed/lifecycle-livedata-core-2.8.7/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/a39bd607c493f14e018be8b4577604e4/transformed/lifecycle-livedata-core-2.8.7/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/78731cc49ea7ac5179b54f71d6ce4e98/transformed/lifecycle-viewmodel-savedstate-2.8.7/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/78731cc49ea7ac5179b54f71d6ce4e98/transformed/lifecycle-viewmodel-savedstate-2.8.7/AndroidManifest.xml:20:5-44
+MERGED from [androidx.core:core-ktx:1.15.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/1ca75e68ff041ec6008d16862bd9af70/transformed/core-ktx-1.15.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.core:core-ktx:1.15.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/1ca75e68ff041ec6008d16862bd9af70/transformed/core-ktx-1.15.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/50702b53dfe43937ea858e06ed11506c/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/50702b53dfe43937ea858e06ed11506c/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/eafc12a9fe41ec16e7472eac866d4c2e/transformed/vectordrawable-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/eafc12a9fe41ec16e7472eac866d4c2e/transformed/vectordrawable-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.core:core:1.15.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/901347cddc83b33ddcfd7612141fdcff/transformed/core-1.15.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.core:core:1.15.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/901347cddc83b33ddcfd7612141fdcff/transformed/core-1.15.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-android:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/3eb8d8ee25ea49c696cedd1e5f3850d3/transformed/lifecycle-runtime-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-android:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/3eb8d8ee25ea49c696cedd1e5f3850d3/transformed/lifecycle-runtime-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/a3886d2c9fde56d32ff6278c3366b744/transformed/lifecycle-process-2.8.7/AndroidManifest.xml:21:5-44
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/a3886d2c9fde56d32ff6278c3366b744/transformed/lifecycle-process-2.8.7/AndroidManifest.xml:21:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-compose-android:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/1a7dfeeef1e0de85b9304d308d325525/transformed/lifecycle-viewmodel-compose-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-compose-android:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/1a7dfeeef1e0de85b9304d308d325525/transformed/lifecycle-viewmodel-compose-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/458bf3e4109dae4192678504a1b36e61/transformed/ui-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/458bf3e4109dae4192678504a1b36e61/transformed/ui-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.customview:customview-poolingcontainer:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/3aa809072f74ee5101c8933871055619/transformed/customview-poolingcontainer-1.0.0/AndroidManifest.xml:20:5-21:38
+MERGED from [androidx.customview:customview-poolingcontainer:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/3aa809072f74ee5101c8933871055619/transformed/customview-poolingcontainer-1.0.0/AndroidManifest.xml:20:5-21:38
+MERGED from [androidx.compose.runtime:runtime-saveable-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/f46416431016a9e0a068026c7503d587/transformed/runtime-saveable-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.runtime:runtime-saveable-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/f46416431016a9e0a068026c7503d587/transformed/runtime-saveable-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.runtime:runtime-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/dc9fa278152a4e6226fad40d36a375e9/transformed/runtime-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.runtime:runtime-android:1.7.6] /Users/hanshin/.gradle/caches/8.11.1/transforms/dc9fa278152a4e6226fad40d36a375e9/transformed/runtime-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.annotation:annotation-experimental:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/eb0c60b6bdf1c5ba0095a3c26b2ab25a/transformed/annotation-experimental-1.4.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.annotation:annotation-experimental:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/eb0c60b6bdf1c5ba0095a3c26b2ab25a/transformed/annotation-experimental-1.4.1/AndroidManifest.xml:5:5-44
+MERGED from [com.materialkolor:material-color-utilities-android:2.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/0f676ee20c49df55e475d25d5a2e20c8/transformed/material-color-utilities-release/AndroidManifest.xml:5:5-44
+MERGED from [com.materialkolor:material-color-utilities-android:2.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/0f676ee20c49df55e475d25d5a2e20c8/transformed/material-color-utilities-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/b1a297b220ac6a6f2ab33602b598e090/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/b1a297b220ac6a6f2ab33602b598e090/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.arch.core:core-runtime:2.2.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/6ecb5b13eb2d403cce891207d5d9de40/transformed/core-runtime-2.2.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.arch.core:core-runtime:2.2.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/6ecb5b13eb2d403cce891207d5d9de40/transformed/core-runtime-2.2.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:21:5-44
+MERGED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:21:5-44
+MERGED from [androidx.startup:startup-runtime:1.2.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/a093220ce843bbc9ae894b85fccf9442/transformed/startup-runtime-1.2.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.startup:startup-runtime:1.2.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/a093220ce843bbc9ae894b85fccf9442/transformed/startup-runtime-1.2.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.interpolator:interpolator:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/6a1f738b4c498f3242039dcc77e4a370/transformed/interpolator-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.interpolator:interpolator:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/6a1f738b4c498f3242039dcc77e4a370/transformed/interpolator-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.exifinterface:exifinterface:1.3.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/e3e2d3867ca25a1e4f1c620ba70fdd9c/transformed/exifinterface-1.3.7/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.exifinterface:exifinterface:1.3.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/e3e2d3867ca25a1e4f1c620ba70fdd9c/transformed/exifinterface-1.3.7/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.tracing:tracing:1.2.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/feafc0047729f32db5c911c1066c0687/transformed/tracing-1.2.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.tracing:tracing:1.2.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/feafc0047729f32db5c911c1066c0687/transformed/tracing-1.2.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/bb562fdd831640df832146b7892f733f/transformed/cursoradapter-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/bb562fdd831640df832146b7892f733f/transformed/cursoradapter-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [co.touchlab:kermit-android-debug:2.0.5] /Users/hanshin/.gradle/caches/8.11.1/transforms/d378d9909219f380e77b0c7b0a4a8ec4/transformed/kermit-debug/AndroidManifest.xml:5:5-44
+MERGED from [co.touchlab:kermit-android-debug:2.0.5] /Users/hanshin/.gradle/caches/8.11.1/transforms/d378d9909219f380e77b0c7b0a4a8ec4/transformed/kermit-debug/AndroidManifest.xml:5:5-44
+MERGED from [androidx.core:core-viewtree:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/7f697337df4489bb1c3a12d224d3ad18/transformed/core-viewtree-1.0.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.core:core-viewtree:1.0.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/7f697337df4489bb1c3a12d224d3ad18/transformed/core-viewtree-1.0.0/AndroidManifest.xml:5:5-44
+MERGED from [co.touchlab:kermit-core-android-debug:2.0.5] /Users/hanshin/.gradle/caches/8.11.1/transforms/ba8b76ca9bc302d107635e61b4da57de/transformed/kermit-core-debug/AndroidManifest.xml:5:5-44
+MERGED from [co.touchlab:kermit-core-android-debug:2.0.5] /Users/hanshin/.gradle/caches/8.11.1/transforms/ba8b76ca9bc302d107635e61b4da57de/transformed/kermit-core-debug/AndroidManifest.xml:5:5-44
+MERGED from [com.caverock:androidsvg-aar:1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/fef35274e5ef312690d66e8eb29f93de/transformed/androidsvg-aar-1.4/AndroidManifest.xml:7:5-9:41
+MERGED from [com.caverock:androidsvg-aar:1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/fef35274e5ef312690d66e8eb29f93de/transformed/androidsvg-aar-1.4/AndroidManifest.xml:7:5-9:41
+	android:targetSdkVersion
+		INJECTED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /Users/hanshin/Documents/Projects/grapplay/mobile/composeApp/src/androidMain/AndroidManifest.xml
+uses-permission#android.permission.ACCESS_NETWORK_STATE
+ADDED from [androidx.media3:media3-common:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/8bf6152862a30d607ff910d871e89856/transformed/media3-common-1.5.1/AndroidManifest.xml:22:5-79
+MERGED from [androidx.media3:media3-exoplayer:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/d0063f400ce060c1aa2a98e2ec440ab8/transformed/media3-exoplayer-1.5.1/AndroidManifest.xml:22:5-79
+MERGED from [androidx.media3:media3-exoplayer:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/d0063f400ce060c1aa2a98e2ec440ab8/transformed/media3-exoplayer-1.5.1/AndroidManifest.xml:22:5-79
+	android:name
+		ADDED from [androidx.media3:media3-common:1.5.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/8bf6152862a30d607ff910d871e89856/transformed/media3-common-1.5.1/AndroidManifest.xml:22:22-76
+provider#org.jetbrains.compose.resources.AndroidContextProvider
+ADDED from [org.jetbrains.compose.components:components-resources-android:1.7.3] /Users/hanshin/.gradle/caches/8.11.1/transforms/94d30dea1adce0a7723e6cf4de72da4a/transformed/library-release/AndroidManifest.xml:8:9-13:20
+	android:enabled
+		ADDED from [org.jetbrains.compose.components:components-resources-android:1.7.3] /Users/hanshin/.gradle/caches/8.11.1/transforms/94d30dea1adce0a7723e6cf4de72da4a/transformed/library-release/AndroidManifest.xml:11:13-35
+	android:authorities
+		ADDED from [org.jetbrains.compose.components:components-resources-android:1.7.3] /Users/hanshin/.gradle/caches/8.11.1/transforms/94d30dea1adce0a7723e6cf4de72da4a/transformed/library-release/AndroidManifest.xml:10:13-84
+	android:exported
+		ADDED from [org.jetbrains.compose.components:components-resources-android:1.7.3] /Users/hanshin/.gradle/caches/8.11.1/transforms/94d30dea1adce0a7723e6cf4de72da4a/transformed/library-release/AndroidManifest.xml:12:13-37
+	android:name
+		ADDED from [org.jetbrains.compose.components:components-resources-android:1.7.3] /Users/hanshin/.gradle/caches/8.11.1/transforms/94d30dea1adce0a7723e6cf4de72da4a/transformed/library-release/AndroidManifest.xml:9:13-82
+provider#androidx.startup.InitializationProvider
+ADDED from [io.github.jan-tennert.supabase:compose-auth-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/0a57b8717f26d7cdb993f0d95465c244/transformed/compose-auth-debug/AndroidManifest.xml:9:9-17:20
+MERGED from [io.github.jan-tennert.supabase:storage-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/a8aa489d751a9a98ad11e5c90502729a/transformed/storage-kt-debug/AndroidManifest.xml:9:9-17:20
+MERGED from [io.github.jan-tennert.supabase:storage-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/a8aa489d751a9a98ad11e5c90502729a/transformed/storage-kt-debug/AndroidManifest.xml:9:9-17:20
+MERGED from [io.github.jan-tennert.supabase:auth-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/a8be472108f88bd40fbe1975fd756e72/transformed/auth-kt-debug/AndroidManifest.xml:9:9-17:20
+MERGED from [io.github.jan-tennert.supabase:auth-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/a8be472108f88bd40fbe1975fd756e72/transformed/auth-kt-debug/AndroidManifest.xml:9:9-17:20
+MERGED from [com.russhwolf:multiplatform-settings-no-arg-android-debug:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/b61db452bc3ea5ce6e91809dc89b034b/transformed/multiplatform-settings-no-arg-debug/AndroidManifest.xml:24:9-32:20
+MERGED from [com.russhwolf:multiplatform-settings-no-arg-android-debug:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/b61db452bc3ea5ce6e91809dc89b034b/transformed/multiplatform-settings-no-arg-debug/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.emoji2:emoji2:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/c089e029c77d2c7cc2dc1bbb79712317/transformed/emoji2-1.3.0/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.emoji2:emoji2:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/c089e029c77d2c7cc2dc1bbb79712317/transformed/emoji2-1.3.0/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/a3886d2c9fde56d32ff6278c3366b744/transformed/lifecycle-process-2.8.7/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/a3886d2c9fde56d32ff6278c3366b744/transformed/lifecycle-process-2.8.7/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.startup:startup-runtime:1.2.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/a093220ce843bbc9ae894b85fccf9442/transformed/startup-runtime-1.2.0/AndroidManifest.xml:24:9-28:34
+MERGED from [androidx.startup:startup-runtime:1.2.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/a093220ce843bbc9ae894b85fccf9442/transformed/startup-runtime-1.2.0/AndroidManifest.xml:24:9-28:34
+	tools:node
+		ADDED from [io.github.jan-tennert.supabase:compose-auth-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/0a57b8717f26d7cdb993f0d95465c244/transformed/compose-auth-debug/AndroidManifest.xml:13:13-31
+	android:authorities
+		ADDED from [io.github.jan-tennert.supabase:compose-auth-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/0a57b8717f26d7cdb993f0d95465c244/transformed/compose-auth-debug/AndroidManifest.xml:11:13-68
+	android:exported
+		ADDED from [io.github.jan-tennert.supabase:compose-auth-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/0a57b8717f26d7cdb993f0d95465c244/transformed/compose-auth-debug/AndroidManifest.xml:12:13-37
+	android:name
+		ADDED from [io.github.jan-tennert.supabase:compose-auth-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/0a57b8717f26d7cdb993f0d95465c244/transformed/compose-auth-debug/AndroidManifest.xml:10:13-67
+meta-data#io.github.jan.supabase.compose.auth.SupabaseInitializer
+ADDED from [io.github.jan-tennert.supabase:compose-auth-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/0a57b8717f26d7cdb993f0d95465c244/transformed/compose-auth-debug/AndroidManifest.xml:14:13-16:52
+	android:value
+		ADDED from [io.github.jan-tennert.supabase:compose-auth-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/0a57b8717f26d7cdb993f0d95465c244/transformed/compose-auth-debug/AndroidManifest.xml:16:17-49
+	android:name
+		ADDED from [io.github.jan-tennert.supabase:compose-auth-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/0a57b8717f26d7cdb993f0d95465c244/transformed/compose-auth-debug/AndroidManifest.xml:15:17-87
+meta-data#io.github.jan.supabase.storage.SupabaseInitializer
+ADDED from [io.github.jan-tennert.supabase:storage-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/a8aa489d751a9a98ad11e5c90502729a/transformed/storage-kt-debug/AndroidManifest.xml:14:13-16:52
+	android:value
+		ADDED from [io.github.jan-tennert.supabase:storage-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/a8aa489d751a9a98ad11e5c90502729a/transformed/storage-kt-debug/AndroidManifest.xml:16:17-49
+	android:name
+		ADDED from [io.github.jan-tennert.supabase:storage-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/a8aa489d751a9a98ad11e5c90502729a/transformed/storage-kt-debug/AndroidManifest.xml:15:17-82
+meta-data#io.github.jan.supabase.auth.SupabaseInitializer
+ADDED from [io.github.jan-tennert.supabase:auth-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/a8be472108f88bd40fbe1975fd756e72/transformed/auth-kt-debug/AndroidManifest.xml:14:13-16:52
+	android:value
+		ADDED from [io.github.jan-tennert.supabase:auth-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/a8be472108f88bd40fbe1975fd756e72/transformed/auth-kt-debug/AndroidManifest.xml:16:17-49
+	android:name
+		ADDED from [io.github.jan-tennert.supabase:auth-kt-android-debug:3.1.4] /Users/hanshin/.gradle/caches/8.11.1/transforms/a8be472108f88bd40fbe1975fd756e72/transformed/auth-kt-debug/AndroidManifest.xml:15:17-79
+meta-data#com.russhwolf.settings.SettingsInitializer
+ADDED from [com.russhwolf:multiplatform-settings-no-arg-android-debug:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/b61db452bc3ea5ce6e91809dc89b034b/transformed/multiplatform-settings-no-arg-debug/AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [com.russhwolf:multiplatform-settings-no-arg-android-debug:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/b61db452bc3ea5ce6e91809dc89b034b/transformed/multiplatform-settings-no-arg-debug/AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [com.russhwolf:multiplatform-settings-no-arg-android-debug:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/b61db452bc3ea5ce6e91809dc89b034b/transformed/multiplatform-settings-no-arg-debug/AndroidManifest.xml:30:17-74
+service#androidx.credentials.playservices.CredentialProviderMetadataHolder
+ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:24:9-32:19
+	android:enabled
+		ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:26:13-35
+	android:exported
+		ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:27:13-37
+	tools:ignore
+		ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:28:13-60
+	android:name
+		ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:25:13-94
+meta-data#androidx.credentials.CREDENTIAL_PROVIDER_KEY
+ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:29:13-31:104
+	android:value
+		ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:31:17-101
+	android:name
+		ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:30:17-76
+activity#androidx.credentials.playservices.HiddenActivity
+ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:34:9-41:20
+	android:fitsSystemWindows
+		ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:39:13-45
+	android:enabled
+		ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:37:13-35
+	android:exported
+		ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:38:13-37
+	android:configChanges
+		ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:36:13-87
+	android:theme
+		ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:40:13-48
+	android:name
+		ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:35:13-76
+activity#androidx.credentials.playservices.IdentityCredentialApiHiddenActivity
+ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:42:9-49:20
+	android:fitsSystemWindows
+		ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:47:13-45
+	android:enabled
+		ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:45:13-35
+	android:exported
+		ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:46:13-37
+	android:configChanges
+		ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:44:13-87
+	android:theme
+		ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:48:13-48
+	android:name
+		ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/ed1641644be41e5b4d72a5ecbbd039c5/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:43:13-97
+uses-permission#android.permission.USE_BIOMETRIC
+ADDED from [androidx.biometric:biometric:1.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/fcc988f62b6fdf10cf2dfbf1864e9a75/transformed/biometric-1.1.0/AndroidManifest.xml:24:5-72
+	android:name
+		ADDED from [androidx.biometric:biometric:1.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/fcc988f62b6fdf10cf2dfbf1864e9a75/transformed/biometric-1.1.0/AndroidManifest.xml:24:22-69
+uses-permission#android.permission.USE_FINGERPRINT
+ADDED from [androidx.biometric:biometric:1.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/fcc988f62b6fdf10cf2dfbf1864e9a75/transformed/biometric-1.1.0/AndroidManifest.xml:27:5-74
+	android:name
+		ADDED from [androidx.biometric:biometric:1.1.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/fcc988f62b6fdf10cf2dfbf1864e9a75/transformed/biometric-1.1.0/AndroidManifest.xml:27:22-71
+activity#com.google.android.gms.auth.api.signin.internal.SignInHubActivity
+ADDED from [com.google.android.gms:play-services-auth:21.1.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/4a221b83ec5cfc71b923993c88e499b7/transformed/play-services-auth-21.1.1/AndroidManifest.xml:23:9-27:75
+	android:excludeFromRecents
+		ADDED from [com.google.android.gms:play-services-auth:21.1.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/4a221b83ec5cfc71b923993c88e499b7/transformed/play-services-auth-21.1.1/AndroidManifest.xml:25:13-46
+	android:exported
+		ADDED from [com.google.android.gms:play-services-auth:21.1.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/4a221b83ec5cfc71b923993c88e499b7/transformed/play-services-auth-21.1.1/AndroidManifest.xml:26:13-37
+	android:theme
+		ADDED from [com.google.android.gms:play-services-auth:21.1.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/4a221b83ec5cfc71b923993c88e499b7/transformed/play-services-auth-21.1.1/AndroidManifest.xml:27:13-72
+	android:name
+		ADDED from [com.google.android.gms:play-services-auth:21.1.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/4a221b83ec5cfc71b923993c88e499b7/transformed/play-services-auth-21.1.1/AndroidManifest.xml:24:13-93
+service#com.google.android.gms.auth.api.signin.RevocationBoundService
+ADDED from [com.google.android.gms:play-services-auth:21.1.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/4a221b83ec5cfc71b923993c88e499b7/transformed/play-services-auth-21.1.1/AndroidManifest.xml:33:9-37:51
+	android:exported
+		ADDED from [com.google.android.gms:play-services-auth:21.1.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/4a221b83ec5cfc71b923993c88e499b7/transformed/play-services-auth-21.1.1/AndroidManifest.xml:35:13-36
+	android:visibleToInstantApps
+		ADDED from [com.google.android.gms:play-services-auth:21.1.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/4a221b83ec5cfc71b923993c88e499b7/transformed/play-services-auth-21.1.1/AndroidManifest.xml:37:13-48
+	android:permission
+		ADDED from [com.google.android.gms:play-services-auth:21.1.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/4a221b83ec5cfc71b923993c88e499b7/transformed/play-services-auth-21.1.1/AndroidManifest.xml:36:13-107
+	android:name
+		ADDED from [com.google.android.gms:play-services-auth:21.1.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/4a221b83ec5cfc71b923993c88e499b7/transformed/play-services-auth-21.1.1/AndroidManifest.xml:34:13-89
+activity#com.google.android.gms.common.api.GoogleApiActivity
+ADDED from [com.google.android.gms:play-services-base:18.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/bb06e028f6145aad2e2aa5a5d98779c3/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:9-173
+	android:exported
+		ADDED from [com.google.android.gms:play-services-base:18.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/bb06e028f6145aad2e2aa5a5d98779c3/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:146-170
+	android:theme
+		ADDED from [com.google.android.gms:play-services-base:18.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/bb06e028f6145aad2e2aa5a5d98779c3/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:86-145
+	android:name
+		ADDED from [com.google.android.gms:play-services-base:18.5.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/bb06e028f6145aad2e2aa5a5d98779c3/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:19-85
+meta-data#com.google.android.gms.version
+ADDED from [com.google.android.gms:play-services-basement:18.4.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/fe383b6a0c86957f5187f9beb5e058d6/transformed/play-services-basement-18.4.0/AndroidManifest.xml:6:9-122
+	android:value
+		ADDED from [com.google.android.gms:play-services-basement:18.4.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/fe383b6a0c86957f5187f9beb5e058d6/transformed/play-services-basement-18.4.0/AndroidManifest.xml:6:66-119
+	android:name
+		ADDED from [com.google.android.gms:play-services-basement:18.4.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/fe383b6a0c86957f5187f9beb5e058d6/transformed/play-services-basement-18.4.0/AndroidManifest.xml:6:20-65
+meta-data#androidx.emoji2.text.EmojiCompatInitializer
+ADDED from [androidx.emoji2:emoji2:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/c089e029c77d2c7cc2dc1bbb79712317/transformed/emoji2-1.3.0/AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/c089e029c77d2c7cc2dc1bbb79712317/transformed/emoji2-1.3.0/AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/c089e029c77d2c7cc2dc1bbb79712317/transformed/emoji2-1.3.0/AndroidManifest.xml:30:17-75
+permission#${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.15.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/901347cddc83b33ddcfd7612141fdcff/transformed/core-1.15.0/AndroidManifest.xml:22:5-24:47
+	android:protectionLevel
+		ADDED from [androidx.core:core:1.15.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/901347cddc83b33ddcfd7612141fdcff/transformed/core-1.15.0/AndroidManifest.xml:24:9-44
+	android:name
+		ADDED from [androidx.core:core:1.15.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/901347cddc83b33ddcfd7612141fdcff/transformed/core-1.15.0/AndroidManifest.xml:23:9-81
+permission#com.grapplay.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.15.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/901347cddc83b33ddcfd7612141fdcff/transformed/core-1.15.0/AndroidManifest.xml:22:5-24:47
+	android:protectionLevel
+		ADDED from [androidx.core:core:1.15.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/901347cddc83b33ddcfd7612141fdcff/transformed/core-1.15.0/AndroidManifest.xml:24:9-44
+	android:name
+		ADDED from [androidx.core:core:1.15.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/901347cddc83b33ddcfd7612141fdcff/transformed/core-1.15.0/AndroidManifest.xml:23:9-81
+uses-permission#${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.15.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/901347cddc83b33ddcfd7612141fdcff/transformed/core-1.15.0/AndroidManifest.xml:26:5-97
+	android:name
+		ADDED from [androidx.core:core:1.15.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/901347cddc83b33ddcfd7612141fdcff/transformed/core-1.15.0/AndroidManifest.xml:26:22-94
+uses-permission#com.grapplay.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.15.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/901347cddc83b33ddcfd7612141fdcff/transformed/core-1.15.0/AndroidManifest.xml:26:5-97
+	android:name
+		ADDED from [androidx.core:core:1.15.0] /Users/hanshin/.gradle/caches/8.11.1/transforms/901347cddc83b33ddcfd7612141fdcff/transformed/core-1.15.0/AndroidManifest.xml:26:22-94
+meta-data#androidx.lifecycle.ProcessLifecycleInitializer
+ADDED from [androidx.lifecycle:lifecycle-process:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/a3886d2c9fde56d32ff6278c3366b744/transformed/lifecycle-process-2.8.7/AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [androidx.lifecycle:lifecycle-process:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/a3886d2c9fde56d32ff6278c3366b744/transformed/lifecycle-process-2.8.7/AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [androidx.lifecycle:lifecycle-process:2.8.7] /Users/hanshin/.gradle/caches/8.11.1/transforms/a3886d2c9fde56d32ff6278c3366b744/transformed/lifecycle-process-2.8.7/AndroidManifest.xml:30:17-78
+meta-data#androidx.profileinstaller.ProfileInstallerInitializer
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:30:17-85
+receiver#androidx.profileinstaller.ProfileInstallReceiver
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:34:9-52:20
+	android:enabled
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:37:13-35
+	android:exported
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:38:13-36
+	android:permission
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:39:13-57
+	android:directBootAware
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:36:13-44
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:35:13-76
+intent-filter#action:name:androidx.profileinstaller.action.INSTALL_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:40:13-42:29
+action#androidx.profileinstaller.action.INSTALL_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:41:17-91
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:41:25-88
+intent-filter#action:name:androidx.profileinstaller.action.SKIP_FILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:43:13-45:29
+action#androidx.profileinstaller.action.SKIP_FILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:44:17-85
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:44:25-82
+intent-filter#action:name:androidx.profileinstaller.action.SAVE_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:46:13-48:29
+action#androidx.profileinstaller.action.SAVE_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:47:17-88
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:47:25-85
+intent-filter#action:name:androidx.profileinstaller.action.BENCHMARK_OPERATION
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:49:13-51:29
+action#androidx.profileinstaller.action.BENCHMARK_OPERATION
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:50:17-95
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.1] /Users/hanshin/.gradle/caches/8.11.1/transforms/06d1ae598700fc5429197e260b9da9c6/transformed/profileinstaller-1.4.1/AndroidManifest.xml:50:25-92
