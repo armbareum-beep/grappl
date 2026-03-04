@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Drill } from '../../types';
 import { useNavigate } from 'react-router-dom';
-import { toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, getUserFollowedCreators, toggleCreatorFollow } from '../../lib/api';
+import { toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, getUserFollowedCreators, toggleCreatorFollow, recordWatchTime } from '../../lib/api';
 import { DrillReelItem } from './DrillReelItem';
 import { useVideoPreloadSafe } from '../../contexts/VideoPreloadContext';
 import { ReelLoginModal } from '../auth/ReelLoginModal';
@@ -97,9 +97,45 @@ export const DrillReelsFeed: React.FC<DrillReelsFeedProps> = ({ drills, initialI
         prevIndexRef.current = currentIndex;
     }, [currentIndex, drills.length]);
 
+    // Watch time tracking refs
+    const lastTickRef = useRef<number>(0);
+    const accumulatedTimeRef = useRef<number>(0);
+    const lastDrillIdRef = useRef<string | null>(null);
+
     const handleProgressUpdate = useCallback((_percent: number, _seconds: number, _hasAccess: boolean) => {
-        // Parent progress handling if needed (currently session-based timer handles global UI)
-    }, []);
+        // Watch time tracking
+        if (!user || drills.length === 0) return;
+
+        const currentDrill = drills[currentIndex];
+        if (!currentDrill) return;
+
+        // Reset tracking when drill changes
+        if (lastDrillIdRef.current !== currentDrill.id) {
+            lastDrillIdRef.current = currentDrill.id;
+            lastTickRef.current = 0;
+            accumulatedTimeRef.current = 0;
+        }
+
+        const now = Date.now();
+        if (lastTickRef.current === 0) {
+            lastTickRef.current = now;
+            return;
+        }
+
+        const elapsed = (now - lastTickRef.current) / 1000;
+        lastTickRef.current = now;
+
+        if (elapsed > 0 && elapsed < 5) {
+            accumulatedTimeRef.current += elapsed;
+        }
+
+        // Record watch time every 10 seconds
+        if (accumulatedTimeRef.current >= 10) {
+            const timeToSend = Math.floor(accumulatedTimeRef.current);
+            accumulatedTimeRef.current -= timeToSend;
+            recordWatchTime(user.id, timeToSend, undefined, undefined, currentDrill.id);
+        }
+    }, [user, drills, currentIndex]);
 
     const containerRef = useRef<HTMLDivElement>(null);
     const previewLimitReachedRef = useRef(false); // 세션 전체에서 유지되는 플래그

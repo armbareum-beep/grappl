@@ -2176,9 +2176,9 @@ async function getCreatorWatchTimeStatsFallback(startDate: string, endDate: stri
         .select(`
             watch_seconds,
             user_id,
-            lesson:lessons(creator_id, course:courses(creator_id)),
-            drill:drills(creator_id),
-            video:sparring_videos(creator_id)
+            lesson_id,
+            drill_id,
+            sparring_video_id
         `)
         .gte('date', startDate)
         .lte('date', endDate);
@@ -2188,27 +2188,57 @@ async function getCreatorWatchTimeStatsFallback(startDate: string, endDate: stri
         return [];
     }
 
-    // 유료 구독자 목록 조회
-    const { data: paidUsers } = await supabase
-        .from('users')
-        .select('id')
-        .eq('is_subscriber', true)
-        .or('is_complimentary_subscription.is.null,is_complimentary_subscription.eq.false');
+    // 관련 ID 추출
+    const lessonIds = [...new Set(watchLogs.map((l: any) => l.lesson_id).filter(Boolean))];
+    const drillIds = [...new Set(watchLogs.map((l: any) => l.drill_id).filter(Boolean))];
+    const sparringVideoIds = [...new Set(watchLogs.map((l: any) => l.sparring_video_id).filter(Boolean))];
 
-    const paidUserIds = new Set(paidUsers?.map(u => u.id) || []);
+    // 관련 데이터 조회 (creator_id 포함)
+    const [lessonsRes, drillsRes, sparringRes, paidUsersRes, creatorsRes] = await Promise.all([
+        lessonIds.length > 0
+            ? supabase.from('lessons').select('id, course_id').in('id', lessonIds)
+            : { data: [] },
+        drillIds.length > 0
+            ? supabase.from('drills').select('id, creator_id').in('id', drillIds)
+            : { data: [] },
+        sparringVideoIds.length > 0
+            ? supabase.from('sparring_videos').select('id, creator_id').in('id', sparringVideoIds)
+            : { data: [] },
+        supabase.from('users').select('id')
+            .eq('is_subscriber', true)
+            .or('is_complimentary_subscription.is.null,is_complimentary_subscription.eq.false'),
+        supabase.from('creators').select('id, name')
+    ]);
 
-    // 크리에이터 정보 조회
-    const { data: creators } = await supabase
-        .from('creators')
-        .select('id, name');
+    // 코스에서 creator_id 조회
+    const courseIds = [...new Set((lessonsRes.data || []).map((l: any) => l.course_id).filter(Boolean))];
+    const { data: coursesData } = courseIds.length > 0
+        ? await supabase.from('courses').select('id, creator_id').in('id', courseIds)
+        : { data: [] };
 
-    const creatorMap = new Map(creators?.map(c => [c.id, c.name]) || []);
+    // 맵 생성
+    const lessonToCourseMap = new Map((lessonsRes.data || []).map((l: any) => [l.id, l.course_id]));
+    const courseToCreatorMap = new Map((coursesData || []).map((c: any) => [c.id, c.creator_id]));
+    const drillToCreatorMap = new Map((drillsRes.data || []).map((d: any) => [d.id, d.creator_id]));
+    const sparringToCreatorMap = new Map((sparringRes.data || []).map((s: any) => [s.id, s.creator_id]));
+    const paidUserIds = new Set((paidUsersRes.data || []).map((u: any) => u.id));
+    const creatorMap = new Map((creatorsRes.data || []).map((c: any) => [c.id, c.name]));
 
     // 크리에이터별 집계
     const statsMap = new Map<string, { total: number; paid: number }>();
 
     watchLogs.forEach((log: any) => {
-        const creatorId = log.lesson?.creator_id || log.lesson?.course?.creator_id || log.drill?.creator_id || log.video?.creator_id;
+        let creatorId: string | undefined;
+
+        if (log.lesson_id) {
+            const courseId = lessonToCourseMap.get(log.lesson_id);
+            creatorId = courseId ? courseToCreatorMap.get(courseId) : undefined;
+        } else if (log.drill_id) {
+            creatorId = drillToCreatorMap.get(log.drill_id);
+        } else if (log.sparring_video_id) {
+            creatorId = sparringToCreatorMap.get(log.sparring_video_id);
+        }
+
         if (!creatorId) return;
 
         const current = statsMap.get(creatorId) || { total: 0, paid: 0 };
@@ -2241,7 +2271,7 @@ export interface WatchLogItem {
     userEmail: string;
     isSubscriber: boolean;
     isComplimentary: boolean;
-    membershipType: 'paid' | 'free_trial' | 'free';
+    membershipType: 'paid' | 'free_trial' | 'free' | 'admin';
     contentType: 'lesson' | 'drill' | 'sparring';
     contentId: string;
     contentTitle: string;
@@ -2273,8 +2303,9 @@ export async function getAllWatchLogs(
 ): Promise<AllWatchLogsResponse> {
     try {
         const offset = (page - 1) * limit;
+        console.log('[getAllWatchLogs] Fetching page:', page, 'limit:', limit, 'filters:', filters);
 
-        // Build query
+        // Build query - simplified due to FK issues, fetch related data separately
         let query = supabase
             .from('video_watch_logs')
             .select(`
@@ -2283,13 +2314,10 @@ export async function getAllWatchLogs(
                 lesson_id,
                 drill_id,
                 video_id,
+                sparring_video_id,
                 watch_seconds,
                 date,
-                updated_at,
-                user:users!video_watch_logs_user_id_fkey(id, name, email, is_subscriber, is_complimentary_subscription),
-                lesson:lessons(id, title, course:courses(title, creator:creators(name))),
-                drill:drills(id, title, creator:creators(name)),
-                video:sparring_videos(id, title, creator:creators(name))
+                updated_at
             `, { count: 'exact' })
             .order('updated_at', { ascending: false });
 
@@ -2309,9 +2337,68 @@ export async function getAllWatchLogs(
 
         const { data, error, count } = await query;
 
+        console.log('[getAllWatchLogs] Query result:', { dataCount: data?.length, count, error });
+
         if (error) {
             console.error('Error fetching watch logs:', error);
             return { logs: [], totalCount: 0, hasMore: false };
+        }
+
+        // Fetch related data separately (due to FK issues with PostgREST)
+        const userIds = [...new Set((data || []).map((item: any) => item.user_id).filter(Boolean))];
+        const lessonIds = [...new Set((data || []).map((item: any) => item.lesson_id).filter(Boolean))];
+        const drillIds = [...new Set((data || []).map((item: any) => item.drill_id).filter(Boolean))];
+        const sparringVideoIds = [...new Set((data || []).map((item: any) => item.sparring_video_id).filter(Boolean))];
+
+        const [usersRes, lessonsRes, drillsRes, videosRes] = await Promise.all([
+            userIds.length > 0
+                ? supabase.from('users').select('id, name, email, is_subscriber, is_complimentary_subscription, is_admin').in('id', userIds)
+                : { data: [] },
+            lessonIds.length > 0
+                ? supabase.from('lessons').select('id, title, course_id').in('id', lessonIds)
+                : { data: [] },
+            drillIds.length > 0
+                ? supabase.from('drills').select('id, title, creator_id').in('id', drillIds)
+                : { data: [] },
+            sparringVideoIds.length > 0
+                ? supabase.from('sparring_videos').select('id, title, creator_id').in('id', sparringVideoIds)
+                : { data: [] }
+        ]);
+
+        // Fetch courses and creators for lessons
+        const courseIds = [...new Set((lessonsRes.data || []).map((l: any) => l.course_id).filter(Boolean))];
+        const creatorIdsFromDrills = [...new Set((drillsRes.data || []).map((d: any) => d.creator_id).filter(Boolean))];
+        const creatorIdsFromVideos = [...new Set((videosRes.data || []).map((v: any) => v.creator_id).filter(Boolean))];
+
+        const [coursesRes, creatorsRes] = await Promise.all([
+            courseIds.length > 0
+                ? supabase.from('courses').select('id, title, creator_id').in('id', courseIds)
+                : { data: [] },
+            [...new Set([...creatorIdsFromDrills, ...creatorIdsFromVideos])].length > 0
+                ? supabase.from('creators').select('id, name').in('id', [...new Set([...creatorIdsFromDrills, ...creatorIdsFromVideos])])
+                : { data: [] }
+        ]);
+
+        // Fetch creators for courses
+        const creatorIdsFromCourses = [...new Set((coursesRes.data || []).map((c: any) => c.creator_id).filter(Boolean))];
+        const { data: courseCreatorsData } = creatorIdsFromCourses.length > 0
+            ? await supabase.from('creators').select('id, name').in('id', creatorIdsFromCourses)
+            : { data: [] };
+
+        // Build maps
+        const usersMap = new Map((usersRes.data || []).map((u: any) => [u.id, u]));
+        const lessonsMap = new Map((lessonsRes.data || []).map((l: any) => [l.id, l]));
+        const drillsMap = new Map((drillsRes.data || []).map((d: any) => [d.id, d]));
+        const videosMap = new Map((videosRes.data || []).map((v: any) => [v.id, v]));
+        const coursesMap = new Map((coursesRes.data || []).map((c: any) => [c.id, c]));
+        const creatorsMap = new Map([
+            ...(creatorsRes.data || []).map((c: any) => [c.id, c] as [string, any]),
+            ...(courseCreatorsData || []).map((c: any) => [c.id, c] as [string, any])
+        ]);
+
+        // Log first few items for debugging
+        if (data && data.length > 0) {
+            console.log('[getAllWatchLogs] First item:', JSON.stringify(data[0], null, 2));
         }
 
         // Transform data
@@ -2322,29 +2409,42 @@ export async function getAllWatchLogs(
             let courseTitle = '';
             let creatorName = '';
 
-            if (item.lesson_id && item.lesson) {
+            if (item.lesson_id) {
+                const lesson = lessonsMap.get(item.lesson_id);
+                const course = lesson?.course_id ? coursesMap.get(lesson.course_id) : null;
+                const creator = course?.creator_id ? creatorsMap.get(course.creator_id) : null;
                 contentType = 'lesson';
                 contentId = item.lesson_id;
-                contentTitle = item.lesson.title || 'Unknown';
-                courseTitle = item.lesson.course?.title || '';
-                creatorName = item.lesson.course?.creator?.name || 'Unknown';
-            } else if (item.drill_id && item.drill) {
+                contentTitle = lesson?.title || 'Unknown';
+                courseTitle = course?.title || '';
+                creatorName = creator?.name || 'Unknown';
+            } else if (item.drill_id) {
+                const drill = drillsMap.get(item.drill_id);
+                const creator = drill?.creator_id ? creatorsMap.get(drill.creator_id) : null;
                 contentType = 'drill';
                 contentId = item.drill_id;
-                contentTitle = item.drill.title || 'Unknown';
-                creatorName = item.drill.creator?.name || 'Unknown';
-            } else if (item.video_id && item.video) {
+                contentTitle = drill?.title || 'Unknown';
+                creatorName = creator?.name || 'Unknown';
+            } else if (item.sparring_video_id) {
+                const video = videosMap.get(item.sparring_video_id);
+                const creator = video?.creator_id ? creatorsMap.get(video.creator_id) : null;
                 contentType = 'sparring';
-                contentId = item.video_id;
-                contentTitle = item.video.title || 'Unknown';
-                creatorName = item.video.creator?.name || 'Unknown';
+                contentId = item.sparring_video_id;
+                contentTitle = video?.title || 'Unknown';
+                creatorName = creator?.name || 'Unknown';
             }
 
+            // Get user info from map (fetched separately)
+            const user = usersMap.get(item.user_id);
+
             // Determine membership type
-            const isSubscriber = item.user?.is_subscriber === true;
-            const isComplimentary = item.user?.is_complimentary_subscription === true;
-            let membershipType: 'paid' | 'free_trial' | 'free' = 'free';
-            if (isSubscriber && !isComplimentary) {
+            const isAdmin = user?.is_admin === true;
+            const isSubscriber = user?.is_subscriber === true;
+            const isComplimentary = user?.is_complimentary_subscription === true;
+            let membershipType: 'paid' | 'free_trial' | 'free' | 'admin' = 'free';
+            if (isAdmin) {
+                membershipType = 'admin';
+            } else if (isSubscriber && !isComplimentary) {
                 membershipType = 'paid';
             } else if (isSubscriber && isComplimentary) {
                 membershipType = 'free_trial';
@@ -2353,8 +2453,8 @@ export async function getAllWatchLogs(
             return {
                 id: item.id,
                 userId: item.user_id,
-                userName: item.user?.name || 'Unknown',
-                userEmail: item.user?.email || '',
+                userName: user?.name || user?.email?.split('@')[0] || 'Unknown',
+                userEmail: user?.email || '',
                 isSubscriber,
                 isComplimentary,
                 membershipType,

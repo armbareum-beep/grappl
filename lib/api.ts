@@ -4359,8 +4359,13 @@ export async function clearComplimentaryPeriod(userId: string) {
  * Records ALL users' watch time for admin dashboard.
  * Settlement calculation filters for paid subscribers separately.
  */
-export async function recordWatchTime(userId: string, seconds: number, videoId?: string, lessonId?: string, drillId?: string) {
-    if (!videoId && !lessonId && !drillId) return { error: new Error('VideoId, LessonId or DrillId required') };
+export async function recordWatchTime(userId: string, seconds: number, videoId?: string, lessonId?: string, drillId?: string, sparringVideoId?: string) {
+    console.log('[recordWatchTime] Called with:', { userId, seconds, videoId, lessonId, drillId, sparringVideoId });
+
+    if (!videoId && !lessonId && !drillId && !sparringVideoId) {
+        console.warn('[recordWatchTime] No content ID provided');
+        return { error: new Error('VideoId, LessonId, DrillId or SparringVideoId required') };
+    }
     if (seconds <= 0) return { error: null };
 
     // Record watch time for all users
@@ -4368,7 +4373,10 @@ export async function recordWatchTime(userId: string, seconds: number, videoId?:
     const matchQuery: any = { user_id: userId, date: today };
 
     let conflictTarget = '';
-    if (videoId) {
+    if (sparringVideoId) {
+        matchQuery.sparring_video_id = sparringVideoId;
+        conflictTarget = 'user_id,sparring_video_id,date';
+    } else if (videoId) {
         matchQuery.video_id = videoId;
         conflictTarget = 'user_id,video_id,date';
     } else if (lessonId) {
@@ -4402,6 +4410,12 @@ export async function recordWatchTime(userId: string, seconds: number, videoId?:
         .upsert(payload, {
             onConflict: conflictTarget
         });
+
+    if (error) {
+        console.error('[recordWatchTime] Upsert error:', error);
+    } else {
+        console.log('[recordWatchTime] Success:', { payload, conflictTarget });
+    }
 
     return { error };
 }

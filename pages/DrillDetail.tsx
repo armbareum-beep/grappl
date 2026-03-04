@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Player from '@vimeo/player';
 import { updateMasteryFromWatch } from '../lib/api-technique-mastery';
-import { getDrillById, calculateDrillPrice, toggleDrillLike, checkDrillLiked, toggleDrillSave, checkDrillSaved, checkDrillRoutineOwnership, recordDrillView, incrementDrillViews, isMuxPlaybackId } from '../lib/api';
+import { getDrillById, calculateDrillPrice, toggleDrillLike, checkDrillLiked, toggleDrillSave, checkDrillSaved, checkDrillRoutineOwnership, recordDrillView, incrementDrillViews, isMuxPlaybackId, recordWatchTime } from '../lib/api';
 import { Drill } from '../types';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
@@ -141,6 +141,10 @@ export const DrillDetail: React.FC = () => {
     // Mastery Tracking Refs
     const hasRecordedStartRef = useRef(false);
     const hasRecordedHalfRef = useRef(false);
+
+    // Watch time tracking refs
+    const lastTickRef = useRef<number>(0);
+    const accumulatedTimeRef = useRef<number>(0);
 
     // SEO hooks
     useDrillMeta(drill);
@@ -549,6 +553,29 @@ export const DrillDetail: React.FC = () => {
 
                 const onTimeUpdate = (data: { seconds: number; duration: number; percent: number }) => {
                     handleMasteryUpdate(data.percent, false);
+
+                    // Watch time tracking
+                    if (!contextUser || !drill) return;
+
+                    const now = Date.now();
+                    if (lastTickRef.current === 0) {
+                        lastTickRef.current = now;
+                        return;
+                    }
+
+                    const elapsed = (now - lastTickRef.current) / 1000;
+                    lastTickRef.current = now;
+
+                    if (elapsed > 0 && elapsed < 5) {
+                        accumulatedTimeRef.current += elapsed;
+                    }
+
+                    // Record watch time every 10 seconds
+                    if (accumulatedTimeRef.current >= 10) {
+                        const timeToSend = Math.floor(accumulatedTimeRef.current);
+                        accumulatedTimeRef.current -= timeToSend;
+                        recordWatchTime(contextUser.id, timeToSend, undefined, undefined, drill.id);
+                    }
                 };
 
                 const onEnded = () => {
@@ -593,6 +620,29 @@ export const DrillDetail: React.FC = () => {
                 if (video.duration > 0) {
                     const percent = video.currentTime / video.duration;
                     handleMasteryUpdate(percent, false);
+
+                    // Watch time tracking
+                    if (!contextUser || !drill) return;
+
+                    const now = Date.now();
+                    if (lastTickRef.current === 0) {
+                        lastTickRef.current = now;
+                        return;
+                    }
+
+                    const elapsed = (now - lastTickRef.current) / 1000;
+                    lastTickRef.current = now;
+
+                    if (elapsed > 0 && elapsed < 5) {
+                        accumulatedTimeRef.current += elapsed;
+                    }
+
+                    // Record watch time every 10 seconds
+                    if (accumulatedTimeRef.current >= 10) {
+                        const timeToSend = Math.floor(accumulatedTimeRef.current);
+                        accumulatedTimeRef.current -= timeToSend;
+                        recordWatchTime(contextUser.id, timeToSend, undefined, undefined, drill.id);
+                    }
                 }
             };
             const handleEnded = () => {

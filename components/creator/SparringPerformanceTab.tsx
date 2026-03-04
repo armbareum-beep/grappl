@@ -53,7 +53,7 @@ export const SparringPerformanceTab: React.FC = () => {
                 const { data: watchLogs } = await supabase
                     .from('video_watch_logs')
                     .select('watch_seconds')
-                    .eq('video_id', video.id);
+                    .eq('sparring_video_id', video.id);
 
                 const watchSeconds = watchLogs?.reduce((sum, log) => sum + (log.watch_seconds || 0), 0) || 0;
                 videoWatchTimes.push({ videoId: video.id, watchSeconds });
