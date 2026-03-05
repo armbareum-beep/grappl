@@ -3,6 +3,8 @@ package com.grapplay.app.presentation.screens.saved
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.grapplay.app.domain.model.Course
+import com.grapplay.app.domain.model.DrillRoutine
+import com.grapplay.app.domain.model.Lesson
 import com.grapplay.app.domain.repository.BrowseRepository
 import com.grapplay.app.domain.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,6 +14,8 @@ import kotlinx.coroutines.launch
 
 data class SavedUiState(
     val savedCourses: List<Course> = emptyList(),
+    val savedLessons: List<Lesson> = emptyList(),
+    val savedRoutines: List<DrillRoutine> = emptyList(),
     val isLoading: Boolean = true,
     val error: String? = null,
     val selectedTab: Int = 0,
@@ -34,6 +38,14 @@ class SavedViewModel(
         loadSaved()
     }
 
+    private fun clearCurrentTab() {
+        _state.value = when (_state.value.selectedTab) {
+            0 -> _state.value.copy(savedCourses = emptyList(), isLoading = false)
+            1 -> _state.value.copy(savedLessons = emptyList(), isLoading = false)
+            else -> _state.value.copy(savedRoutines = emptyList(), isLoading = false)
+        }
+    }
+
     fun loadSaved() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
@@ -45,12 +57,11 @@ class SavedViewModel(
             userRepository.getSavedContentIds(contentType)
                 .onSuccess { ids ->
                     if (ids.isEmpty()) {
-                        _state.value = _state.value.copy(savedCourses = emptyList(), isLoading = false)
+                        clearCurrentTab()
                         return@onSuccess
                     }
-                    // For MVP, fetch courses. Lesson/routine tabs can be added later
-                    if (contentType == "course") {
-                        browseRepository.searchCourses(limit = 50)
+                    when (contentType) {
+                        "course" -> browseRepository.searchCourses(limit = 50)
                             .onSuccess { allCourses ->
                                 val saved = allCourses.filter { it.id in ids }
                                 _state.value = _state.value.copy(savedCourses = saved, isLoading = false)
@@ -58,8 +69,20 @@ class SavedViewModel(
                             .onFailure { e ->
                                 _state.value = _state.value.copy(isLoading = false, error = e.message)
                             }
-                    } else {
-                        _state.value = _state.value.copy(savedCourses = emptyList(), isLoading = false)
+                        "lesson" -> browseRepository.getLessonsByIds(ids)
+                            .onSuccess { lessons ->
+                                _state.value = _state.value.copy(savedLessons = lessons, isLoading = false)
+                            }
+                            .onFailure { e ->
+                                _state.value = _state.value.copy(isLoading = false, error = e.message)
+                            }
+                        else -> browseRepository.getRoutinesByIds(ids)
+                            .onSuccess { routines ->
+                                _state.value = _state.value.copy(savedRoutines = routines, isLoading = false)
+                            }
+                            .onFailure { e ->
+                                _state.value = _state.value.copy(isLoading = false, error = e.message)
+                            }
                     }
                 }
                 .onFailure { e ->

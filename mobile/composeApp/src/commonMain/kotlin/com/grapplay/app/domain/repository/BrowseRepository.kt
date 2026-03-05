@@ -1,6 +1,7 @@
 package com.grapplay.app.domain.repository
 
 import com.grapplay.app.domain.model.Course
+import com.grapplay.app.domain.model.DrillRoutine
 import com.grapplay.app.domain.model.Lesson
 
 interface BrowseRepository {
@@ -20,4 +21,7 @@ interface BrowseRepository {
         limit: Int = 20,
         offset: Int = 0,
     ): Result<List<Lesson>>
+
+    suspend fun getLessonsByIds(ids: List<String>): Result<List<Lesson>>
+    suspend fun getRoutinesByIds(ids: List<String>): Result<List<DrillRoutine>>
 }

@@ -2,6 +2,7 @@ package com.grapplay.app.data.remote.api
 
 import com.grapplay.app.data.remote.dto.CourseDto
 import com.grapplay.app.data.remote.dto.LessonDto
+import com.grapplay.app.data.remote.dto.RoutineDto
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
@@ -20,7 +21,6 @@ class BrowseApi(private val client: SupabaseClient) {
             .select {
                 filter {
                     eq("published", true)
-                    eq("is_hidden", false)
                     if (!query.isNullOrBlank()) {
                         ilike("title", "%$query%")
                     }
@@ -51,7 +51,6 @@ class BrowseApi(private val client: SupabaseClient) {
         return client.postgrest.from("lessons")
             .select {
                 filter {
-                    eq("is_hidden", false)
                     if (!query.isNullOrBlank()) {
                         ilike("title", "%$query%")
                     }
@@ -65,6 +64,24 @@ class BrowseApi(private val client: SupabaseClient) {
                 order("created_at", Order.DESCENDING)
                 limit(limit)
                 range(offset, offset + limit - 1)
+            }
+            .decodeList()
+    }
+
+    suspend fun getLessonsByIds(ids: List<String>): List<LessonDto> {
+        if (ids.isEmpty()) return emptyList()
+        return client.postgrest.from("lessons")
+            .select {
+                filter { isIn("id", ids) }
+            }
+            .decodeList()
+    }
+
+    suspend fun getRoutinesByIds(ids: List<String>): List<RoutineDto> {
+        if (ids.isEmpty()) return emptyList()
+        return client.postgrest.from("routines")
+            .select {
+                filter { isIn("id", ids) }
             }
             .decodeList()
     }

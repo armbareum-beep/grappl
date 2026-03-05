@@ -2,6 +2,7 @@ package com.grapplay.app.data.repository
 
 import com.grapplay.app.data.remote.api.BrowseApi
 import com.grapplay.app.domain.model.Course
+import com.grapplay.app.domain.model.DrillRoutine
 import com.grapplay.app.domain.model.Lesson
 import com.grapplay.app.domain.repository.BrowseRepository
 
@@ -30,5 +31,13 @@ class BrowseRepositoryImpl(
     ): Result<List<Lesson>> = runCatching {
         browseApi.searchLessons(query, category, difficulty, limit.toLong(), offset.toLong())
             .map { it.toDomain() }
+    }
+
+    override suspend fun getLessonsByIds(ids: List<String>): Result<List<Lesson>> = runCatching {
+        browseApi.getLessonsByIds(ids).map { it.toDomain() }
+    }
+
+    override suspend fun getRoutinesByIds(ids: List<String>): Result<List<DrillRoutine>> = runCatching {
+        browseApi.getRoutinesByIds(ids).map { it.toDomain() }
     }
 }
