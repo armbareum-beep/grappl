@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.SkipNext
@@ -66,32 +65,39 @@ data class VideoPlayerScreenRoute(
                         .fillMaxSize()
                         .background(Zinc.Zinc950)
                 ) {
-                    // Video player area (placeholder - will use platform-specific player)
+                    // Back button header row (always above the video layer)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Zinc.Zinc950),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        IconButton(onClick = { navigator.pop() }) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "뒤로",
+                                tint = Zinc.Zinc50,
+                            )
+                        }
+                    }
+
+                    // Video player area
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .aspectRatio(16f / 9f)
                             .background(Zinc.Zinc900)
                     ) {
-                        VideoThumbnail(
-                            thumbnailUrl = lesson.thumbnailUrl,
-                            duration = lesson.length,
-                        )
-
-                        // Back button
-                        IconButton(
-                            onClick = { navigator.pop() },
-                            modifier = Modifier
-                                .padding(8.dp)
-                                .background(
-                                    Zinc.Zinc950.copy(alpha = 0.6f),
-                                    CircleShape
-                                )
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "뒤로",
-                                tint = Zinc.Zinc50,
+                        if (lesson.vimeoUrl != null) {
+                            PlatformVideoPlayer(
+                                videoId = lesson.vimeoUrl,
+                                videoType = VideoType.VIMEO,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        } else {
+                            VideoThumbnail(
+                                thumbnailUrl = lesson.thumbnailUrl,
+                                duration = lesson.length,
                             )
                         }
                     }
