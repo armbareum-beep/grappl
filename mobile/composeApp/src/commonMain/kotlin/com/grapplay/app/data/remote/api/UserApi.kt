@@ -94,19 +94,20 @@ class UserApi(private val client: SupabaseClient) {
         return interactions.map { it.contentId }
     }
 
-    /** Record a view interaction */
+    /** Record a view interaction (upsert prevents duplicate rows) */
     suspend fun recordView(
         userId: String,
         contentType: String,
         contentId: String,
     ) {
-        // Upsert to avoid duplicate view records
         client.postgrest.from("user_interactions")
-            .insert(buildJsonObject {
+            .upsert(buildJsonObject {
                 put("user_id", userId)
                 put("content_type", contentType)
                 put("content_id", contentId)
                 put("interaction_type", "view")
-            })
+            }) {
+                onConflict = "user_id,content_type,content_id,interaction_type"
+            }
     }
 }

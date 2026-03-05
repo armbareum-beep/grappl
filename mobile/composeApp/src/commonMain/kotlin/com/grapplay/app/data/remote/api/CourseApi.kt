@@ -26,7 +26,6 @@ class CourseApi(private val client: SupabaseClient) {
             .select {
                 filter {
                     eq("course_id", courseId)
-                    eq("is_hidden", false)
                 }
                 order("lesson_number", Order.ASCENDING)
             }

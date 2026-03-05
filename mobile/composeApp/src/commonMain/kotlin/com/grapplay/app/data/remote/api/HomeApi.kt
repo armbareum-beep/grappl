@@ -59,7 +59,6 @@ class HomeApi(private val client: SupabaseClient) {
             .select {
                 filter {
                     eq("published", true)
-                    eq("is_hidden", false)
                 }
                 order("created_at", Order.DESCENDING)
                 limit(30)
@@ -70,9 +69,6 @@ class HomeApi(private val client: SupabaseClient) {
     private suspend fun fetchRoutines(): List<RoutineDto> {
         return client.postgrest.from("routines")
             .select {
-                filter {
-                    eq("is_hidden", false)
-                }
                 order("created_at", Order.DESCENDING)
                 limit(20)
             }
@@ -84,7 +80,7 @@ class HomeApi(private val client: SupabaseClient) {
             .select {
                 filter {
                     eq("is_published", true)
-                    eq("is_hidden", false)
+                    exact("deleted_at", null)
                 }
                 order("created_at", Order.DESCENDING)
                 limit(20)
@@ -95,9 +91,6 @@ class HomeApi(private val client: SupabaseClient) {
     private suspend fun fetchDrills(): List<DrillDto> {
         return client.postgrest.from("drills")
             .select {
-                filter {
-                    eq("is_hidden", false)
-                }
                 order("created_at", Order.DESCENDING)
                 limit(10)
             }
@@ -107,9 +100,6 @@ class HomeApi(private val client: SupabaseClient) {
     private suspend fun fetchLessons(): List<LessonDto> {
         return client.postgrest.from("lessons")
             .select {
-                filter {
-                    eq("is_hidden", false)
-                }
                 order("created_at", Order.DESCENDING)
                 limit(10)
             }
