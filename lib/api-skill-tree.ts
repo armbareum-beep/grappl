@@ -122,10 +122,13 @@ export async function getWeeklyFeaturedChain() {
 }
 
 /**
- * Increment view count for a skill tree
+ * Increment view count for a skill tree (with 30-minute cooldown per user)
  */
-export async function incrementSkillTreeViews(treeId: string) {
-    const { error } = await supabase.rpc('increment_skill_tree_views', { tree_id: treeId });
+export async function incrementSkillTreeViews(treeId: string, userId?: string) {
+    const { error } = await supabase.rpc('increment_skill_tree_views', {
+        tree_id: treeId,
+        p_user_id: userId || null,
+    });
     if (error) console.error('Error incrementing views:', error);
 }
 
