@@ -34,7 +34,7 @@ import org.koin.compose.koinInject
 fun BrowseScreen() {
     val viewModel: BrowseViewModel = koinInject()
     val state by viewModel.state.collectAsState()
-    val navigator = LocalNavigator.currentOrThrow
+    val navigator = LocalNavigator.currentOrThrow.parent ?: LocalNavigator.currentOrThrow
 
     Column(
         modifier = Modifier

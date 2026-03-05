@@ -62,7 +62,7 @@ fun HomeScreen() {
 
 @Composable
 private fun HomeContent(data: HomePageData) {
-    val navigator = LocalNavigator.currentOrThrow
+    val navigator = LocalNavigator.currentOrThrow.parent ?: LocalNavigator.currentOrThrow
     val scrollState = rememberScrollState()
 
     Column(

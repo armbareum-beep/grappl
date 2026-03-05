@@ -3,6 +3,7 @@ package com.grapplay.app
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.transitions.SlideTransition
 import com.grapplay.app.domain.repository.AuthRepository
@@ -17,10 +18,12 @@ fun App() {
         val authRepository: AuthRepository = koinInject()
         val isLoggedIn by authRepository.isLoggedIn.collectAsState(initial = false)
 
-        Navigator(
-            screen = if (isLoggedIn) MainScreen() else LoginScreenRoute()
-        ) {
-            SlideTransition(it)
+        key(isLoggedIn) {
+            Navigator(
+                screen = if (isLoggedIn) MainScreen() else LoginScreenRoute()
+            ) {
+                SlideTransition(it)
+            }
         }
     }
 }
