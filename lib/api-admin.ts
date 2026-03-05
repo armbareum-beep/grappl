@@ -1393,19 +1393,21 @@ export async function approveContent(id: string, type: 'course' | 'drill' | 'spa
 
 // ==================== Content Publishing Request ====================
 
-export async function requestContentPublishing(id: string, type: 'course' | 'drill' | 'sparring' | 'lesson') {
+export async function requestContentPublishing(id: string, type: 'course' | 'drill' | 'sparring' | 'lesson' | 'routine') {
     const tableMap = {
         'course': 'courses',
         'drill': 'drills',
         'sparring': 'sparring_videos',
-        'lesson': 'lessons'
+        'lesson': 'lessons',
+        'routine': 'routines'
     };
 
     const typeNameMap = {
         'course': '강좌',
         'drill': '드릴',
         'sparring': '스파링',
-        'lesson': '레슨'
+        'lesson': '레슨',
+        'routine': '루틴'
     };
 
     const { data, error } = await supabase

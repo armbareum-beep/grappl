@@ -892,10 +892,11 @@ export async function getPublicSparringVideos(limit = 3): Promise<SparringVideo[
     }
 }
 
-// Increment views
-export async function incrementVideoViews(videoId: string): Promise<void> {
+// Increment views (with 30-minute cooldown per user)
+export async function incrementVideoViews(videoId: string, userId?: string): Promise<void> {
     const { error } = await supabase.rpc('increment_video_views', {
         video_id: videoId,
+        p_user_id: userId || null,
     });
 
     if (error) {
@@ -903,9 +904,10 @@ export async function incrementVideoViews(videoId: string): Promise<void> {
     }
 }
 
-export async function incrementRoutineViews(routineId: string): Promise<void> {
+export async function incrementRoutineViews(routineId: string, userId?: string): Promise<void> {
     const { error } = await supabase.rpc('increment_routine_views', {
         p_routine_id: routineId,
+        p_user_id: userId || null,
     });
 
     if (error) {
@@ -913,9 +915,10 @@ export async function incrementRoutineViews(routineId: string): Promise<void> {
     }
 }
 
-export async function incrementSparringViews(videoId: string): Promise<void> {
+export async function incrementSparringViews(videoId: string, userId?: string): Promise<void> {
     const { error } = await supabase.rpc('increment_sparring_views', {
         p_video_id: videoId,
+        p_user_id: userId || null,
     });
 
     if (error) {
@@ -923,9 +926,10 @@ export async function incrementSparringViews(videoId: string): Promise<void> {
     }
 }
 
-export async function incrementLessonViews(lessonId: string): Promise<void> {
+export async function incrementLessonViews(lessonId: string, userId?: string): Promise<void> {
     const { error } = await supabase.rpc('increment_lesson_views', {
         lesson_id: lessonId,
+        p_user_id: userId || null,
     });
 
     if (error) {
@@ -1013,9 +1017,10 @@ export async function checkSparringOwnership(userId: string, videoId: string): P
     }
 }
 
-export async function incrementCourseViews(courseId: string): Promise<void> {
+export async function incrementCourseViews(courseId: string, userId?: string): Promise<void> {
     const { error } = await supabase.rpc('increment_course_views', {
         course_id: courseId,
+        p_user_id: userId || null,
     });
 
     if (error) {
@@ -6318,7 +6323,7 @@ export async function createRoutine(routineData: Partial<DrillRoutine>, drillIds
         related_items: routineData.relatedItems || [],
         uniform_type: routineData.uniformType,
         drill_count: drillIds.length,
-        status: 'draft',
+        status: 'pending',
     };
 
     const { data: routine, error: routineError } = await withTimeout(
@@ -6351,6 +6356,28 @@ export async function createRoutine(routineData: Partial<DrillRoutine>, drillIds
             console.error('Error adding drills to routine:', drillsError);
             return { data: null, error: drillsError };
         }
+    }
+
+    // Notify admins about new routine pending approval
+    try {
+        const { data: admins } = await supabase
+            .from('users')
+            .select('id')
+            .eq('is_admin', true);
+
+        if (admins && admins.length > 0) {
+            await Promise.all(admins.map(admin =>
+                createNotify(
+                    admin.id,
+                    'support_ticket',
+                    '새로운 콘텐츠 승인 요청',
+                    `새로운 루틴 "${routine.title || '제목 없음'}"이(가) 승인 대기 중입니다.`,
+                    '/admin/content-approval'
+                )
+            ));
+        }
+    } catch (notifyError) {
+        console.error('Failed to notify admins about routine approval:', notifyError);
     }
 
     return { data: transformDrillRoutine(routine), error: null };
@@ -6933,9 +6960,12 @@ export async function checkDrillOwnership(userId: string, drillId: string) {
     return false;
 }
 
-export async function incrementDrillViews(drillId: string) {
+export async function incrementDrillViews(drillId: string, userId?: string) {
     if (drillId.startsWith('mock-')) return;
-    const { error } = await supabase.rpc('increment_drill_views', { drill_id: drillId });
+    const { error } = await supabase.rpc('increment_drill_views', {
+        p_drill_id: drillId,
+        p_user_id: userId || null,
+    });
     if (error) console.error('Error incrementing drill views:', error);
 }
 
@@ -6978,9 +7008,12 @@ export async function checkDrillRoutineOwnership(userId: string, routineId: stri
     return false;
 }
 
-export async function incrementDrillRoutineViews(routineId: string) {
+export async function incrementDrillRoutineViews(routineId: string, userId?: string) {
     if (routineId.startsWith('mock-')) return;
-    const { error } = await supabase.rpc('increment_routine_views', { p_routine_id: routineId });
+    const { error } = await supabase.rpc('increment_routine_views', {
+        p_routine_id: routineId,
+        p_user_id: userId || null,
+    });
     if (error) console.error('Error incrementing routine views:', error);
 }
 
@@ -8710,14 +8743,20 @@ export async function getTrendingSparring(limit = 6): Promise<SparringVideo[]> {
     });
 }
 
-export async function incrementRoutineView(id: string) {
-    const { error } = await supabase.rpc('increment_routine_views', { p_routine_id: id });
+export async function incrementRoutineView(id: string, userId?: string) {
+    const { error } = await supabase.rpc('increment_routine_views', {
+        p_routine_id: id,
+        p_user_id: userId || null,
+    });
     if (error) console.error('Error incrementing routine view:', error);
     return { error };
 }
 
-export async function incrementSparringView(id: string) {
-    const { error } = await supabase.rpc('increment_sparring_view', { p_id: id });
+export async function incrementSparringView(id: string, userId?: string) {
+    const { error } = await supabase.rpc('increment_sparring_view', {
+        p_id: id,
+        p_user_id: userId || null,
+    });
     if (error) console.error('Error incrementing sparring view:', error);
     return { error };
 }
