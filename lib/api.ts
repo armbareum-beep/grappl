@@ -5637,7 +5637,7 @@ export async function searchDrillsAndLessons(query: string) {
     return { data: results, error: null };
 }
 
-export async function getRoutines(creatorId?: string) {
+export async function getRoutines(creatorId?: string, includeAll = false) {
     let query = supabase
         .from('routines')
         .select(`
@@ -5647,6 +5647,11 @@ export async function getRoutines(creatorId?: string) {
             )
         `)
         .order('created_at', { ascending: false });
+
+    // Only show approved routines in public feeds (unless includeAll is true for creator dashboard)
+    if (!includeAll) {
+        query = query.eq('status', 'approved');
+    }
 
     if (creatorId) {
         query = query.eq('creator_id', creatorId);
@@ -6372,7 +6377,7 @@ export async function createRoutine(routineData: Partial<DrillRoutine>, drillIds
                     'support_ticket',
                     '새로운 콘텐츠 승인 요청',
                     `새로운 루틴 "${routine.title || '제목 없음'}"이(가) 승인 대기 중입니다.`,
-                    '/admin/content-approval'
+                    '/admin/approval'
                 )
             ));
         }
