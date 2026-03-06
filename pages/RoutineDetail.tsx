@@ -162,6 +162,17 @@ export const RoutineDetail: React.FC = () => {
     const [videoType, setVideoType] = useState<'main' | 'description'>('main');
     const [isFollowing, setIsFollowing] = useState(false);
     const [showMobileList, setShowMobileList] = useState(false);
+
+    // Screen size detection to prevent dual video rendering
+    const [isLargeScreen, setIsLargeScreen] = useState(() =>
+        typeof window !== 'undefined' ? window.innerWidth >= 1024 : false
+    );
+
+    useEffect(() => {
+        const handleResize = () => setIsLargeScreen(window.innerWidth >= 1024);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
     const [viewMode, setViewMode] = useState<'landing' | 'player'>('landing');
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const [debugInfo, setDebugInfo] = useState<any>(null);
@@ -717,8 +728,8 @@ export const RoutineDetail: React.FC = () => {
 
     return (
         <div className="lg:relative bg-zinc-950 min-h-screen relative overflow-hidden">
-            {/* MOBILE VIEW */}
-            <div className="lg:hidden w-full min-h-screen flex flex-col bg-zinc-950 pb-0">
+            {/* MOBILE VIEW - Only render when not large screen to prevent dual audio */}
+            {!isLargeScreen && <div className="w-full min-h-screen flex flex-col bg-zinc-950 pb-0">
                 {viewMode === 'landing' ? (
                     <>
                         {/* Mobile Landing Header */}
@@ -1041,10 +1052,10 @@ export const RoutineDetail: React.FC = () => {
                         </div>
                     </div>
                 )}
-            </div>
+            </div>}
 
-            {/* DESKTOP VIEW */}
-            <div className={`hidden lg:block w-full ${viewMode === 'player' ? 'h-[calc(100dvh-80px)] overflow-hidden' : 'min-h-screen'} pl-28 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-900/20 via-zinc-950/80 to-zinc-950`}>
+            {/* DESKTOP VIEW - Only render when large screen to prevent dual audio */}
+            {isLargeScreen && <div className={`w-full ${viewMode === 'player' ? 'h-[calc(100dvh-80px)] overflow-hidden' : 'min-h-screen'} pl-28 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-900/20 via-zinc-950/80 to-zinc-950`}>
                 {viewMode === 'landing' ? (
                     <div className="flex flex-col w-full pb-20 max-w-7xl mx-auto">
                         <button onClick={() => navigate(-1)} aria-label="뒤로 가기" className="fixed top-6 left-6 z-[100] p-3 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all group hover:bg-black/60 shadow-2xl"><ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /></button>
@@ -1393,7 +1404,7 @@ export const RoutineDetail: React.FC = () => {
                         </div>
                     </div>
                 )}
-            </div>
+            </div>}
 
             {/* Training Mode Timer Overlay (Universal for player view) */}
             {

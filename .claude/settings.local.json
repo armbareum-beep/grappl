@@ -84,7 +84,9 @@
       "Bash(where:*)",
       "WebFetch(domain:supabase.com)",
       "Bash(gh pr list:*)",
-      "Bash(/c/Program Files/GitHub:*)"
+      "Bash(/c/Program Files/GitHub:*)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" --version)",
+      "Bash(cmd.exe /c \"where gh\")"
     ]
   }
 }
