@@ -6259,9 +6259,16 @@ export async function getRoutineById(id: string) {
     return { data: routine as DrillRoutine, error: null };
 }
 
-export async function getRelatedRoutines(currentRoutineId: string, category: string, limit = 4) {
+export async function getRelatedRoutines(currentRoutineId: string, title: string, limit = 4) {
     try {
-        let query = supabase
+        // Extract keywords from title (keep meaningful words)
+        const keywords = title
+            .toLowerCase()
+            .replace(/[^\w\s가-힣]/g, '') // Keep alphanumeric and Korean
+            .split(/\s+/)
+            .filter(word => word.length > 1); // Filter short words
+
+        const { data, error } = await supabase
             .from('routines')
             .select(`
                 *,
@@ -6270,20 +6277,25 @@ export async function getRelatedRoutines(currentRoutineId: string, category: str
                 )
             `)
             .neq('id', currentRoutineId) // Exclude current
-            .limit(limit);
-
-        if (category) {
-            query = query.eq('category', category);
-        }
-
-        const { data, error } = await query;
+            .limit(50); // Fetch more to filter by relevance
 
         if (error) {
             console.error('Error fetching related routines:', error);
             return { data: [], error };
         }
 
-        const routines = (data || []).map((item: any) => {
+        // Score routines by title similarity
+        const scoredRoutines = (data || []).map((item: any) => {
+            const routineTitle = (item.title || '').toLowerCase();
+            let score = 0;
+
+            // Count matching keywords
+            keywords.forEach(keyword => {
+                if (routineTitle.includes(keyword)) {
+                    score += keyword.length; // Longer matches = higher score
+                }
+            });
+
             // Calculate total views as sum of all drill views
             const totalDrillViews = (item.items || []).reduce((sum: number, i: any) => {
                 return sum + (i.drill?.views || 0);
@@ -6291,10 +6303,19 @@ export async function getRelatedRoutines(currentRoutineId: string, category: str
 
             return {
                 ...transformDrillRoutine(item),
-                views: totalDrillViews // Override with sum of drill views
+                views: totalDrillViews,
+                _score: score
             };
         });
-        return { data: routines, error: null };
+
+        // Sort by score (descending) and take top results with score > 0
+        const relevantRoutines = scoredRoutines
+            .filter(r => r._score > 0)
+            .sort((a, b) => b._score - a._score)
+            .slice(0, limit)
+            .map(({ _score, ...routine }) => routine); // Remove score from result
+
+        return { data: relevantRoutines, error: null };
     } catch (e: any) {
         console.error('getRelatedRoutines exception:', e);
         return { data: [], error: e };

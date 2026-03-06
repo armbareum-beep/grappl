@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getRoutineById, checkDrillRoutineOwnership, getDrillById, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime, getRelatedCourseByCategory, getRelatedRoutines, recordDrillView, toggleRoutineSave, checkRoutineSaved } from '../lib/api';
-import { Drill, DrillRoutine, Course } from '../types';
+import { getRoutineById, checkDrillRoutineOwnership, getDrillById, createTrainingLog, getCompletedRoutinesToday, awardTrainingXP, toggleDrillLike, toggleDrillSave, getUserLikedDrills, getUserSavedDrills, recordWatchTime, getRelatedRoutines, recordDrillView, toggleRoutineSave, checkRoutineSaved } from '../lib/api';
+import { Drill, DrillRoutine } from '../types';
 import { Button } from '../components/Button';
 import { ChevronLeft, Heart, Bookmark, Share2, Play, Lock, Volume2, VolumeX, List, ListVideo, Zap, X, Clock, CheckCircle, PlayCircle, RefreshCw } from 'lucide-react';
 import { QuestCompleteModal } from '../components/QuestCompleteModal';
@@ -126,7 +126,6 @@ export const RoutineDetail: React.FC = () => {
     const [isPlaying, setIsPlaying] = useState(true);
     useWakeLock(isPlaying);
     const [routine, setRoutine] = useState<DrillRoutine | null>(null);
-    const [relatedCourse, setRelatedCourse] = useState<Course | null>(null);
     const [relatedRoutines, setRelatedRoutines] = useState<DrillRoutine[]>([]);
     const [currentDrillIndex, setCurrentDrillIndex] = useState(0);
     const [currentDrill, setCurrentDrill] = useState<Drill | null>(null);
@@ -380,9 +379,9 @@ export const RoutineDetail: React.FC = () => {
                     }
                     setRoutine(routineData);
 
-                    // Fetch similar routines
-                    if (routineData.category) {
-                        getRelatedRoutines(id, routineData.category).then(({ data: routines }) => {
+                    // Fetch similar routines by title
+                    if (routineData.title) {
+                        getRelatedRoutines(id, routineData.title).then(({ data: routines }) => {
                             if (routines) setRelatedRoutines(routines);
                         });
                     }
@@ -537,22 +536,6 @@ export const RoutineDetail: React.FC = () => {
         };
         checkFollow();
     }, [user?.id, routine?.creatorId]);
-
-    useEffect(() => {
-        const loadRelatedCourse = async () => {
-            if (routine?.drills?.length) {
-                // Try to find a category from the first drill
-                const firstDrill = routine.drills[0];
-                const category = (typeof firstDrill !== 'string') ? firstDrill.category : null;
-
-                if (category) {
-                    const course = await getRelatedCourseByCategory(category);
-                    if (course) setRelatedCourse(course);
-                }
-            }
-        };
-        loadRelatedCourse();
-    }, [routine]);
 
     const handlePurchase = () => {
         if (!user) { setIsLoginModalOpen(true); return; }
@@ -843,23 +826,28 @@ export const RoutineDetail: React.FC = () => {
                                     </>
                                 )}
 
-                                {relatedCourse && (
-                                    <div
-                                        onClick={() => navigate(`/courses/${relatedCourse.id}`)}
-                                        className="bg-zinc-800/50 backdrop-blur-sm border border-white/5 p-3 rounded-2xl relative overflow-hidden cursor-pointer active:scale-95 transition-transform mt-2"
-                                    >
-                                        <div className="relative z-10 flex gap-3 items-center">
-                                            <div className="w-12 h-12 rounded-xl bg-zinc-800 overflow-hidden shrink-0 border border-white/10 shadow-lg">
-                                                {relatedCourse.thumbnailUrl && <img src={relatedCourse.thumbnailUrl} loading="lazy" className="w-full h-full object-cover" />}
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className="text-[9px] font-bold text-violet-400 uppercase tracking-wider mb-0.5 flex items-center gap-1">
-                                                    <Zap className="w-2.5 h-2.5" /> Related Course
+                                {/* Master This Skill - Related Lessons/Sparring (Mobile) */}
+                                {routine.relatedItems && routine.relatedItems.length > 0 && (
+                                    <div className="bg-zinc-800/50 backdrop-blur-sm border border-white/5 p-3 rounded-2xl mt-2">
+                                        <div className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                            <Zap className="w-2.5 h-2.5" /> Master This Skill
+                                        </div>
+                                        <div className="space-y-2">
+                                            {routine.relatedItems.map((item) => (
+                                                <div
+                                                    key={`mobile-${item.type}-${item.id}`}
+                                                    onClick={() => {
+                                                        if (item.type === 'lesson') navigate(`/lessons/${item.id}`);
+                                                        else if (item.type === 'sparring') navigate(`/sparring/${item.id}`);
+                                                        else if (item.type === 'course') navigate(`/courses/${item.id}`);
+                                                    }}
+                                                    className="flex items-center gap-2 p-2 bg-zinc-800/60 border border-zinc-700/30 rounded-xl cursor-pointer active:bg-zinc-700/60 transition-colors"
+                                                >
+                                                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${item.type === 'lesson' ? 'bg-blue-400' : item.type === 'sparring' ? 'bg-emerald-400' : 'bg-violet-400'}`} />
+                                                    <span className="text-xs font-medium text-zinc-200 flex-1 truncate">{item.title}</span>
+                                                    <ChevronLeft className="w-3 h-3 text-zinc-500 rotate-180" />
                                                 </div>
-                                                <h4 className="text-xs font-bold text-white leading-tight line-clamp-1">{relatedCourse.title}</h4>
-                                                <p className="text-[10px] text-zinc-500 line-clamp-1">심화 과정을 통해 완벽하게 마스터하세요</p>
-                                            </div>
-                                            <ChevronLeft className="w-4 h-4 text-zinc-500 rotate-180" />
+                                            ))}
                                         </div>
                                     </div>
                                 )}
@@ -1149,33 +1137,38 @@ export const RoutineDetail: React.FC = () => {
                                     </div>
                                 </div>
 
-                                {relatedCourse && (
-                                    <div
-                                        onClick={() => navigate(`/courses/${relatedCourse.id}`)}
-                                        className="bg-gradient-to-br from-violet-900/30 to-indigo-900/30 border border-violet-500/30 hover:border-violet-500/50 p-5 rounded-3xl relative overflow-hidden cursor-pointer group transition-all shadow-xl"
-                                    >
-                                        <div className="absolute top-0 right-0 w-48 h-48 bg-violet-500/20 blur-[50px] rounded-full pointer-events-none group-hover:bg-violet-500/30 transition-colors"></div>
-                                        <div className="relative z-10 flex flex-col gap-4">
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div className="flex-1">
-                                                    <div className="text-[10px] font-bold text-violet-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                                                        <Zap className="w-3 h-3" /> Master This Skill
-                                                    </div>
-                                                    <h4 className="text-lg font-bold text-white leading-tight group-hover:text-violet-200 transition-colors">{relatedCourse.title}</h4>
-                                                </div>
-                                                <div className="w-16 h-16 rounded-xl bg-zinc-800 overflow-hidden shrink-0 border border-white/10 shadow-lg group-hover:scale-105 transition-transform">
-                                                    {relatedCourse.thumbnailUrl && <img src={relatedCourse.thumbnailUrl} loading="lazy" className="w-full h-full object-cover" />}
-                                                </div>
+                                {/* Master This Skill - Related Lessons/Sparring */}
+                                {routine.relatedItems && routine.relatedItems.length > 0 && (
+                                    <div className="bg-gradient-to-br from-indigo-900/30 to-blue-900/30 border border-indigo-500/30 p-5 rounded-3xl relative overflow-hidden shadow-xl">
+                                        <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/20 blur-[50px] rounded-full pointer-events-none"></div>
+                                        <div className="relative z-10">
+                                            <div className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                                <Zap className="w-3 h-3" /> Master This Skill
                                             </div>
-                                            <div className="flex items-center justify-between mt-2">
-                                                <span className="text-xs text-zinc-400 group-hover:text-zinc-300 transition-colors">Start full course</span>
-                                                <div className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                    <ChevronLeft className="w-4 h-4 rotate-180" />
-                                                </div>
+                                            <div className="space-y-2">
+                                                {routine.relatedItems.map((item) => (
+                                                    <div
+                                                        key={`${item.type}-${item.id}`}
+                                                        onClick={() => {
+                                                            if (item.type === 'lesson') navigate(`/lessons/${item.id}`);
+                                                            else if (item.type === 'sparring') navigate(`/sparring/${item.id}`);
+                                                            else if (item.type === 'course') navigate(`/courses/${item.id}`);
+                                                        }}
+                                                        className="flex items-center gap-3 p-3 bg-zinc-800/40 hover:bg-zinc-800/60 border border-zinc-700/50 rounded-xl cursor-pointer transition-all group"
+                                                    >
+                                                        <span className={`w-2 h-2 rounded-full shrink-0 ${item.type === 'lesson' ? 'bg-blue-400' : item.type === 'sparring' ? 'bg-emerald-400' : 'bg-violet-400'}`} />
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-semibold text-white truncate group-hover:text-indigo-200 transition-colors">{item.title}</p>
+                                                            <span className="text-[10px] text-zinc-500 uppercase">{item.type === 'lesson' ? '레슨' : item.type === 'sparring' ? '스파링' : '코스'}</span>
+                                                        </div>
+                                                        <ChevronLeft className="w-4 h-4 text-zinc-500 rotate-180 group-hover:translate-x-1 transition-transform" />
+                                                    </div>
+                                                ))}
                                             </div>
                                         </div>
                                     </div>
                                 )}
+
                             </div>
                         </div>
 

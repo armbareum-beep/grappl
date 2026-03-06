@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { createRoutine, getDrills, getRoutineById, updateRoutine, getCreators } from '../../lib/api';
 import { VideoCategory, Difficulty, Drill, UniformType, QuantentPosition, ContentLevel, Creator } from '../../types';
-import { Image as ImageIcon, DollarSign, Type, AlignLeft, X, CheckCircle, ArrowLeft, Dumbbell, Clock, RefreshCw, Clapperboard } from 'lucide-react';
+import { Image as ImageIcon, DollarSign, Type, AlignLeft, X, CheckCircle, ArrowLeft, Dumbbell, Clock, RefreshCw, Clapperboard, Search } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 
 export const CreateRoutine: React.FC = () => {
@@ -43,6 +43,7 @@ export const CreateRoutine: React.FC = () => {
         thumbnailUrl?: string;
     }[]>([]);
     const [activeSelectionTab, setActiveSelectionTab] = useState<'drills' | 'lessons' | 'sparring'>('drills');
+    const [contentSearchTerm, setContentSearchTerm] = useState('');
 
     useEffect(() => {
         if (!user) return;
@@ -110,8 +111,8 @@ export const CreateRoutine: React.FC = () => {
                 setRelatedItems(data.relatedItems);
             }
 
-            // 루틴 로드 후 추가 컨텐츠 로드 (레슨, 스파링 등)
-            await loadContent();
+            // 루틴 로드 후 추가 컨텐츠 로드 (레슨, 스파링 등) - creatorId 직접 전달
+            await loadContent(data.creatorId);
 
         } catch (error) {
             console.error('Error loading routine:', error);
@@ -121,20 +122,19 @@ export const CreateRoutine: React.FC = () => {
         }
     };
 
-    const loadContent = async () => {
+    const loadContent = async (overrideCreatorId?: string) => {
         if (!user) return;
 
-        // Load Content using dynamic imports or direct api calls if possible, but adhering to existing patterns
-        // We will assume api.ts has been updated or we use existing methods
-        // Since I cannot easily modify api.ts in this step without reading it again (and I already did), 
-        // I will assume standard fetches work or I use the specialized ones.
-        // Actually, I saw `searchDrillsAndLessons` in api.ts.
         const api = await import('../../lib/api');
+        const lessonApi = await import('../../lib/api-lessons');
+
+        // 해당 인스트럭터의 콘텐츠만 가져옴
+        const targetCreatorId = overrideCreatorId || formData.creatorId || user.id;
 
         const [drillsRes, lessonsRes, sparringRes] = await Promise.all([
-            getDrills(user.id),
-            api.searchDrillsAndLessons(''), // Fetch creator's lessons
-            api.getSparringVideos(100, user.id) // Fetch creator's sparring
+            getDrills(targetCreatorId),
+            lessonApi.getCreatorLessons(targetCreatorId),
+            api.getSparringVideos(100, targetCreatorId)
         ]);
 
         // 편집 모드에서 루틴의 드릴들이 이미 추가되어 있을 수 있으므로 병합
@@ -147,9 +147,10 @@ export const CreateRoutine: React.FC = () => {
             });
         }
 
-        if (lessonsRes && lessonsRes.data) {
-            // Filter for lessons only just in case
-            setLessons(lessonsRes.data.filter((l: any) => l.type === 'lesson'));
+        // 레슨 결과 처리 (getLessons는 배열 반환, getCreatorLessons는 {data, error} 반환)
+        const lessonsData = Array.isArray(lessonsRes) ? lessonsRes : lessonsRes?.data;
+        if (lessonsData) {
+            setLessons(lessonsData);
         }
 
         if (sparringRes && sparringRes.data) {
@@ -522,6 +523,20 @@ export const CreateRoutine: React.FC = () => {
                         </button>
                     </div>
 
+                    {/* 콘텐츠 검색 */}
+                    <div className="mb-4">
+                        <div className="relative">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-600" />
+                            <input
+                                type="text"
+                                placeholder="제목, 크리에이터 이름으로 검색..."
+                                value={contentSearchTerm}
+                                onChange={(e) => setContentSearchTerm(e.target.value)}
+                                className="w-full pl-12 pr-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500/50 transition-all"
+                            />
+                        </div>
+                    </div>
+
                     <div className="max-h-[500px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-700 min-h-[200px]">
                         {activeSelectionTab === 'drills' && (
                             drills.length === 0 ? (
@@ -531,7 +546,17 @@ export const CreateRoutine: React.FC = () => {
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {drills.map(drill => (
+                                    {drills
+                                        .filter(drill => {
+                                            if (!contentSearchTerm.trim()) return true;
+                                            const term = contentSearchTerm.toLowerCase();
+                                            return (
+                                                drill.title?.toLowerCase().includes(term) ||
+                                                drill.creatorName?.toLowerCase().includes(term) ||
+                                                drill.description?.toLowerCase().includes(term)
+                                            );
+                                        })
+                                        .map(drill => (
                                         <div
                                             key={drill.id}
                                             onClick={() => toggleDrillSelection(drill.id)}
@@ -552,8 +577,11 @@ export const CreateRoutine: React.FC = () => {
                                                 <h4 className={`font-bold text-lg leading-tight transition-colors ${selectedDrillIds.includes(drill.id) ? 'text-violet-400' : 'text-white'}`}>
                                                     {drill.title}
                                                 </h4>
+                                                {drill.creatorName && (
+                                                    <p className="text-xs text-violet-400/80 font-medium mt-0.5">by {drill.creatorName}</p>
+                                                )}
                                                 <p className="text-xs text-zinc-500 mt-1 line-clamp-1 leading-relaxed">{drill.description}</p>
-                                                <div className="flex items-center gap-2 mt-3 overflow-hidden">
+                                                <div className="flex items-center gap-2 mt-3 overflow-hidden flex-wrap">
                                                     <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded-md border border-zinc-700/50">
                                                         {drill.category}
                                                     </span>
@@ -580,7 +608,18 @@ export const CreateRoutine: React.FC = () => {
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {lessons.map(lesson => {
+                                    {lessons
+                                        .filter(lesson => {
+                                            if (!contentSearchTerm.trim()) return true;
+                                            const term = contentSearchTerm.toLowerCase();
+                                            return (
+                                                lesson.title?.toLowerCase().includes(term) ||
+                                                lesson.courseTitle?.toLowerCase().includes(term) ||
+                                                lesson.course?.creatorName?.toLowerCase().includes(term) ||
+                                                lesson.description?.toLowerCase().includes(term)
+                                            );
+                                        })
+                                        .map(lesson => {
                                         const isSelected = relatedItems.some(i => i.id === lesson.id && i.type === 'lesson');
                                         return (
                                             <div
@@ -603,6 +642,13 @@ export const CreateRoutine: React.FC = () => {
                                                     <h4 className={`font-bold text-lg leading-tight transition-colors ${isSelected ? 'text-blue-400' : 'text-white'}`}>
                                                         {lesson.title}
                                                     </h4>
+                                                    {(lesson.course?.creatorName || lesson.courseTitle) && (
+                                                        <p className="text-xs text-blue-400/80 font-medium mt-0.5">
+                                                            {lesson.course?.creatorName && `by ${lesson.course.creatorName}`}
+                                                            {lesson.course?.creatorName && lesson.courseTitle && ' · '}
+                                                            {lesson.courseTitle && `${lesson.courseTitle}`}
+                                                        </p>
+                                                    )}
                                                     <p className="text-xs text-zinc-500 mt-1 line-clamp-1 leading-relaxed">{lesson.description}</p>
                                                 </div>
                                                 <div className="absolute right-4 top-4 w-16 h-16 rounded-xl bg-zinc-900/80 border border-zinc-800 flex-shrink-0 overflow-hidden shadow-inner ring-1 ring-white/5">
@@ -624,7 +670,17 @@ export const CreateRoutine: React.FC = () => {
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {sparringVideos.map(video => {
+                                    {sparringVideos
+                                        .filter(video => {
+                                            if (!contentSearchTerm.trim()) return true;
+                                            const term = contentSearchTerm.toLowerCase();
+                                            return (
+                                                video.title?.toLowerCase().includes(term) ||
+                                                video.creator?.name?.toLowerCase().includes(term) ||
+                                                video.description?.toLowerCase().includes(term)
+                                            );
+                                        })
+                                        .map(video => {
                                         const isSelected = relatedItems.some(i => i.id === video.id && i.type === 'sparring');
                                         return (
                                             <div
@@ -647,6 +703,9 @@ export const CreateRoutine: React.FC = () => {
                                                     <h4 className={`font-bold text-lg leading-tight transition-colors ${isSelected ? 'text-emerald-400' : 'text-white'}`}>
                                                         {video.title}
                                                     </h4>
+                                                    {video.creator?.name && (
+                                                        <p className="text-xs text-emerald-400/80 font-medium mt-0.5">by {video.creator.name}</p>
+                                                    )}
                                                     <p className="text-xs text-zinc-500 mt-1 line-clamp-1 leading-relaxed">{video.description}</p>
                                                 </div>
                                                 <div className="absolute right-4 top-4 w-24 h-16 rounded-xl bg-zinc-900/80 border border-zinc-800 flex-shrink-0 overflow-hidden shadow-inner ring-1 ring-white/5">

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Plus, GripVertical, Video, Trash2, Edit, CheckCircle, BookOpen, X, Link2, Upload, Loader2, ArrowUpDown } from 'lucide-react';
+import { ArrowLeft, Save, Plus, GripVertical, Video, Trash2, Edit, CheckCircle, BookOpen, X, Link2, Upload, Loader2, ArrowUpDown, Search } from 'lucide-react';
 import { getCourseById, createCourse, updateCourse, getLessonsByCourse, createLesson, updateLesson, deleteLesson, removeLessonFromCourse, getDrills, getCourseDrillBundles, addCourseDrillBundle, removeCourseDrillBundle, getAllCreatorLessons, reorderLessons, getSparringVideos, getCourseSparringVideos, addCourseSparringVideo, removeCourseSparringVideo, getCreators, extractVimeoId } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { Course, Lesson, VideoCategory, Difficulty, Drill, SparringVideo, UniformType, Creator } from '../../types';
@@ -142,11 +142,13 @@ export const CourseEditor: React.FC = () => {
     const [availableDrills, setAvailableDrills] = useState<Drill[]>([]);
     const [bundledDrills, setBundledDrills] = useState<Drill[]>([]);
     const [loadingDrills, setLoadingDrills] = useState(false);
+    const [drillSearchTerm, setDrillSearchTerm] = useState('');
 
     // Sparring State
     const [availableSparringVideos, setAvailableSparringVideos] = useState<SparringVideo[]>([]);
     const [bundledSparringVideos, setBundledSparringVideos] = useState<SparringVideo[]>([]);
     const [loadingSparringVideos, setLoadingSparringVideos] = useState(false);
+    const [sparringSearchTerm, setSparringSearchTerm] = useState('');
 
     // Import Lesson State
     const [showImportModal, setShowImportModal] = useState(false);
@@ -260,14 +262,15 @@ export const CourseEditor: React.FC = () => {
                 setSelectedCreatorId(user.id); // Non-admin users always create for themselves
             }
 
-            loadDrills();
-            loadSparringVideos();
-
             if (!isNew && id) {
+                // 편집 모드: 클래스 데이터 로드 후 드릴/스파링 로드
                 fetchCourseData(id);
                 loadBundledDrills();
                 loadBundledSparringVideos();
             } else {
+                // 새로 만들기 모드: 바로 드릴/스파링 로드
+                loadDrills();
+                loadSparringVideos();
                 setLoading(false);
             }
         }
@@ -283,6 +286,9 @@ export const CourseEditor: React.FC = () => {
                 setCourseData(course);
                 if (course.creatorId) {
                     setSelectedCreatorId(course.creatorId);
+                    // 클래스 소유자의 드릴/스파링 로드
+                    loadDrillsForCreator(course.creatorId);
+                    loadSparringForCreator(course.creatorId);
                 }
             }
             setLessons(lessonsResponse.data || []);
@@ -295,9 +301,14 @@ export const CourseEditor: React.FC = () => {
 
     const loadDrills = async () => {
         if (!user) return;
+        const targetCreatorId = selectedCreatorId || courseData.creatorId || user.id;
+        await loadDrillsForCreator(targetCreatorId);
+    };
+
+    const loadDrillsForCreator = async (creatorId: string) => {
         setLoadingDrills(true);
         try {
-            const data = await getDrills(user.id);
+            const data = await getDrills(creatorId);
             if (data) {
                 setAvailableDrills(data);
             }
@@ -356,10 +367,14 @@ export const CourseEditor: React.FC = () => {
 
     const loadSparringVideos = async () => {
         if (!user) return;
+        const targetCreatorId = selectedCreatorId || courseData.creatorId || user.id;
+        await loadSparringForCreator(targetCreatorId);
+    };
+
+    const loadSparringForCreator = async (creatorId: string) => {
         setLoadingSparringVideos(true);
         try {
-            // Fetch all sparring videos by this creator
-            const { data } = await getSparringVideos(50, user.id);
+            const { data } = await getSparringVideos(50, creatorId);
             if (data) {
                 setAvailableSparringVideos(data);
             }
@@ -1100,10 +1115,26 @@ export const CourseEditor: React.FC = () => {
                                     </div>
                                 )}
 
+                                {/* 드릴 검색 */}
+                                {availableDrills.length > 0 && (
+                                    <div className="mb-6">
+                                        <div className="relative">
+                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-600" />
+                                            <input
+                                                type="text"
+                                                placeholder="드릴 제목, 크리에이터 이름으로 검색..."
+                                                value={drillSearchTerm}
+                                                onChange={(e) => setDrillSearchTerm(e.target.value)}
+                                                className="w-full pl-12 pr-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500/50 transition-all"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
                                 {loadingDrills ? (
                                     <div className="flex flex-col items-center py-20 text-zinc-600 gap-3">
                                         <div className="w-8 h-8 border-2 border-violet-500/20 border-t-violet-500 rounded-full animate-spin" />
-                                        <p className="font-medium">나의 드릴 목록을 불러오는 중...</p>
+                                        <p className="font-medium">{isAdmin ? '모든 드릴' : '나의 드릴'} 목록을 불러오는 중...</p>
                                     </div>
                                 ) : availableDrills.length === 0 ? (
                                     <div className="text-center py-20 bg-zinc-950/30 border-2 border-dashed border-zinc-800 rounded-2xl">
@@ -1118,7 +1149,17 @@ export const CourseEditor: React.FC = () => {
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {availableDrills.map(drill => {
+                                        {availableDrills
+                                            .filter(drill => {
+                                                if (!drillSearchTerm.trim()) return true;
+                                                const term = drillSearchTerm.toLowerCase();
+                                                return (
+                                                    drill.title?.toLowerCase().includes(term) ||
+                                                    drill.creatorName?.toLowerCase().includes(term) ||
+                                                    drill.description?.toLowerCase().includes(term)
+                                                );
+                                            })
+                                            .map(drill => {
                                             const isBundled = bundledDrills.some(d => d.id === drill.id);
                                             return (
                                                 <div
@@ -1139,8 +1180,11 @@ export const CourseEditor: React.FC = () => {
                                                         <h4 className={`font-bold text-lg leading-tight transition-colors ${isBundled ? 'text-violet-400' : 'text-white'}`}>
                                                             {drill.title}
                                                         </h4>
+                                                        {drill.creatorName && (
+                                                            <p className="text-xs text-violet-400/80 font-medium mt-0.5">by {drill.creatorName}</p>
+                                                        )}
                                                         <p className="text-xs text-zinc-500 mt-1 line-clamp-2 leading-relaxed">{drill.description}</p>
-                                                        <div className="flex items-center gap-2 mt-3 overflow-hidden">
+                                                        <div className="flex items-center gap-2 mt-3 overflow-hidden flex-wrap">
                                                             <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded-md border border-zinc-700/50">
                                                                 {drill.category}
                                                             </span>
@@ -1202,10 +1246,26 @@ export const CourseEditor: React.FC = () => {
                                     </div>
                                 )}
 
+                                {/* 스파링 검색 */}
+                                {availableSparringVideos.length > 0 && (
+                                    <div className="mb-6">
+                                        <div className="relative">
+                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-600" />
+                                            <input
+                                                type="text"
+                                                placeholder="스파링 제목, 크리에이터 이름으로 검색..."
+                                                value={sparringSearchTerm}
+                                                onChange={(e) => setSparringSearchTerm(e.target.value)}
+                                                className="w-full pl-12 pr-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500/50 transition-all"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
                                 {loadingSparringVideos ? (
                                     <div className="flex flex-col items-center py-20 text-zinc-600 gap-3">
                                         <div className="w-8 h-8 border-2 border-violet-500/20 border-t-violet-500 rounded-full animate-spin" />
-                                        <p className="font-medium">나의 스파링 보관함을 여는 중...</p>
+                                        <p className="font-medium">{isAdmin ? '모든 스파링' : '나의 스파링'} 보관함을 여는 중...</p>
                                     </div>
                                 ) : availableSparringVideos.length === 0 ? (
                                     <div className="text-center py-20 bg-zinc-950/30 border-2 border-dashed border-zinc-800 rounded-2xl text-zinc-500">
@@ -1219,7 +1279,17 @@ export const CourseEditor: React.FC = () => {
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {availableSparringVideos.map(video => {
+                                        {availableSparringVideos
+                                            .filter(video => {
+                                                if (!sparringSearchTerm.trim()) return true;
+                                                const term = sparringSearchTerm.toLowerCase();
+                                                return (
+                                                    video.title?.toLowerCase().includes(term) ||
+                                                    video.creator?.name?.toLowerCase().includes(term) ||
+                                                    video.description?.toLowerCase().includes(term)
+                                                );
+                                            })
+                                            .map(video => {
                                             const isBundled = bundledSparringVideos.some(v => v.id === video.id);
                                             return (
                                                 <div
@@ -1240,7 +1310,10 @@ export const CourseEditor: React.FC = () => {
                                                         <h4 className={`font-bold text-lg leading-tight transition-colors ${isBundled ? 'text-violet-400' : 'text-white'}`}>
                                                             {video.title}
                                                         </h4>
-                                                        <div className="flex items-center gap-2 mt-3">
+                                                        {video.creator?.name && (
+                                                            <p className="text-xs text-violet-400/80 font-medium mt-0.5">by {video.creator.name}</p>
+                                                        )}
+                                                        <div className="flex items-center gap-2 mt-3 flex-wrap">
                                                             <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 bg-zinc-900 text-zinc-500 rounded-lg border border-zinc-800">
                                                                 {video.category || 'NO CATEGORY'}
                                                             </span>
