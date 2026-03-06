@@ -1432,7 +1432,7 @@ export async function requestContentPublishing(id: string, type: 'course' | 'dri
                         'support_ticket', // Reuse support_ticket type for admin alerts
                         '새로운 콘텐츠 승인 요청',
                         `새로운 ${typeNameMap[type]} "${data.title || '제목 없음'}"이(가) 승인 대기 중입니다.`,
-                        '/admin/content-approval'
+                        '/admin/approval'
                     )
                 ));
             }
