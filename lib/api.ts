@@ -18,6 +18,29 @@ export const SUBSCRIPTION_PLATFORM_SHARE = 0.2;
 
 // (Manual caching system removed - migrated to React Query)
 
+// Helper function to upload images to Supabase storage
+export async function uploadImage(file: File, bucket: string): Promise<string> {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+
+    const { error } = await supabase.storage
+        .from(bucket)
+        .upload(fileName, file, {
+            cacheControl: '3600',
+            upsert: false
+        });
+
+    if (error) {
+        throw new Error(`이미지 업로드 실패: ${error.message}`);
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(fileName);
+
+    return publicUrl;
+}
+
 // Helper to safely wrap promises with a timeout
 export async function withTimeout<T>(
     promise: PromiseLike<T> | ((abortController: AbortController) => PromiseLike<T>),
@@ -4307,18 +4330,32 @@ export async function getAllUsersAdmin() {
         return { data: null, error };
     }
 
-    // creators 테이블에서 creator 목록 조회
+    // creators 테이블에서 creator 목록 조회 (creator_type 포함)
     const { data: creatorsData } = await supabase
         .from('creators')
-        .select('id');
+        .select('id, creator_type, can_host_events');
 
-    const creatorIds = new Set(creatorsData?.map(c => c.id) || []);
+    // creator 정보를 Map으로 저장
+    const creatorMap = new Map(
+        creatorsData?.map(c => [c.id, {
+            creator_type: c.creator_type,
+            can_host_events: c.can_host_events
+        }]) || []
+    );
 
-    // is_creator 필드 추가
-    const data = usersData?.map(user => ({
-        ...user,
-        is_creator: creatorIds.has(user.id)
-    }));
+    // is_creator, is_organizer, creator_type 필드 추가
+    const data = usersData?.map(user => {
+        const creatorInfo = creatorMap.get(user.id);
+        const isOrganizer = creatorInfo?.creator_type === 'organizer' ||
+                           creatorInfo?.creator_type === 'both' ||
+                           creatorInfo?.can_host_events === true;
+        return {
+            ...user,
+            is_creator: creatorInfo?.creator_type === 'instructor' || creatorInfo?.creator_type === 'both',
+            is_organizer: isOrganizer,
+            creator_type: creatorInfo?.creator_type || null
+        };
+    });
 
     return { data, error: null };
 }

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { PayPalButtons, usePayPalScriptReducer } from '@paypal/react-paypal-js';
 import * as PortOne from '@portone/browser-sdk/v2';
+import { loadTossPayments } from '@tosspayments/tosspayments-sdk';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabase';
@@ -617,24 +618,26 @@ export const Checkout: React.FC = () => {
                                                     });
                                                     const redirectUrl = `${baseUrl}/payment/complete?${redirectParams.toString()}`;
 
-                                                    // Monthly Subscription -> Issue Billing Key
+                                                    // Monthly Subscription -> TossPayments Billing
                                                     if (isMonthlySubscription && !isUpgrade) {
-                                                        response = await PortOne.requestIssueBillingKey({
-                                                            storeId: import.meta.env.VITE_PORTONE_STORE_ID,
-                                                            channelKey: channelKey,
-                                                            billingKeyMethod: "CARD",
-                                                            issueName: productTitle,
-                                                            issueId: issueId,
-                                                            customer: {
-                                                                customerId: user?.id, // Updated for V2
-                                                                email: user?.email,
-                                                                phoneNumber: phoneNumber ? phoneNumber.replace(/-/g, '') : undefined,
-                                                                fullName: fullName || undefined,
-                                                            },
-                                                            redirectUrl: redirectUrl,
+                                                        // 토스페이먼츠 빌링 인증 (리다이렉트 방식)
+                                                        const tossPayments = await loadTossPayments(import.meta.env.VITE_TOSS_CLIENT_KEY);
+                                                        const payment = tossPayments.payment({ customerKey: user!.id });
+
+                                                        // 콜백 URL에 필요한 정보 전달
+                                                        const callbackParams = new URLSearchParams({
+                                                            amount: String(discountedAmount),
+                                                            returnUrl: returnUrl || '',
                                                         });
+
+                                                        await payment.requestBillingAuth({
+                                                            method: "CARD",
+                                                            successUrl: `${window.location.origin}/payment/toss-callback?${callbackParams.toString()}`,
+                                                            failUrl: `${window.location.origin}/payment/toss-callback?${callbackParams.toString()}`,
+                                                        });
+                                                        return; // 리다이렉트되므로 여기서 종료
                                                     }
-                                                    // Yearly Pass, Upgrades & Others -> One-time Payment
+                                                    // Yearly Pass, Upgrades & Others -> One-time Payment (PortOne)
                                                     else {
                                                         response = await PortOne.requestPayment({
                                                             storeId: import.meta.env.VITE_PORTONE_STORE_ID,

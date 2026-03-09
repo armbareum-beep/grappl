@@ -6,7 +6,7 @@ import { getCreatorCourses, calculateCreatorEarnings, getDrills, deleteDrill, ge
 import { Course, Drill, Lesson, DrillRoutine, SparringVideo, Bundle } from '../../types';
 import { MobileTabSelector } from '../../components/MobileTabSelector';
 import { Button } from '../../components/Button';
-import { BookOpen, DollarSign, Eye, TrendingUp, Package, MessageSquare, LayoutDashboard, PlayCircle, Grid, Layers, Clapperboard, X } from 'lucide-react';
+import { BookOpen, DollarSign, Eye, TrendingUp, Package, MessageSquare, LayoutDashboard, PlayCircle, Grid, Layers, Clapperboard, X, Mail } from 'lucide-react';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { MarketingTab } from '../../components/creator/MarketingTab';
 import { FeedbackSettingsTab } from '../../components/creator/FeedbackSettingsTab';
@@ -17,6 +17,7 @@ import { RoutinePerformanceTab } from '../../components/creator/RoutinePerforman
 import { SparringPerformanceTab } from '../../components/creator/SparringPerformanceTab';
 import { FeedbackPerformanceTab } from '../../components/creator/FeedbackPerformanceTab';
 import { PayoutSettingsTab } from '../../components/creator/PayoutSettingsTab';
+import { EventInvitationSettingsTab } from '../../components/creator/EventInvitationSettingsTab';
 import { LoadingScreen } from '../../components/LoadingScreen';
 import { ContentCard } from '../../components/creator/ContentCard';
 import { useDataControls, SearchInput, SortSelect, Pagination, SortOption } from '../../components/common/DataControls';
@@ -26,7 +27,7 @@ import { createCourse, updateCourse, createRoutine, updateRoutine, createSparrin
 import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 
 export const CreatorDashboard: React.FC = () => {
-    const { user } = useAuth();
+    const { user, isOrganizer } = useAuth();
     const { success, error: toastError } = useToast();
     const navigate = useNavigate();
     const { queueUpload } = useBackgroundUpload();
@@ -41,7 +42,7 @@ export const CreatorDashboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
 
     const initialTab = (searchParams.get('tab') as any) || 'materials';
-    const [activeTab, setActiveTab] = useState<'content' | 'materials' | 'marketing' | 'feedback' | 'analytics' | 'payout'>(initialTab);
+    const [activeTab, setActiveTab] = useState<'content' | 'materials' | 'marketing' | 'feedback' | 'invitations' | 'analytics' | 'payout'>(initialTab);
     const initialContentTab = (searchParams.get('contentTab') as any) || 'courses';
     const [activeContentTab, setActiveContentTab] = useState<'courses' | 'routines' | 'sparring'>(initialContentTab);
     const initialMaterialsTab = (searchParams.get('materialsTab') as any) || 'lessons';
@@ -775,7 +776,10 @@ export const CreatorDashboard: React.FC = () => {
         { id: 'materials', label: '자료', icon: Package },
         { id: 'content', label: '내 콘텐츠', icon: LayoutDashboard },
         { id: 'marketing', label: '마케팅', icon: TrendingUp },
-        { id: 'feedback', label: '피드백', icon: MessageSquare },
+        // 주최자는 피드백 기능 숨김
+        ...(!isOrganizer ? [{ id: 'feedback', label: '피드백', icon: MessageSquare }] : []),
+        // 행사 초청 설정 탭 (지도자용)
+        ...(!isOrganizer ? [{ id: 'invitations', label: '행사 초청', icon: Mail }] : []),
         { id: 'analytics', label: '분석', icon: Eye },
         { id: 'payout', label: '정산', icon: DollarSign },
     ];
@@ -1246,6 +1250,8 @@ export const CreatorDashboard: React.FC = () => {
                                 <FeedbackRequestsTab />
                             </div>
                         </div>
+                    ) : activeTab === 'invitations' ? (
+                        <EventInvitationSettingsTab />
                     ) : activeTab === 'analytics' ? (
                         <div className="space-y-8">
                             <RevenueAnalyticsTab />
@@ -1278,20 +1284,22 @@ export const CreatorDashboard: React.FC = () => {
                                     >
                                         스파링 성과
                                     </button>
-                                    <button
-                                        onClick={() => setActivePerformanceTab('feedback')}
-                                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activePerformanceTab === 'feedback'
-                                            ? 'bg-zinc-800 text-white shadow-md'
-                                            : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
-                                            }`}
-                                    >
-                                        피드백 성과
-                                    </button>
+                                    {!isOrganizer && (
+                                        <button
+                                            onClick={() => setActivePerformanceTab('feedback')}
+                                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activePerformanceTab === 'feedback'
+                                                ? 'bg-zinc-800 text-white shadow-md'
+                                                : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
+                                                }`}
+                                        >
+                                            피드백 성과
+                                        </button>
+                                    )}
                                 </div>
                                 {activePerformanceTab === 'courses' && <CoursePerformanceTab />}
                                 {activePerformanceTab === 'routines' && <RoutinePerformanceTab />}
                                 {activePerformanceTab === 'sparring' && <SparringPerformanceTab />}
-                                {activePerformanceTab === 'feedback' && <FeedbackPerformanceTab />}
+                                {activePerformanceTab === 'feedback' && !isOrganizer && <FeedbackPerformanceTab />}
                             </div>
                         </div>
                     ) : (

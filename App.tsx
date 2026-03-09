@@ -69,6 +69,7 @@ const AdminLessonList = React.lazy(() => import('./pages/admin/AdminLessonList')
 const AdminSparringList = React.lazy(() => import('./pages/admin/AdminSparringList').then(m => ({ default: m.AdminSparringList })));
 const AdminSiteSettings = React.lazy(() => import('./pages/admin/AdminSiteSettings').then(m => ({ default: m.AdminSiteSettings })));
 const AdminCreatorList = React.lazy(() => import('./pages/admin/AdminCreatorList').then(m => ({ default: m.AdminCreatorList })));
+const AdminOrganizerList = React.lazy(() => import('./pages/admin/AdminOrganizerList').then(m => ({ default: m.AdminOrganizerList })));
 const AdminSupportList = React.lazy(() => import('./pages/admin/AdminSupportList').then(m => ({ default: m.AdminSupportList })));
 const AdminContentApproval = React.lazy(() => import('./pages/admin/AdminContentApproval').then(m => ({ default: m.AdminContentApproval })));
 const AdminSystemLogs = React.lazy(() => import('./pages/admin/AdminSystemLogs').then(m => ({ default: m.AdminSystemLogs })));
@@ -85,10 +86,35 @@ const CreateRoutine = React.lazy(() => import('./pages/creator/CreateRoutine').t
 const CreatorCourses = React.lazy(() => import('./pages/creator/CreatorCourses').then(m => ({ default: m.CreatorCourses })));
 const CourseEditor = React.lazy(() => import('./pages/creator/CourseEditor').then(m => ({ default: m.CourseEditor })));
 
+// Organizer pages - lazy loaded
+const Organizers = React.lazy(() => import('./pages/Organizers').then(m => ({ default: m.Organizers })));
+const OrganizerProfile = React.lazy(() => import('./pages/OrganizerProfile').then(m => ({ default: m.OrganizerProfile })));
+const OrganizerDashboard = React.lazy(() => import('./pages/organizer/OrganizerDashboard').then(m => ({ default: m.OrganizerDashboard })));
+const Events = React.lazy(() => import('./pages/Events').then(m => ({ default: m.Events })));
+const EventExplore = React.lazy(() => import('./pages/EventExplore').then(m => ({ default: m.EventExplore })));
+const EventDetail = React.lazy(() => import('./pages/EventDetail').then(m => ({ default: m.EventDetail })));
+const CreateEvent = React.lazy(() => import('./pages/organizer/CreateEvent').then(m => ({ default: m.CreateEvent })));
+const ManageParticipants = React.lazy(() => import('./pages/organizer/ManageParticipants').then(m => ({ default: m.ManageParticipants })));
+const InviteInstructor = React.lazy(() => import('./pages/organizer/InviteInstructor').then(m => ({ default: m.InviteInstructor })));
+const EventInvitations = React.lazy(() => import('./pages/organizer/EventInvitations').then(m => ({ default: m.EventInvitations })));
+const InstructorInvitations = React.lazy(() => import('./pages/creator/InstructorInvitations').then(m => ({ default: m.InstructorInvitations })));
+const CompetitionManager = React.lazy(() => import('./pages/organizer/CompetitionManager').then(m => ({ default: m.CompetitionManager })));
+const BracketEditor = React.lazy(() => import('./pages/organizer/BracketEditor').then(m => ({ default: m.BracketEditor })));
+const WeighInManager = React.lazy(() => import('./pages/organizer/WeighInManager').then(m => ({ default: m.WeighInManager })));
+const MatchControl = React.lazy(() => import('./pages/organizer/MatchControl').then(m => ({ default: m.MatchControl })));
+const TeamBuilder = React.lazy(() => import('./pages/organizer/TeamBuilder').then(m => ({ default: m.TeamBuilder })));
+const LiveScoreboard = React.lazy(() => import('./pages/LiveScoreboard').then(m => ({ default: m.LiveScoreboard })));
+const MyEvents = React.lazy(() => import('./pages/MyEvents').then(m => ({ default: m.MyEvents })));
+const BecomeOrganizer = React.lazy(() => import('./pages/BecomeOrganizer').then(m => ({ default: m.BecomeOrganizer })));
+const EventTeams = React.lazy(() => import('./pages/EventTeams').then(m => ({ default: m.EventTeams })));
+const ManageEventTeam = React.lazy(() => import('./pages/organizer/ManageBrand').then(m => ({ default: m.ManageBrand })));
+const EventTeamProfile = React.lazy(() => import('./pages/BrandProfile').then(m => ({ default: m.BrandProfile })));
+
 // Other pages - lazy loaded
 const BecomeCreator = React.lazy(() => import('./pages/BecomeCreator').then(m => ({ default: m.BecomeCreator })));
 const NotFound = React.lazy(() => import('./pages/NotFound').then(m => ({ default: m.NotFound })));
 const PaymentComplete = React.lazy(() => import('./pages/PaymentComplete').then(m => ({ default: m.PaymentComplete })));
+const TossCallback = React.lazy(() => import('./pages/TossCallback').then(m => ({ default: m.TossCallback })));
 const Checkout = React.lazy(() => import('./pages/Checkout').then(m => ({ default: m.Checkout })));
 const Agora = React.lazy(() => import('./pages/Agora').then(m => ({ default: m.Agora })));
 const LandingPage = React.lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })));
@@ -340,6 +366,11 @@ const App: React.FC = () => {
                     <Route path="/creator/lessons/:id/edit" element={<UnifiedUploadModal initialContentType="lesson" />} />
                     <Route path="/creator/create-routine" element={<CreateRoutine />} />
                     <Route path="/creator/routines/:id/edit" element={<CreateRoutine />} />
+                    <Route path="/creator/invitations" element={
+                      <ProtectedRoute>
+                        <InstructorInvitations />
+                      </ProtectedRoute>
+                    } />
                     <Route path="/become-creator" element={<BecomeCreator />} />
                     <Route path="/creator/:id" element={<CreatorProfile />} />
                     <Route path="/library" element={<Library />} />
@@ -382,6 +413,94 @@ const App: React.FC = () => {
                     <Route path="/technique/:techniqueId" element={<TechniqueDetailPage />} />
                     <Route path="/lessons/:id" element={<LessonDetail />} />
                     <Route path="/instructors" element={<Instructors />} />
+                    {/* Legacy redirects */}
+                    <Route path="/organizers" element={<Navigate to="/event-teams" replace />} />
+                    <Route path="/organizer/:id" element={<Navigate to="/event-teams" replace />} />
+                    <Route path="/organizer/dashboard" element={
+                      <ProtectedRoute>
+                        <OrganizerDashboard />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/become-organizer" element={
+                      <ProtectedRoute>
+                        <BecomeOrganizer />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/event-teams" element={<EventTeams />} />
+                    <Route path="/event-team/:id" element={<EventTeamProfile />} />
+                    <Route path="/organizer/event-team/new" element={
+                      <ProtectedRoute>
+                        <ManageEventTeam />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/organizer/event-team/:id" element={
+                      <ProtectedRoute>
+                        <ManageEventTeam />
+                      </ProtectedRoute>
+                    } />
+                    {/* Legacy routes for backwards compatibility */}
+                    <Route path="/organizer/brand/new" element={<Navigate to="/organizer/event-team/new" replace />} />
+                    <Route path="/organizer/brand/:id" element={<Navigate to="/organizer/event-team/:id" replace />} />
+                    <Route path="/brand/:id" element={<Navigate to="/event-team/:id" replace />} />
+                    <Route path="/organizer/create-event" element={
+                      <ProtectedRoute>
+                        <CreateEvent />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/organizer/event/:id/edit" element={
+                      <ProtectedRoute>
+                        <CreateEvent />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/organizer/event/:id/participants" element={
+                      <ProtectedRoute>
+                        <ManageParticipants />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/organizer/event/:eventId/invite" element={
+                      <ProtectedRoute>
+                        <InviteInstructor />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/organizer/event/:eventId/invitations" element={
+                      <ProtectedRoute>
+                        <EventInvitations />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/organizer/event/:eventId/competition" element={
+                      <ProtectedRoute>
+                        <CompetitionManager />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/organizer/event/:eventId/bracket/:categoryId" element={
+                      <ProtectedRoute>
+                        <BracketEditor />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/organizer/event/:eventId/weigh-in" element={
+                      <ProtectedRoute>
+                        <WeighInManager />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/organizer/event/:eventId/match-control" element={
+                      <ProtectedRoute>
+                        <MatchControl />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/organizer/event/:eventId/teams/:categoryId" element={
+                      <ProtectedRoute>
+                        <TeamBuilder />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/scoreboard/:urlKey" element={<LiveScoreboard />} />
+                    <Route path="/explore" element={<EventExplore />} />
+                    <Route path="/events" element={<Events />} />
+                    <Route path="/event/:id" element={<EventDetail />} />
+                    <Route path="/my-events" element={
+                      <ProtectedRoute>
+                        <MyEvents />
+                      </ProtectedRoute>
+                    } />
                     <Route path="/profile/:userId" element={<UserProfile />} />
                     <Route path="/settings" element={
                       <ProtectedRoute>
@@ -403,6 +522,7 @@ const App: React.FC = () => {
                     <Route path="/admin/support" element={<AdminRoute><AdminSupportList /></AdminRoute>} />
                     <Route path="/admin/approval" element={<AdminRoute><AdminContentApproval /></AdminRoute>} />
                     <Route path="/admin/creators" element={<AdminRoute><AdminCreatorList /></AdminRoute>} />
+                    <Route path="/admin/organizers" element={<AdminRoute><AdminOrganizerList /></AdminRoute>} />
                     <Route path="/admin/marketing" element={<AdminRoute><AdminMarketing /></AdminRoute>} />
                     <Route path="/admin/payouts" element={<AdminRoute><AdminPayouts /></AdminRoute>} />
                     <Route path="/admin/users" element={<AdminRoute><AdminUserList /></AdminRoute>} />
@@ -414,6 +534,7 @@ const App: React.FC = () => {
                     <Route path="/admin/vimeo-sync" element={<AdminRoute><AdminDurationSync /></AdminRoute>} />
                     <Route path="/admin/watch-logs" element={<AdminRoute><AdminWatchLogs /></AdminRoute>} />
                     <Route path="/payment/complete" element={<PaymentComplete />} />
+                    <Route path="/payment/toss-callback" element={<TossCallback />} />
                     <Route path="/checkout/:type/:id" element={<Checkout />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/forgot-password" element={<ForgotPassword />} />

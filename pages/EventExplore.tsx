@@ -1,0 +1,345 @@
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { Calendar, Map, Trophy, Users, MapPin, ChevronRight, Clock, Filter } from 'lucide-react';
+import { fetchEvents } from '../lib/api-events';
+import { Event, EventType } from '../types';
+import { LoadingScreen } from '../components/LoadingScreen';
+import { EventCalendarView } from '../components/explore/EventCalendarView';
+import { EventMapView } from '../components/explore/EventMapView';
+
+type ViewMode = 'calendar' | 'map';
+
+const EVENT_TYPE_CONFIG = {
+    competition: { label: '시합', color: 'bg-red-500', textColor: 'text-red-400', borderColor: 'border-red-500/30', icon: Trophy },
+    seminar: { label: '세미나', color: 'bg-blue-500', textColor: 'text-blue-400', borderColor: 'border-blue-500/30', icon: Users },
+    openmat: { label: '오픈매트', color: 'bg-green-500', textColor: 'text-green-400', borderColor: 'border-green-500/30', icon: MapPin },
+};
+
+export const EventExplore: React.FC = () => {
+    const [viewMode, setViewMode] = useState<ViewMode>('calendar');
+    const [events, setEvents] = useState<Event[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedType, setSelectedType] = useState<EventType | 'all'>('all');
+    const [selectedDate, setSelectedDate] = useState<string | null>(null);
+    const [selectedMapEventId, setSelectedMapEventId] = useState<string | null>(null);
+
+    useEffect(() => {
+        const loadEvents = async () => {
+            try {
+                setLoading(true);
+                const data = await fetchEvents({
+                    status: 'published',
+                    type: selectedType === 'all' ? undefined : selectedType,
+                });
+                // Filter to only show future events
+                const now = new Date().toISOString().split('T')[0];
+                const futureEvents = data.filter(e => e.eventDate >= now);
+                setEvents(futureEvents);
+            } catch (error) {
+                console.error('Failed to load events:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadEvents();
+    }, [selectedType]);
+
+    const filteredEvents = selectedDate
+        ? events.filter(e => e.eventDate === selectedDate)
+        : events;
+
+    if (loading) {
+        return <LoadingScreen message="이벤트 불러오는 중..." />;
+    }
+
+    return (
+        <div className="min-h-screen bg-zinc-950 text-white pb-24">
+            {/* Header */}
+            <div className="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-20">
+                <div className="max-w-7xl mx-auto px-4 py-4">
+                    <div className="flex items-center justify-between">
+                        <h1 className="text-xl font-bold">이벤트</h1>
+
+                        {/* View Toggle */}
+                        <div className="flex bg-zinc-800 rounded-xl p-1 border border-zinc-700">
+                            <button
+                                onClick={() => setViewMode('calendar')}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                                    viewMode === 'calendar'
+                                        ? 'bg-amber-600 text-white'
+                                        : 'text-zinc-400 hover:text-white'
+                                }`}
+                            >
+                                <Calendar className="w-4 h-4" />
+                                <span className="hidden sm:inline">캘린더</span>
+                            </button>
+                            <button
+                                onClick={() => setViewMode('map')}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                                    viewMode === 'map'
+                                        ? 'bg-amber-600 text-white'
+                                        : 'text-zinc-400 hover:text-white'
+                                }`}
+                            >
+                                <Map className="w-4 h-4" />
+                                <span className="hidden sm:inline">지도</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Type Filter */}
+                    <div className="flex gap-2 mt-4 overflow-x-auto pb-2 scrollbar-hide">
+                        <button
+                            onClick={() => setSelectedType('all')}
+                            className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+                                selectedType === 'all'
+                                    ? 'bg-amber-600 text-white'
+                                    : 'bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-700'
+                            }`}
+                        >
+                            전체
+                        </button>
+                        {(Object.keys(EVENT_TYPE_CONFIG) as EventType[]).map(type => {
+                            const config = EVENT_TYPE_CONFIG[type];
+                            const Icon = config.icon;
+                            return (
+                                <button
+                                    key={type}
+                                    onClick={() => setSelectedType(type)}
+                                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+                                        selectedType === type
+                                            ? `${config.color} text-white`
+                                            : `bg-zinc-800 ${config.textColor} hover:bg-zinc-700 border ${config.borderColor}`
+                                    }`}
+                                >
+                                    <Icon className="w-4 h-4" />
+                                    {config.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+
+            {/* Main Content */}
+            <div className="max-w-7xl mx-auto px-4 py-6">
+                {viewMode === 'calendar' ? (
+                    <div className="space-y-6">
+                        <EventCalendarView
+                            events={events}
+                            selectedDate={selectedDate}
+                            onDateSelect={setSelectedDate}
+                        />
+
+                        {/* Selected Date Events */}
+                        {selectedDate && (
+                            <div className="space-y-4">
+                                <h2 className="text-lg font-bold flex items-center gap-2">
+                                    <Calendar className="w-5 h-5 text-amber-500" />
+                                    {new Date(selectedDate).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 이벤트
+                                    <span className="text-sm text-zinc-500">({filteredEvents.length})</span>
+                                </h2>
+
+                                {filteredEvents.length > 0 ? (
+                                    <div className="grid gap-4">
+                                        {filteredEvents.map(event => (
+                                            <EventCard key={event.id} event={event} />
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8 bg-zinc-900/50 rounded-2xl border border-dashed border-zinc-800">
+                                        <Calendar className="w-12 h-12 text-zinc-700 mx-auto mb-3" />
+                                        <p className="text-zinc-500">이 날짜에 예정된 이벤트가 없습니다</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* All Upcoming Events */}
+                        {!selectedDate && (
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-lg font-bold flex items-center gap-2">
+                                        <Clock className="w-5 h-5 text-amber-500" />
+                                        다가오는 이벤트
+                                    </h2>
+                                    <Link
+                                        to="/events"
+                                        className="text-sm text-amber-400 hover:text-amber-300 flex items-center gap-1"
+                                    >
+                                        전체 보기 <ChevronRight className="w-4 h-4" />
+                                    </Link>
+                                </div>
+
+                                {events.length > 0 ? (
+                                    <div className="grid gap-4">
+                                        {events.slice(0, 5).map(event => (
+                                            <EventCard key={event.id} event={event} />
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-12 bg-zinc-900/50 rounded-2xl border border-dashed border-zinc-800">
+                                        <Calendar className="w-16 h-16 text-zinc-700 mx-auto mb-4" />
+                                        <h3 className="text-lg font-bold text-zinc-400 mb-2">예정된 이벤트가 없습니다</h3>
+                                        <p className="text-zinc-500">새로운 이벤트가 등록되면 여기에 표시됩니다</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    /* Map View */
+                    <div className="space-y-6">
+                        <EventMapView
+                            events={events}
+                            selectedEventId={selectedMapEventId}
+                            onEventSelect={setSelectedMapEventId}
+                        />
+
+                        {/* Events List Below Map */}
+                        {events.length > 0 && (
+                            <div className="space-y-4">
+                                <h2 className="text-lg font-bold flex items-center gap-2">
+                                    <MapPin className="w-5 h-5 text-amber-500" />
+                                    {selectedType === 'all' ? '전체' : EVENT_TYPE_CONFIG[selectedType].label} 이벤트
+                                    <span className="text-sm text-zinc-500">({events.length})</span>
+                                </h2>
+                                <div className="grid gap-4">
+                                    {events.slice(0, 10).map(event => (
+                                        <EventCard
+                                            key={event.id}
+                                            event={event}
+                                            onMapClick={(eventId) => {
+                                                setSelectedMapEventId(eventId);
+                                                // Scroll to map
+                                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                                {events.length > 10 && (
+                                    <Link
+                                        to="/events"
+                                        className="block text-center py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-amber-400 hover:bg-zinc-800 transition-colors"
+                                    >
+                                        전체 {events.length}개 이벤트 보기
+                                    </Link>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// Event Card Component
+interface EventCardProps {
+    event: Event;
+    onMapClick?: (eventId: string) => void;
+}
+
+const EventCard: React.FC<EventCardProps> = ({ event, onMapClick }) => {
+    const config = EVENT_TYPE_CONFIG[event.type as EventType] || EVENT_TYPE_CONFIG.openmat;
+    const Icon = config.icon;
+
+    // Map mode - click to focus on map location
+    if (onMapClick) {
+        const hasLocation = event.latitude && event.longitude;
+        return (
+            <button
+                onClick={() => hasLocation && onMapClick(event.id)}
+                disabled={!hasLocation}
+                className={`flex gap-4 p-4 bg-zinc-900 border border-zinc-800 rounded-2xl transition-all group text-left w-full ${
+                    hasLocation ? 'hover:border-amber-500/50 cursor-pointer' : 'opacity-60 cursor-not-allowed'
+                }`}
+            >
+                {/* Cover Image */}
+                <div className="w-24 h-24 rounded-xl overflow-hidden bg-zinc-800 flex-shrink-0">
+                    {event.coverImage ? (
+                        <img src={event.coverImage} alt={event.title} className="w-full h-full object-cover" />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                            <Icon className={`w-8 h-8 ${config.textColor}`} />
+                        </div>
+                    )}
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${config.color}/20 ${config.textColor} border ${config.borderColor}`}>
+                            {config.label}
+                        </span>
+                        {!hasLocation && (
+                            <span className="text-xs text-zinc-500">(위치 없음)</span>
+                        )}
+                    </div>
+                    <h3 className={`font-bold text-white truncate ${hasLocation ? 'group-hover:text-amber-400' : ''} transition-colors`}>
+                        {event.title}
+                    </h3>
+                    <div className="flex items-center gap-2 text-sm text-zinc-400 mt-1">
+                        <Calendar className="w-4 h-4" />
+                        <span>
+                            {new Date(event.eventDate).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                            {event.startTime && ` ${event.startTime}`}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-zinc-500 mt-1">
+                        <MapPin className="w-4 h-4" />
+                        <span className="truncate">{event.venueName || event.address || event.region || '장소 미정'}</span>
+                    </div>
+                </div>
+
+                <Map className={`w-5 h-5 self-center transition-colors ${hasLocation ? 'text-amber-400' : 'text-zinc-600'}`} />
+            </button>
+        );
+    }
+
+    // Default mode - link to event detail
+    return (
+        <Link
+            to={`/event/${event.id}`}
+            className="flex gap-4 p-4 bg-zinc-900 border border-zinc-800 rounded-2xl hover:border-amber-500/50 transition-all group"
+        >
+            {/* Cover Image */}
+            <div className="w-24 h-24 rounded-xl overflow-hidden bg-zinc-800 flex-shrink-0">
+                {event.coverImage ? (
+                    <img src={event.coverImage} alt={event.title} className="w-full h-full object-cover" />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                        <Icon className={`w-8 h-8 ${config.textColor}`} />
+                    </div>
+                )}
+            </div>
+
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                    <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${config.color}/20 ${config.textColor} border ${config.borderColor}`}>
+                        {config.label}
+                    </span>
+                </div>
+                <h3 className="font-bold text-white group-hover:text-amber-400 transition-colors truncate">
+                    {event.title}
+                </h3>
+                <div className="flex items-center gap-2 text-sm text-zinc-400 mt-1">
+                    <Calendar className="w-4 h-4" />
+                    <span>
+                        {new Date(event.eventDate).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                        {event.startTime && ` ${event.startTime}`}
+                    </span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-zinc-500 mt-1">
+                    <MapPin className="w-4 h-4" />
+                    <span className="truncate">{event.venueName || event.address || event.region || '장소 미정'}</span>
+                </div>
+            </div>
+
+            <ChevronRight className="w-5 h-5 text-zinc-600 group-hover:text-amber-400 self-center transition-colors" />
+        </Link>
+    );
+};
+
+export default EventExplore;

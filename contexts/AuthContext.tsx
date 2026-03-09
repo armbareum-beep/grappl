@@ -74,6 +74,7 @@ interface AuthContextType {
     user: User | null;
     loading: boolean;
     isCreator: boolean;
+    isOrganizer: boolean;
     isAdmin: boolean;
     signIn: (email: string, password: string) => Promise<{ error: any }>;
     signUp: (email: string, password: string) => Promise<{ error: any }>;
@@ -92,6 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [isCreator, setIsCreator] = useState(false);
+    const [isOrganizer, setIsOrganizer] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
     const [isSubscribed, setIsSubscribed] = useState(false);
 
@@ -133,7 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
                 const queriesPromise = Promise.all([
                     supabase.from('users').select('email, is_admin, is_subscriber, is_complimentary_subscription, subscription_tier, profile_image_url, avatar_url').eq('id', userId).maybeSingle(),
-                    supabase.from('creators').select('approved, profile_image').eq('id', userId).maybeSingle()
+                    supabase.from('creators').select('approved, profile_image, creator_type, can_host_events').eq('id', userId).maybeSingle()
                 ]);
 
                 // ✅ 개선: 타임아웃 단축 (4/6/8초 → 3/4/5초, 총 18초 → 12초)
@@ -161,6 +163,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     subscriptionTier: userData?.subscription_tier,
                     ownedVideoIds: [], // Column removed from DB - ownership now tracked via purchases table
                     isCreator: !!(creatorData?.approved === true || creatorData?.approved === 1),
+                    isOrganizer: !!(
+                        creatorData?.creator_type === 'organizer' ||
+                        creatorData?.creator_type === 'both' ||
+                        creatorData?.can_host_events === true
+                    ),
                     profile_image_url: creatorData?.profile_image || userData?.profile_image_url || userData?.avatar_url,
                     avatar_url: userData?.avatar_url
                 };
@@ -170,6 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setIsAdmin(newStatus.isAdmin);
                 setIsSubscribed(newStatus.isSubscribed);
                 setIsCreator(newStatus.isCreator);
+                setIsOrganizer(newStatus.isOrganizer);
 
                 localStorage.setItem(cacheKey, JSON.stringify({ ...newStatus, _cachedAt: Date.now() }));
                 return { success: true, ...newStatus };
@@ -187,6 +195,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         success: false,
                         isAdmin: false,
                         isCreator: false,
+                        isOrganizer: false,
                         approved: false,
                         isSubscribed: false,
                         subscriptionTier: 'free',
@@ -275,6 +284,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                                 });
                                 setIsAdmin(status.isAdmin);
                                 setIsCreator(status.isCreator);
+                                setIsOrganizer(status.isOrganizer);
                                 setIsSubscribed(status.isSubscribed);
                             }
                         }).catch(err => {
@@ -305,6 +315,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             });
                             setIsAdmin(status.isAdmin);
                             setIsCreator(status.isCreator);
+                            setIsOrganizer(status.isOrganizer);
                             setIsSubscribed(status.isSubscribed);
                         }
                     }).catch(err => {
@@ -370,6 +381,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
                             setIsAdmin(finalIsAdmin);
                             setIsCreator(status.isCreator);
+                            setIsOrganizer(status.isOrganizer);
                             setIsSubscribed(status.isSubscribed);
                         }
                     } catch (error) {
@@ -394,6 +406,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 if (mounted) {
                     setUser(null);
                     setIsCreator(false);
+                    setIsOrganizer(false);
                     setIsAdmin(false);
                     setIsSubscribed(false);
                     setLoading(false);
@@ -481,6 +494,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Force clear state
             setUser(null);
             setIsCreator(false);
+            setIsOrganizer(false);
             setIsAdmin(false);
             setIsSubscribed(false);
             setLoading(false);
@@ -515,6 +529,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         loading,
         isCreator,
+        isOrganizer,
         isAdmin,
         signIn,
         signUp,
@@ -525,7 +540,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         becomeCreator,
         isSubscribed,
         refreshUser
-    }), [user, loading, isCreator, isAdmin, isSubscribed, refreshUser]);
+    }), [user, loading, isCreator, isOrganizer, isAdmin, isSubscribed, refreshUser]);
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
