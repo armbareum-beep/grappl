@@ -390,7 +390,7 @@ export async function fetchAllBrandsAdmin(): Promise<EventBrand[]> {
     .from('event_brands')
     .select(`
       *,
-      creator:creators(id, name, profile_image, email)
+      creator:creators(id, name, profile_image)
     `)
     .order('created_at', { ascending: false });
 
@@ -508,6 +508,24 @@ export async function applyAsOrganizer(userId: string, creatorId?: string) {
     .single();
 
   if (error) throw error;
+
+  // Create default event team for the new organizer
+  try {
+    const { error: brandError } = await supabase
+      .from('event_brands')
+      .insert([{
+        creator_id: userId,
+        name: userData.name || '내 이벤트 팀',
+        is_default: true
+      }]);
+    
+    if (brandError && !brandError.message.includes('duplicate')) {
+      console.error('Failed to create default event team during application:', brandError);
+    }
+  } catch (err) {
+    console.error('Error creating default brand:', err);
+  }
+
   return transformCreatorToOrganizer(data);
 }
 
@@ -538,6 +556,27 @@ export async function promoteToOrganizer(userId: string) {
         .single();
 
       if (error) throw error;
+
+      // Ensure they have a default brand
+      try {
+        const { count } = await supabase
+          .from('event_brands')
+          .select('*', { count: 'exact', head: true })
+          .eq('creator_id', userId);
+
+        if (count === 0) {
+          await supabase
+            .from('event_brands')
+            .insert([{
+              creator_id: userId,
+              name: data.name || '내 이벤트 팀',
+              is_default: true
+            }]);
+        }
+      } catch (err) {
+        console.error('Error ensuring default brand for promoted organizer:', err);
+      }
+
       return { data: transformCreatorToOrganizer(data), error: null };
     }
     // Already organizer or both
@@ -567,6 +606,20 @@ export async function promoteToOrganizer(userId: string) {
     .single();
 
   if (error) return { data: null, error };
+
+  // Create default event team for the new organizer
+  try {
+    await supabase
+      .from('event_brands')
+      .insert([{
+        creator_id: userId,
+        name: userData.name || '내 이벤트 팀',
+        is_default: true
+      }]);
+  } catch (err) {
+    console.error('Error creating default brand for new organizer:', err);
+  }
+
   return { data: transformCreatorToOrganizer(data), error: null };
 }
 

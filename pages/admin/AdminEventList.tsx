@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     ArrowLeft, Calendar, Trophy, Users, MapPin, Search,
     ChevronRight, ArrowRightLeft, Eye, Trash2, X, Check,
-    EyeOff, Flag, Building2
+    EyeOff, Flag, Building2, Pencil
 } from 'lucide-react';
 import { fetchEvents } from '../../lib/api-events';
 import {
@@ -74,6 +74,13 @@ export const AdminEventList: React.FC = () => {
         eventTitle: string;
     }>({ isOpen: false, eventId: null, eventTitle: '' });
 
+    // Team Delete Modal
+    const [teamDeleteModal, setTeamDeleteModal] = useState<{
+        isOpen: boolean;
+        teamId: string | null;
+        teamName: string;
+    }>({ isOpen: false, teamId: null, teamName: '' });
+
     useEffect(() => {
         loadData();
     }, [mainTab, eventTypeTab]);
@@ -83,14 +90,17 @@ export const AdminEventList: React.FC = () => {
             setLoading(true);
 
             if (mainTab === 'events') {
-                const [eventsData, organizersData] = await Promise.all([
+                const [eventsData, organizersData, teamsData] = await Promise.all([
                     fetchEvents({
                         type: eventTypeTab === 'all' ? undefined : eventTypeTab,
+                        status: 'all',
                     }),
                     getAdminOrganizers(),
+                    fetchAllBrandsAdmin(),
                 ]);
                 setEvents(eventsData);
                 setOrganizers(organizersData);
+                setTeams(teamsData);
             } else {
                 const [teamsData, organizersData] = await Promise.all([
                     fetchAllBrandsAdmin(),
@@ -125,15 +135,22 @@ export const AdminEventList: React.FC = () => {
         setSearchParams(searchParams);
     };
 
-    // Event Transfer
+    // Event Transfer (이벤트 팀 기반)
     const handleEventTransfer = async () => {
         if (!eventTransferModal.event || !selectedOrganizerId) return;
+
+        // selectedOrganizerId는 사실 selectedBrandId로 사용
+        const selectedBrand = teams.find(t => t.id === selectedOrganizerId);
+        if (!selectedBrand) return;
 
         try {
             setTransferring(true);
             const { error } = await supabase
                 .from('events')
-                .update({ organizer_id: selectedOrganizerId })
+                .update({
+                    brand_id: selectedBrand.id,
+                    organizer_id: selectedBrand.creatorId,
+                })
                 .eq('id', eventTransferModal.event.id);
 
             if (error) throw error;
@@ -203,15 +220,37 @@ export const AdminEventList: React.FC = () => {
         }
     };
 
+    // Team Delete
+    const handleTeamDelete = async () => {
+        if (!teamDeleteModal.teamId) return;
+
+        try {
+            const { error } = await supabase
+                .from('event_brands')
+                .delete()
+                .eq('id', teamDeleteModal.teamId);
+
+            if (error) throw error;
+
+            success('이벤트팀이 삭제되었습니다.');
+            setTeamDeleteModal({ isOpen: false, teamId: null, teamName: '' });
+            loadData();
+        } catch (error) {
+            console.error('Error deleting team:', error);
+            toastError('이벤트팀 삭제 중 오류가 발생했습니다.');
+        }
+    };
+
     // Filtered data
     const filteredEvents = events.filter(event =>
-        event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.organizerName?.toLowerCase().includes(searchQuery.toLowerCase())
+        (event.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (event.organizerName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (event.brand?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     const filteredTeams = teams.filter(team =>
-        team.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        team.creator?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+        (team.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (team.creator?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     const getStatusBadge = (status: string) => {
@@ -390,6 +429,12 @@ export const AdminEventList: React.FC = () => {
                                                             {event.organizerName}
                                                         </span>
                                                     )}
+                                                    {event.brand?.name && (
+                                                        <span className="flex items-center gap-1">
+                                                            <Flag className="w-3.5 h-3.5 text-amber-500" />
+                                                            {event.brand.name}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
 
@@ -401,6 +446,13 @@ export const AdminEventList: React.FC = () => {
                                                 >
                                                     <Eye className="w-4 h-4" />
                                                     <span className="hidden md:inline">보기</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => navigate(`/organizer/event/${event.id}/edit`)}
+                                                    className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 rounded-lg text-sm font-medium transition-all"
+                                                >
+                                                    <Pencil className="w-4 h-4" />
+                                                    <span className="hidden md:inline">수정</span>
                                                 </button>
                                                 <button
                                                     onClick={() => {
@@ -515,13 +567,20 @@ export const AdminEventList: React.FC = () => {
                                         </div>
 
                                         {/* Actions */}
-                                        <div className="flex items-center gap-2 w-full md:w-auto">
+                                        <div className="flex items-center gap-2 w-full md:w-auto flex-wrap">
                                             <button
-                                                onClick={() => navigate(`/team/${team.id}`)}
+                                                onClick={() => navigate(`/event-team/${team.id}`)}
                                                 className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-sm font-medium transition-all"
                                             >
                                                 <Eye className="w-4 h-4" />
                                                 <span className="hidden md:inline">보기</span>
+                                            </button>
+                                            <button
+                                                onClick={() => navigate(`/organizer/event-team/${team.id}`)}
+                                                className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 rounded-lg text-sm font-medium transition-all"
+                                            >
+                                                <Pencil className="w-4 h-4" />
+                                                <span className="hidden md:inline">수정</span>
                                             </button>
                                             <button
                                                 onClick={() => {
@@ -544,6 +603,13 @@ export const AdminEventList: React.FC = () => {
                                                 {team.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                                 <span className="hidden md:inline">{team.isActive ? '숨김' : '공개'}</span>
                                             </button>
+                                            <button
+                                                onClick={() => setTeamDeleteModal({ isOpen: true, teamId: team.id, teamName: team.name })}
+                                                className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg text-sm font-medium transition-all"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                                <span className="hidden md:inline">삭제</span>
+                                            </button>
                                         </div>
                                     </div>
                                 ))}
@@ -553,19 +619,80 @@ export const AdminEventList: React.FC = () => {
                 )}
             </div>
 
-            {/* Event Transfer Modal */}
+            {/* Event Transfer Modal (이벤트 팀 기반) */}
             {eventTransferModal.isOpen && eventTransferModal.event && (
-                <TransferModal
-                    title="이벤트 이전"
-                    description={`"${eventTransferModal.event.title}"을(를) 다른 주최자에게 이전합니다.`}
-                    organizers={organizers}
-                    currentOwnerId={eventTransferModal.event.organizerId}
-                    selectedOrganizerId={selectedOrganizerId}
-                    onSelectOrganizer={setSelectedOrganizerId}
-                    onClose={() => setEventTransferModal({ isOpen: false, event: null })}
-                    onConfirm={handleEventTransfer}
-                    loading={transferring}
-                />
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md overflow-hidden">
+                        <div className="p-6 border-b border-zinc-800">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-bold text-white">이벤트 이전</h3>
+                                <button
+                                    onClick={() => setEventTransferModal({ isOpen: false, event: null })}
+                                    className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-all"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+                            <p className="text-sm text-zinc-500 mt-2">
+                                "{eventTransferModal.event.title}"을(를) 다른 이벤트 팀에 이전합니다.
+                            </p>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-400 mb-2">
+                                    이벤트 팀 선택
+                                </label>
+                                <select
+                                    value={selectedOrganizerId}
+                                    onChange={(e) => setSelectedOrganizerId(e.target.value)}
+                                    className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white focus:outline-none focus:border-amber-500/50"
+                                >
+                                    <option value="">이벤트 팀을 선택하세요</option>
+                                    {teams
+                                        .filter(t => t.id !== eventTransferModal.event?.brand?.id)
+                                        .map(t => (
+                                            <option key={t.id} value={t.id}>
+                                                {t.name} {t.creator?.name ? `(${t.creator.name})` : ''}
+                                            </option>
+                                        ))
+                                    }
+                                </select>
+                            </div>
+
+                            {selectedOrganizerId && (
+                                <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                                    <p className="text-sm text-amber-400">
+                                        선택한 이벤트 팀에게 이 이벤트가 이전됩니다. 해당 팀의 주최자에게 관리 권한이 부여됩니다.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-6 border-t border-zinc-800 flex gap-3">
+                            <button
+                                onClick={() => setEventTransferModal({ isOpen: false, event: null })}
+                                className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-medium transition-all"
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={handleEventTransfer}
+                                disabled={!selectedOrganizerId || transferring}
+                                className="flex-1 py-3 bg-amber-500 hover:bg-amber-400 disabled:bg-zinc-700 disabled:text-zinc-500 text-black font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+                            >
+                                {transferring ? (
+                                    <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                                ) : (
+                                    <>
+                                        <Check className="w-4 h-4" />
+                                        이전하기
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* Team Transfer Modal */}
@@ -590,6 +717,18 @@ export const AdminEventList: React.FC = () => {
                 onConfirm={handleDelete}
                 title="이벤트 삭제"
                 message={`'${deleteModal.eventTitle}'을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`}
+                confirmText="삭제"
+                cancelText="취소"
+                variant="danger"
+            />
+
+            {/* Team Delete Confirm Modal */}
+            <ConfirmModal
+                isOpen={teamDeleteModal.isOpen}
+                onClose={() => setTeamDeleteModal({ isOpen: false, teamId: null, teamName: '' })}
+                onConfirm={handleTeamDelete}
+                title="이벤트팀 삭제"
+                message={`'${teamDeleteModal.teamName}' 팀을 삭제하시겠습니까? 이 팀에 연결된 이벤트가 있으면 삭제되지 않을 수 있습니다.`}
                 confirmText="삭제"
                 cancelText="취소"
                 variant="danger"

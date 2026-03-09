@@ -1053,6 +1053,10 @@ export interface Event {
   isRecurring?: boolean;
   recurrencePattern?: 'weekly' | 'biweekly' | 'monthly';
   recurrenceDayOfWeek?: number;
+  recurrenceDays?: number[];
+  monthlyOption?: 'date' | 'day_of_week';
+  recurrenceWeeks?: number[];
+  recurrenceMonthsDates?: number[];
   recurrenceEndDate?: string;
   parentEventId?: string;
 
@@ -1070,8 +1074,9 @@ export interface Event {
 
   // Payment
   price: number;
-  paymentType: PaymentType;
+  paymentType: 'free' | 'bank_transfer' | 'external_link';
   externalPaymentLink?: string;
+  useInternalRegistration: boolean;
   bankAccount?: {
     bankName: string;
     accountNumber: string;

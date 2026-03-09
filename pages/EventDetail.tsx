@@ -254,7 +254,7 @@ export const EventDetail: React.FC = () => {
 
     const isFull = event.maxParticipants && (event.currentParticipants || 0) >= event.maxParticipants;
     const isPast = new Date(event.eventDate) < new Date();
-    const canRegister = !isPast && !isFull && !myRegistration;
+    const canRegister = !isPast && !isFull && !myRegistration && (event.useInternalRegistration !== false);
 
     return (
         <div className="min-h-screen bg-zinc-950 text-white pb-24">
@@ -351,15 +351,17 @@ export const EventDetail: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-4 p-4 bg-zinc-800/50 rounded-xl">
-                            <CreditCard className="w-8 h-8 text-amber-500" />
-                            <div>
-                                <div className="text-sm text-zinc-500">참가비</div>
-                                <div className={`font-bold text-xl ${event.price === 0 ? 'text-green-400' : 'text-amber-400'}`}>
-                                    {event.price === 0 ? '무료' : `₩${event.price.toLocaleString()}`}
+                        {event.useInternalRegistration !== false && (
+                            <div className="flex items-center gap-4 p-4 bg-zinc-800/50 rounded-xl">
+                                <CreditCard className="w-8 h-8 text-amber-500" />
+                                <div>
+                                    <div className="text-sm text-zinc-500">참가비</div>
+                                    <div className={`font-bold text-xl ${event.price === 0 ? 'text-green-400' : 'text-amber-400'}`}>
+                                        {event.price === 0 ? '무료' : `₩${event.price.toLocaleString()}`}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
                     </div>
 
                     {/* Description */}
@@ -422,11 +424,30 @@ export const EventDetail: React.FC = () => {
                         <div className="text-center py-4 text-red-400">
                             정원이 마감되었습니다
                         </div>
+                    ) : !event.useInternalRegistration && !isPast ? (
+                        <div className="space-y-4">
+                            <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                                <p className="text-sm text-amber-200 text-center">
+                                    이 이벤트는 외부 링크를 통해서만 신청을 받습니다.
+                                </p>
+                            </div>
+                            {event.externalPaymentLink && (
+                                <a
+                                    href={event.externalPaymentLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full py-4 bg-amber-600 hover:bg-amber-500 rounded-xl font-black text-lg flex items-center justify-center gap-2 transition-all"
+                                >
+                                    외부 페이지에서 신청하기
+                                    <ExternalLink className="w-5 h-5" />
+                                </a>
+                            )}
+                        </div>
                     ) : null}
                 </div>
 
                 {/* Bank Transfer Info */}
-                {event.paymentType === 'bank_transfer' && event.bankAccount && (
+                {event.useInternalRegistration !== false && event.paymentType === 'bank_transfer' && event.bankAccount && (
                     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-6">
                         <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
                             <CreditCard className="w-5 h-5 text-amber-500" />
