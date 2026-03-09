@@ -5,7 +5,15 @@
             "destination": "/api/$1"
         },
         {
-            "source": "/((?!api/|_next/|assets/|favicon.ico).*)",
+            "source": "/privacy",
+            "destination": "/privacy.html"
+        },
+        {
+            "source": "/delete-account",
+            "destination": "/delete-account.html"
+        },
+        {
+            "source": "/((?!api/|_next/|assets/|favicon.ico|privacy.html|delete-account.html).*)",
             "destination": "/index.html"
         }
     ],

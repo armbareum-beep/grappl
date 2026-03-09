@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500&family=Inter:wght@400;500;900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 1024px;
+    height: 500px;
+    overflow: hidden;
+    background: #09090B;
+    font-family: 'Inter', sans-serif;
+    position: relative;
+  }
+
+  /* Background dot grid — matches grapplay.com landing */
+  .grid-overlay {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle at 1px 1px, #8b5cf6 1px, transparent 0);
+    background-size: 36px 36px;
+    mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+    opacity: 0.25;
+  }
+
+  /* Violet radial glow left — matches site hero */
+  .glow {
+    position: absolute;
+    width: 700px;
+    height: 700px;
+    border-radius: 50%;
+    background: radial-gradient(circle at center,
+      rgba(124,58,237,0.22) 0%,
+      rgba(244,63,94,0.06) 50%,
+      transparent 70%
+    );
+    left: -200px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+
+  .container {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 52px;
+    padding: 0 88px;
+  }
+
+  /* Launcher icon */
+  .logo-wrap img {
+    width: 176px;
+    height: 176px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 40px rgba(59,130,246,0.3));
+    flex-shrink: 0;
+  }
+
+  /* Vertical divider */
+  .divider {
+    width: 1px;
+    height: 170px;
+    background: linear-gradient(to bottom,
+      transparent,
+      rgba(139,92,246,0.35) 25%,
+      rgba(139,92,246,0.35) 75%,
+      transparent
+    );
+    flex-shrink: 0;
+  }
+
+  .text-block {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Matches site: font-black tracking-tighter text-white */
+  .app-name {
+    font-family: 'Inter', sans-serif;
+    font-size: 80px;
+    font-weight: 900;
+    letter-spacing: -4px;
+    line-height: 1;
+    color: #FFFFFF;
+    margin-bottom: 18px;
+  }
+
+  .tagline {
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 18px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.55);
+    line-height: 1.65;
+    margin-bottom: 26px;
+  }
+
+  .badge-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  /* Matches site active nav: bg-violet-600/20 border-violet-500/30 text-violet-400 */
+  .badge {
+    padding: 5px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(139,92,246,0.3);
+    background: rgba(124,58,237,0.12);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: #A78BFA;
+    white-space: nowrap;
+  }
+
+  /* Bottom gradient line */
+  .bottom-line {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(124,58,237,0.6) 30%,
+      rgba(196,30,240,0.4) 70%,
+      transparent 100%
+    );
+  }
+</style>
+</head>
+<body>
+  <div class="grid-overlay"></div>
+  <div class="glow"></div>
+  <div class="bottom-line"></div>
+
+  <div class="container">
+    <!-- Launcher icon (same as Play Store / mipmap) -->
+    <div class="logo-wrap">
+      <img src="/play-store-icon-512.png" alt="Grapplay">
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="text-block">
+      <!-- Exact site treatment: font-black text-white tracking-tighter -->
+      <div class="app-name">Grapplay</div>
+
+      <!-- Site tagline from og metadata -->
+      <div class="tagline">
+        세계 최고의 주짓수 선수들과 함께<br>
+        배우는 프리미엄 기술 영상 플랫폼
+      </div>
+
+      <div class="badge-row">
+        <span class="badge">BJJ 기술 영상</span>
+        <span class="badge">드릴 & 루틴</span>
+        <span class="badge">AI 코치</span>
+        <span class="badge">스파링 분석</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
