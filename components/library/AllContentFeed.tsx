@@ -10,7 +10,7 @@ import { LoadingScreen } from '../LoadingScreen';
 import { UnifiedContentCard, UnifiedContentItem, ContentType } from './UnifiedContentCard';
 import { LibraryTabs, LibraryTabType } from './LibraryTabs';
 import { batchCheckInteractions, getCreatorsWithNewContent, recordView } from '../../lib/api-user-interactions';
-import { useCreators } from '../../hooks/use-queries';
+import { useCreators, useEventBrands } from '../../hooks/use-queries';
 
 
 
@@ -59,41 +59,71 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
     const { user } = useAuth();
     const [, setSearchParams] = useSearchParams();
     const { data: creatorsData = [] } = useCreators();
+    const { data: eventBrandsData = [] } = useEventBrands();
     const [selectedCreatorId, setSelectedCreatorId] = useState<string | null>(null);
+    const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
     const instructorScrollRef = useRef<HTMLDivElement>(null);
+    const brandScrollRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [startX, setStartX] = useState(0);
     const [scrollLeft, setScrollLeft] = useState(0);
     const [loading, setLoading] = useState(true);
     const [creatorsWithNew, setCreatorsWithNew] = useState<Set<string>>(new Set());
+    const mainSwiperRef = useRef<HTMLDivElement>(null);
+    const [isVerticalDragging, setIsVerticalDragging] = useState(false);
+    const [startY, setStartY] = useState(0);
+    const [scrollTop, setScrollTop] = useState(0);
 
-    // Randomize creators on mount
+    // Randomize creators and brands on mount
     const creators = useMemo(() => {
         return [...creatorsData].sort(() => Math.random() - 0.5);
     }, [creatorsData]);
 
+    const eventBrands = useMemo(() => {
+        return [...eventBrandsData].sort(() => Math.random() - 0.5);
+    }, [eventBrandsData]);
+
     // Drag scroll handlers
-    const handleMouseDown = (e: React.MouseEvent) => {
-        if (!instructorScrollRef.current) return;
-        setIsDragging(true);
-        setStartX(e.pageX - instructorScrollRef.current.offsetLeft);
-        setScrollLeft(instructorScrollRef.current.scrollLeft);
+    const createDragHandlers = (ref: React.RefObject<HTMLDivElement>) => {
+        return {
+            onMouseDown: (e: React.MouseEvent) => {
+                if (!ref.current) return;
+                setIsDragging(true);
+                setStartX(e.pageX - ref.current.offsetLeft);
+                setScrollLeft(ref.current.scrollLeft);
+            },
+            onMouseMove: (e: React.MouseEvent) => {
+                if (!isDragging || !ref.current) return;
+                e.preventDefault();
+                const x = e.pageX - ref.current.offsetLeft;
+                const walk = (x - startX) * 1.5;
+                ref.current.scrollLeft = scrollLeft - walk;
+            },
+            onMouseUp: () => setIsDragging(false),
+            onMouseLeave: () => setIsDragging(false),
+        };
     };
 
-    const handleMouseMove = (e: React.MouseEvent) => {
-        if (!isDragging || !instructorScrollRef.current) return;
-        e.preventDefault();
-        const x = e.pageX - instructorScrollRef.current.offsetLeft;
-        const walk = (x - startX) * 1.5;
-        instructorScrollRef.current.scrollLeft = scrollLeft - walk;
-    };
+    const instructorDragHandlers = createDragHandlers(instructorScrollRef);
+    const brandDragHandlers = createDragHandlers(brandScrollRef);
 
-    const handleMouseUp = () => {
-        setIsDragging(false);
-    };
-
-    const handleMouseLeave = () => {
-        setIsDragging(false);
+    // Vertical drag handlers for the main swiper container
+    const verticalDragHandlers = {
+        onMouseDown: (e: React.MouseEvent) => {
+            if (!mainSwiperRef.current) return;
+            setIsVerticalDragging(true);
+            setStartY(e.pageY - mainSwiperRef.current.offsetTop);
+            setScrollTop(mainSwiperRef.current.scrollTop);
+        },
+        onMouseMove: (e: React.MouseEvent) => {
+            if (!isVerticalDragging || !mainSwiperRef.current) return;
+            e.preventDefault();
+            const y = e.pageY - mainSwiperRef.current.offsetTop;
+            const walk = (y - startY) * 1.5;
+            mainSwiperRef.current.scrollTop = scrollTop - walk;
+        },
+        onMouseUp: () => setIsVerticalDragging(false),
+        onMouseLeave: () => setIsVerticalDragging(false),
     };
     const [searchTerm, setSearchTerm] = useState('');
     const [allItems, setAllItems] = useState<UnifiedContentItem[]>([]);
@@ -295,12 +325,20 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
         // Apply creator filter
         if (selectedCreatorId) {
             items = items.filter(item => item.creatorId === selectedCreatorId);
+        } else if (selectedBrandId) {
+            // Fetch items belonging to selected brand's creator for now, or implement brand context
+            // Event Brand items depend on how they're liked; usually courses/sparring belong to creatorId.
+            const brand = eventBrands.find(b => b.id === selectedBrandId);
+            if (brand) {
+                items = items.filter(item => item.creatorId === brand.creatorId);
+            }
         }
 
         return items;
-    }, [allItems, searchTerm, selectedCreatorId]);
+    }, [allItems, searchTerm, selectedCreatorId, selectedBrandId, eventBrands]);
 
     const selectedCreator = creators.find(c => c.id === selectedCreatorId);
+    const selectedBrand = eventBrands.find(b => b.id === selectedBrandId);
 
     const handleSparringClick = (item: UnifiedContentItem) => {
         setSearchParams({ tab: 'sparring', id: item.id, view: 'reels' });
@@ -338,80 +376,150 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                     </div>
                 </div>
 
-                {/* Instructors Filter Section */}
-                <div className="mb-8">
+                {/* Creators/Brands Filter Section */}
+                <div className="mb-8 select-none">
+                    {/* Vertical Swiper Container */}
                     <div
-                        ref={instructorScrollRef}
-                        className={`flex gap-5 overflow-x-auto no-scrollbar py-2 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-                        onMouseDown={handleMouseDown}
-                        onMouseMove={handleMouseMove}
-                        onMouseUp={handleMouseUp}
-                        onMouseLeave={handleMouseLeave}
+                        ref={mainSwiperRef}
+                        className={`flex flex-col overflow-y-auto h-[146px] md:h-[162px] no-scrollbar snap-y snap-mandatory bg-zinc-950/20 rounded-xl relative ${isVerticalDragging ? 'cursor-grabbing' : ''}`}
+                        {...verticalDragHandlers}
                     >
-                        {creators.map(creator => (
-                            <button
-                                key={creator.id}
-                                onClick={(e) => {
-                                    if (isDragging) {
-                                        e.preventDefault();
-                                        return;
-                                    }
-                                    // Record creator profile view to clear the new content indicator
-                                    if (creatorsWithNew.has(creator.id)) {
-                                        recordView('creator', creator.id);
-                                        setCreatorsWithNew(prev => {
-                                            const next = new Set(prev);
-                                            next.delete(creator.id);
-                                            return next;
-                                        });
-                                    }
-                                    setSelectedCreatorId(
-                                        selectedCreatorId === creator.id ? null : creator.id
-                                    );
-                                }}
-                                className="flex flex-col items-center gap-2 shrink-0 group select-none"
-                            >
-                                <div className="relative">
-                                    <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-zinc-800 transition-all ${
-                                        selectedCreatorId === creator.id
-                                            ? 'ring-2 ring-violet-500 ring-offset-2 ring-offset-zinc-950'
-                                            : 'group-hover:ring-2 group-hover:ring-zinc-600 group-hover:ring-offset-2 group-hover:ring-offset-zinc-950'
-                                    }`}>
-                                        {creator.profileImage ? (
-                                            <img
-                                                src={creator.profileImage}
-                                                alt={creator.name}
-                                                className="w-full h-full object-cover pointer-events-none"
-                                                draggable={false}
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-zinc-500 text-xl font-bold">
-                                                {creator.name.charAt(0)}
+                        {/* Instructors Row */}
+                        {creators.length > 0 && (
+                            <div className="h-full shrink-0 snap-always snap-start flex flex-col justify-center pt-2 pb-2">
+                                <div
+                                    ref={instructorScrollRef}
+                                    className={`flex gap-5 overflow-x-auto no-scrollbar py-2 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+                                    {...instructorDragHandlers}
+                                >
+                                    {creators.map(creator => (
+                                        <button
+                                            key={creator.id}
+                                            onClick={(e) => {
+                                                if (isDragging) {
+                                                    e.preventDefault();
+                                                    return;
+                                                }
+                                                if (creatorsWithNew.has(creator.id)) {
+                                                    recordView('creator', creator.id);
+                                                    setCreatorsWithNew(prev => {
+                                                        const next = new Set(prev);
+                                                        next.delete(creator.id);
+                                                        return next;
+                                                    });
+                                                }
+                                                setSelectedCreatorId(
+                                                    selectedCreatorId === creator.id ? null : creator.id
+                                                );
+                                                setSelectedBrandId(null);
+                                            }}
+                                            className="flex flex-col items-center gap-2 shrink-0 group select-none"
+                                        >
+                                            <div className="relative">
+                                                <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-zinc-800 transition-all ${
+                                                    selectedCreatorId === creator.id
+                                                        ? 'ring-2 ring-violet-500 ring-offset-2 ring-offset-zinc-950'
+                                                        : 'group-hover:ring-2 group-hover:ring-zinc-600 group-hover:ring-offset-2 group-hover:ring-offset-zinc-950'
+                                                }`}>
+                                                    {creator.profileImage ? (
+                                                        <img
+                                                            src={creator.profileImage}
+                                                            alt={creator.name}
+                                                            className="w-full h-full object-cover pointer-events-none"
+                                                            draggable={false}
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-zinc-500 text-xl font-bold">
+                                                            {creator.name.charAt(0)}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {creatorsWithNew.has(creator.id) && (
+                                                    <div className="absolute top-0 right-0 w-3.5 h-3.5 md:w-4 md:h-4 bg-red-500 rounded-full border-2 border-zinc-950 animate-pulse" />
+                                                )}
                                             </div>
-                                        )}
-                                    </div>
-                                    {/* New content indicator - red dot */}
-                                    {creatorsWithNew.has(creator.id) && (
-                                        <div className="absolute top-0 right-0 w-3.5 h-3.5 md:w-4 md:h-4 bg-red-500 rounded-full border-2 border-zinc-950 animate-pulse" />
-                                    )}
+                                            <span className={`text-xs font-medium max-w-[80px] truncate transition-colors ${
+                                                selectedCreatorId === creator.id
+                                                    ? 'text-violet-400'
+                                                    : 'text-zinc-400 group-hover:text-zinc-200'
+                                            }`}>
+                                                {creator.name}
+                                            </span>
+                                        </button>
+                                    ))}
                                 </div>
-                                <span className={`text-xs font-medium max-w-[80px] truncate transition-colors ${
-                                    selectedCreatorId === creator.id
-                                        ? 'text-violet-400'
-                                        : 'text-zinc-400 group-hover:text-zinc-200'
-                                }`}>
-                                    {creator.name}
-                                </span>
-                            </button>
-                        ))}
+                            </div>
+                        )}
+
+                        {/* Event Teams Row */}
+                        {eventBrands.length > 0 && (
+                            <div className="h-full shrink-0 snap-always snap-start flex flex-col justify-center pt-2 pb-2">
+                                <div
+                                    ref={brandScrollRef}
+                                    className={`flex gap-5 overflow-x-auto no-scrollbar py-2 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+                                    {...brandDragHandlers}
+                                >
+                                    {eventBrands.map(brand => (
+                                        <button
+                                            key={brand.id}
+                                            onClick={(e) => {
+                                                if (isDragging) {
+                                                    e.preventDefault();
+                                                    return;
+                                                }
+                                                setSelectedBrandId(
+                                                    selectedBrandId === brand.id ? null : brand.id
+                                                );
+                                                setSelectedCreatorId(null);
+                                            }}
+                                            className="flex flex-col items-center gap-2 shrink-0 group select-none"
+                                        >
+                                            <div className="relative">
+                                                <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-zinc-800 transition-all ${
+                                                    selectedBrandId === brand.id
+                                                        ? 'ring-2 ring-violet-500 ring-offset-2 ring-offset-zinc-950'
+                                                        : 'group-hover:ring-2 group-hover:ring-zinc-600 group-hover:ring-offset-2 group-hover:ring-offset-zinc-950'
+                                                }`}>
+                                                    {brand.logo ? (
+                                                        <img
+                                                            src={brand.logo}
+                                                            alt={brand.name}
+                                                            className="w-full h-full object-cover pointer-events-none"
+                                                            draggable={false}
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-zinc-500 text-xl font-bold">
+                                                            {brand.name.charAt(0)}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <span className={`text-xs font-medium max-w-[80px] truncate transition-colors ${
+                                                selectedBrandId === brand.id
+                                                    ? 'text-violet-400'
+                                                    : 'text-zinc-400 group-hover:text-zinc-200'
+                                            }`}>
+                                                {brand.name}
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
-                    {selectedCreator && (
+
+                    {(selectedCreator || selectedBrand) && (
                         <div className="mt-4 flex items-center gap-2">
                             <span className="text-sm text-zinc-400">
-                                <span className="text-violet-400 font-semibold">{selectedCreator.name}</span>의 콘텐츠
+                                <span className="text-violet-400 font-semibold">
+                                    {selectedCreator ? selectedCreator.name : selectedBrand?.name}
+                                </span>의 콘텐츠
                             </span>
                             <button
-                                onClick={() => setSelectedCreatorId(null)}
+                                onClick={() => {
+                                    setSelectedCreatorId(null);
+                                    setSelectedBrandId(null);
+                                }}
                                 className="flex items-center gap-1 px-2 py-1 bg-zinc-800 text-zinc-400 text-xs rounded-full hover:bg-zinc-700 transition-colors"
                             >
                                 <X className="w-3 h-3" />

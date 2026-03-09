@@ -88,18 +88,12 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                     {/* Event Dots */}
                     {dayEvents.length > 0 && (
                         <div className="flex gap-0.5 mt-auto justify-center flex-wrap">
-                            {dayEvents.slice(0, 3).map((event, idx) => (
+                            {Array.from(new Set(dayEvents.map(e => e.type))).map((type, idx) => (
                                 <span
                                     key={idx}
-                                    className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${EVENT_TYPE_COLORS[event.type as EventType] || 'bg-zinc-500'}`}
-                                    title={event.title}
+                                    className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${EVENT_TYPE_COLORS[type as EventType] || 'bg-zinc-500'}`}
                                 />
                             ))}
-                            {dayEvents.length > 3 && (
-                                <span className="text-[10px] text-zinc-500 ml-0.5">
-                                    +{dayEvents.length - 3}
-                                </span>
-                            )}
                         </div>
                     )}
                 </button>
