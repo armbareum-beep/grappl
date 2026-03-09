@@ -70,6 +70,7 @@ const AdminSparringList = React.lazy(() => import('./pages/admin/AdminSparringLi
 const AdminSiteSettings = React.lazy(() => import('./pages/admin/AdminSiteSettings').then(m => ({ default: m.AdminSiteSettings })));
 const AdminCreatorList = React.lazy(() => import('./pages/admin/AdminCreatorList').then(m => ({ default: m.AdminCreatorList })));
 const AdminOrganizerList = React.lazy(() => import('./pages/admin/AdminOrganizerList').then(m => ({ default: m.AdminOrganizerList })));
+const AdminEventList = React.lazy(() => import('./pages/admin/AdminEventList').then(m => ({ default: m.AdminEventList })));
 const AdminSupportList = React.lazy(() => import('./pages/admin/AdminSupportList').then(m => ({ default: m.AdminSupportList })));
 const AdminContentApproval = React.lazy(() => import('./pages/admin/AdminContentApproval').then(m => ({ default: m.AdminContentApproval })));
 const AdminSystemLogs = React.lazy(() => import('./pages/admin/AdminSystemLogs').then(m => ({ default: m.AdminSystemLogs })));
@@ -523,6 +524,7 @@ const App: React.FC = () => {
                     <Route path="/admin/approval" element={<AdminRoute><AdminContentApproval /></AdminRoute>} />
                     <Route path="/admin/creators" element={<AdminRoute><AdminCreatorList /></AdminRoute>} />
                     <Route path="/admin/organizers" element={<AdminRoute><AdminOrganizerList /></AdminRoute>} />
+                    <Route path="/admin/events" element={<AdminRoute><AdminEventList /></AdminRoute>} />
                     <Route path="/admin/marketing" element={<AdminRoute><AdminMarketing /></AdminRoute>} />
                     <Route path="/admin/payouts" element={<AdminRoute><AdminPayouts /></AdminRoute>} />
                     <Route path="/admin/users" element={<AdminRoute><AdminUserList /></AdminRoute>} />
