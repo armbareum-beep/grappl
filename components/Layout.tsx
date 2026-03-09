@@ -1,6 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, BookOpen, DollarSign, Upload, LogOut, Settings, Clapperboard, HelpCircle, Network, Dumbbell, Home, Bookmark, Users, MessageSquare, Star } from 'lucide-react';
+import { Menu, X, BookOpen, DollarSign, Upload, LogOut, Settings, Clapperboard, HelpCircle, Network, Dumbbell, Home, Bookmark, Users, MessageSquare, Star, Flag, Calendar } from 'lucide-react';
 import { Button } from './Button';
 import { useAuth as useAuthContext } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
@@ -23,7 +23,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
   const [searchModalOpen, setSearchModalOpen] = React.useState(false);
   const location = useLocation();
-  const { user, signOut, isCreator, isAdmin } = useAuthContext();
+  const { user, signOut, isCreator, isOrganizer, isAdmin } = useAuthContext();
 
   // Global Modals State
   const [levelUpData, setLevelUpData] = React.useState<{ oldLevel: number; newLevel: number; beltLevel: number } | null>(null);
@@ -98,7 +98,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       { name: '라이브러리', href: '/library', icon: BookOpen },
       { name: '피드', href: '/watch', icon: Clapperboard },
       { name: '스킬 로드맵', href: '/skill-tree', icon: Network },
-      { name: '훈련 루틴', href: '/training-routines', icon: Dumbbell },
+      { name: '이벤트', href: '/explore', icon: Calendar },
     ];
 
     if (isAdmin) {
@@ -274,6 +274,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </Link>
                 )}
 
+                {user && isOrganizer && (
+                  <Link to="/organizer/dashboard">
+                    <Button variant="outline" size="sm" className="flex items-center space-x-2 whitespace-nowrap px-3 lg:px-4 h-9 rounded-xl border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300 hover:border-amber-500/50 font-bold transition-all duration-300">
+                      <Flag className="w-4 h-4 flex-shrink-0" />
+                      <span className="hidden lg:inline">주최자</span>
+                    </Button>
+                  </Link>
+                )}
+
                 {user ? (
                   <div className="relative" ref={userMenuRef}>
                     <button
@@ -321,6 +330,17 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                           </Link>
                         )}
 
+                        {isOrganizer && (
+                          <Link
+                            to="/organizer/dashboard"
+                            className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-amber-500/10 text-amber-400 hover:text-amber-300 mx-2 font-medium"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            <Flag className="mr-2 h-4 w-4" />
+                            <span>주최자 대시보드</span>
+                          </Link>
+                        )}
+
                         <div className="h-px bg-zinc-800/50 my-1 mx-2" />
 
                         <Link
@@ -330,6 +350,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                         >
                           <Users className="mr-2 h-4 w-4" />
                           <span>인스트럭터 보기</span>
+                        </Link>
+                        <Link
+                          to="/event-teams"
+                          className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-2 text-sm outline-none transition-all duration-200 hover:bg-zinc-800/50 text-zinc-300 hover:text-white mx-2 font-medium"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          <Flag className="mr-2 h-4 w-4" />
+                          <span>이벤트 팀 보기</span>
                         </Link>
                         <Link
                           to="/feedback"
@@ -460,6 +488,17 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       </Link>
                     )}
 
+                    {isOrganizer && (
+                      <Link
+                        to="/organizer/dashboard"
+                        className="block px-3 py-2.5 rounded-md text-base font-medium text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 flex items-center space-x-3"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Flag className="w-5 h-5" />
+                        <span>주최자 대시보드</span>
+                      </Link>
+                    )}
+
                     <div className="h-px bg-zinc-800/50 my-2 mx-3" />
 
                     <Link
@@ -469,6 +508,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     >
                       <Users className="w-5 h-5" />
                       <span>인스트럭터 보기</span>
+                    </Link>
+
+                    <Link
+                      to="/event-teams"
+                      className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Flag className="w-5 h-5" />
+                      <span>이벤트 팀 보기</span>
                     </Link>
 
                     <Link
@@ -549,6 +597,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       <span>인스트럭터 보기</span>
                     </Link>
                     <Link
+                      to="/event-teams"
+                      className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Flag className="w-5 h-5" />
+                      <span>이벤트 팀 보기</span>
+                    </Link>
+                    <Link
                       to="/pricing"
                       className="block px-3 py-2.5 rounded-md text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center space-x-3"
                       onClick={() => setMobileMenuOpen(false)}
@@ -592,7 +648,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       </main>
 
       {/* Footer */}
-      {!['/drills', '/training-routines', '/sparring', '/browse', '/skill-tree', '/routines', '/my-routines', '/drill-routines', '/my-schedule', '/library'].some(path => location.pathname.startsWith(path)) &&
+      {!['/drills', '/explore', '/sparring', '/browse', '/skill-tree', '/routines', '/my-routines', '/drill-routines', '/my-schedule', '/library'].some(path => location.pathname.startsWith(path)) &&
         !location.pathname.startsWith('/course') && (
           <footer className="bg-zinc-950 border-t border-zinc-900 mt-auto">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -611,10 +667,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <h4 className="font-semibold text-zinc-100 mb-6">서비스</h4>
                   <ul className="space-y-4 text-sm">
                     <li><Link to="/instructors" className="text-zinc-400 hover:text-violet-400 transition-colors">인스트럭터 보기</Link></li>
+                    <li><Link to="/event-teams" className="text-zinc-400 hover:text-amber-400 transition-colors">이벤트 팀 보기</Link></li>
                     <li><Link to="/feedback" className="text-zinc-400 hover:text-violet-400 transition-colors">1:1 피드백 서비스</Link></li>
                     <li><Link to="/library?tab=all" className="text-zinc-400 hover:text-violet-400 transition-colors">강좌 둘러보기</Link></li>
                     <li><Link to="/write-review" className="text-zinc-400 hover:text-violet-400 transition-colors">후기 작성</Link></li>
                     <li><Link to="/pricing" className="text-zinc-400 hover:text-violet-400 transition-colors">요금제</Link></li>
+                    <li><Link to="/become-organizer" className="text-amber-400 hover:text-amber-300 transition-colors">주최자 신청하기</Link></li>
                   </ul>
                 </div>
                 <div>
@@ -676,7 +734,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               { name: '피드', href: '/watch', icon: Clapperboard },
               { name: '홈', href: '/home', icon: Home, isSpecial: true },
               { name: '스킬 로드맵', href: '/skill-tree', icon: Network },
-              { name: '훈련 루틴', href: '/training-routines', icon: Dumbbell },
+              { name: '이벤트', href: '/explore', icon: Calendar },
             ].map((item) => {
               const Icon = item.icon;
               const searchParams = new URLSearchParams(location.search);

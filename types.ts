@@ -60,6 +60,31 @@ export interface Creator {
     wiseSwiftBic?: string;
     wiseAccountName?: string;
   };
+
+  // Organizer fields
+  creatorType?: 'instructor' | 'organizer' | 'both';
+  canHostEvents?: boolean;
+  verifiedOrganizer?: boolean;
+  totalEventsHosted?: number;
+
+  // Instructor invitation fields (legacy)
+  minInvitationFee?: number;
+  invitationDescription?: string;
+
+  // Event type-specific invitation settings
+  acceptCompetitionInvitations?: boolean;
+  minCompetitionFee?: number;
+  acceptSeminarInvitations?: boolean;
+  minSeminarFee?: number;
+  acceptOpenmatInvitations?: boolean;
+  minOpenmatFee?: number;
+
+  // Bank account for invitations (revealed when accepted)
+  bankAccountForInvitation?: {
+    bankName: string;
+    accountNumber: string;
+    holderName: string;
+  };
 }
 
 export interface Course {
@@ -139,6 +164,13 @@ export interface User {
   email: string;
   isSubscriber: boolean;
   ownedVideoIds: string[];
+
+  // BJJ profile for event registration pre-fill
+  phone?: string;
+  beltLevel?: string;
+  weightClass?: string;
+  teamName?: string;
+  profileImageUrl?: string;
 }
 
 // ==================== Subscription Types ====================
@@ -976,5 +1008,315 @@ export interface SystemStatus {
   status: 'operational' | 'degraded' | 'down';
   latency?: number;
   lastChecked: string;
+}
+
+// ==================== Event & Organizer Types ====================
+
+export type EventType = 'competition' | 'seminar' | 'openmat';
+export type EventStatus = 'draft' | 'published' | 'cancelled' | 'completed';
+export type PaymentType = 'free' | 'bank_transfer' | 'external_link';
+export type RegistrationPaymentStatus = 'pending' | 'confirmed' | 'cancelled' | 'refunded' | 'waitlist';
+export type WeighInStatus = 'pending' | 'passed' | 'failed' | 'no_show';
+export type CompetitionFormat = 'individual' | 'team';
+export type InvitationPaymentStatus = 'pending' | 'awaiting_payment' | 'paid' | 'confirmed' | 'declined' | 'cancelled';
+export type InstructorResponse = 'pending' | 'accepted' | 'declined';
+
+export interface Event {
+  id: string;
+  organizerId: string;
+  organizerName?: string;
+  organizerProfileImage?: string;
+  brandId?: string;
+  brand?: EventBrand;
+  type: EventType;
+  title: string;
+  description?: string;
+  coverImage?: string;
+
+  // Location
+  venueName?: string;
+  address?: string;
+  addressDetail?: string;
+  region?: string;
+  latitude?: number;
+  longitude?: number;
+  kakaoPlaceId?: string;
+
+  // Schedule
+  eventDate: string;
+  startTime?: string;
+  endTime?: string;
+  registrationDeadline?: string;
+  registrationDeadlineDays?: number;
+
+  // Recurring
+  isRecurring?: boolean;
+  recurrencePattern?: 'weekly' | 'biweekly' | 'monthly';
+  recurrenceDayOfWeek?: number;
+  recurrenceEndDate?: string;
+  parentEventId?: string;
+
+  // Eligibility
+  eligibility?: {
+    beltMin?: string;
+    beltMax?: string;
+    ageMin?: number;
+    ageMax?: number;
+    gender?: string;
+    weightClasses?: string[];
+  };
+  maxParticipants?: number;
+  currentParticipants?: number;
+
+  // Payment
+  price: number;
+  paymentType: PaymentType;
+  externalPaymentLink?: string;
+  bankAccount?: {
+    bankName: string;
+    accountNumber: string;
+    holderName: string;
+  };
+
+  // Competition specific
+  competitionFormat?: CompetitionFormat;
+  teamSize?: number;
+  winsRequired?: number;
+
+  // Live scoreboard
+  publicScoreboard?: boolean;
+  scoreboardUrlKey?: string;
+
+  status: EventStatus;
+  viewCount: number;
+
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EventRegistration {
+  id: string;
+  eventId: string;
+  userId?: string;
+
+  participantName: string;
+  phone?: string;
+  email?: string;
+  beltLevel?: string;
+  weightClass?: string;
+  teamName?: string;
+
+  isManualEntry: boolean;
+
+  paymentStatus: RegistrationPaymentStatus;
+  paymentProofImage?: string;
+  paidAmount?: number;
+  paidAt?: string;
+
+  confirmedByOrganizer: boolean;
+  confirmedAt?: string;
+
+  organizerNote?: string;
+  participantNote?: string;
+
+  cancelledAt?: string;
+  cancelReason?: string;
+
+  waitlistPosition?: number;
+
+  // Weigh-in
+  weighInStatus: WeighInStatus;
+  weighInWeight?: number;
+  weighInAt?: string;
+  weighInNote?: string;
+
+  // Result
+  result?: string;
+  resultNote?: string;
+
+  createdAt: string;
+
+  // Joined
+  event?: Event;
+  user?: {
+    name: string;
+    profileImage?: string;
+  };
+}
+
+export interface InstructorInvitation {
+  id: string;
+  eventId: string;
+  organizerId: string;
+  instructorId: string;
+
+  minFeeSnapshot: number;
+  proposedFee: number;
+
+  invitationMessage?: string;
+
+  instructorResponse: InstructorResponse;
+  responseMessage?: string;
+  respondedAt?: string;
+
+  // Instructor bank account (revealed when accepted)
+  instructorBankAccount?: {
+    bankName: string;
+    accountNumber: string;
+    holderName: string;
+  };
+
+  // Bank transfer status
+  paymentStatus: InvitationPaymentStatus;
+  paidAt?: string;
+  confirmedAt?: string;
+
+  createdAt: string;
+
+  // Joined
+  event?: Event;
+  instructor?: Creator;
+  organizer?: Creator;
+}
+
+export interface CompetitionCategory {
+  id: string;
+  eventId: string;
+  name: string;
+  beltLevel?: string;
+  weightClass?: string;
+  gender?: string;
+  ageGroup?: string;
+  isTeamEvent: boolean;
+  bracketType: 'single_elimination' | 'double_elimination' | 'round_robin';
+  bracketData?: any;
+  participantCount?: number;
+  createdAt: string;
+}
+
+export interface CompetitionTeam {
+  id: string;
+  categoryId: string;
+  teamName: string;
+  memberIds: string[];
+  memberOrder: string[];
+  members?: EventRegistration[];
+  createdAt: string;
+}
+
+export interface TeamMatch {
+  id: string;
+  categoryId: string;
+  round: number;
+  matchNumber: number;
+  team1Id?: string;
+  team2Id?: string;
+  team1?: CompetitionTeam;
+  team2?: CompetitionTeam;
+  individualMatchIds: string[];
+  team1Wins: number;
+  team2Wins: number;
+  winnerTeamId?: string;
+  nextMatchId?: string;
+  nextMatchSlot?: number;
+  status: string;
+  createdAt: string;
+}
+
+export interface CompetitionMatch {
+  id: string;
+  categoryId: string;
+  round: number;
+  matchNumber: number;
+
+  player1Id?: string;
+  player2Id?: string;
+  player1?: EventRegistration;
+  player2?: EventRegistration;
+
+  player1Bye: boolean;
+  player2Bye: boolean;
+
+  winnerId?: string;
+  winMethod?: string;
+
+  player1Points: number;
+  player2Points: number;
+  player1Advantages: number;
+  player2Advantages: number;
+  player1Penalties: number;
+  player2Penalties: number;
+
+  matchDuration?: number;
+
+  nextMatchId?: string;
+  nextMatchSlot?: number;
+
+  status: 'pending' | 'in_progress' | 'completed';
+  liveStatus: 'waiting' | 'ready' | 'in_progress' | 'completed';
+
+  matNumber: number;
+  videoUrl?: string;
+
+  createdAt: string;
+}
+
+export interface OrganizerReview {
+  id: string;
+  organizerId: string;
+  eventId?: string;
+  userId: string;
+  userName?: string;
+  userAvatar?: string;
+  rating: number;
+  content?: string;
+  createdAt: string;
+}
+
+// ==================== Event Brand Types ====================
+
+export interface EventBrand {
+  id: string;
+  creatorId: string;
+
+  // 브랜드 기본 정보
+  name: string;
+  slug?: string;
+  logo?: string;
+  coverImage?: string;
+  description?: string;
+
+  // 연락처
+  contactEmail?: string;
+  contactPhone?: string;
+
+  // 소셜 미디어
+  instagram?: string;
+  youtube?: string;
+  website?: string;
+
+  // 결제 정보 (브랜드별 계좌)
+  bankAccount?: {
+    bankName: string;
+    accountNumber: string;
+    holderName: string;
+  };
+
+  // 기본 브랜드 여부
+  isDefault: boolean;
+
+  // 상태
+  isActive: boolean;
+  verified: boolean;
+
+  // 통계 (캐시)
+  totalEvents: number;
+  totalParticipants: number;
+
+  createdAt: string;
+  updatedAt: string;
+
+  // Joined
+  creator?: Creator;
 }
 
