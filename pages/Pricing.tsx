@@ -144,9 +144,9 @@ export const Pricing: React.FC = () => {
                 <span className="text-xl text-zinc-500">/월</span>
               </div>
 
-              <div className="flex items-center justify-center lg:justify-start gap-1.5 mt-3 text-amber-400/80 font-bold text-xs bg-amber-500/10 inline-flex px-3 py-1 rounded-full border border-amber-500/20">
-                <Clock className="w-3 h-3" />
-                <span>준비 중</span>
+              <div className="flex items-center justify-center lg:justify-start gap-1.5 mt-3 text-emerald-400/80 font-bold text-xs bg-emerald-500/10 inline-flex px-3 py-1 rounded-full border border-emerald-500/20">
+                <CreditCard className="w-3 h-3" />
+                <span>월 자동결제</span>
               </div>
             </div>
 
@@ -166,7 +166,7 @@ export const Pricing: React.FC = () => {
 
             <Button
               className="w-full h-16 rounded-2xl text-lg font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-100 transition-colors"
-              onClick={() => setShowComingSoonModal(true)}
+              onClick={() => handleSubscription(pricing.basic.monthly.priceId)}
               disabled={loading || isSubscribed}
             >
               {isSubscribed ? '이미 이용 중입니다' : '1개월 시작하기'}
