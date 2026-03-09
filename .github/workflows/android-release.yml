@@ -33,7 +33,7 @@ jobs:
       - name: Build signed release AAB
         working-directory: mobile
         env:
-          ANDROID_KEYSTORE_PATH: keystore/grapplay-release.jks
+          ANDROID_KEYSTORE_PATH: ../keystore/grapplay-release.jks
           ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
