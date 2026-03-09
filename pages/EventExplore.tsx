@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, Map, Trophy, Users, MapPin, ChevronRight, Clock, Filter } from 'lucide-react';
+import { Calendar, Map, Trophy, Users, MapPin, ChevronRight, Clock } from 'lucide-react';
 import { fetchEvents } from '../lib/api-events';
 import { Event, EventType } from '../types';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { EventCalendarView } from '../components/explore/EventCalendarView';
 import { EventMapView } from '../components/explore/EventMapView';
-
-type ViewMode = 'calendar' | 'map';
 
 const EVENT_TYPE_CONFIG = {
     competition: { label: '시합', color: 'bg-red-500', textColor: 'text-red-400', borderColor: 'border-red-500/30', icon: Trophy },
@@ -16,7 +14,6 @@ const EVENT_TYPE_CONFIG = {
 };
 
 export const EventExplore: React.FC = () => {
-    const [viewMode, setViewMode] = useState<ViewMode>('calendar');
     const [events, setEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedType, setSelectedType] = useState<EventType | 'all'>('all');
@@ -59,32 +56,6 @@ export const EventExplore: React.FC = () => {
                 <div className="max-w-7xl mx-auto px-4 py-4">
                     <div className="flex items-center justify-between">
                         <h1 className="text-xl font-bold">이벤트</h1>
-
-                        {/* View Toggle */}
-                        <div className="flex bg-zinc-800 rounded-xl p-1 border border-zinc-700">
-                            <button
-                                onClick={() => setViewMode('calendar')}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                    viewMode === 'calendar'
-                                        ? 'bg-amber-600 text-white'
-                                        : 'text-zinc-400 hover:text-white'
-                                }`}
-                            >
-                                <Calendar className="w-4 h-4" />
-                                <span className="hidden sm:inline">캘린더</span>
-                            </button>
-                            <button
-                                onClick={() => setViewMode('map')}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                    viewMode === 'map'
-                                        ? 'bg-amber-600 text-white'
-                                        : 'text-zinc-400 hover:text-white'
-                                }`}
-                            >
-                                <Map className="w-4 h-4" />
-                                <span className="hidden sm:inline">지도</span>
-                            </button>
-                        </div>
                     </div>
 
                     {/* Type Filter */}
@@ -123,112 +94,70 @@ export const EventExplore: React.FC = () => {
 
             {/* Main Content */}
             <div className="max-w-7xl mx-auto px-4 py-6">
-                {viewMode === 'calendar' ? (
-                    <div className="space-y-6">
+                <div className="space-y-6">
+                    {/* Calendar + Map side by side */}
+                    <div className="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-6 items-start">
                         <EventCalendarView
                             events={events}
                             selectedDate={selectedDate}
                             onDateSelect={setSelectedDate}
                         />
-
-                        {/* Selected Date Events */}
-                        {selectedDate && (
-                            <div className="space-y-4">
-                                <h2 className="text-lg font-bold flex items-center gap-2">
-                                    <Calendar className="w-5 h-5 text-amber-500" />
-                                    {new Date(selectedDate).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 이벤트
-                                    <span className="text-sm text-zinc-500">({filteredEvents.length})</span>
-                                </h2>
-
-                                {filteredEvents.length > 0 ? (
-                                    <div className="grid gap-4">
-                                        {filteredEvents.map(event => (
-                                            <EventCard key={event.id} event={event} />
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="text-center py-8 bg-zinc-900/50 rounded-2xl border border-dashed border-zinc-800">
-                                        <Calendar className="w-12 h-12 text-zinc-700 mx-auto mb-3" />
-                                        <p className="text-zinc-500">이 날짜에 예정된 이벤트가 없습니다</p>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* All Upcoming Events */}
-                        {!selectedDate && (
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <h2 className="text-lg font-bold flex items-center gap-2">
-                                        <Clock className="w-5 h-5 text-amber-500" />
-                                        다가오는 이벤트
-                                    </h2>
-                                    <Link
-                                        to="/events"
-                                        className="text-sm text-amber-400 hover:text-amber-300 flex items-center gap-1"
-                                    >
-                                        전체 보기 <ChevronRight className="w-4 h-4" />
-                                    </Link>
-                                </div>
-
-                                {events.length > 0 ? (
-                                    <div className="grid gap-4">
-                                        {events.slice(0, 5).map(event => (
-                                            <EventCard key={event.id} event={event} />
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="text-center py-12 bg-zinc-900/50 rounded-2xl border border-dashed border-zinc-800">
-                                        <Calendar className="w-16 h-16 text-zinc-700 mx-auto mb-4" />
-                                        <h3 className="text-lg font-bold text-zinc-400 mb-2">예정된 이벤트가 없습니다</h3>
-                                        <p className="text-zinc-500">새로운 이벤트가 등록되면 여기에 표시됩니다</p>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                ) : (
-                    /* Map View */
-                    <div className="space-y-6">
                         <EventMapView
-                            events={events}
+                            events={filteredEvents}
                             selectedEventId={selectedMapEventId}
                             onEventSelect={setSelectedMapEventId}
+                            className="h-[400px] lg:h-[480px]"
                         />
+                    </div>
 
-                        {/* Events List Below Map */}
-                        {events.length > 0 && (
-                            <div className="space-y-4">
-                                <h2 className="text-lg font-bold flex items-center gap-2">
-                                    <MapPin className="w-5 h-5 text-amber-500" />
-                                    {selectedType === 'all' ? '전체' : EVENT_TYPE_CONFIG[selectedType].label} 이벤트
-                                    <span className="text-sm text-zinc-500">({events.length})</span>
-                                </h2>
-                                <div className="grid gap-4">
-                                    {events.slice(0, 10).map(event => (
-                                        <EventCard
-                                            key={event.id}
-                                            event={event}
-                                            onMapClick={(eventId) => {
-                                                setSelectedMapEventId(eventId);
-                                                // Scroll to map
-                                                window.scrollTo({ top: 0, behavior: 'smooth' });
-                                            }}
-                                        />
-                                    ))}
-                                </div>
-                                {events.length > 10 && (
-                                    <Link
-                                        to="/events"
-                                        className="block text-center py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-amber-400 hover:bg-zinc-800 transition-colors"
-                                    >
-                                        전체 {events.length}개 이벤트 보기
-                                    </Link>
+                    {/* Event List */}
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-lg font-bold flex items-center gap-2">
+                                {selectedDate ? (
+                                    <Calendar className="w-5 h-5 text-amber-500" />
+                                ) : (
+                                    <Clock className="w-5 h-5 text-amber-500" />
                                 )}
+                                {selectedDate
+                                    ? `${new Date(selectedDate).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 이벤트`
+                                    : '다가오는 이벤트'}
+                                <span className="text-sm text-zinc-500">({filteredEvents.length})</span>
+                            </h2>
+                            {!selectedDate && events.length > 5 && (
+                                <Link
+                                    to="/events"
+                                    className="text-sm text-amber-400 hover:text-amber-300 flex items-center gap-1"
+                                >
+                                    전체 보기 <ChevronRight className="w-4 h-4" />
+                                </Link>
+                            )}
+                        </div>
+
+                        {filteredEvents.length > 0 ? (
+                            <div className="grid gap-4">
+                                {(selectedDate ? filteredEvents : filteredEvents.slice(0, 5)).map(event => (
+                                    <EventCard
+                                        key={event.id}
+                                        event={event}
+                                        onMapClick={(eventId) => {
+                                            setSelectedMapEventId(eventId);
+                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-12 bg-zinc-900/50 rounded-2xl border border-dashed border-zinc-800">
+                                <Calendar className="w-16 h-16 text-zinc-700 mx-auto mb-4" />
+                                <h3 className="text-lg font-bold text-zinc-400 mb-2">
+                                    {selectedDate ? '이 날짜에 예정된 이벤트가 없습니다' : '예정된 이벤트가 없습니다'}
+                                </h3>
+                                <p className="text-zinc-500">새로운 이벤트가 등록되면 여기에 표시됩니다</p>
                             </div>
                         )}
                     </div>
-                )}
+                </div>
             </div>
         </div>
     );
