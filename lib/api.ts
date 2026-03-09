@@ -290,7 +290,8 @@ export async function getCreators(): Promise<Creator[]> {
                 .from('creators')
                 .select('id, name, bio, profile_image, subscriber_count, hidden')
                 .eq('approved', true)
-                .neq('hidden', true), // Filter out hidden creators from public view
+                .neq('hidden', true) // Filter out hidden creators from public view
+                .or('creator_type.eq.instructor,creator_type.eq.both,creator_type.is.null'), // 순수 주최자(organizer) 제외
             10000 // 10s
         );
 

@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
-import { Creator, InstructorInvitation, OrganizerReview, InvitationPaymentStatus, InstructorResponse, EventBrand } from '../types';
+import { Creator, InstructorInvitation, OrganizerReview, InvitationPaymentStatus, InstructorResponse, EventBrand, Event } from '../types';
+import { transformEvent } from './api-events';
 
 // ==================== Transform Functions ====================
 
@@ -336,12 +337,14 @@ export async function getBrandStats(brandId: string): Promise<{
     .from('events')
     .select('*', { count: 'exact', head: true })
     .eq('brand_id', brandId)
+    .eq('status', 'published')
     .gte('event_date', today);
 
   const { count: completedCount } = await supabase
     .from('events')
     .select('*', { count: 'exact', head: true })
     .eq('brand_id', brandId)
+    .in('status', ['published', 'completed'])
     .lt('event_date', today);
 
   return {
@@ -352,15 +355,19 @@ export async function getBrandStats(brandId: string): Promise<{
   };
 }
 
-export async function fetchEventsByBrand(brandId: string): Promise<any[]> {
+export async function fetchEventsByBrand(brandId: string): Promise<Event[]> {
   const { data, error } = await supabase
     .from('events')
-    .select('*')
+    .select(`
+      *,
+      organizer:creators(id, name, profile_image),
+      brand:event_brands(id, name, logo, creator_id)
+    `)
     .eq('brand_id', brandId)
     .order('event_date', { ascending: false });
 
   if (error) throw error;
-  return data || [];
+  return (data || []).map(transformEvent);
 }
 
 export async function fetchActiveBrands(limit?: number): Promise<EventBrand[]> {
@@ -488,17 +495,24 @@ export async function applyAsOrganizer(userId: string, creatorId?: string) {
   // Otherwise, get user info and create creator profile
   const { data: userData, error: userError } = await supabase
     .from('users')
-    .select('name, profile_image_url')
+    .select('name, profile_image_url, email')
     .eq('id', userId)
     .single();
 
   if (userError) throw userError;
 
+  let fallbackName = 'Organizer';
+  if (userData.name) {
+    fallbackName = userData.name;
+  } else if (userData.email) {
+    fallbackName = userData.email.split('@')[0];
+  }
+
   const { data, error } = await supabase
     .from('creators')
     .insert([{
       id: userId,
-      name: userData.name || 'Organizer',
+      name: fallbackName,
       profile_image: userData.profile_image_url,
       creator_type: 'organizer',
       can_host_events: true,
@@ -515,7 +529,7 @@ export async function applyAsOrganizer(userId: string, creatorId?: string) {
       .from('event_brands')
       .insert([{
         creator_id: userId,
-        name: userData.name || '내 이벤트 팀',
+        name: fallbackName,
         is_default: true
       }]);
     
@@ -586,17 +600,24 @@ export async function promoteToOrganizer(userId: string) {
   // User is not a creator, create new organizer profile
   const { data: userData, error: userError } = await supabase
     .from('users')
-    .select('name, profile_image_url')
+    .select('name, profile_image_url, email')
     .eq('id', userId)
     .single();
 
   if (userError) return { data: null, error: userError };
 
+  let fallbackName = 'Organizer';
+  if (userData.name) {
+    fallbackName = userData.name;
+  } else if (userData.email) {
+    fallbackName = userData.email.split('@')[0];
+  }
+
   const { data, error } = await supabase
     .from('creators')
     .insert([{
       id: userId,
-      name: userData.name || 'Organizer',
+      name: fallbackName,
       profile_image: userData.profile_image_url,
       creator_type: 'organizer',
       can_host_events: true,
@@ -613,7 +634,7 @@ export async function promoteToOrganizer(userId: string) {
       .from('event_brands')
       .insert([{
         creator_id: userId,
-        name: userData.name || '내 이벤트 팀',
+        name: fallbackName,
         is_default: true
       }]);
   } catch (err) {
@@ -634,7 +655,22 @@ export async function getAdminOrganizers() {
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data?.map(transformCreatorToOrganizer) || [];
+  if (!data || data.length === 0) return [];
+
+  // Fetch emails from users table
+  const creatorIds = data.map(c => c.id);
+  const { data: usersData } = await supabase
+    .from('users')
+    .select('id, email')
+    .in('id', creatorIds);
+
+  const emailMap = new Map<string, string>();
+  usersData?.forEach(u => emailMap.set(u.id, u.email || ''));
+
+  return data.map(c => transformCreatorToOrganizer({
+    ...c,
+    email: emailMap.get(c.id) || ''
+  }));
 }
 
 /**
@@ -734,7 +770,7 @@ export async function fetchAvailableInstructors(filters?: {
   let query = supabase
     .from('creators')
     .select('*')
-    .in('creator_type', ['instructor', 'both'])
+    .or('creator_type.eq.instructor,creator_type.eq.both,creator_type.is.null')
     .eq('hidden', false)
     .order('subscriber_count', { ascending: false });
 

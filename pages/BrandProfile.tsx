@@ -70,12 +70,12 @@ export const BrandProfile: React.FC = () => {
         return null;
     }
 
-    const now = new Date();
+    const today = new Date().toISOString().split('T')[0];
     const upcomingEvents = events
-        .filter(e => new Date(e.eventDate) >= now && e.status === 'published')
+        .filter(e => e.eventDate >= today && e.status === 'published')
         .sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
     const pastEvents = events
-        .filter(e => new Date(e.eventDate) < now)
+        .filter(e => e.eventDate < today || e.status === 'completed')
         .sort((a, b) => new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime());
 
     return (

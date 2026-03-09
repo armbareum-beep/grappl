@@ -11,7 +11,7 @@ import { ImageUploader } from '../../components/ImageUploader';
 import { RichTextEditor } from '../../components/RichTextEditor';
 import { LocationPicker } from '../../components/explore/LocationPicker';
 import { createEvent, updateEvent, fetchEventById, deleteEvent } from '../../lib/api-events';
-import { fetchCreatorVideos, fetchEventVideos, linkVideoToEvent, unlinkVideoFromEvent, fetchOrganizerById, fetchInvitationsByEvent, fetchAvailableInstructors, createInvitation, fetchBrandsByCreator } from '../../lib/api-organizers';
+import { fetchCreatorVideos, fetchEventVideos, linkVideoToEvent, unlinkVideoFromEvent, fetchOrganizerById, fetchInvitationsByEvent, fetchAvailableInstructors, createInvitation, fetchBrandsByCreator, fetchAllBrandsAdmin } from '../../lib/api-organizers';
 import { InstructorInvitation, Event, EventType, PaymentType, Creator, EventBrand } from '../../types';
 
 interface CreatorVideos {
@@ -237,12 +237,17 @@ export const CreateEvent: React.FC = () => {
 
             // Load brands
             try {
-                const brandsData = await fetchBrandsByCreator(organizerId);
+                let brandsData;
+                if (isAdmin) {
+                    brandsData = await fetchAllBrandsAdmin();
+                } else {
+                    brandsData = await fetchBrandsByCreator(organizerId);
+                }
                 setBrands(brandsData);
 
                 // Set default brand if creating new event and no brand selected
                 if (!isEditMode && brandsData.length > 0 && !formData.brandId) {
-                    const defaultBrand = brandsData.find(b => b.isDefault) || brandsData[0];
+                    const defaultBrand = brandsData.find((b: any) => b.isDefault) || brandsData[0];
                     setFormData(prev => ({ ...prev, brandId: defaultBrand.id }));
                 }
             } catch (error) {
@@ -331,8 +336,16 @@ export const CreateEvent: React.FC = () => {
         setSaving(true);
 
         try {
+            let actualOrganizerId = organizerId;
+            if (isAdmin && formData.brandId) {
+                const selectedBrand = brands.find(b => b.id === formData.brandId);
+                if (selectedBrand) {
+                    actualOrganizerId = selectedBrand.creatorId;
+                }
+            }
+
             const eventData: Partial<Event> = {
-                organizerId: organizerId,
+                organizerId: actualOrganizerId,
                 brandId: formData.brandId || undefined,
                 type: formData.type,
                 title: formData.title,
