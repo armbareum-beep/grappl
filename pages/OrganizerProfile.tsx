@@ -113,9 +113,9 @@ export const OrganizerProfile: React.FC = () => {
         );
     }
 
-    const now = new Date();
-    const upcomingEvents = events.filter(e => new Date(e.eventDate) >= now && e.status === 'published');
-    const pastEvents = events.filter(e => new Date(e.eventDate) < now || e.status === 'completed');
+    const today = new Date().toISOString().split('T')[0];
+    const upcomingEvents = events.filter(e => e.eventDate >= today && e.status === 'published');
+    const pastEvents = events.filter(e => e.eventDate < today || e.status === 'completed');
     const displayedEvents = activeTab === 'upcoming' ? upcomingEvents : pastEvents;
 
     return (

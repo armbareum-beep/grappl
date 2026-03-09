@@ -298,18 +298,27 @@ export const AdminEventList: React.FC = () => {
                             <p className="text-zinc-400 mt-1">이벤트와 이벤트팀을 관리하고 주최자에게 이전할 수 있습니다.</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3 px-4 py-2 bg-zinc-900/50 border border-zinc-800 rounded-xl">
-                        {mainTab === 'events' ? (
-                            <>
-                                <Calendar className="w-4 h-4 text-amber-500" />
-                                <span className="text-sm font-bold">{filteredEvents.length}개 이벤트</span>
-                            </>
-                        ) : (
-                            <>
-                                <Building2 className="w-4 h-4 text-amber-500" />
-                                <span className="text-sm font-bold">{filteredTeams.length}개 팀</span>
-                            </>
-                        )}
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 px-4 py-2 bg-zinc-900/50 border border-zinc-800 rounded-xl">
+                            {mainTab === 'events' ? (
+                                <>
+                                    <Calendar className="w-4 h-4 text-amber-500" />
+                                    <span className="text-sm font-bold">{filteredEvents.length}개 이벤트</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Building2 className="w-4 h-4 text-amber-500" />
+                                    <span className="text-sm font-bold">{filteredTeams.length}개 팀</span>
+                                </>
+                            )}
+                        </div>
+                        <button
+                            onClick={() => navigate('/admin/events/create')}
+                            className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl transition-all"
+                        >
+                            <Calendar className="w-4 h-4" />
+                            <span className="hidden sm:inline">이벤트 만들기</span>
+                        </button>
                     </div>
                 </div>
 
@@ -651,11 +660,17 @@ export const AdminEventList: React.FC = () => {
                                     <option value="">이벤트 팀을 선택하세요</option>
                                     {teams
                                         .filter(t => t.id !== eventTransferModal.event?.brand?.id)
-                                        .map(t => (
+                                        .map(t => {
+                                            const creatorRecord = organizers.find(o => o.id === t.creatorId);
+                                            const creatorEmail = creatorRecord?.email || '';
+                                            const brandName = t.name === 'Organizer' && creatorEmail ? creatorEmail.split('@')[0] : t.name;
+                                            const creatorName = t.creator?.name === 'Organizer' && creatorEmail ? creatorEmail.split('@')[0] : t.creator?.name;
+                                            return (
                                             <option key={t.id} value={t.id}>
-                                                {t.name} {t.creator?.name ? `(${t.creator.name})` : ''}
+                                                {brandName} {creatorName && creatorName !== brandName ? `(${creatorName})` : ''}
                                             </option>
-                                        ))
+                                            );
+                                        })
                                     }
                                 </select>
                             </div>
@@ -789,11 +804,15 @@ const TransferModal: React.FC<TransferModalProps> = ({
                         <option value="">주최자를 선택하세요</option>
                         {organizers
                             .filter(org => org.id !== currentOwnerId)
-                            .map(org => (
+                            .map(org => {
+                                const displayName = org.name === 'Organizer' && org.email ? org.email : org.name;
+                                const extra = org.email && displayName !== org.email ? ` (${org.email})` : '';
+                                return (
                                 <option key={org.id} value={org.id}>
-                                    {org.name} {org.email ? `(${org.email})` : ''}
+                                    {displayName}{extra}
                                 </option>
-                            ))
+                                );
+                            })
                         }
                     </select>
                 </div>

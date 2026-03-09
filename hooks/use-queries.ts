@@ -11,6 +11,18 @@ export function useCreators() {
     });
 }
 
+// Event Brands Hook
+export function useEventBrands() {
+    return useQuery({
+        queryKey: ['event-brands'],
+        queryFn: async () => {
+            const { fetchActiveBrands } = await import('../lib/api-organizers');
+            return fetchActiveBrands();
+        },
+        staleTime: 1000 * 60 * 60, // 1 hour
+    });
+}
+
 // Courses Hook with Pagination
 export function useCourses(limit: number = 20, offset: number = 0) {
     return useQuery({

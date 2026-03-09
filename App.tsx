@@ -525,6 +525,7 @@ const App: React.FC = () => {
                     <Route path="/admin/creators" element={<AdminRoute><AdminCreatorList /></AdminRoute>} />
                     <Route path="/admin/organizers" element={<AdminRoute><AdminOrganizerList /></AdminRoute>} />
                     <Route path="/admin/events" element={<AdminRoute><AdminEventList /></AdminRoute>} />
+                    <Route path="/admin/events/create" element={<AdminRoute><CreateEvent /></AdminRoute>} />
                     <Route path="/admin/marketing" element={<AdminRoute><AdminMarketing /></AdminRoute>} />
                     <Route path="/admin/payouts" element={<AdminRoute><AdminPayouts /></AdminRoute>} />
                     <Route path="/admin/users" element={<AdminRoute><AdminUserList /></AdminRoute>} />

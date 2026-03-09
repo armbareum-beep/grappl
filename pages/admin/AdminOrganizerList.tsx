@@ -173,7 +173,7 @@ export const AdminOrganizerList: React.FC = () => {
                                 <div className="flex-1 text-center md:text-left space-y-2 w-full">
                                     <div className="flex items-center justify-center md:justify-start gap-2 flex-wrap">
                                         <h3 className="text-xl font-bold text-white group-hover:text-amber-300 transition-colors">
-                                            {organizer.name}
+                                            {organizer.name === 'Organizer' && organizer.email ? organizer.email.split('@')[0] : organizer.name}
                                         </h3>
                                         {getCreatorTypeBadge(organizer.creatorType)}
                                         {organizer.verifiedOrganizer && (
