@@ -1,4 +1,4 @@
-name: Android APK Release
+name: Android Release AAB
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 jobs:
-  build:
+  build-release-aab:
     runs-on: ubuntu-latest
 
     steps:
@@ -25,18 +25,32 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x mobile/gradlew
 
-      - name: Build debug APK
-        working-directory: mobile
-        run: ./gradlew :composeApp:assembleDebug
-
-      - name: Rename APK
+      - name: Decode keystore from secret
         run: |
-          mv mobile/composeApp/build/outputs/apk/debug/composeApp-debug.apk \
-             mobile/composeApp/build/outputs/apk/debug/grapplay-${{ github.ref_name }}.apk
+          mkdir -p mobile/keystore
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > mobile/keystore/grapplay-release.jks
+
+      - name: Build signed release AAB
+        working-directory: mobile
+        env:
+          ANDROID_KEYSTORE_PATH: keystore/grapplay-release.jks
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew :composeApp:bundleRelease
+
+      - name: Rename AAB
+        run: |
+          mv mobile/composeApp/build/outputs/bundle/release/composeApp-release.aab \
+             mobile/composeApp/build/outputs/bundle/release/grapplay-${{ github.ref_name }}.aab
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: Grapplay ${{ github.ref_name }}
-          files: mobile/composeApp/build/outputs/apk/debug/grapplay-${{ github.ref_name }}.apk
+          files: mobile/composeApp/build/outputs/bundle/release/grapplay-${{ github.ref_name }}.aab
           generate_release_notes: true
+
+      - name: Clean up keystore
+        if: always()
+        run: rm -f mobile/keystore/grapplay-release.jks

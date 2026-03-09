@@ -1,6 +1,7 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -111,8 +112,27 @@ kotlin {
             implementation(libs.ktor.client.java)
             implementation(libs.kotlinx.coroutines.swing)
         }
+
+        val commonTest by getting {
+            dependencies {
+                implementation(libs.kotlin.test)
+                implementation(libs.kotlinx.coroutines.test)
+            }
+        }
+
+        val androidUnitTest by getting {
+            dependencies {
+                implementation(libs.kotlin.test.junit)
+                implementation(libs.junit)
+            }
+        }
     }
 }
+
+val localProps = Properties()
+val localPropsFile = rootProject.file("local.properties")
+if (localPropsFile.exists()) localProps.load(localPropsFile.inputStream())
+fun localOrEnv(key: String): String = localProps.getProperty(key) ?: System.getenv(key) ?: ""
 
 android {
     namespace = "com.grapplay.app"
@@ -126,6 +146,16 @@ android {
         versionName = "1.0.0"
     }
 
+    signingConfigs {
+        create("release") {
+            val keystorePath = localOrEnv("ANDROID_KEYSTORE_PATH").ifEmpty { "../keystore/grapplay-release.jks" }
+            storeFile = file(keystorePath)
+            storePassword = localOrEnv("ANDROID_STORE_PASSWORD")
+            keyAlias = localOrEnv("ANDROID_KEY_ALIAS")
+            keyPassword = localOrEnv("ANDROID_KEY_PASSWORD")
+        }
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -136,6 +166,11 @@ android {
         getByName("release") {
             isMinifyEnabled = true
             isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 
