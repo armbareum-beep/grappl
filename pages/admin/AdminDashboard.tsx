@@ -4,7 +4,7 @@ import {
     Star, BookOpen, Users, Home, Package, DollarSign,
     Dumbbell, Activity, Shield, AlertTriangle, MessageSquare,
     Video, Swords, Bell, Download, TrendingUp, TrendingDown,
-    ArrowRight, Map, RefreshCw, Wallet, Eye
+    ArrowRight, Map, RefreshCw, Wallet, Eye, Flag
 } from 'lucide-react';
 import {
     getAdminStats, AdminStats, getAdminChartData,
@@ -154,6 +154,13 @@ export const AdminDashboard: React.FC = () => {
                     bg: "bg-purple-400/10",
                     link: "/admin/creators",
                     alert: stats.pendingCreators > 0
+                },
+                {
+                    title: "주최자 관리",
+                    desc: "행사 개최 권한을 가진 주최자 관리",
+                    icon: Flag,
+                    bg: "bg-amber-400/10",
+                    link: "/admin/organizers"
                 },
                 {
                     title: "1:1 문의 관리",

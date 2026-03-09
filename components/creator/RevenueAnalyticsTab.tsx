@@ -25,7 +25,7 @@ interface PayoutRequest {
 }
 
 export const RevenueAnalyticsTab: React.FC = () => {
-    const { user } = useAuth();
+    const { user, isOrganizer } = useAuth();
     const { success, error: toastError } = useToast();
     const [loading, setLoading] = useState(true);
     const [totalRevenue, setTotalRevenue] = useState(0);
@@ -224,24 +224,26 @@ export const RevenueAnalyticsTab: React.FC = () => {
                         <p className="text-xs text-zinc-500">코스, 드릴, 루틴 판매</p>
                     </div>
 
-                    {/* Feedback Sales */}
-                    <div className="bg-zinc-900/50 p-5 rounded-xl border border-zinc-800 hover:border-zinc-700 transition-colors">
-                        <div className="flex items-center justify-between mb-3">
-                            <h4 className="text-xs font-medium text-zinc-400 uppercase tracking-wider">피드백 판매</h4>
-                            <div className="p-2 bg-violet-500/10 rounded-lg">
-                                <MessageCircle className="w-4 h-4 text-violet-400" />
+                    {/* Feedback Sales - 주최자는 숨김 */}
+                    {!isOrganizer && (
+                        <div className="bg-zinc-900/50 p-5 rounded-xl border border-zinc-800 hover:border-zinc-700 transition-colors">
+                            <div className="flex items-center justify-between mb-3">
+                                <h4 className="text-xs font-medium text-zinc-400 uppercase tracking-wider">피드백 판매</h4>
+                                <div className="p-2 bg-violet-500/10 rounded-lg">
+                                    <MessageCircle className="w-4 h-4 text-violet-400" />
+                                </div>
+                            </div>
+                            <p className="text-xl font-bold text-white mb-1">{formatCurrency(feedbackRevenue)}</p>
+                            <div className="flex items-center justify-between text-xs mt-2">
+                                <span className="text-zinc-500">{feedbackCount}건 완료</span>
+                                {feedbackCount > 0 && (
+                                    <span className="text-violet-400 font-medium">
+                                        평균 {formatCurrency(Math.floor(feedbackRevenue / feedbackCount))}
+                                    </span>
+                                )}
                             </div>
                         </div>
-                        <p className="text-xl font-bold text-white mb-1">{formatCurrency(feedbackRevenue)}</p>
-                        <div className="flex items-center justify-between text-xs mt-2">
-                            <span className="text-zinc-500">{feedbackCount}건 완료</span>
-                            {feedbackCount > 0 && (
-                                <span className="text-violet-400 font-medium">
-                                    평균 {formatCurrency(Math.floor(feedbackRevenue / feedbackCount))}
-                                </span>
-                            )}
-                        </div>
-                    </div>
+                    )}
 
                     {/* Subscription Revenue */}
                     <div className="bg-zinc-900/50 p-5 rounded-xl border border-zinc-800 hover:border-zinc-700 transition-colors">

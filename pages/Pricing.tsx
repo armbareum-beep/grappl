@@ -129,7 +129,14 @@ export const Pricing: React.FC = () => {
         {/* Pricing Cards: 1 Month vs 1 Year */}
         <div className="mt-20 grid gap-8 lg:grid-cols-2 max-w-4xl mx-auto">
           {/* 1 Month Pass */}
-          <div className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800 rounded-[40px] p-10 flex flex-col transition-transform duration-300 hover:scale-[1.01]">
+          <div className="relative bg-zinc-900/40 backdrop-blur-xl border border-zinc-800 rounded-[40px] p-10 flex flex-col transition-transform duration-300 hover:scale-[1.01]">
+            <div className="absolute top-0 right-10 -translate-y-1/2">
+              <div className="bg-zinc-700 text-zinc-300 text-sm font-bold px-5 py-2 rounded-full shadow-lg flex items-center gap-1.5 ring-4 ring-zinc-950">
+                <Clock className="w-4 h-4" />
+                준비중
+              </div>
+            </div>
+
             <div className="mb-8 text-center lg:text-left">
               <h3 className="text-2xl font-bold text-zinc-100 italic uppercase tracking-tight">1 Month Pass</h3>
               <p className="mt-2 text-zinc-400">부담 없이 시작하는 한 달의 주짓수 여정.</p>
@@ -166,7 +173,7 @@ export const Pricing: React.FC = () => {
 
             <Button
               className="w-full h-16 rounded-2xl text-lg font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-100 transition-colors"
-              onClick={() => handleSubscription(pricing.basic.monthly.priceId)}
+              onClick={() => setShowComingSoonModal(true)}
               disabled={loading || isSubscribed}
             >
               {isSubscribed ? '이미 이용 중입니다' : '1개월 시작하기'}
