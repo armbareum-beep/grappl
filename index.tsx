@@ -2,12 +2,6 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './src/index.css';
-import { initCapacitor } from './lib/capacitor-init';
-
-// Capacitor 네이티브 플러그인 초기화
-initCapacitor();
-
-
 // Sentry 에러 모니터링 - 지연 초기화 (FCP 개선)
 if (import.meta.env.PROD) {
   // Defer Sentry loading until after initial render
