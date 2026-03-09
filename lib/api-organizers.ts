@@ -382,6 +382,50 @@ export async function fetchActiveBrands(limit?: number): Promise<EventBrand[]> {
   return (data || []).map(transformBrand);
 }
 
+/**
+ * Admin: Fetch all brands (including inactive/hidden)
+ */
+export async function fetchAllBrandsAdmin(): Promise<EventBrand[]> {
+  const { data, error } = await supabase
+    .from('event_brands')
+    .select(`
+      *,
+      creator:creators(id, name, profile_image, email)
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data || []).map(transformBrand);
+}
+
+/**
+ * Admin: Update brand visibility (hide/show)
+ */
+export async function updateBrandVisibility(brandId: string, isActive: boolean) {
+  const { error } = await supabase
+    .from('event_brands')
+    .update({ is_active: isActive, updated_at: new Date().toISOString() })
+    .eq('id', brandId);
+
+  if (error) throw error;
+}
+
+/**
+ * Admin: Transfer brand to another creator (organizer)
+ */
+export async function transferBrandToCreator(brandId: string, newCreatorId: string) {
+  const { error } = await supabase
+    .from('event_brands')
+    .update({
+      creator_id: newCreatorId,
+      is_default: false, // Reset default flag when transferring
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', brandId);
+
+  if (error) throw error;
+}
+
 // ==================== Organizers ====================
 
 export async function fetchOrganizers(filters?: {
