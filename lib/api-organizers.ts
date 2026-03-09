@@ -382,6 +382,50 @@ export async function fetchActiveBrands(limit?: number): Promise<EventBrand[]> {
   return (data || []).map(transformBrand);
 }
 
+/**
+ * Admin: Fetch all brands (including inactive/hidden)
+ */
+export async function fetchAllBrandsAdmin(): Promise<EventBrand[]> {
+  const { data, error } = await supabase
+    .from('event_brands')
+    .select(`
+      *,
+      creator:creators(id, name, profile_image)
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data || []).map(transformBrand);
+}
+
+/**
+ * Admin: Update brand visibility (hide/show)
+ */
+export async function updateBrandVisibility(brandId: string, isActive: boolean) {
+  const { error } = await supabase
+    .from('event_brands')
+    .update({ is_active: isActive, updated_at: new Date().toISOString() })
+    .eq('id', brandId);
+
+  if (error) throw error;
+}
+
+/**
+ * Admin: Transfer brand to another creator (organizer)
+ */
+export async function transferBrandToCreator(brandId: string, newCreatorId: string) {
+  const { error } = await supabase
+    .from('event_brands')
+    .update({
+      creator_id: newCreatorId,
+      is_default: false, // Reset default flag when transferring
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', brandId);
+
+  if (error) throw error;
+}
+
 // ==================== Organizers ====================
 
 export async function fetchOrganizers(filters?: {
@@ -464,6 +508,24 @@ export async function applyAsOrganizer(userId: string, creatorId?: string) {
     .single();
 
   if (error) throw error;
+
+  // Create default event team for the new organizer
+  try {
+    const { error: brandError } = await supabase
+      .from('event_brands')
+      .insert([{
+        creator_id: userId,
+        name: userData.name || '내 이벤트 팀',
+        is_default: true
+      }]);
+    
+    if (brandError && !brandError.message.includes('duplicate')) {
+      console.error('Failed to create default event team during application:', brandError);
+    }
+  } catch (err) {
+    console.error('Error creating default brand:', err);
+  }
+
   return transformCreatorToOrganizer(data);
 }
 
@@ -494,6 +556,27 @@ export async function promoteToOrganizer(userId: string) {
         .single();
 
       if (error) throw error;
+
+      // Ensure they have a default brand
+      try {
+        const { count } = await supabase
+          .from('event_brands')
+          .select('*', { count: 'exact', head: true })
+          .eq('creator_id', userId);
+
+        if (count === 0) {
+          await supabase
+            .from('event_brands')
+            .insert([{
+              creator_id: userId,
+              name: data.name || '내 이벤트 팀',
+              is_default: true
+            }]);
+        }
+      } catch (err) {
+        console.error('Error ensuring default brand for promoted organizer:', err);
+      }
+
       return { data: transformCreatorToOrganizer(data), error: null };
     }
     // Already organizer or both
@@ -523,6 +606,20 @@ export async function promoteToOrganizer(userId: string) {
     .single();
 
   if (error) return { data: null, error };
+
+  // Create default event team for the new organizer
+  try {
+    await supabase
+      .from('event_brands')
+      .insert([{
+        creator_id: userId,
+        name: userData.name || '내 이벤트 팀',
+        is_default: true
+      }]);
+  } catch (err) {
+    console.error('Error creating default brand for new organizer:', err);
+  }
+
   return { data: transformCreatorToOrganizer(data), error: null };
 }
 

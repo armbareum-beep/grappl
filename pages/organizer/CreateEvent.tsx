@@ -39,7 +39,7 @@ export const CreateEvent: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const { user, isOrganizer, loading: authLoading } = useAuth();
+    const { user, isOrganizer, isAdmin, loading: authLoading } = useAuth();
     const organizerId = user?.id;
     const { success, error: toastError } = useToast();
 
@@ -90,7 +90,13 @@ export const CreateEvent: React.FC = () => {
         status: 'draft' | 'published';
         isRecurring: boolean;
         recurrencePattern: 'weekly' | 'biweekly' | 'monthly' | '';
+        recurrenceDayOfWeek: number | null;
+        recurrenceDays: number[];
+        monthlyOption: 'date' | 'day_of_week' | '';
+        recurrenceWeeks: number[];
+        recurrenceMonthsDates: number[];
         recurrenceEndDate: string;
+        useInternalRegistration: boolean;
     }>({
         type: initialType,
         brandId: '',
@@ -120,7 +126,13 @@ export const CreateEvent: React.FC = () => {
         status: 'draft',
         isRecurring: false,
         recurrencePattern: '',
+        recurrenceDayOfWeek: null,
+        recurrenceDays: [],
+        monthlyOption: '',
+        recurrenceWeeks: [],
+        recurrenceMonthsDates: [],
         recurrenceEndDate: '',
+        useInternalRegistration: true,
     });
 
     useEffect(() => {
@@ -158,7 +170,13 @@ export const CreateEvent: React.FC = () => {
                         status: event.status === 'published' ? 'published' : 'draft',
                         isRecurring: event.isRecurring || false,
                         recurrencePattern: event.recurrencePattern || '',
+                        recurrenceDayOfWeek: event.recurrenceDayOfWeek ?? null,
+                        recurrenceDays: event.recurrenceDays || [],
+                        monthlyOption: event.monthlyOption || '',
+                        recurrenceWeeks: event.recurrenceWeeks || [],
+                        recurrenceMonthsDates: event.recurrenceMonthsDates || [],
                         recurrenceEndDate: event.recurrenceEndDate || '',
+                        useInternalRegistration: event.useInternalRegistration ?? true,
                     });
 
                     // Load linked videos separately (may fail if table doesn't exist)
@@ -344,7 +362,13 @@ export const CreateEvent: React.FC = () => {
                 winsRequired: formData.type === 'competition' && formData.competitionFormat === 'team' ? parseInt(formData.winsRequired) : undefined,
                 isRecurring: formData.isRecurring,
                 recurrencePattern: formData.isRecurring ? formData.recurrencePattern : undefined,
+                recurrenceDayOfWeek: formData.isRecurring && (formData.recurrencePattern === 'weekly' || formData.recurrencePattern === 'biweekly') ? formData.recurrenceDayOfWeek ?? undefined : undefined,
+                recurrenceDays: formData.isRecurring && (formData.recurrencePattern === 'weekly' || formData.recurrencePattern === 'biweekly') ? formData.recurrenceDays : undefined,
+                monthlyOption: formData.isRecurring && formData.recurrencePattern === 'monthly' ? (formData.monthlyOption as any) : undefined,
+                recurrenceWeeks: formData.isRecurring && formData.recurrencePattern === 'monthly' && formData.monthlyOption === 'day_of_week' ? formData.recurrenceWeeks : undefined,
+                recurrenceMonthsDates: formData.isRecurring && formData.recurrencePattern === 'monthly' && formData.monthlyOption === 'date' ? formData.recurrenceMonthsDates : undefined,
                 recurrenceEndDate: formData.isRecurring && formData.recurrenceEndDate ? formData.recurrenceEndDate : undefined,
+                useInternalRegistration: formData.useInternalRegistration,
                 status: publish ? 'published' : 'draft',
             };
 
@@ -466,7 +490,7 @@ export const CreateEvent: React.FC = () => {
         return <LoadingScreen message="불러오는 중..." />;
     }
 
-    if (!user || !isOrganizer) {
+    if (!user || (!isOrganizer && !isAdmin)) {
         navigate('/home');
         return null;
     }
@@ -723,29 +747,238 @@ export const CreateEvent: React.FC = () => {
                         </div>
 
                         {formData.isRecurring && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-zinc-800/50 rounded-xl">
-                                <div>
-                                    <label className="block text-sm font-medium text-zinc-400 mb-2">반복 주기</label>
-                                    <select
-                                        value={formData.recurrencePattern}
-                                        onChange={(e) => setFormData({ ...formData, recurrencePattern: e.target.value as any })}
-                                        className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:border-amber-500"
-                                    >
-                                        <option value="">선택</option>
-                                        <option value="weekly">매주</option>
-                                        <option value="biweekly">격주</option>
-                                        <option value="monthly">매월</option>
-                                    </select>
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-zinc-800/50 rounded-xl">
+                                    <div>
+                                        <label className="block text-sm font-medium text-zinc-400 mb-2">반복 주기</label>
+                                        <select
+                                            value={formData.recurrencePattern}
+                                            onChange={(e) => {
+                                                const pattern = e.target.value as any;
+                                                let days = formData.recurrenceDays;
+                                                let monthlyOpt = formData.monthlyOption;
+                                                
+                                                // Auto-detect day from event date if not set
+                                                if ((pattern === 'weekly' || pattern === 'biweekly') && days.length === 0 && formData.eventDate) {
+                                                    days = [new Date(formData.eventDate).getDay()];
+                                                }
+                                                if (pattern === 'monthly' && !monthlyOpt) {
+                                                    monthlyOpt = 'date';
+                                                }
+                                                
+                                                setFormData({ 
+                                                    ...formData, 
+                                                    recurrencePattern: pattern, 
+                                                    recurrenceDays: days,
+                                                    monthlyOption: monthlyOpt,
+                                                    recurrenceDayOfWeek: days.length > 0 ? days[0] : null 
+                                                });
+                                            }}
+                                            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:border-amber-500"
+                                        >
+                                            <option value="">선택</option>
+                                            <option value="weekly">매주</option>
+                                            <option value="biweekly">격주</option>
+                                            <option value="monthly">매월</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-zinc-400 mb-2">반복 종료일</label>
+                                        <input
+                                            type="date"
+                                            value={formData.recurrenceEndDate}
+                                            onChange={(e) => setFormData({ ...formData, recurrenceEndDate: e.target.value })}
+                                            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:border-amber-500"
+                                        />
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-zinc-400 mb-2">반복 종료일</label>
-                                    <input
-                                        type="date"
-                                        value={formData.recurrenceEndDate}
-                                        onChange={(e) => setFormData({ ...formData, recurrenceEndDate: e.target.value })}
-                                        className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:border-amber-500"
-                                    />
-                                </div>
+
+                                {/* Multi-day selector for weekly/biweekly */}
+                                {(formData.recurrencePattern === 'weekly' || formData.recurrencePattern === 'biweekly') && (
+                                    <div className="p-4 bg-zinc-800/50 rounded-xl">
+                                        <label className="block text-sm font-medium text-zinc-400 mb-3">반복 요일 (복수 선택 가능)</label>
+                                        <div className="flex gap-2">
+                                            {['일', '월', '화', '수', '목', '금', '토'].map((day, index) => {
+                                                const isSelected = formData.recurrenceDays.includes(index);
+                                                return (
+                                                    <button
+                                                        key={index}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            let newDays = [...formData.recurrenceDays];
+                                                            if (isSelected) {
+                                                                newDays = newDays.filter(d => d !== index);
+                                                            } else {
+                                                                newDays.push(index);
+                                                                newDays.sort();
+                                                            }
+                                                            setFormData({ 
+                                                                ...formData, 
+                                                                recurrenceDays: newDays,
+                                                                recurrenceDayOfWeek: newDays.length > 0 ? newDays[0] : null
+                                                            });
+                                                        }}
+                                                        className={`flex-1 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                                                            isSelected
+                                                                ? index === 0 ? 'bg-red-600 text-white' : index === 6 ? 'bg-blue-600 text-white' : 'bg-amber-600 text-white'
+                                                                : 'bg-zinc-700 text-zinc-400 hover:bg-zinc-600'
+                                                        }`}
+                                                    >
+                                                        {day}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        <p className="text-xs text-zinc-500 mt-2">
+                                            {formData.recurrencePattern === 'weekly' ? '매주' : '격주'} {formData.recurrenceDays.length > 0 
+                                                ? formData.recurrenceDays.map(d => ['일', '월', '화', '수', '목', '금', '토'][d]).join(', ') + '요일'
+                                                : '요일을 선택해주세요'}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* Monthly options */}
+                                {formData.recurrencePattern === 'monthly' && (
+                                    <div className="space-y-4">
+                                        <div className="p-4 bg-zinc-800/50 rounded-xl">
+                                            <label className="block text-sm font-medium text-zinc-400 mb-3">매월 반복 기준</label>
+                                            <div className="flex gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFormData({ ...formData, monthlyOption: 'date' })}
+                                                    className={`flex-1 py-3 rounded-xl font-medium transition-all ${
+                                                        formData.monthlyOption === 'date'
+                                                            ? 'bg-amber-600 text-white'
+                                                            : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                                                    }`}
+                                                >
+                                                    날짜 선정
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFormData({ ...formData, monthlyOption: 'day_of_week' })}
+                                                    className={`flex-1 py-3 rounded-xl font-medium transition-all ${
+                                                        formData.monthlyOption === 'day_of_week'
+                                                            ? 'bg-amber-600 text-white'
+                                                            : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                                                    }`}
+                                                >
+                                                    요일 선정
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {formData.monthlyOption === 'date' && (
+                                            <div className="p-4 bg-zinc-800/50 rounded-xl">
+                                                <label className="block text-sm font-medium text-zinc-400 mb-3">반복 날짜 (복수 선택 가능)</label>
+                                                <div className="grid grid-cols-7 gap-2 text-center">
+                                                    {Array.from({ length: 31 }, (_, i) => i + 1).map((date) => {
+                                                        const isSelected = formData.recurrenceMonthsDates.includes(date);
+                                                        return (
+                                                            <button
+                                                                key={date}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    let newDates = [...formData.recurrenceMonthsDates];
+                                                                    if (isSelected) {
+                                                                        newDates = newDates.filter(d => d !== date);
+                                                                    } else {
+                                                                        newDates.push(date);
+                                                                        newDates.sort((a, b) => a - b);
+                                                                    }
+                                                                    setFormData({ ...formData, recurrenceMonthsDates: newDates });
+                                                                }}
+                                                                className={`py-2 rounded-lg text-sm transition-all ${
+                                                                    isSelected ? 'bg-amber-600 text-white font-bold' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                                                                }`}
+                                                            >
+                                                                {date}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                                <p className="text-xs text-zinc-500 mt-3">
+                                                    매월 {formData.recurrenceMonthsDates.length > 0 ? formData.recurrenceMonthsDates.join(', ') + '일' : '날짜를 선택해주세요'}에 반복됩니다.
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        {formData.monthlyOption === 'day_of_week' && (
+                                            <div className="space-y-4">
+                                                <div className="p-4 bg-zinc-800/50 rounded-xl">
+                                                    <label className="block text-sm font-medium text-zinc-400 mb-3">반복 주차 (복수 선택 가능)</label>
+                                                    <div className="flex gap-2">
+                                                        {[
+                                                            { label: '첫째', value: 1 },
+                                                            { label: '둘째', value: 2 },
+                                                            { label: '셋째', value: 3 },
+                                                            { label: '넷째', value: 4 },
+                                                            { label: '마지막', value: 5 }
+                                                        ].map((week) => {
+                                                            const isSelected = formData.recurrenceWeeks.includes(week.value);
+                                                            return (
+                                                                <button
+                                                                    key={week.value}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        let newWeeks = [...formData.recurrenceWeeks];
+                                                                        if (isSelected) {
+                                                                            newWeeks = newWeeks.filter(w => w !== week.value);
+                                                                        } else {
+                                                                            newWeeks.push(week.value);
+                                                                            newWeeks.sort();
+                                                                        }
+                                                                        setFormData({ ...formData, recurrenceWeeks: newWeeks });
+                                                                    }}
+                                                                    className={`flex-1 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                                                                        isSelected ? 'bg-amber-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                                                                    }`}
+                                                                >
+                                                                    {week.label}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+
+                                                <div className="p-4 bg-zinc-800/50 rounded-xl">
+                                                    <label className="block text-sm font-medium text-zinc-400 mb-3">반복 요일 (복수 선택 가능)</label>
+                                                    <div className="flex gap-2">
+                                                        {['일', '월', '화', '수', '목', '금', '토'].map((day, index) => {
+                                                            const isSelected = formData.recurrenceDays.includes(index);
+                                                            return (
+                                                                <button
+                                                                    key={index}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        let newDays = [...formData.recurrenceDays];
+                                                                        if (isSelected) {
+                                                                            newDays = newDays.filter(d => d !== index);
+                                                                        } else {
+                                                                            newDays.push(index);
+                                                                            newDays.sort();
+                                                                        }
+                                                                        setFormData({ ...formData, recurrenceDays: newDays });
+                                                                    }}
+                                                                    className={`flex-1 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                                                                        isSelected
+                                                                            ? index === 0 ? 'bg-red-600 text-white' : index === 6 ? 'bg-blue-600 text-white' : 'bg-amber-600 text-white'
+                                                                            : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                                                                    }`}
+                                                                >
+                                                                    {day}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                                <p className="text-xs text-zinc-500 px-1">
+                                                    매월 {formData.recurrenceWeeks.length > 0 ? formData.recurrenceWeeks.map(w => w === 5 ? '마지막' : `${w}번째`).join(', ') : 'N번째'} {formData.recurrenceDays.length > 0 ? formData.recurrenceDays.map(d => ['일', '월', '화', '수', '목', '금', '토'][d]).join(', ') + '요일' : '요일'}에 반복됩니다.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -819,123 +1052,162 @@ export const CreateEvent: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Participants & Payment */}
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
-                    <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                        <CreditCard className="w-5 h-5 text-amber-500" />
-                        참가 & 결제
-                    </h2>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-zinc-400 mb-2">최대 인원</label>
-                            <input
-                                type="number"
-                                value={formData.maxParticipants}
-                                onChange={(e) => setFormData({ ...formData, maxParticipants: e.target.value })}
-                                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:border-amber-500"
-                                placeholder="제한 없음"
-                                min="1"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-zinc-400 mb-2">참가비 (원)</label>
-                            <input
-                                type="number"
-                                value={formData.price}
-                                onChange={(e) => {
-                                    const price = e.target.value;
-                                    setFormData({
-                                        ...formData,
-                                        price,
-                                        paymentType: price === '0' ? 'free' : formData.paymentType === 'free' ? 'bank_transfer' : formData.paymentType
-                                    });
-                                }}
-                                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:border-amber-500"
-                                placeholder="0 = 무료"
-                                min="0"
-                            />
+                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-6">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-lg font-bold flex items-center gap-2">
+                            <CreditCard className="w-5 h-5 text-amber-500" />
+                            참가 & 신청 방식
+                        </h2>
+                        <div className="flex items-center gap-3 bg-zinc-800/50 px-4 py-2 rounded-xl">
+                            <span className="text-sm font-medium text-zinc-300">그래플레이 참가 신청 사용</span>
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, useInternalRegistration: !formData.useInternalRegistration })}
+                                className={`relative w-12 h-6 rounded-full transition-colors ${
+                                    formData.useInternalRegistration ? 'bg-amber-600' : 'bg-zinc-700'
+                                }`}
+                            >
+                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${
+                                    formData.useInternalRegistration ? 'translate-x-7' : 'translate-x-1'
+                                }`} />
+                            </button>
                         </div>
                     </div>
 
-                    {parseInt(formData.price) > 0 && (
-                        <>
+                    {!formData.useInternalRegistration ? (
+                        <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-4">
+                            <p className="text-sm text-amber-200">
+                                💡 그래플레이 참가 신청 기능을 사용하지 않습니다. 신청을 받을 외부 링크를 반드시 입력해주세요.
+                            </p>
                             <div>
-                                <label className="block text-sm font-medium text-zinc-400 mb-2">결제 방법</label>
-                                <div className="flex gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setFormData({ ...formData, paymentType: 'bank_transfer' })}
-                                        className={`flex-1 py-3 rounded-xl font-medium transition-all ${
-                                            formData.paymentType === 'bank_transfer'
-                                                ? 'bg-amber-600 text-white'
-                                                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-                                        }`}
-                                    >
-                                        무통장입금
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setFormData({ ...formData, paymentType: 'external_link' })}
-                                        className={`flex-1 py-3 rounded-xl font-medium transition-all ${
-                                            formData.paymentType === 'external_link'
-                                                ? 'bg-amber-600 text-white'
-                                                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-                                        }`}
-                                    >
-                                        외부 링크
-                                    </button>
+                                <label className="block text-sm font-medium text-zinc-400 mb-2">
+                                    외부 신청 링크 (필수)
+                                    <span className="text-amber-500 ml-1">*</span>
+                                </label>
+                                <input
+                                    type="url"
+                                    value={formData.externalPaymentLink}
+                                    onChange={(e) => setFormData({ ...formData, externalPaymentLink: e.target.value, paymentType: 'external_link' })}
+                                    className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:border-amber-500"
+                                    placeholder="https://docs.google.com/... 또는 외부 신청 페이지 주소"
+                                    required
+                                />
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-400 mb-2">최대 인원</label>
+                                    <input
+                                        type="number"
+                                        value={formData.maxParticipants}
+                                        onChange={(e) => setFormData({ ...formData, maxParticipants: e.target.value })}
+                                        className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:border-amber-500"
+                                        placeholder="제한 없음"
+                                        min="1"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-400 mb-2">참가비 (원)</label>
+                                    <input
+                                        type="number"
+                                        value={formData.price}
+                                        onChange={(e) => {
+                                            const price = e.target.value;
+                                            setFormData({
+                                                ...formData,
+                                                price,
+                                                paymentType: price === '0' || !price ? 'free' : formData.paymentType === 'free' ? 'bank_transfer' : formData.paymentType
+                                            });
+                                        }}
+                                        className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:border-amber-500"
+                                        placeholder="0 = 무료"
+                                        min="0"
+                                    />
                                 </div>
                             </div>
 
-                            {formData.paymentType === 'bank_transfer' && (
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-zinc-800/50 rounded-xl">
+                            {(parseInt(formData.price) > 0) && (
+                                <div className="space-y-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-zinc-400 mb-2">은행</label>
-                                        <input
-                                            type="text"
-                                            value={formData.bankName}
-                                            onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
-                                            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:border-amber-500"
-                                            placeholder="예: 신한은행"
-                                        />
+                                        <label className="block text-sm font-medium text-zinc-400 mb-2">결제 방법</label>
+                                        <div className="flex gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, paymentType: 'bank_transfer' })}
+                                                className={`flex-1 py-3 rounded-xl font-medium transition-all ${
+                                                    formData.paymentType === 'bank_transfer'
+                                                        ? 'bg-amber-600 text-white'
+                                                        : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                                                }`}
+                                            >
+                                                무통장입금
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, paymentType: 'external_link' })}
+                                                className={`flex-1 py-3 rounded-xl font-medium transition-all ${
+                                                    formData.paymentType === 'external_link'
+                                                        ? 'bg-amber-600 text-white'
+                                                        : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                                                }`}
+                                            >
+                                                외부 결제/신청 링크
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-zinc-400 mb-2">계좌번호</label>
-                                        <input
-                                            type="text"
-                                            value={formData.accountNumber}
-                                            onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
-                                            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:border-amber-500"
-                                            placeholder="- 없이 입력"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-zinc-400 mb-2">예금주</label>
-                                        <input
-                                            type="text"
-                                            value={formData.holderName}
-                                            onChange={(e) => setFormData({ ...formData, holderName: e.target.value })}
-                                            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:border-amber-500"
-                                            placeholder="예금주 이름"
-                                        />
-                                    </div>
-                                </div>
-                            )}
 
-                            {formData.paymentType === 'external_link' && (
-                                <div>
-                                    <label className="block text-sm font-medium text-zinc-400 mb-2">결제 링크</label>
-                                    <input
-                                        type="url"
-                                        value={formData.externalPaymentLink}
-                                        onChange={(e) => setFormData({ ...formData, externalPaymentLink: e.target.value })}
-                                        className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:border-amber-500"
-                                        placeholder="https://..."
-                                    />
+                                    {formData.paymentType === 'bank_transfer' && (
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-zinc-800/50 rounded-xl">
+                                            <div>
+                                                <label className="block text-sm font-medium text-zinc-400 mb-2">은행</label>
+                                                <input
+                                                    type="text"
+                                                    value={formData.bankName}
+                                                    onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
+                                                    className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:border-amber-500"
+                                                    placeholder="예: 신한은행"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-zinc-400 mb-2">계좌번호</label>
+                                                <input
+                                                    type="text"
+                                                    value={formData.accountNumber}
+                                                    onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
+                                                    className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:border-amber-500"
+                                                    placeholder="- 없이 입력"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-zinc-400 mb-2">예금주</label>
+                                                <input
+                                                    type="text"
+                                                    value={formData.holderName}
+                                                    onChange={(e) => setFormData({ ...formData, holderName: e.target.value })}
+                                                    className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:border-amber-500"
+                                                    placeholder="예금주 이름"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {formData.paymentType === 'external_link' && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-zinc-400 mb-2">외부 신청/결제 링크</label>
+                                            <input
+                                                type="url"
+                                                value={formData.externalPaymentLink}
+                                                onChange={(e) => setFormData({ ...formData, externalPaymentLink: e.target.value })}
+                                                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:border-amber-500"
+                                                placeholder="https://..."
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             )}
-                        </>
+                        </div>
                     )}
                 </div>
 
@@ -1224,10 +1496,10 @@ export const CreateEvent: React.FC = () => {
                             </div>
                             <div>
                                 <h2 className={`text-lg font-bold ${formData.type === 'seminar' ? 'text-violet-300' : ''}`}>
-                                    지도자 초청 {formData.type === 'seminar' && <span className="text-red-400">*</span>}
+                                    지도자 초청 <span className="text-xs text-zinc-500 font-normal">(선택)</span>
                                 </h2>
                                 <p className={`text-sm ${formData.type === 'seminar' ? 'text-violet-400/70' : 'text-zinc-500'}`}>
-                                    {formData.type === 'seminar' ? '세미나를 진행할 지도자를 초청하세요' : '지도자를 초청하여 행사의 퀄리티를 높여보세요 (선택)'}
+                                    {formData.type === 'seminar' ? '그래플레이에 등록된 지도자를 초청할 수 있습니다 (외부 지도자는 생략 가능)' : '지도자를 초청하여 행사의 퀄리티를 높여보세요 (선택)'}
                                 </p>
                             </div>
                         </div>

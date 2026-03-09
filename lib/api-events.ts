@@ -13,6 +13,13 @@ export function transformEvent(data: any): Event {
     organizerId: data.organizer_id,
     organizerName: data.organizer?.name,
     organizerProfileImage: data.organizer?.profile_image,
+    brandId: data.brand_id,
+    brand: data.brand ? {
+      id: data.brand.id,
+      creatorId: data.brand.creator_id,
+      name: data.brand.name,
+      logo: data.brand.logo,
+    } : undefined,
     type: data.type as EventType,
     title: data.title,
     description: data.description,
@@ -34,9 +41,14 @@ export function transformEvent(data: any): Event {
 
     isRecurring: data.is_recurring,
     recurrencePattern: data.recurrence_pattern,
-    recurrenceDayOfWeek: data.recurrence_day_of_week,
+    recurrenceDayOfWeek: data.recurrence_day_of_week ?? undefined,
+    recurrenceDays: data.recurrence_days ?? [],
+    monthlyOption: data.monthly_option ?? undefined,
+    recurrenceWeeks: data.recurrence_weeks ?? [],
+    recurrenceMonthsDates: data.recurrence_months_dates ?? [],
     recurrenceEndDate: data.recurrence_end_date,
     parentEventId: data.parent_event_id,
+    useInternalRegistration: data.use_internal_registration ?? true,
 
     eligibility: data.eligibility,
     maxParticipants: data.max_participants,
@@ -172,7 +184,7 @@ export function transformMatch(data: any): CompetitionMatch {
 
 export async function fetchEvents(filters?: {
   type?: EventType;
-  status?: EventStatus;
+  status?: EventStatus | 'all';
   region?: string;
   organizerId?: string;
   limit?: number;
@@ -180,7 +192,11 @@ export async function fetchEvents(filters?: {
 }) {
   let query = supabase
     .from('events')
-    .select('*')
+    .select(`
+      *,
+      organizer:creators(id, name, profile_image),
+      brand:event_brands(id, name, logo, creator_id)
+    `)
     .order('event_date', { ascending: true });
 
   if (filters?.type) {
@@ -194,7 +210,10 @@ export async function fetchEvents(filters?: {
     }
   } else {
     // 공개 목록에서는 published/completed만 표시
-    if (filters?.status) {
+    // status가 'all'이면 필터링 없이 모두 표시 (관리자용)
+    if (filters?.status === 'all') {
+      // No status filter
+    } else if (filters?.status) {
       query = query.eq('status', filters.status);
     } else {
       query = query.in('status', ['published', 'completed']);
@@ -219,24 +238,17 @@ export async function fetchEvents(filters?: {
 export async function fetchEventById(eventId: string) {
   const { data, error } = await supabase
     .from('events')
-    .select('*')
+    .select(`
+      *,
+      organizer:creators(id, name, profile_image, bio),
+      brand:event_brands(id, name, logo, creator_id)
+    `)
     .eq('id', eventId)
     .single();
 
   if (error) throw error;
 
-  // Fetch organizer separately (optional)
-  let organizer = null;
-  if (data.organizer_id) {
-    const { data: organizerData } = await supabase
-      .from('creators')
-      .select('id, name, profile_image, bio')
-      .eq('id', data.organizer_id)
-      .single();
-    organizer = organizerData;
-  }
-
-  return transformEvent({ ...data, organizer });
+  return transformEvent(data);
 }
 
 export async function fetchEventByScoreboardKey(urlKey: string) {
@@ -260,6 +272,7 @@ export async function createEvent(eventData: Partial<Event>) {
     .from('events')
     .insert([{
       organizer_id: eventData.organizerId,
+      brand_id: eventData.brandId,
       type: eventData.type,
       title: eventData.title,
       description: eventData.description,
@@ -278,7 +291,13 @@ export async function createEvent(eventData: Partial<Event>) {
       registration_deadline_days: eventData.registrationDeadlineDays,
       is_recurring: eventData.isRecurring || false,
       recurrence_pattern: eventData.recurrencePattern || null,
+      recurrence_day_of_week: eventData.recurrenceDayOfWeek ?? null,
+      recurrence_days: eventData.recurrenceDays || null,
+      monthly_option: eventData.monthlyOption || null,
+      recurrence_weeks: eventData.recurrenceWeeks || null,
+      recurrence_months_dates: eventData.recurrenceMonthsDates || null,
       recurrence_end_date: eventData.recurrenceEndDate || null,
+      use_internal_registration: eventData.useInternalRegistration ?? true,
       eligibility: eventData.eligibility,
       max_participants: eventData.maxParticipants,
       price: eventData.price,
@@ -303,6 +322,7 @@ export async function updateEvent(eventId: string, eventData: Partial<Event>) {
   const { data, error } = await supabase
     .from('events')
     .update({
+      brand_id: eventData.brandId,
       title: eventData.title,
       description: eventData.description,
       cover_image: eventData.coverImage,
@@ -320,7 +340,13 @@ export async function updateEvent(eventId: string, eventData: Partial<Event>) {
       registration_deadline_days: eventData.registrationDeadlineDays,
       is_recurring: eventData.isRecurring || false,
       recurrence_pattern: eventData.recurrencePattern || null,
+      recurrence_day_of_week: eventData.recurrenceDayOfWeek ?? null,
+      recurrence_days: eventData.recurrenceDays || null,
+      monthly_option: eventData.monthlyOption || null,
+      recurrence_weeks: eventData.recurrenceWeeks || null,
+      recurrence_months_dates: eventData.recurrenceMonthsDates || null,
       recurrence_end_date: eventData.recurrenceEndDate || null,
+      use_internal_registration: eventData.useInternalRegistration ?? true,
       eligibility: eventData.eligibility,
       max_participants: eventData.maxParticipants,
       price: eventData.price,

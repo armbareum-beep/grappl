@@ -12,7 +12,7 @@ export const ManageBrand: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const isNewBrand = !id || id === 'new';
     const navigate = useNavigate();
-    const { user, isOrganizer, loading: authLoading } = useAuth();
+    const { user, isOrganizer, isAdmin, loading: authLoading } = useAuth();
     const { success, error: toastError } = useToast();
 
     const [loading, setLoading] = useState(!isNewBrand);
@@ -75,12 +75,12 @@ export const ManageBrand: React.FC = () => {
             }
         }
 
-        if (!authLoading && isOrganizer) {
+        if (!authLoading && (isOrganizer || isAdmin)) {
             fetchData();
-        } else if (!authLoading && !isOrganizer) {
+        } else if (!authLoading && !isOrganizer && !isAdmin) {
             navigate('/home');
         }
-    }, [id, isNewBrand, authLoading, isOrganizer, navigate, toastError]);
+    }, [id, isNewBrand, authLoading, isOrganizer, isAdmin, navigate, toastError]);
 
     const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -193,7 +193,7 @@ export const ManageBrand: React.FC = () => {
         return <LoadingScreen message="이벤트 팀 정보 불러오는 중..." />;
     }
 
-    if (!user || !isOrganizer) {
+    if (!user || (!isOrganizer && !isAdmin)) {
         return null;
     }
 

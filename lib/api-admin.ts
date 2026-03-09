@@ -687,10 +687,9 @@ export async function getAdminRecentActivity() {
             .order('created_at', { ascending: false })
             .limit(5));
 
-        // 3. Fetch recent Instructor Applications
         const { data: newCreators } = await supabase
             .from('creators')
-            .select('id, name, email, created_at')
+            .select('id, name, created_at')
             .order('created_at', { ascending: false })
             .limit(5);
 
