@@ -13,6 +13,7 @@ interface EventMapViewProps {
     events: Event[];
     selectedEventId?: string | null;
     onEventSelect?: (eventId: string | null) => void;
+    className?: string;
 }
 
 const EVENT_TYPE_CONFIG: Record<EventType, { label: string; color: string; markerColor: string; icon: React.ElementType }> = {
@@ -21,7 +22,7 @@ const EVENT_TYPE_CONFIG: Record<EventType, { label: string; color: string; marke
     openmat: { label: '오픈매트', color: 'bg-green-500', markerColor: '#22C55E', icon: MapPin },
 };
 
-export const EventMapView: React.FC<EventMapViewProps> = ({ events, selectedEventId, onEventSelect }) => {
+export const EventMapView: React.FC<EventMapViewProps> = ({ events, selectedEventId, onEventSelect, className }) => {
     const mapRef = useRef<HTMLDivElement>(null);
     const mapInstanceRef = useRef<naver.maps.Map | null>(null);
     const markersRef = useRef<naver.maps.Marker[]>([]);
@@ -171,7 +172,7 @@ export const EventMapView: React.FC<EventMapViewProps> = ({ events, selectedEven
     const Icon = config?.icon || MapPin;
 
     return (
-        <div className="relative w-full h-[60vh] sm:h-[70vh] rounded-2xl overflow-hidden border border-zinc-800">
+        <div className={`relative w-full rounded-2xl overflow-hidden border border-zinc-800 ${className ?? 'h-[60vh] sm:h-[70vh]'}`}>
             {/* Map Container */}
             <div ref={mapRef} className="w-full h-full" />
 
