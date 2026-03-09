@@ -49,3 +49,10 @@ tmpclaude-*
 .claude/
 .env*.local
 .env.production
+
+# Legacy Capacitor native projects (replaced by KMP in mobile/)
+/android/
+/ios/
+
+# KMP signing keystore (never commit)
+mobile/keystore/
