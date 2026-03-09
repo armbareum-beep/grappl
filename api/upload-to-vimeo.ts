@@ -273,7 +273,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 return res.status(400).json({ error: 'contentId가 없습니다. 레슨/드릴이 먼저 생성되어야 합니다.' });
             }
 
-            const { error: updateError, count } = await supabase
+            const { error: updateError } = await supabase
                 .from(tableName)
                 .update(updateData)
                 .eq('id', contentId);

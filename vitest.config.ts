@@ -7,8 +7,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
-    include: ['**/*.{test,spec}.{ts,tsx}'],
-    exclude: ['node_modules', 'dist', 'testsprite_tests', 'mobile'],
+    include: ['lib/**/*.{test,spec}.{ts,tsx}', 'components/**/*.{test,spec}.{ts,tsx}', 'hooks/**/*.{test,spec}.{ts,tsx}'],
+    exclude: ['**/node_modules/**', 'dist', 'testsprite_tests', 'mobile', '_OLD_BACKUP'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],
