@@ -107,7 +107,7 @@ export const EventExplore: React.FC = () => {
                             handleCollapseSheet();
                         }}
                         onMapBackgroundClick={handleCollapseSheet}
-                        className="absolute inset-0 rounded-none border-0"
+                        className="absolute inset-0 rounded-none border-0 z-0"
                     />
                     <EventBottomSheet
                         events={events}
