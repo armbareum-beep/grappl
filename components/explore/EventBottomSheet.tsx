@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { animate, motion, useDragControls, useMotionValue } from 'framer-motion';
+import { animate, motion, useMotionValue } from 'framer-motion';
 import { Calendar, List, MapPin, Trophy, Users, ChevronRight } from 'lucide-react';
 import { Event, EventType } from '../../types';
 import { EventCalendarView } from './EventCalendarView';
@@ -11,7 +11,7 @@ const EVENT_TYPE_CONFIG = {
     openmat: { label: '오픈매트', color: 'bg-green-500', textColor: 'text-green-400', borderColor: 'border-green-500/30', icon: MapPin },
 };
 
-const HANDLE_HEIGHT = 64; // px — always visible portion of the sheet
+const HANDLE_HEIGHT = 64; // px — always visible
 
 interface EventBottomSheetProps {
     events: Event[];
@@ -31,22 +31,23 @@ export const EventBottomSheet: React.FC<EventBottomSheetProps> = ({
     collapseSignal,
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
-    const dragControls = useDragControls();
     const y = useMotionValue(0);
+
+    // Drag state — all in refs so handlers don't need re-creation
+    const isDragging = useRef(false);
+    const dragStartPointerY = useRef(0);
+    const dragStartMotionY = useRef(0);
+
     const [snapPts, setSnapPts] = useState({ full: 0, half: 300, peek: 500 });
     const [snapName, setSnapName] = useState<'peek' | 'half' | 'full'>('peek');
     const [activeTab, setActiveTab] = useState<'calendar' | 'list'>('calendar');
 
     const getSnapPoints = useCallback(() => {
         const h = containerRef.current?.offsetHeight ?? 0;
-        return {
-            full: 0,
-            half: h * 0.5,
-            peek: h - HANDLE_HEIGHT,
-        };
+        return { full: 0, half: h * 0.5, peek: h - HANDLE_HEIGHT };
     }, []);
 
-    // Set initial snap after mount
+    // Set initial position after mount
     useEffect(() => {
         const pts = getSnapPoints();
         setSnapPts(pts);
@@ -69,11 +70,12 @@ export const EventBottomSheet: React.FC<EventBottomSheetProps> = ({
         setSnapName(target);
     }, [getSnapPoints]);
 
-    const handleDragEnd = useCallback(() => {
+    const snapToNearest = useCallback(() => {
         const pts = getSnapPoints();
         const cur = y.get();
-        const candidates = [pts.full, pts.half, pts.peek] as const;
-        const nearest = candidates.reduce((a, b) => Math.abs(b - cur) < Math.abs(a - cur) ? b : a);
+        const nearest = ([pts.full, pts.half, pts.peek] as const).reduce(
+            (a, b) => (Math.abs(b - cur) < Math.abs(a - cur) ? b : a)
+        );
         const name: 'full' | 'half' | 'peek' =
             nearest === pts.full ? 'full' : nearest === pts.half ? 'half' : 'peek';
         animate(y, nearest, { type: 'spring', stiffness: 400, damping: 35 });
@@ -81,11 +83,39 @@ export const EventBottomSheet: React.FC<EventBottomSheetProps> = ({
         setSnapName(name);
     }, [getSnapPoints]);
 
+    // ── Pointer handlers on the handle only ──────────────────────────────────
+    // Using pointer events + setPointerCapture so the drag keeps working
+    // even if the finger moves off the handle. The content area is never
+    // touched by this logic, so scroll works freely.
+
+    const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+        // Ignore if the event came from an interactive child (buttons)
+        if ((e.target as HTMLElement).closest('button, a')) return;
+        isDragging.current = true;
+        dragStartPointerY.current = e.clientY;
+        dragStartMotionY.current = y.get();
+        e.currentTarget.setPointerCapture(e.pointerId);
+    }, []);
+
+    const handlePointerMove = useCallback((e: React.PointerEvent) => {
+        if (!isDragging.current) return;
+        const pts = getSnapPoints();
+        const delta = e.clientY - dragStartPointerY.current;
+        const next = Math.max(0, Math.min(pts.peek, dragStartMotionY.current + delta));
+        y.set(next);
+    }, [getSnapPoints]);
+
+    const handlePointerUp = useCallback(() => {
+        if (!isDragging.current) return;
+        isDragging.current = false;
+        snapToNearest();
+    }, [snapToNearest]);
+
+    // ────────────────────────────────────────────────────────────────────────
+
     const handleTabClick = useCallback((tab: 'calendar' | 'list') => {
         setActiveTab(tab);
-        if (snapName === 'peek') {
-            snapTo('half');
-        }
+        if (snapName === 'peek') snapTo('half');
     }, [snapName, snapTo]);
 
     const handleEventCardMapClick = useCallback((eventId: string) => {
@@ -109,24 +139,21 @@ export const EventBottomSheet: React.FC<EventBottomSheetProps> = ({
                     right: 0,
                     height: '100%',
                 }}
-                drag="y"
-                dragControls={dragControls}
-                dragListener={false}
-                dragConstraints={{ top: 0, bottom: snapPts.peek }}
-                dragElastic={{ top: 0.05, bottom: 0.1 }}
-                onDragEnd={handleDragEnd}
                 className="bg-zinc-900 rounded-t-3xl border-t border-zinc-700 shadow-[0_-4px_30px_rgba(0,0,0,0.5)] flex flex-col pointer-events-auto"
             >
-                {/* Handle area — always 64px, initiates drag */}
+                {/* ── Handle area — drag target, touchAction:none ── */}
                 <div
-                    onPointerDown={(e) => { e.preventDefault(); dragControls.start(e); }}
+                    className="flex-shrink-0 px-4 pt-2 pb-2 flex flex-col gap-2 select-none"
                     style={{ touchAction: 'none', cursor: 'grab' }}
-                    className="flex-shrink-0 px-4 pt-2 pb-2 flex flex-col gap-2"
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerCancel={handlePointerUp}
                 >
                     {/* Drag pill */}
                     <div className="w-10 h-1 bg-zinc-600 rounded-full mx-auto mt-1" />
 
-                    {/* Tab buttons */}
+                    {/* Tab buttons — stopPropagation so they don't trigger drag */}
                     <div className="flex gap-2">
                         <button
                             onClick={() => handleTabClick('calendar')}
@@ -155,9 +182,11 @@ export const EventBottomSheet: React.FC<EventBottomSheetProps> = ({
                     </div>
                 </div>
 
-                {/* Content area — scrollable, drag does NOT interfere */}
+                {/* ── Content — scrollable, completely isolated from drag ── */}
+                {/* min-h-0 is required: without it flex-1 never constrains height,
+                    so overflow-y-auto has nothing to scroll against */}
                 <div
-                    className="flex-1 overflow-y-auto overscroll-contain px-4 pb-20"
+                    className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-20"
                     style={{ touchAction: 'pan-y' }}
                 >
                     {activeTab === 'calendar' ? (
@@ -182,7 +211,9 @@ export const EventBottomSheet: React.FC<EventBottomSheetProps> = ({
                                 <div className="text-center py-12">
                                     <Calendar className="w-12 h-12 text-zinc-700 mx-auto mb-3" />
                                     <p className="text-zinc-500 text-sm">
-                                        {selectedDate ? '이 날짜에 예정된 이벤트가 없습니다' : '예정된 이벤트가 없습니다'}
+                                        {selectedDate
+                                            ? '이 날짜에 예정된 이벤트가 없습니다'
+                                            : '예정된 이벤트가 없습니다'}
                                     </p>
                                 </div>
                             )}
@@ -194,7 +225,8 @@ export const EventBottomSheet: React.FC<EventBottomSheetProps> = ({
     );
 };
 
-// Event card for the bottom sheet list tab
+// ── Event card for the bottom sheet list tab ─────────────────────────────────
+
 interface SheetEventCardProps {
     event: Event;
     onMapClick: (eventId: string) => void;
