@@ -11,7 +11,8 @@ const EVENT_TYPE_CONFIG = {
     openmat: { label: '오픈매트', color: 'bg-green-500', textColor: 'text-green-400', borderColor: 'border-green-500/30', icon: MapPin },
 };
 
-const HANDLE_HEIGHT = 64; // px — always visible
+const HANDLE_HEIGHT = 80; // px — always visible
+const DRAG_THRESHOLD = 8;  // px movement before treating as drag (prevents accidental drag on tap)
 
 interface EventBottomSheetProps {
     events: Event[];
@@ -34,7 +35,9 @@ export const EventBottomSheet: React.FC<EventBottomSheetProps> = ({
     const y = useMotionValue(0);
 
     // Drag state — all in refs so handlers don't need re-creation
-    const isDragging = useRef(false);
+    const isTracking = useRef(false);  // pointer is down
+    const isDragging = useRef(false);  // movement exceeded threshold
+    const hasDragged = useRef(false);  // used to swallow click after drag
     const dragStartPointerY = useRef(0);
     const dragStartMotionY = useRef(0);
 
@@ -83,37 +86,45 @@ export const EventBottomSheet: React.FC<EventBottomSheetProps> = ({
         setSnapName(name);
     }, [getSnapPoints]);
 
-    // ── Pointer handlers on the handle only ──────────────────────────────────
-    // Using pointer events + setPointerCapture so the drag keeps working
-    // even if the finger moves off the handle. The content area is never
-    // touched by this logic, so scroll works freely.
+    // ── Pointer handlers ──────────────────────────────────────────────────────
+    // Covers the entire handle div (pill + tab buttons). A threshold prevents
+    // accidental drags on taps; hasDragged swallows the click after a real drag.
 
     const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-        // Ignore if the event came from an interactive child (buttons)
-        if ((e.target as HTMLElement).closest('button, a')) return;
-        isDragging.current = true;
+        isTracking.current = true;
+        isDragging.current = false;
+        hasDragged.current = false;
         dragStartPointerY.current = e.clientY;
         dragStartMotionY.current = y.get();
         e.currentTarget.setPointerCapture(e.pointerId);
     }, []);
 
     const handlePointerMove = useCallback((e: React.PointerEvent) => {
-        if (!isDragging.current) return;
-        const pts = getSnapPoints();
+        if (!isTracking.current) return;
         const delta = e.clientY - dragStartPointerY.current;
+        // Activate drag only after threshold is crossed
+        if (!isDragging.current) {
+            if (Math.abs(delta) < DRAG_THRESHOLD) return;
+            isDragging.current = true;
+            hasDragged.current = true;
+        }
+        const pts = getSnapPoints();
         const next = Math.max(0, Math.min(pts.peek, dragStartMotionY.current + delta));
         y.set(next);
     }, [getSnapPoints]);
 
     const handlePointerUp = useCallback(() => {
-        if (!isDragging.current) return;
-        isDragging.current = false;
-        snapToNearest();
+        isTracking.current = false;
+        if (isDragging.current) {
+            isDragging.current = false;
+            snapToNearest();
+        }
     }, [snapToNearest]);
 
     // ────────────────────────────────────────────────────────────────────────
 
     const handleTabClick = useCallback((tab: 'calendar' | 'list') => {
+        if (hasDragged.current) return; // this tap was actually a drag — swallow
         setActiveTab(tab);
         if (snapName === 'peek') snapTo('half');
     }, [snapName, snapTo]);
@@ -141,23 +152,24 @@ export const EventBottomSheet: React.FC<EventBottomSheetProps> = ({
                 }}
                 className="bg-zinc-900 rounded-t-3xl border-t border-zinc-700 shadow-[0_-4px_30px_rgba(0,0,0,0.5)] flex flex-col pointer-events-auto"
             >
-                {/* ── Handle area — drag target, touchAction:none ── */}
+                {/* ── Handle area — entire zone is the drag target ──
+                    Pill + tabs are all draggable. A movement threshold (8px)
+                    distinguishes a tap (fires click) from a swipe (starts drag). */}
                 <div
-                    className="flex-shrink-0 px-4 pt-2 pb-2 flex flex-col gap-2 select-none"
+                    className="flex-shrink-0 px-4 pt-3 pb-3 flex flex-col gap-2 select-none"
                     style={{ touchAction: 'none', cursor: 'grab' }}
                     onPointerDown={handlePointerDown}
                     onPointerMove={handlePointerMove}
                     onPointerUp={handlePointerUp}
                     onPointerCancel={handlePointerUp}
                 >
-                    {/* Drag pill */}
-                    <div className="w-10 h-1 bg-zinc-600 rounded-full mx-auto mt-1" />
+                    {/* Drag pill — wider and taller for better visibility */}
+                    <div className="w-12 h-1.5 bg-zinc-500 rounded-full mx-auto" />
 
-                    {/* Tab buttons — stopPropagation so they don't trigger drag */}
-                    <div className="flex gap-2">
+                    {/* Tab buttons — no stopPropagation; drag threshold handles the distinction */}
+                    <div className="flex gap-2 pt-1">
                         <button
                             onClick={() => handleTabClick('calendar')}
-                            onPointerDown={(e) => e.stopPropagation()}
                             className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-semibold transition-all ${
                                 activeTab === 'calendar'
                                     ? 'bg-amber-600 text-white'
@@ -169,7 +181,6 @@ export const EventBottomSheet: React.FC<EventBottomSheetProps> = ({
                         </button>
                         <button
                             onClick={() => handleTabClick('list')}
-                            onPointerDown={(e) => e.stopPropagation()}
                             className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-semibold transition-all ${
                                 activeTab === 'list'
                                     ? 'bg-amber-600 text-white'
