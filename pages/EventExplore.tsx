@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Calendar, Map, Trophy, Users, MapPin, ChevronRight, Clock } from 'lucide-react';
 import { fetchEvents } from '../lib/api-events';
 import { Event, EventType } from '../types';
@@ -17,12 +17,48 @@ const EVENT_TYPE_CONFIG = {
 export const EventExplore: React.FC = () => {
     const [events, setEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedType, setSelectedType] = useState<EventType | 'all'>('all');
+    const [selectedTypes, setSelectedTypes] = useState<EventType[]>([]);
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [selectedMapEventId, setSelectedMapEventId] = useState<string | null>(null);
     const [collapseSignal, setCollapseSignal] = useState(0);
+    const [expandSignal, setExpandSignal] = useState(0);
+    const [mapMode, setMapMode] = useState<'normal' | 'expanded' | 'fullscreen'>('normal');
+
+    const navigate = useNavigate();
+    const location = useLocation();
 
     const handleCollapseSheet = useCallback(() => setCollapseSignal(v => v + 1), []);
+    const handleExpandSheet = useCallback(() => setExpandSignal(v => v + 1), []);
+
+    const handleMapBackgroundClick = useCallback(() => {
+        setMapMode(prev => {
+            if (prev === 'normal') {
+                handleCollapseSheet();
+                return 'expanded';
+            } else if (prev === 'expanded') {
+                return 'fullscreen';
+            } else {
+                handleExpandSheet();
+                return 'normal';
+            }
+        });
+    }, [handleCollapseSheet, handleExpandSheet]);
+
+    // Layout(App Navbar/BottomNav) 숨김 컨트롤을 위해 URL fullscreen 쿼리 파라미터 동기화
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        if (mapMode === 'fullscreen') {
+            if (params.get('fullscreen') !== 'true') {
+                navigate(`${location.pathname}?fullscreen=true`, { replace: true });
+            }
+        } else {
+            if (params.has('fullscreen')) {
+                params.delete('fullscreen');
+                const newSearch = params.toString();
+                navigate(newSearch ? `${location.pathname}?${newSearch}` : location.pathname, { replace: true });
+            }
+        }
+    }, [mapMode, navigate, location.pathname, location.search]);
 
     useEffect(() => {
         const loadEvents = async () => {
@@ -30,11 +66,16 @@ export const EventExplore: React.FC = () => {
                 setLoading(true);
                 const data = await fetchEvents({
                     status: 'published',
-                    type: selectedType === 'all' ? undefined : selectedType,
                 });
                 const now = new Date().toISOString().split('T')[0];
                 const futureEvents = data.filter(e => e.eventDate >= now);
-                setEvents(futureEvents);
+
+                // Client-side filtering if types are selected
+                const typeFilteredEvents = selectedTypes.length > 0 
+                    ? futureEvents.filter(e => selectedTypes.includes(e.type as EventType))
+                    : futureEvents;
+
+                setEvents(typeFilteredEvents);
             } catch (error) {
                 console.error('Failed to load events:', error);
             } finally {
@@ -42,7 +83,7 @@ export const EventExplore: React.FC = () => {
             }
         };
         loadEvents();
-    }, [selectedType]);
+    }, [selectedTypes]);
 
     const filteredEvents = selectedDate
         ? events.filter(e => e.eventDate === selectedDate)
@@ -54,26 +95,23 @@ export const EventExplore: React.FC = () => {
 
     // Shared type filter UI
     const TypeFilterTabs = (
-        <div className="flex gap-2 mt-4 overflow-x-auto pb-2 scrollbar-hide">
-            <button
-                onClick={() => setSelectedType('all')}
-                className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
-                    selectedType === 'all'
-                        ? 'bg-amber-600 text-white'
-                        : 'bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-700'
-                }`}
-            >
-                전체
-            </button>
+        <div className="flex gap-2 overflow-x-auto pb-2 pr-12 scrollbar-hide">
             {(Object.keys(EVENT_TYPE_CONFIG) as EventType[]).map(type => {
                 const config = EVENT_TYPE_CONFIG[type];
                 const Icon = config.icon;
+                const isSelected = selectedTypes.includes(type);
                 return (
                     <button
                         key={type}
-                        onClick={() => setSelectedType(type)}
+                        onClick={() => {
+                            setSelectedTypes(prev => 
+                                prev.includes(type) 
+                                    ? prev.filter(t => t !== type)
+                                    : [...prev, type]
+                            );
+                        }}
                         className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
-                            selectedType === type
+                            isSelected
                                 ? `${config.color} text-white`
                                 : `bg-zinc-800 ${config.textColor} hover:bg-zinc-700 border ${config.borderColor}`
                         }`}
@@ -90,33 +128,45 @@ export const EventExplore: React.FC = () => {
         <div className="bg-zinc-950 text-white">
 
             {/* ── MOBILE LAYOUT (< lg) ── */}
-            <div className="lg:hidden flex flex-col" style={{ height: 'calc(100dvh - 144px)' }}>
-                {/* Header — not sticky on mobile, part of flex column */}
-                <div className="bg-zinc-900 border-b border-zinc-800 flex-shrink-0 px-4 pt-4 pb-2 z-20">
-                    <h1 className="text-xl font-bold">이벤트</h1>
-                    {TypeFilterTabs}
-                </div>
-
+            <div
+                className={`lg:hidden flex flex-col ${mapMode === 'fullscreen' ? 'fixed inset-0 z-50 bg-zinc-950' : ''}`}
+                style={{ height: mapMode === 'fullscreen' ? '100dvh' : 'calc(100dvh - 144px)' }}
+            >
                 {/* Map + Bottom Sheet */}
                 <div className="relative flex-1 overflow-hidden">
+                    {/* Header Overlay — UI is always shown, even in fullscreen */}
+                    <div className="absolute top-0 w-full pl-4 pt-4 pb-2 z-20 pointer-events-none">
+                        <div className="pointer-events-auto">
+                            {TypeFilterTabs}
+                        </div>
+                    </div>
+                    
                     <EventMapView
                         events={filteredEvents}
                         selectedEventId={selectedMapEventId}
                         onEventSelect={(id) => {
                             setSelectedMapEventId(id);
-                            handleCollapseSheet();
+                            // Do not exit fullscreen on marker click
+                            if (mapMode === 'normal') {
+                                handleExpandSheet();
+                            }
                         }}
-                        onMapBackgroundClick={handleCollapseSheet}
+                        onMapBackgroundClick={handleMapBackgroundClick}
                         className="absolute inset-0 rounded-none border-0 z-0"
                     />
-                    <EventBottomSheet
-                        events={events}
-                        filteredEvents={filteredEvents}
-                        selectedDate={selectedDate}
-                        onDateSelect={setSelectedDate}
-                        onMapEventSelect={setSelectedMapEventId}
-                        collapseSignal={collapseSignal}
-                    />
+
+                    {/* Bottom Sheet — hidden in expanded/fullscreen mode */}
+                    {mapMode === 'normal' && (
+                        <EventBottomSheet
+                            events={events}
+                            filteredEvents={filteredEvents}
+                            selectedDate={selectedDate}
+                            onDateSelect={setSelectedDate}
+                            onMapEventSelect={setSelectedMapEventId}
+                            collapseSignal={collapseSignal}
+                            expandSignal={expandSignal}
+                        />
+                    )}
                 </div>
             </div>
 

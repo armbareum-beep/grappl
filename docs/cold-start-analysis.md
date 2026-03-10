@@ -1,6 +1,6 @@
 # 콜드 스타트 문제 분석 및 해결 가이드
 
-> 마지막 업데이트: 2026-03-08
+> 마지막 업데이트: 2026-03-10
 
 ## 문제 현상
 
@@ -12,298 +12,349 @@
 
 | 서비스 | 플랜 | 비고 |
 |--------|------|------|
-| Supabase | Pro | PostgreSQL + Auth |
+| Supabase | Pro | PostgreSQL + Auth (Supavisor pooler) |
 | Vercel | Pro | Edge Functions, CDN |
 | React Query | IndexedDB Persist | 24시간 캐시 |
 
 ---
 
-## 현재 구현된 최적화
+## 현재 구현된 최적화 (✅ 적용 완료)
 
 ### 1. Connection Manager (`lib/connection-manager.ts`)
-- 4분 간격 keepalive ping
-- 탭 visibility 변경 시 warmup
-- 2분 이상 유휴 시 auth refresh + query invalidate
+- ✅ Realtime 채널로 WebSocket 연결 상시 유지
+- ✅ 4분 간격 HTTP keepalive ping (백업)
+- ✅ 탭 visibility 변경 시 warmup
+- ✅ 2분 이상 유휴 시 auth refresh + query invalidate
+- ✅ 마우스/터치/포커스 이벤트 시 사전 warmup (requestIdleCallback)
+- ✅ Auth 토큰 10분 전 사전 갱신 (5분 간격 체크)
 
 ### 2. React Query Persistence (`lib/query-persister.ts`)
-- IndexedDB 기반 캐시 저장
-- 24시간 maxAge
-- 앱 버전 변경 시 캐시 버스팅
+- ✅ IndexedDB 기반 캐시 저장 (idb-keyval)
+- ✅ 24시간 maxAge
+- ✅ 앱 버전 변경 시 캐시 버스팅
 
-### 3. Auth Context 최적화
-- 30분 localStorage 캐시
-- 4초 타임아웃
-- 백그라운드 상태 업데이트
+### 3. Auth Context 최적화 (`contexts/AuthContext.tsx`)
+- ✅ 30분 localStorage 캐시 (user status)
+- ✅ 4초 getSession 타임아웃
+- ✅ 세션에서 즉시 user 설정 → loading=false → 백그라운드 status 체크
+- ✅ 만료 토큰 자동 감지 및 refresh
+- ✅ 3초 safety timeout (무한 로딩 방지)
 
----
+### 4. Network 최적화 (`index.html`)
+- ✅ Supabase, Vimeo, Sentry, Google Fonts에 `preconnect` 설정
+- ✅ `dns-prefetch` 설정
+- ✅ Google Fonts 비동기 로드 (preload + media=print trick)
+- ✅ GA 2초 지연 로드
 
-## 콜드 스타트 원인 분석
-
-### 원인 1: Supabase PostgreSQL Connection Pool Timeout
-**심각도: 높음**
-
-Supabase Pro도 PgBouncer connection pooling을 사용하지만:
-- 기본 idle timeout: 60초 (Transaction mode)
-- 5분 이상 유휴 후 **새 connection 생성 필요**
-- Connection 재설정 시 100-500ms 추가 지연
-
-```
-[유휴 5분] → [첫 쿼리] → [Connection Pool에서 새 연결 할당] → [지연 발생]
-```
-
-### 원인 2: Supabase Auth Session Check
-**심각도: 높음**
-
-`supabase.auth.getSession()`은:
-- localStorage에서 토큰 읽기 (빠름)
-- 하지만 **토큰 유효성 검증을 위해 네트워크 호출** 가능
-- 오래된 토큰 → refresh 필요 → 추가 RTT
-
-### 원인 3: DNS Resolution + TLS Handshake
-**심각도: 중간**
-
-브라우저가 5분 이상 연결을 사용하지 않으면:
-- DNS 캐시 만료 가능 (OS/브라우저 정책)
-- TLS 세션 재협상 필요
-- 첫 요청에 **200-500ms 추가 지연**
-
-### 원인 4: React Query Hydration 병목
-**심각도: 중간**
-
-IndexedDB에서 복원 시:
-- 대용량 캐시 → 파싱 지연
-- 복원 완료 전 컴포넌트 렌더링 → 로딩 상태 표시
-- `staleTime` 이후 즉시 refetch → 네트워크 대기
-
-### 원인 5: Service Worker 캐싱 비활성화
-**심각도: 낮음**
-
-현재 `vite.config.ts`:
-```js
-workbox: {
-    globPatterns: [], // JS/CSS precache 없음
-}
-```
-- 모든 JS/CSS가 네트워크에서 로드
-- 304 Not Modified 응답 대기 시간 존재
+### 5. Bundle 최적화 (`vite.config.ts`)
+- ✅ 주요 라이브러리 manual chunks 분리 (17개+ 청크)
+- ✅ recharts/d3/framer-motion 초기 preload 제외
+- ✅ sourcemap 제거
 
 ---
 
-## 해결책
+## 여전히 콜드 스타트가 발생하는 원인 분석
 
-### 해결책 1: Supabase Connection 적극적 유지 (권장)
+### 🔴 원인 1: `invalidateQueries()` 전체 무효화 (렌더링 폭풍)
+**파일: `lib/connection-manager.ts` 238번째 줄**
+```typescript
+refreshAuthSession().then(() => {
+    queryClient.invalidateQueries(); // ← 인자 없음 = 모든 쿼리 무효화!
+});
+```
+- 탭을 2분 이상 떠났다 돌아오면 **모든 React Query 캐시를 한꺼번에 무효화**
+- 수십 개의 쿼리가 **동시에 refetch** 시작 → 네트워크 병목 + 렌더 폭풍
+- 각 쿼리의 `onSuccess` → `setState` → 컴포넌트 리렌더 연쇄 발생
+- **사용자 체감**: 페이지 전체가 깜빡이거나 잠시 멈춘 것처럼 느껴짐
 
-현재 4분 keepalive는 충분하지만, **더 가벼운 방식**으로 개선:
+### 🔴 원인 2: 탭 복귀 시 동시 실행되는 작업들 (경합 조건)
+탭을 떠났다 돌아오는 순간 **4개의 독립적 프로세스가 동시에 시작**:
+```
+[탭 복귀]
+  ├─ connection-manager: warmupConnection() + refreshAuthSession() + invalidateQueries()
+  ├─ VersionChecker: fetch('/version.json') (매번 네트워크 호출)
+  ├─ AuthContext: onAuthStateChange 이벤트 → checkUserStatus() (2개 DB 쿼리)
+  └─ React Query: staleTime 초과된 쿼리 자동 refetch
+```
+- 모두 **메인 스레드**에서 `setState` + 렌더링을 발생시킴
+- 특히 `VersionChecker`의 `fetch('/version.json?t=...')`는 **cache: 'no-store'**로 매번 네트워크 호출
+
+### 🟡 원인 3: `LoadingScreen` 전체 화면 차단
+**파일: `components/LoadingScreen.tsx`**
+```tsx
+<div className="fixed inset-0 z-[999] ...">  // 전체 화면 overlay
+```
+- Auth `loading` 상태 동안 **전체 화면을 로딩 스피너**로 덮음
+- `RootRedirect`에서 최대 3초간 표시될 수 있음
+- 네트워크가 빨라도 auth 체크가 끝날 때까지 **아무것도 보이지 않음**
+- **사용자 체감**: "페이지가 안 뜬다" → 실제로는 auth 체크 대기 중
+
+### 🟡 원인 4: Auth 상태 변경 시 연쇄 리렌더
+**파일: `contexts/AuthContext.tsx`**
+```typescript
+setUser(...)        // → 리렌더 1
+setIsAdmin(...)     // → 리렌더 2
+setIsCreator(...)   // → 리렌더 3
+setIsOrganizer(...) // → 리렌더 4
+setIsSubscribed(...)// → 리렌더 5
+```
+- 5개 `useState` 개별 업데이트 → 최대 5번 연쇄 리렌더
+- `Layout`, 모든 `ProtectedRoute`, `AdminRoute` 등이 `useAuth()` 사용 중
+- 각 리렌더마다 800줄짜리 `Layout.tsx` + 모든 하위 컴포넌트 재평가
+
+### 🟡 원인 5: `Layout`의 `getSiteSettings()` 직접 호출
+**파일: `components/Layout.tsx` 33-37번째 줄**
+```typescript
+React.useEffect(() => {
+    getSiteSettings().then(res => {
+        if (res.data) setSiteSettings(res.data);
+    });
+}, []);
+```
+- React Query를 거치지 않는 **직접 API 호출** → 캐시 없음
+- Layout이 마운트될 때마다 매번 Supabase 쿼리 실행
+- 응답 오면 `setSiteSettings()` → Layout 전체 리렌더
+
+### ℹ️ 원인 6: 네이버 지도 SDK 동기 로딩
+**현재 `index.html` 154번째 줄:**
+```html
+<script src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=...&submodules=geocoder"></script>
+```
+- **동기 스크립트** → HTML 파싱 차단
+- 지도를 사용하지 않는 페이지에서도 매번 로드
+
+### ℹ️ 원인 7: Cache-Control `no-cache, no-store` 메타 태그
+```html
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+```
+- Vite 빌드 파일은 해시가 포함되어 캐시해도 안전한데 강제로 재검증
+
+---
+
+## 🆕 추가 해결책 (아직 적용되지 않은 것들)
+
+### 해결책 A: 네이버 지도 SDK 지연 로드 (⭐ 최우선)
+
+**효과: 지도 비사용 페이지에서 초기 로딩 200-800ms 단축**
+
+네이버 지도 SDK를 지도가 실제 필요한 페이지에서만 동적으로 로드:
 
 ```typescript
-// lib/connection-manager.ts 개선
+// lib/naver-map-loader.ts
 
-// 기존: 4분마다 전체 쿼리
-// 개선: 30초마다 초경량 ping (Realtime 채널 활용)
+let mapPromise: Promise<void> | null = null;
 
-import { supabase } from './supabase';
+export function loadNaverMapSDK(): Promise<void> {
+    if (window.naver?.maps) return Promise.resolve();
+    if (mapPromise) return mapPromise;
 
-let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+    mapPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=0abcyzwvg7&submodules=geocoder';
+        script.async = true;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error('Naver Map SDK load failed'));
+        document.head.appendChild(script);
+    });
 
-export function startConnectionKeepalive() {
-    // Realtime 채널로 연결 유지 (WebSocket은 항상 연결 상태)
-    realtimeChannel = supabase
-        .channel('keepalive')
-        .on('broadcast', { event: 'ping' }, () => {})
-        .subscribe();
-
-    // 기존 HTTP keepalive도 유지 (백업)
-    // ... existing code
+    return mapPromise;
 }
 ```
 
-**장점**: WebSocket은 브라우저가 탭을 유휴 상태로 만들어도 연결 유지
-
-### 해결책 2: Supabase Pooler Mode 변경
-
-Supabase Dashboard → Project Settings → Database:
-
-| Mode | Idle Timeout | 용도 |
-|------|--------------|------|
-| Transaction | 60초 | 기본값 (현재) |
-| Session | 더 김 | 장기 연결 유지 |
-
-**Session Mode 고려**: 연결을 더 오래 유지하지만 connection 수 제한 주의
-
-### 해결책 3: Auth 세션 사전 복원 최적화
-
-```typescript
-// contexts/AuthContext.tsx 개선
-
-// 문제: getSession이 네트워크 호출을 기다림
-// 해결: localStorage 캐시 먼저 사용, 백그라운드 검증
-
-const initAuth = async () => {
-    // 1. localStorage에서 즉시 복원 (0ms)
-    const cachedSession = localStorage.getItem('supabase.auth.token');
-    if (cachedSession) {
-        try {
-            const parsed = JSON.parse(cachedSession);
-            const user = parsed.user;
-            if (user) {
-                setUser(user);
-                setLoading(false); // 즉시 로딩 완료
-
-                // 2. 백그라운드에서 세션 유효성 검증
-                supabase.auth.getSession().then(({ data }) => {
-                    if (!data.session) {
-                        // 세션 만료 - 재로그인 필요
-                        setUser(null);
-                    }
-                });
-                return;
-            }
-        } catch {}
-    }
-
-    // 캐시 없으면 기존 로직
-    // ...
-};
+`index.html`에서 동기 스크립트 태그 제거:
+```diff
+-<script src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=0abcyzwvg7&submodules=geocoder"></script>
++<!-- 네이버 지도: 필요한 컴포넌트에서 동적 로드 (lib/naver-map-loader.ts) -->
++<link rel="dns-prefetch" href="https://openapi.map.naver.com" />
 ```
 
-### 해결책 4: Service Worker Precache 활성화
-
+지도를 사용하는 컴포넌트에서:
 ```typescript
-// vite.config.ts 개선
+// 지도 컴포넌트 내부
+useEffect(() => {
+    loadNaverMapSDK().then(() => {
+        // 지도 초기화
+    });
+}, []);
+```
 
-workbox: {
-    // 핵심 JS/CSS만 precache (너무 많으면 오히려 느림)
-    globPatterns: [
-        'assets/react-core-*.js',
-        'assets/react-router-*.js',
-        'assets/supabase-*.js',
-        'index.html'
-    ],
-    // 또는 runtime caching 사용
-    runtimeCaching: [
+### 해결책 B: Cache-Control 헤더 개선 (⭐ 최우선)
+
+**효과: JS/CSS 재검증 대기 제거, 탭 복귀 시 즉시 로드**
+
+`index.html`의 `no-cache, no-store` 메타 태그 제거:
+```diff
+-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+-<meta http-equiv="Pragma" content="no-cache" />
+-<meta http-equiv="Expires" content="0" />
+```
+
+Vercel `vercel.json`에서 세밀한 캐시 정책 적용:
+```json
+{
+    "headers": [
         {
-            urlPattern: /\.(?:js|css)$/,
-            handler: 'StaleWhileRevalidate',
-            options: {
-                cacheName: 'static-resources',
-                expiration: { maxEntries: 50, maxAgeSeconds: 86400 }
-            }
+            "source": "/assets/(.*)",
+            "headers": [
+                {
+                    "key": "Cache-Control",
+                    "value": "public, max-age=31536000, immutable"
+                }
+            ]
+        },
+        {
+            "source": "/index.html",
+            "headers": [
+                {
+                    "key": "Cache-Control",
+                    "value": "no-cache"
+                }
+            ]
         }
     ]
 }
 ```
 
-**주의**: 기존에 PWA 캐시 문제로 비활성화했다면 신중하게 테스트
+**이유**: Vite가 빌드한 JS/CSS는 해시값이 포함된 파일명(`assets/react-core-abc123.js`)이므로 `immutable` 캐시가 안전함. `index.html`만 `no-cache`로 항상 최신 진입점 보장.
 
-### 해결책 5: Critical Data Prefetch
+### 해결책 C: Supabase Auth `startAutoRefresh` / `stopAutoRefresh` 활용
+
+**효과: 탭 복귀 시 토큰 갱신 지연 제거**
+
+Supabase JS 클라이언트가 제공하는 공식 API를 활용:
 
 ```typescript
-// App.tsx 또는 Layout.tsx
+// contexts/AuthContext.tsx 또는 connection-manager.ts에 추가
 
-// 앱 시작 시 필수 데이터 미리 로드
-useEffect(() => {
-    // 로그인 사용자의 필수 데이터 prefetch
-    if (user) {
-        queryClient.prefetchQuery({
-            queryKey: ['user-permissions', user.id],
-            queryFn: () => fetchUserPermissions(user.id),
-            staleTime: 5 * 60 * 1000
-        });
+// 탭 전환 시 자동 갱신 제어
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        // 탭 활성화 → 즉시 자동 갱신 시작
+        supabase.auth.startAutoRefresh();
+    } else {
+        // 탭 비활성화 → 자동 갱신 중지 (리소스 절약)
+        supabase.auth.stopAutoRefresh();
     }
-}, [user]);
+});
 ```
 
-### 해결책 6: Vercel Edge Config 활용
+**장점**: 수동 `proactiveTokenRefresh` 로직의 일부를 Supabase 공식 API로 대체 가능. 탭 복귀 시 `startAutoRefresh`가 즉시 토큰 상태 확인 및 갱신 수행.
+
+### 해결책 D: Service Worker Navigation Preload 활성화
+
+**효과: SW 부팅 시간과 네트워크 요청을 병렬 처리, 300-500ms 단축**
+
+Service Worker가 활성화된 상태에서 네비게이션 요청 시, SW 부팅과 네트워크 fetch를 동시에 수행:
 
 ```typescript
-// 정적 설정을 Edge Config에서 로드 (전역 캐시)
-import { get } from '@vercel/edge-config';
+// service-worker 등록 시 추가 (vite-plugin-pwa가 생성하는 SW에 커스텀 로직)
 
-// 콜드 스타트 시에도 빠른 응답
-const siteSettings = await get('site-settings');
+// sw-custom.js (import from vite-plugin-pwa injectManifest)
+self.addEventListener('activate', (event) => {
+    event.waitUntil(async function () {
+        if (self.registration.navigationPreload) {
+            await self.registration.navigationPreload.enable();
+        }
+    }());
+});
+
+self.addEventListener('fetch', (event) => {
+    if (event.request.mode === 'navigate') {
+        event.respondWith(async function () {
+            try {
+                // Navigation Preload 응답 사용 (SW 부팅과 병렬)
+                const preloadResponse = await event.preloadResponse;
+                if (preloadResponse) return preloadResponse;
+            } catch {}
+            return fetch(event.request);
+        }());
+    }
+});
 ```
+
+**주의**: `vite-plugin-pwa`의 `injectManifest` 모드로 전환 필요. `generateSW` 모드에서는 커스텀 SW 코드 삽입이 제한적.
+
+## 새로운 해결책 제안 (렌더링 & 초기화 병목 기반)
+
+새롭게 파악된 렌더링/네트워크 병목을 해결하기 위한 권장 조치입니다.
+
+### I. `invalidateQueries` 무효화 대상 제한 (🔥 최우선)
+**파일: `lib/connection-manager.ts` (238번째 줄 부근)**
+현재 인자 없이 호출되는 `invalidateQueries()`를 수정하여, **사용자 정보 관련 핵심 쿼리**만 무효화하거나 네트워크 통신 방식을 변경해야 합니다.
+```typescript
+// AS-IS
+queryClient.invalidateQueries(); // 모든 캐시 삭제 및 동시 렌더 폭풍
+
+// TO-BE (사용자 상태만 무효화)
+queryClient.invalidateQueries({ queryKey: ['user-status'] });
+
+// TO-BE (조용히 백그라운드 리패치)
+queryClient.refetchQueries({ type: 'active' }); 
+```
+
+### J. `LoadingScreen` 차단 완화 및 Skeleton UI 활용 (🌟 중요)
+**파일: `App.tsx` 및 `components/LoadingScreen.tsx`**
+3초간 앱 전체를 덮는 LoadingScreen을 제거하거나 완화해야 합니다.
+- **스켈레톤 UI(Skeleton UI) 도입**: Auth 상태를 기다리는 동안 전체 화면 스피너 대신 화면 골격만 보여주어 앱이 즉각 반응하는 것처럼 느끼게 합니다.
+- `RootRedirect`에서 강제 로딩 스크린 표출 시간을 대폭 줄이거나 없앱니다.
+
+### K. `AuthContext` 연쇄 리렌더 방지 (렌더 최적화)
+**파일: `contexts/AuthContext.tsx`**
+다수의 `setState`를 하나의 `setState`로 통합하거나 렌더링 일괄 처리(batching)를 최적화해야 합니다. (React 18의 자동 배칭에 의존하기보다 하나의 객체로 관리하는 것이 확실합니다.)
+```typescript
+// AS-IS
+setUser(sessionUser);
+setIsAdmin(adminStatus);
+setIsCreator(creatorStatus);
+
+// TO-BE
+setAuthState({
+  user: sessionUser,
+  isAdmin: adminStatus,
+  isCreator: creatorStatus,
+  // ...
+});
+```
+
+### L. `Layout`의 `getSiteSettings` React Query 마이그레이션
+**파일: `components/Layout.tsx`의 33번째 줄**
+직접 API를 `fetch`하는 대신 React Query를 사용하여 불필요한 호출을 막아야 합니다.
+```typescript
+// AS-IS
+React.useEffect(() => { getSiteSettings().then(...) }, []);
+
+// TO-BE
+const { data: siteSettings } = useQuery({
+  queryKey: ['siteSettings'],
+  queryFn: getSiteSettings,
+  staleTime: 1000 * 60 * 60 * 24 // 하루 종일 캐시
+});
+```
+
+### M. `VersionChecker` 불필요한 호출 방지
+**파일: `components/VersionChecker.tsx` 30번째 줄**
+- `cache: 'no-store'`로 인해 탭 복귀마다 무조건 실행되는 `/version.json` 요청 주기를 늘리거나, ETag를 활용하여 `304 Not Modified`를 받도록 개선합니다.
+- `visibilitychange` 이벤트에 걸려 있는 `checkVersion()` 트리거를 제거하거나 Throttling을 더 강하게(예: 최소 30분 간격) 설정합니다.
 
 ---
 
-## 즉시 적용 가능한 Quick Wins
+## 권장 적용 순서 (업데이트)
 
-### 1. Connection Warmup 타이밍 조정
+1. **🔴 즉시 적용** (코드 변경 최소, 효과 큼)
+   - **해결책 A**: 네이버 지도 SDK 지연 로드 → `index.html` 동기 스크립트 제거
+   - **해결책 B**: `no-cache, no-store` 메타 태그 제거 + `vercel.json` 캐시 정책
 
-```typescript
-// lib/connection-manager.ts
+2. **🟡 단기** (로직 추가, 테스트 필요)
+   - **해결책 C**: `startAutoRefresh` / `stopAutoRefresh` 활용
+   - **해결책 E**: 선택적 React Query 캐시 복원
+   - **해결책 G**: fetch keepalive 설정
 
-// 기존: 탭 visible 시 warmup
-// 추가: 마우스/터치 이벤트 시 사전 warmup
+3. **🟠 중기** (아키텍처 변경)
+   - **해결책 D**: Navigation Preload (injectManifest 모드 전환 필요)
+   - **해결책 H**: Realtime 재연결 감지 로직 강화
 
-let warmupScheduled = false;
-
-function scheduleWarmup() {
-    if (warmupScheduled) return;
-    warmupScheduled = true;
-
-    requestIdleCallback(() => {
-        warmupConnection();
-        warmupScheduled = false;
-    }, { timeout: 1000 });
-}
-
-// 사용자가 탭으로 돌아올 때 (마우스 진입 시)
-document.addEventListener('mouseenter', scheduleWarmup, { once: true });
-document.addEventListener('touchstart', scheduleWarmup, { once: true, passive: true });
-```
-
-### 2. Supabase Auth 토큰 사전 갱신
-
-```typescript
-// 토큰 만료 10분 전에 미리 갱신
-const REFRESH_THRESHOLD = 10 * 60; // 10분
-
-async function proactiveTokenRefresh() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-
-    const expiresAt = session.expires_at;
-    const now = Math.floor(Date.now() / 1000);
-
-    if (expiresAt && expiresAt - now < REFRESH_THRESHOLD) {
-        await supabase.auth.refreshSession();
-    }
-}
-
-// 탭이 visible일 때 5분마다 체크
-setInterval(() => {
-    if (document.visibilityState === 'visible') {
-        proactiveTokenRefresh();
-    }
-}, 5 * 60 * 1000);
-```
-
-### 3. IndexedDB 캐시 크기 제한
-
-```typescript
-// lib/query-persister.ts 개선
-
-const MAX_CACHE_SIZE = 5 * 1024 * 1024; // 5MB
-
-export const indexedDBPersister: Persister = {
-    persistClient: async (client: PersistedClient) => {
-        try {
-            const serialized = JSON.stringify(client);
-
-            // 캐시가 너무 크면 오래된 쿼리 제거
-            if (serialized.length > MAX_CACHE_SIZE) {
-                console.warn('[Persister] Cache too large, trimming old queries');
-                // 오래된 쿼리 필터링 로직
-            }
-
-            await set(CACHE_KEY, client);
-        } catch (error) {
-            console.warn('[Persister] Failed to save cache:', error);
-        }
-    },
-    // ...
-};
-```
+4. **🔵 장기** (인프라 변경)
+   - **해결책 F**: Edge Function 중간 계층 도입 시 SWR CDN 캐시
 
 ---
 
@@ -340,44 +391,39 @@ export function measureColdStart() {
 measureColdStart();
 ```
 
-### Supabase 쿼리 시간 측정
+### 탭 복귀 시 지연 측정
 
 ```typescript
-// 느린 쿼리 감지
-const start = performance.now();
-const { data, error } = await supabase.from('users').select('*');
-const duration = performance.now() - start;
+// lib/performance-monitor.ts 추가
 
-if (duration > 500) {
-    console.warn(`[Supabase] Slow query: ${duration}ms`);
-}
+let lastHidden = 0;
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        lastHidden = performance.now();
+    } else if (lastHidden > 0) {
+        const hiddenDuration = performance.now() - lastHidden;
+        // 첫 API 응답 시간 추적
+        const mark = `tab-return-${Date.now()}`;
+        performance.mark(mark);
+
+        // 5초 이상 숨겨졌다가 복귀한 경우만 로그
+        if (hiddenDuration > 5000) {
+            console.log(`[Performance] Tab return after ${Math.round(hiddenDuration / 1000)}s hidden`);
+        }
+    }
+});
 ```
-
----
-
-## 권장 적용 순서
-
-1. **즉시 적용** (코드 변경 최소)
-   - Connection warmup 마우스/터치 이벤트 추가
-   - 토큰 사전 갱신 로직 추가
-
-2. **단기** (테스트 필요)
-   - Supabase Realtime 채널로 연결 유지
-   - Auth 세션 즉시 복원 최적화
-
-3. **중기** (영향도 분석 필요)
-   - Service Worker precache 재활성화
-   - IndexedDB 캐시 크기 최적화
-
-4. **장기** (인프라 변경)
-   - Supabase Pooler Mode 변경 검토
-   - Vercel Edge Config 도입
 
 ---
 
 ## 참고 자료
 
-- [Supabase Connection Pooling](https://supabase.com/docs/guides/database/connecting-to-postgres#connection-pooler)
+- [Supabase Connection Pooling (Supavisor)](https://supabase.com/docs/guides/database/connecting-to-postgres#connection-pooler)
+- [Supabase Auth - startAutoRefresh / stopAutoRefresh](https://supabase.com/docs/reference/javascript/auth-startautorefresh)
 - [React Query Persistence](https://tanstack.com/query/latest/docs/react/plugins/persistQueryClient)
 - [Workbox Caching Strategies](https://developer.chrome.com/docs/workbox/caching-strategies-overview/)
+- [Navigation Preload - web.dev](https://web.dev/articles/navigation-preload)
+- [Vercel Cache-Control Headers](https://vercel.com/docs/edge-network/caching)
 - [Web Performance API](https://developer.mozilla.org/en-US/docs/Web/API/Performance_API)
+- [fetch keepalive - MDN](https://developer.mozilla.org/en-US/docs/Web/API/fetch#keepalive)

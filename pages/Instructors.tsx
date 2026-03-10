@@ -44,7 +44,10 @@ export const Instructors: React.FC = () => {
     }, []);
 
     const creators = React.useMemo(() => {
-        return [...creatorsResult].sort(() => Math.random() - 0.5);
+        // Safety Filter: Exclude pure organizers and specifically named "Organizer" accounts
+        return [...creatorsResult]
+            .filter(c => c.creatorType !== 'organizer' && c.name !== 'Organizer')
+            .sort(() => Math.random() - 0.5);
     }, [creatorsResult]);
 
     const filteredCreators = creators.filter(creator =>

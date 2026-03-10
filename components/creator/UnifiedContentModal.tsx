@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { X, BookOpen, Layers, Clapperboard, CheckCircle, Clock, DollarSign, PlayCircle, Grid, Upload, Search, ArrowUp, ArrowDown, Camera, Image as ImageIcon } from 'lucide-react';
 import { Button } from '../Button';
 import { cn } from '../../lib/utils';
 import {
     getCourseDrillBundles, getCourseSparringVideos, getCreators, getLessonsByCourse, uploadThumbnail
 } from '../../lib/api';
+import { fetchBrandsByCreator } from '../../lib/api-organizers';
 import {
     Course, Lesson, Drill, SparringVideo, DrillRoutine,
-    VideoCategory, Difficulty, UniformType, Creator
+    VideoCategory, Difficulty, UniformType, Creator, EventBrand
 } from '../../types';
 import { ImageUploader } from '../ImageUploader';
 import { VideoEditor } from '../VideoEditor';
@@ -80,6 +82,7 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
     sparringVideos = [],
     onSave,
 }) => {
+    const { user } = useAuth();
     const config = CONTENT_CONFIG[contentType];
     const isEditMode = !!editingItem;
     const { warning, success, error: toastError } = useToast();
@@ -101,10 +104,12 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
         isSubscriptionExcluded: false,
         isHidden: false,
         sparringType: 'Sparring' as 'Sparring' | 'Competition',
-        creatorId: '',
+        creatorId: user?.id || '',
+        brandId: '',
     });
 
     const [creators, setCreators] = useState<Creator[]>([]);
+    const [brands, setBrands] = useState<EventBrand[]>([]);
 
     useEffect(() => {
         const loadCreators = async () => {
@@ -113,6 +118,25 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
         };
         loadCreators();
     }, []);
+
+    // Load brands when creatorId changes
+    useEffect(() => {
+        const loadBrands = async () => {
+            if (formData.creatorId) {
+                const fetchedBrands = await fetchBrandsByCreator(formData.creatorId);
+                setBrands(fetchedBrands);
+                
+                // Reset brandId if the selected creator doesn't own the previously selected brand
+                if (formData.brandId && !fetchedBrands.some(b => b.id === formData.brandId)) {
+                    setFormData(prev => ({ ...prev, brandId: '' }));
+                }
+            } else {
+                setBrands([]);
+                setFormData(prev => ({ ...prev, brandId: '' }));
+            }
+        };
+        loadBrands();
+    }, [formData.creatorId]);
 
     // Selection State
     const [selectedLessonIds, setSelectedLessonIds] = useState<string[]>([]);
@@ -163,6 +187,7 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                 isHidden: (editingItem as any).isHidden || false,
                 sparringType: (editingItem as any).category === 'Competition' ? 'Competition' : 'Sparring',
                 creatorId: (editingItem as any).creatorId || '',
+                brandId: (editingItem as any).brandId || '',
             });
 
             // Initialize Vimeo embed URL for sparring
@@ -242,7 +267,8 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                 isSubscriptionExcluded: false,
                 isHidden: false,
                 sparringType: 'Sparring',
-                creatorId: '',
+                creatorId: user?.id || '',
+                brandId: '',
             });
             setSelectedLessonIds([]);
             setSelectedDrillIds([]);
@@ -557,6 +583,45 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                 <div className="flex-1 overflow-y-auto p-6">
                     {activeTab === 'basic' && (
                         <div className="space-y-6 max-w-2xl">
+                            {/* Instructor Selection - Moved to TOP for visibility */}
+                            <div>
+                                <label className="block text-sm font-semibold text-zinc-400 mb-2">인스트럭터 (Instructor)</label>
+                                <select
+                                    name="creatorId"
+                                    value={formData.creatorId}
+                                    onChange={handleChange}
+                                    className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all placeholder:text-zinc-700"
+                                >
+                                    <option value="">인스트럭터 선택...</option>
+                                    {creators.map(creator => (
+                                        <option key={creator.id} value={creator.id}>
+                                            {creator.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Brand Selection - Shown if the selected instructor has event brands */}
+                            {brands.length > 0 && (
+                                <div className="animate-in slide-in-from-top-2 duration-300">
+                                    <label className="block text-sm font-semibold text-zinc-400 mb-2">이벤트 팀 (Event Team)</label>
+                                    <select
+                                        name="brandId"
+                                        value={formData.brandId}
+                                        onChange={handleChange}
+                                        className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all placeholder:text-zinc-700"
+                                    >
+                                        <option value="">이벤트 팀 없이 업로드</option>
+                                        {brands.map(brand => (
+                                            <option key={brand.id} value={brand.id}>
+                                                {brand.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <p className="text-xs text-zinc-500 mt-2">이벤트 팀을 선택하면 팀 채널에 영상이 표시됩니다.</p>
+                                </div>
+                            )}
+
                             {/* Content Summary Card */}
                             {isEditMode && (
                                 <div className="grid grid-cols-3 gap-4 p-4 bg-zinc-950 border border-zinc-800 rounded-2xl">
@@ -579,23 +644,7 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                                 </div>
                             )}
 
-                            {/* Instructor Selection - Shown for all content types as requested */}
-                            <div>
-                                <label className="block text-sm font-semibold text-zinc-400 mb-2">인스트럭터 (Instructor)</label>
-                                <select
-                                    name="creatorId"
-                                    value={formData.creatorId}
-                                    onChange={handleChange}
-                                    className="w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all placeholder:text-zinc-700"
-                                >
-                                    <option value="">인스트럭터 선택...</option>
-                                    {creators.map(creator => (
-                                        <option key={creator.id} value={creator.id}>
-                                            {creator.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+
 
                             {/* Title */}
                             <div>

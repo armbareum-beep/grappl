@@ -274,6 +274,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
                         checkUserStatus(refreshedSession.user.id, true).then(status => {
                             if (mounted) {
+                                // In React 18, state updates in promises are automatically batched,
+                                // but setting them together ensures consistent intermediate states.
                                 setUser({
                                     ...refreshedSession.user,
                                     isSubscriber: status.isSubscribed,
