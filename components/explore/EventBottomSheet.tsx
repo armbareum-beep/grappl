@@ -159,7 +159,6 @@ export const EventBottomSheet: React.FC<EventBottomSheetProps> = ({
                 <div
                     className="flex-1 overflow-y-auto overscroll-contain px-4 pb-20"
                     style={{ touchAction: 'pan-y' }}
-                    onPointerDown={(e) => e.stopPropagation()}
                 >
                     {activeTab === 'calendar' ? (
                         <div className="pt-2">

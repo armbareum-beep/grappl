@@ -146,7 +146,7 @@ export const EventExplore: React.FC = () => {
                                 events={filteredEvents}
                                 selectedEventId={selectedMapEventId}
                                 onEventSelect={setSelectedMapEventId}
-                                className="h-[480px]"
+                                className="relative w-full h-[480px] rounded-2xl overflow-hidden border border-zinc-800"
                             />
                         </div>
 

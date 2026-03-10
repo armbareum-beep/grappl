@@ -184,7 +184,7 @@ export const EventMapView: React.FC<EventMapViewProps> = ({ events, selectedEven
     const Icon = config?.icon || MapPin;
 
     return (
-        <div className={`relative w-full rounded-2xl overflow-hidden border border-zinc-800 ${className ?? 'h-[60vh] sm:h-[70vh]'}`}>
+        <div className={className ?? 'relative w-full h-[60vh] sm:h-[70vh] rounded-2xl overflow-hidden border border-zinc-800'}>
             {/* Map Container */}
             <div ref={mapRef} className="w-full h-full" />
 
