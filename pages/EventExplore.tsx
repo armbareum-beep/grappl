@@ -90,7 +90,7 @@ export const EventExplore: React.FC = () => {
         <div className="bg-zinc-950 text-white">
 
             {/* ── MOBILE LAYOUT (< lg) ── */}
-            <div className="lg:hidden flex flex-col" style={{ height: 'calc(100dvh - 80px)' }}>
+            <div className="lg:hidden flex flex-col" style={{ height: 'calc(100dvh - 144px)' }}>
                 {/* Header — not sticky on mobile, part of flex column */}
                 <div className="bg-zinc-900 border-b border-zinc-800 flex-shrink-0 px-4 pt-4 pb-2 z-20">
                     <h1 className="text-xl font-bold">이벤트</h1>
