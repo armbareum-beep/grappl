@@ -13,6 +13,7 @@ interface EventMapViewProps {
     events: Event[];
     selectedEventId?: string | null;
     onEventSelect?: (eventId: string | null) => void;
+    onMapBackgroundClick?: () => void;
     className?: string;
 }
 
@@ -22,7 +23,7 @@ const EVENT_TYPE_CONFIG: Record<EventType, { label: string; color: string; marke
     openmat: { label: '오픈매트', color: 'bg-green-500', markerColor: '#22C55E', icon: MapPin },
 };
 
-export const EventMapView: React.FC<EventMapViewProps> = ({ events, selectedEventId, onEventSelect, className }) => {
+export const EventMapView: React.FC<EventMapViewProps> = ({ events, selectedEventId, onEventSelect, onMapBackgroundClick, className }) => {
     const mapRef = useRef<HTMLDivElement>(null);
     const mapInstanceRef = useRef<naver.maps.Map | null>(null);
     const markersRef = useRef<naver.maps.Marker[]>([]);
@@ -70,12 +71,23 @@ export const EventMapView: React.FC<EventMapViewProps> = ({ events, selectedEven
         mapInstanceRef.current = new window.naver.maps.Map(mapRef.current, mapOptions);
         setMapReady(true);
 
+        if (onMapBackgroundClick) {
+            window.naver.maps.Event.addListener(mapInstanceRef.current, 'click', onMapBackgroundClick);
+        }
+
         return () => {
             // Cleanup markers
             markersRef.current.forEach(marker => marker.setMap(null));
             markersRef.current = [];
         };
     }, []);
+
+    // Trigger map resize when container class changes (e.g., switching to fullscreen on mobile)
+    useEffect(() => {
+        if (mapInstanceRef.current && window.naver?.maps) {
+            window.naver.maps.Event.trigger(mapInstanceRef.current, 'resize');
+        }
+    }, [className]);
 
     // Add markers when events change
     useEffect(() => {
@@ -172,7 +184,7 @@ export const EventMapView: React.FC<EventMapViewProps> = ({ events, selectedEven
     const Icon = config?.icon || MapPin;
 
     return (
-        <div className={`relative w-full rounded-2xl overflow-hidden border border-zinc-800 ${className ?? 'h-[60vh] sm:h-[70vh]'}`}>
+        <div className={className ?? 'relative w-full h-[60vh] sm:h-[70vh] rounded-2xl overflow-hidden border border-zinc-800'}>
             {/* Map Container */}
             <div ref={mapRef} className="w-full h-full" />
 
@@ -207,7 +219,7 @@ export const EventMapView: React.FC<EventMapViewProps> = ({ events, selectedEven
 
             {/* Selected Event Card */}
             {selectedEvent && config && (
-                <div className="absolute bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-80 bg-zinc-900 border border-zinc-700 rounded-xl shadow-xl overflow-hidden animate-in slide-in-from-bottom-4">
+                <div className="absolute bottom-20 left-4 right-4 sm:bottom-4 sm:left-auto sm:right-4 sm:w-80 bg-zinc-900 border border-zinc-700 rounded-xl shadow-xl overflow-hidden animate-in slide-in-from-bottom-4">
                     {/* Close Button */}
                     <button
                         onClick={() => setSelectedEvent(null)}
