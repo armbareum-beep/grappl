@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, Map, Trophy, Users, MapPin, ChevronRight, Clock } from 'lucide-react';
 import { fetchEvents } from '../lib/api-events';
@@ -6,6 +6,7 @@ import { Event, EventType } from '../types';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { EventCalendarView } from '../components/explore/EventCalendarView';
 import { EventMapView } from '../components/explore/EventMapView';
+import { EventBottomSheet } from '../components/explore/EventBottomSheet';
 
 const EVENT_TYPE_CONFIG = {
     competition: { label: '시합', color: 'bg-red-500', textColor: 'text-red-400', borderColor: 'border-red-500/30', icon: Trophy },
@@ -19,6 +20,9 @@ export const EventExplore: React.FC = () => {
     const [selectedType, setSelectedType] = useState<EventType | 'all'>('all');
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [selectedMapEventId, setSelectedMapEventId] = useState<string | null>(null);
+    const [collapseSignal, setCollapseSignal] = useState(0);
+
+    const handleCollapseSheet = useCallback(() => setCollapseSignal(v => v + 1), []);
 
     useEffect(() => {
         const loadEvents = async () => {
@@ -28,7 +32,6 @@ export const EventExplore: React.FC = () => {
                     status: 'published',
                     type: selectedType === 'all' ? undefined : selectedType,
                 });
-                // Filter to only show future events
                 const now = new Date().toISOString().split('T')[0];
                 const futureEvents = data.filter(e => e.eventDate >= now);
                 setEvents(futureEvents);
@@ -49,113 +52,151 @@ export const EventExplore: React.FC = () => {
         return <LoadingScreen message="이벤트 불러오는 중..." />;
     }
 
-    return (
-        <div className="min-h-screen bg-zinc-950 text-white pb-24">
-            {/* Header */}
-            <div className="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-20">
-                <div className="max-w-7xl mx-auto px-4 py-4">
-                    <div className="flex items-center justify-between">
-                        <h1 className="text-xl font-bold">이벤트</h1>
-                    </div>
+    // Shared type filter UI
+    const TypeFilterTabs = (
+        <div className="flex gap-2 mt-4 overflow-x-auto pb-2 scrollbar-hide">
+            <button
+                onClick={() => setSelectedType('all')}
+                className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+                    selectedType === 'all'
+                        ? 'bg-amber-600 text-white'
+                        : 'bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-700'
+                }`}
+            >
+                전체
+            </button>
+            {(Object.keys(EVENT_TYPE_CONFIG) as EventType[]).map(type => {
+                const config = EVENT_TYPE_CONFIG[type];
+                const Icon = config.icon;
+                return (
+                    <button
+                        key={type}
+                        onClick={() => setSelectedType(type)}
+                        className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+                            selectedType === type
+                                ? `${config.color} text-white`
+                                : `bg-zinc-800 ${config.textColor} hover:bg-zinc-700 border ${config.borderColor}`
+                        }`}
+                    >
+                        <Icon className="w-4 h-4" />
+                        {config.label}
+                    </button>
+                );
+            })}
+        </div>
+    );
 
-                    {/* Type Filter */}
-                    <div className="flex gap-2 mt-4 overflow-x-auto pb-2 scrollbar-hide">
-                        <button
-                            onClick={() => setSelectedType('all')}
-                            className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
-                                selectedType === 'all'
-                                    ? 'bg-amber-600 text-white'
-                                    : 'bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-700'
-                            }`}
-                        >
-                            전체
-                        </button>
-                        {(Object.keys(EVENT_TYPE_CONFIG) as EventType[]).map(type => {
-                            const config = EVENT_TYPE_CONFIG[type];
-                            const Icon = config.icon;
-                            return (
-                                <button
-                                    key={type}
-                                    onClick={() => setSelectedType(type)}
-                                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
-                                        selectedType === type
-                                            ? `${config.color} text-white`
-                                            : `bg-zinc-800 ${config.textColor} hover:bg-zinc-700 border ${config.borderColor}`
-                                    }`}
-                                >
-                                    <Icon className="w-4 h-4" />
-                                    {config.label}
-                                </button>
-                            );
-                        })}
-                    </div>
+    return (
+        <div className="bg-zinc-950 text-white">
+
+            {/* ── MOBILE LAYOUT (< lg) ── */}
+            <div className="lg:hidden flex flex-col" style={{ height: 'calc(100dvh - 80px)' }}>
+                {/* Header — not sticky on mobile, part of flex column */}
+                <div className="bg-zinc-900 border-b border-zinc-800 flex-shrink-0 px-4 pt-4 pb-2 z-20">
+                    <h1 className="text-xl font-bold">이벤트</h1>
+                    {TypeFilterTabs}
+                </div>
+
+                {/* Map + Bottom Sheet */}
+                <div className="relative flex-1 overflow-hidden">
+                    <EventMapView
+                        events={filteredEvents}
+                        selectedEventId={selectedMapEventId}
+                        onEventSelect={(id) => {
+                            setSelectedMapEventId(id);
+                            handleCollapseSheet();
+                        }}
+                        onMapBackgroundClick={handleCollapseSheet}
+                        className="absolute inset-0 rounded-none border-0"
+                    />
+                    <EventBottomSheet
+                        events={events}
+                        filteredEvents={filteredEvents}
+                        selectedDate={selectedDate}
+                        onDateSelect={setSelectedDate}
+                        onMapEventSelect={setSelectedMapEventId}
+                        collapseSignal={collapseSignal}
+                    />
                 </div>
             </div>
 
-            {/* Main Content */}
-            <div className="max-w-7xl mx-auto px-4 py-6">
-                <div className="space-y-6">
-                    {/* Calendar + Map side by side */}
-                    <div className="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-6 items-start">
-                        <EventCalendarView
-                            events={events}
-                            selectedDate={selectedDate}
-                            onDateSelect={setSelectedDate}
-                        />
-                        <EventMapView
-                            events={filteredEvents}
-                            selectedEventId={selectedMapEventId}
-                            onEventSelect={setSelectedMapEventId}
-                            className="h-[400px] lg:h-[480px]"
-                        />
-                    </div>
-
-                    {/* Event List */}
-                    <div className="space-y-4">
+            {/* ── DESKTOP LAYOUT (≥ lg) — unchanged ── */}
+            <div className="hidden lg:block min-h-screen pb-24">
+                {/* Sticky header */}
+                <div className="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-20">
+                    <div className="max-w-7xl mx-auto px-4 py-4">
                         <div className="flex items-center justify-between">
-                            <h2 className="text-lg font-bold flex items-center gap-2">
-                                {selectedDate ? (
-                                    <Calendar className="w-5 h-5 text-amber-500" />
-                                ) : (
-                                    <Clock className="w-5 h-5 text-amber-500" />
-                                )}
-                                {selectedDate
-                                    ? `${new Date(selectedDate).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 이벤트`
-                                    : '다가오는 이벤트'}
-                                <span className="text-sm text-zinc-500">({filteredEvents.length})</span>
-                            </h2>
-                            {!selectedDate && events.length > 5 && (
-                                <Link
-                                    to="/events"
-                                    className="text-sm text-amber-400 hover:text-amber-300 flex items-center gap-1"
-                                >
-                                    전체 보기 <ChevronRight className="w-4 h-4" />
-                                </Link>
-                            )}
+                            <h1 className="text-xl font-bold">이벤트</h1>
+                        </div>
+                        {TypeFilterTabs}
+                    </div>
+                </div>
+
+                {/* Main content */}
+                <div className="max-w-7xl mx-auto px-4 py-6">
+                    <div className="space-y-6">
+                        {/* Calendar + Map side by side */}
+                        <div className="grid lg:grid-cols-[2fr_3fr] gap-6 items-start">
+                            <EventCalendarView
+                                events={events}
+                                selectedDate={selectedDate}
+                                onDateSelect={setSelectedDate}
+                            />
+                            <EventMapView
+                                events={filteredEvents}
+                                selectedEventId={selectedMapEventId}
+                                onEventSelect={setSelectedMapEventId}
+                                className="h-[480px]"
+                            />
                         </div>
 
-                        {filteredEvents.length > 0 ? (
-                            <div className="grid gap-4">
-                                {(selectedDate ? filteredEvents : filteredEvents.slice(0, 5)).map(event => (
-                                    <EventCard
-                                        key={event.id}
-                                        event={event}
-                                        onMapClick={(eventId) => {
-                                            setSelectedMapEventId(eventId);
-                                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                                        }}
-                                    />
-                                ))}
+                        {/* Event List */}
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-lg font-bold flex items-center gap-2">
+                                    {selectedDate ? (
+                                        <Calendar className="w-5 h-5 text-amber-500" />
+                                    ) : (
+                                        <Clock className="w-5 h-5 text-amber-500" />
+                                    )}
+                                    {selectedDate
+                                        ? `${new Date(selectedDate).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 이벤트`
+                                        : '다가오는 이벤트'}
+                                    <span className="text-sm text-zinc-500">({filteredEvents.length})</span>
+                                </h2>
+                                {!selectedDate && events.length > 5 && (
+                                    <Link
+                                        to="/events"
+                                        className="text-sm text-amber-400 hover:text-amber-300 flex items-center gap-1"
+                                    >
+                                        전체 보기 <ChevronRight className="w-4 h-4" />
+                                    </Link>
+                                )}
                             </div>
-                        ) : (
-                            <div className="text-center py-12 bg-zinc-900/50 rounded-2xl border border-dashed border-zinc-800">
-                                <Calendar className="w-16 h-16 text-zinc-700 mx-auto mb-4" />
-                                <h3 className="text-lg font-bold text-zinc-400 mb-2">
-                                    {selectedDate ? '이 날짜에 예정된 이벤트가 없습니다' : '예정된 이벤트가 없습니다'}
-                                </h3>
-                                <p className="text-zinc-500">새로운 이벤트가 등록되면 여기에 표시됩니다</p>
-                            </div>
-                        )}
+
+                            {filteredEvents.length > 0 ? (
+                                <div className="grid gap-4">
+                                    {(selectedDate ? filteredEvents : filteredEvents.slice(0, 5)).map(event => (
+                                        <EventCard
+                                            key={event.id}
+                                            event={event}
+                                            onMapClick={(eventId) => {
+                                                setSelectedMapEventId(eventId);
+                                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-12 bg-zinc-900/50 rounded-2xl border border-dashed border-zinc-800">
+                                    <Calendar className="w-16 h-16 text-zinc-700 mx-auto mb-4" />
+                                    <h3 className="text-lg font-bold text-zinc-400 mb-2">
+                                        {selectedDate ? '이 날짜에 예정된 이벤트가 없습니다' : '예정된 이벤트가 없습니다'}
+                                    </h3>
+                                    <p className="text-zinc-500">새로운 이벤트가 등록되면 여기에 표시됩니다</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -163,7 +204,7 @@ export const EventExplore: React.FC = () => {
     );
 };
 
-// Event Card Component
+// Event Card Component (desktop only)
 interface EventCardProps {
     event: Event;
     onMapClick?: (eventId: string) => void;
@@ -173,7 +214,6 @@ const EventCard: React.FC<EventCardProps> = ({ event, onMapClick }) => {
     const config = EVENT_TYPE_CONFIG[event.type as EventType] || EVENT_TYPE_CONFIG.openmat;
     const Icon = config.icon;
 
-    // Map mode - click to focus on map location
     if (onMapClick) {
         const hasLocation = event.latitude && event.longitude;
         return (
@@ -184,7 +224,6 @@ const EventCard: React.FC<EventCardProps> = ({ event, onMapClick }) => {
                     hasLocation ? 'hover:border-amber-500/50 cursor-pointer' : 'opacity-60 cursor-not-allowed'
                 }`}
             >
-                {/* Cover Image */}
                 <div className="w-24 h-24 rounded-xl overflow-hidden bg-zinc-800 flex-shrink-0">
                     {event.coverImage ? (
                         <img src={event.coverImage} alt={event.title} className="w-full h-full object-cover" />
@@ -194,8 +233,6 @@ const EventCard: React.FC<EventCardProps> = ({ event, onMapClick }) => {
                         </div>
                     )}
                 </div>
-
-                {/* Info */}
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                         <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${config.color}/20 ${config.textColor} border ${config.borderColor}`}>
@@ -220,19 +257,16 @@ const EventCard: React.FC<EventCardProps> = ({ event, onMapClick }) => {
                         <span className="truncate">{event.venueName || event.address || event.region || '장소 미정'}</span>
                     </div>
                 </div>
-
                 <Map className={`w-5 h-5 self-center transition-colors ${hasLocation ? 'text-amber-400' : 'text-zinc-600'}`} />
             </button>
         );
     }
 
-    // Default mode - link to event detail
     return (
         <Link
             to={`/event/${event.id}`}
             className="flex gap-4 p-4 bg-zinc-900 border border-zinc-800 rounded-2xl hover:border-amber-500/50 transition-all group"
         >
-            {/* Cover Image */}
             <div className="w-24 h-24 rounded-xl overflow-hidden bg-zinc-800 flex-shrink-0">
                 {event.coverImage ? (
                     <img src={event.coverImage} alt={event.title} className="w-full h-full object-cover" />
@@ -242,8 +276,6 @@ const EventCard: React.FC<EventCardProps> = ({ event, onMapClick }) => {
                     </div>
                 )}
             </div>
-
-            {/* Info */}
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                     <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${config.color}/20 ${config.textColor} border ${config.borderColor}`}>
@@ -265,7 +297,6 @@ const EventCard: React.FC<EventCardProps> = ({ event, onMapClick }) => {
                     <span className="truncate">{event.venueName || event.address || event.region || '장소 미정'}</span>
                 </div>
             </div>
-
             <ChevronRight className="w-5 h-5 text-zinc-600 group-hover:text-amber-400 self-center transition-colors" />
         </Link>
     );
