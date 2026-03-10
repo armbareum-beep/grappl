@@ -26,6 +26,7 @@ export interface UnifiedContentItem {
     creatorName?: string;
     creatorProfileImage?: string;
     creatorId?: string;
+    brandId?: string;
     createdAt?: string;
     views?: number;
     rank?: number;

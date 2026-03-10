@@ -116,6 +116,7 @@ export const CreatorDashboard: React.FC = () => {
                         thumbnailUrl: data.thumbnailUrl,
                         isSubscriptionExcluded: data.isSubscriptionExcluded,
                         creatorId: data.creatorId,
+                        brandId: data.brandId,
                     });
 
                     if (error) {
@@ -149,6 +150,7 @@ export const CreatorDashboard: React.FC = () => {
                         thumbnailUrl: data.thumbnailUrl,
                         isSubscriptionExcluded: data.isSubscriptionExcluded,
                         creatorId: user.id,
+                        brandId: data.brandId,
                     });
 
                     if (result.error) {
@@ -217,6 +219,7 @@ export const CreatorDashboard: React.FC = () => {
                         totalDurationMinutes: data.totalDurationMinutes,
                         relatedItems: data.relatedItems,
                         creatorId: data.creatorId,
+                        brandId: data.brandId,
                     }, data.selectedDrillIds);
 
                     if (error) {
@@ -252,6 +255,7 @@ export const CreatorDashboard: React.FC = () => {
                         relatedItems: data.relatedItems,
                         creatorId: user.id,
                         creatorName: user.user_metadata?.name || 'Creator',
+                        brandId: data.brandId,
                     }, data.selectedDrillIds);
 
                     if (result.error) {
@@ -298,6 +302,7 @@ export const CreatorDashboard: React.FC = () => {
                         thumbnailUrl: data.thumbnailUrl,
                         relatedItems: data.relatedItems,
                         creatorId: data.creatorId,
+                        brandId: data.brandId,
                     });
 
                     if (error) {
@@ -316,7 +321,8 @@ export const CreatorDashboard: React.FC = () => {
                         uniformType: data.uniformType,
                         price: data.price,
                         relatedItems: data.relatedItems,
-                        creatorId: user.id
+                        creatorId: user.id,
+                        brandId: data.brandId,
                     });
 
                     if (result.error) {

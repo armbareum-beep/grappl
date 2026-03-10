@@ -76,7 +76,10 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
 
     // Randomize creators and brands on mount
     const creators = useMemo(() => {
-        return [...creatorsData].sort(() => Math.random() - 0.5);
+        // Safety Filter: Exclude pure organizers and specifically named "Organizer" accounts from instructor list
+        return [...creatorsData]
+            .filter(c => c.creatorType !== 'organizer' && c.name !== 'Organizer')
+            .sort(() => Math.random() - 0.5);
     }, [creatorsData]);
 
     const eventBrands = useMemo(() => {
@@ -206,6 +209,7 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                     creatorName: course.creatorName,
                     creatorProfileImage: (course as any).creatorProfileImage,
                     creatorId: course.creatorId,
+                    brandId: course.brandId,
                     createdAt: course.createdAt,
                     views: course.views,
                     rank: (hotIndex >= 0 && hotIndex < 3) ? hotIndex + 1 : undefined,
@@ -233,6 +237,7 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                     creatorName: routine.creatorName,
                     creatorProfileImage: routine.creatorProfileImage,
                     creatorId: routine.creatorId,
+                    brandId: routine.brandId,
                     createdAt: routine.createdAt,
                     views: routine.views,
                     rank: (hotIndex >= 0 && hotIndex < 3) ? hotIndex + 1 : undefined,
@@ -260,6 +265,7 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                     creatorName: video.creator?.name,
                     creatorProfileImage: (video.creator as any)?.avatar_url || (video.creator as any)?.profileImage,
                     creatorId: video.creatorId,
+                    brandId: video.brandId,
                     createdAt: video.createdAt,
                     views: video.views,
                     rank: (hotIndex >= 0 && hotIndex < 3) ? hotIndex + 1 : undefined,
@@ -322,16 +328,17 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
             );
         }
 
-        // Apply creator filter
+        // Apply creator/brand isolation policy
         if (selectedCreatorId) {
-            items = items.filter(item => item.creatorId === selectedCreatorId);
+            // Coach selected: Show only personal videos of this coach (no brandId)
+            items = items.filter(item => item.creatorId === selectedCreatorId && !item.brandId);
         } else if (selectedBrandId) {
-            // Fetch items belonging to selected brand's creator for now, or implement brand context
-            // Event Brand items depend on how they're liked; usually courses/sparring belong to creatorId.
-            const brand = eventBrands.find(b => b.id === selectedBrandId);
-            if (brand) {
-                items = items.filter(item => item.creatorId === brand.creatorId);
-            }
+            // Team selected: Show only videos tied to this specific team
+            items = items.filter(item => item.brandId === selectedBrandId);
+        } else {
+            // Global Feed: Show only general videos (no brandId)
+            // Isolation: Team videos only appear in their respective team filters
+            items = items.filter(item => !item.brandId);
         }
 
         return items;

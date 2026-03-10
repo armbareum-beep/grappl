@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { Calendar, MapPin, Trophy, Users, ChevronRight, X } from 'lucide-react';
+import { Calendar, MapPin, Trophy, Users, ChevronRight, X, Navigation } from 'lucide-react';
 import { Event, EventType } from '../../types';
 
 declare global {
@@ -17,16 +18,22 @@ interface EventMapViewProps {
     className?: string;
 }
 
-const EVENT_TYPE_CONFIG: Record<EventType, { label: string; color: string; markerColor: string; icon: React.ElementType }> = {
-    competition: { label: '시합', color: 'bg-red-500', markerColor: '#EF4444', icon: Trophy },
-    seminar: { label: '세미나', color: 'bg-blue-500', markerColor: '#3B82F6', icon: Users },
-    openmat: { label: '오픈매트', color: 'bg-green-500', markerColor: '#22C55E', icon: MapPin },
+const EVENT_TYPE_CONFIG: Record<EventType, { label: string; color: string; textColor: string; borderColor: string; markerColor: string; icon: React.ElementType }> = {
+    competition: { label: '시합', color: 'bg-red-500', textColor: 'text-red-400', borderColor: 'border-red-500/30', markerColor: '#EF4444', icon: Trophy },
+    seminar: { label: '세미나', color: 'bg-blue-500', textColor: 'text-blue-400', borderColor: 'border-blue-500/30', markerColor: '#3B82F6', icon: Users },
+    openmat: { label: '오픈매트', color: 'bg-green-500', textColor: 'text-green-400', borderColor: 'border-green-500/30', markerColor: '#22C55E', icon: MapPin },
 };
 
 export const EventMapView: React.FC<EventMapViewProps> = ({ events, selectedEventId, onEventSelect, onMapBackgroundClick, className }) => {
     const mapRef = useRef<HTMLDivElement>(null);
     const mapInstanceRef = useRef<naver.maps.Map | null>(null);
     const markersRef = useRef<naver.maps.Marker[]>([]);
+    const clickHandlerRef = useRef(onMapBackgroundClick);
+
+    useEffect(() => {
+        clickHandlerRef.current = onMapBackgroundClick;
+    }, [onMapBackgroundClick]);
+
     const [internalSelectedEvent, setInternalSelectedEvent] = useState<Event | null>(null);
     const [mapReady, setMapReady] = useState(false);
     const [mapError, setMapError] = useState<string | null>(null);
@@ -71,9 +78,9 @@ export const EventMapView: React.FC<EventMapViewProps> = ({ events, selectedEven
         mapInstanceRef.current = new window.naver.maps.Map(mapRef.current, mapOptions);
         setMapReady(true);
 
-        if (onMapBackgroundClick) {
-            window.naver.maps.Event.addListener(mapInstanceRef.current, 'click', onMapBackgroundClick);
-        }
+        window.naver.maps.Event.addListener(mapInstanceRef.current, 'click', () => {
+            if (clickHandlerRef.current) clickHandlerRef.current();
+        });
 
         return () => {
             // Cleanup markers
@@ -217,79 +224,97 @@ export const EventMapView: React.FC<EventMapViewProps> = ({ events, selectedEven
                 </div>
             )}
 
-            {/* Selected Event Card */}
-            {selectedEvent && config && (
-                <div className="absolute bottom-20 left-4 right-4 sm:bottom-4 sm:left-auto sm:right-4 sm:w-80 bg-zinc-900 border border-zinc-700 rounded-xl shadow-xl overflow-hidden animate-in slide-in-from-bottom-4">
-                    {/* Close Button */}
-                    <button
-                        onClick={() => setSelectedEvent(null)}
-                        className="absolute top-2 right-2 p-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-full z-10 transition-colors"
-                    >
-                        <X className="w-4 h-4 text-zinc-400" />
-                    </button>
-
-                    <div className="p-4">
-                        {/* Type Badge */}
-                        <div className="flex items-center gap-2 mb-2">
-                            <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${config.color}/20 text-white border border-${config.color.replace('bg-', '')}/30`}>
-                                <Icon className="w-3 h-3 inline-block mr-1" />
-                                {config.label}
-                            </span>
-                        </div>
-
-                        {/* Title */}
-                        <h3 className="font-bold text-white text-lg mb-2 pr-8">
-                            {selectedEvent.title}
-                        </h3>
-
-                        {/* Date & Time */}
-                        <div className="flex items-center gap-2 text-sm text-zinc-400 mb-1">
-                            <Calendar className="w-4 h-4" />
-                            <span>
-                                {new Date(selectedEvent.eventDate).toLocaleDateString('ko-KR', {
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric',
-                                    weekday: 'short'
-                                })}
-                                {selectedEvent.startTime && ` ${selectedEvent.startTime}`}
-                            </span>
-                        </div>
-
-                        {/* Venue */}
-                        {selectedEvent.venueName && (
-                            <div className="flex items-center gap-2 text-sm text-zinc-500 mb-4">
-                                <MapPin className="w-4 h-4" />
-                                <span>{selectedEvent.venueName}</span>
-                            </div>
-                        )}
-
-                        {/* Detail Link */}
-                        <Link
-                            to={`/event/${selectedEvent.id}`}
-                            className="flex items-center justify-center gap-2 w-full py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-medium rounded-xl transition-colors"
+            {/* Selected Event Card Center Overlay - Portal to body */}
+            {selectedEvent && config && createPortal(
+                <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none p-4">
+                    <div className="relative w-full max-w-sm bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 pointer-events-auto">
+                        {/* Close Button */}
+                        <button
+                            onClick={() => setSelectedEvent(null)}
+                            className="absolute top-3 right-3 p-1.5 bg-black/50 hover:bg-black/70 rounded-full z-10 transition-colors backdrop-blur-sm"
                         >
-                            자세히 보기
-                            <ChevronRight className="w-4 h-4" />
-                        </Link>
+                            <X className="w-4 h-4 text-white" />
+                        </button>
+
+                        {/* Cover Image */}
+                        <div className="w-full h-40 bg-zinc-800 relative">
+                            {selectedEvent.coverImage ? (
+                                <img src={selectedEvent.coverImage} alt={selectedEvent.title} className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                    <Icon className={`w-12 h-12 ${config.textColor} opacity-20`} />
+                                </div>
+                            )}
+                            {/* Type Badge on image */}
+                            <div className="absolute top-3 left-3">
+                                <span className={`px-2.5 py-1 text-xs font-bold rounded-lg bg-black/60 backdrop-blur-md text-white border border-white/20 shadow-sm flex items-center gap-1.5`}>
+                                    <Icon className="w-3.5 h-3.5" />
+                                    {config.label}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="p-5">
+                            {/* Title */}
+                            <h3 className="font-bold text-white text-lg mb-4 line-clamp-2 leading-tight">
+                                {selectedEvent.title}
+                            </h3>
+
+                            {/* Date & Time */}
+                            <div className="flex flex-col gap-2.5 mb-6">
+                                <div className="flex items-center gap-2.5 text-sm text-zinc-300">
+                                    <Calendar className="w-4 h-4 text-zinc-500" />
+                                    <span>
+                                        {new Date(selectedEvent.eventDate).toLocaleDateString('ko-KR', {
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric',
+                                            weekday: 'short'
+                                        })}
+                                        {selectedEvent.startTime && ` ${selectedEvent.startTime}`}
+                                    </span>
+                                </div>
+
+                                {/* Venue & Navigation */}
+                                {(selectedEvent.venueName || selectedEvent.address || (typeof selectedEvent.latitude === 'number' && typeof selectedEvent.longitude === 'number')) && (
+                                    <div className="flex items-center justify-between gap-4 text-sm text-zinc-300">
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                            <MapPin className="w-4 h-4 text-zinc-500 flex-shrink-0" />
+                                            <span className="truncate">
+                                                {selectedEvent.venueName || selectedEvent.address || '상세 장소 확인 필요'}
+                                            </span>
+                                        </div>
+                                        
+                                        {(typeof selectedEvent.latitude === 'number' && typeof selectedEvent.longitude === 'number') && (
+                                            <a 
+                                                href={`https://map.naver.com/index.naver?slng=&slat=&stext=&elng=${selectedEvent.longitude}&elat=${selectedEvent.latitude}&etext=${encodeURIComponent(selectedEvent.address || selectedEvent.venueName || selectedEvent.title)}&menu=route`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-xs font-medium text-amber-500 transition-colors flex-shrink-0"
+                                            >
+                                                <Navigation className="w-3.5 h-3.5" />
+                                                길찾기
+                                            </a>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Detail Link */}
+                            <Link
+                                to={`/event/${selectedEvent.id}`}
+                                className="flex items-center justify-center gap-2 w-full py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl transition-colors shadow-lg shadow-amber-900/20"
+                            >
+                                상세 보기
+                                <ChevronRight className="w-4 h-4" />
+                            </Link>
+                        </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
-            {/* Legend */}
-            <div className="absolute top-4 left-4 bg-zinc-900/90 backdrop-blur-sm border border-zinc-700 rounded-xl p-3">
-                <div className="flex flex-col gap-2 text-xs">
-                    {Object.entries(EVENT_TYPE_CONFIG).map(([type, cfg]) => (
-                        <div key={type} className="flex items-center gap-2">
-                            <span
-                                className="w-3 h-3 rounded-full border-2 border-white"
-                                style={{ backgroundColor: cfg.markerColor }}
-                            />
-                            <span className="text-zinc-300">{cfg.label}</span>
-                        </div>
-                    ))}
-                </div>
-            </div>
+            {/* Legend (Removed per user request) */}
         </div>
     );
 };

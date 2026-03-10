@@ -109,6 +109,7 @@ export interface Course {
   isHidden?: boolean; // Creator can hide content without deleting
   rank?: number;
   isDailyFree?: boolean;
+  brandId?: string; // For organizer teams
 }
 
 export interface Lesson {
@@ -303,6 +304,7 @@ export interface SparringVideo {
   durationMinutes?: number; // Duration in minutes
   rank?: number;
   isDailyFree?: boolean;
+  brandId?: string; // For organizer teams
 }
 
 export interface LogFeedback {
@@ -550,6 +552,7 @@ export interface DrillRoutine {
   rank?: number;
   isDailyFree?: boolean;
   status?: 'draft' | 'pending' | 'approved' | 'rejected';
+  brandId?: string; // For organizer teams
 }
 
 export interface DrillRoutineItem {

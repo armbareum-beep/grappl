@@ -192,6 +192,7 @@ function transformCreator(data: any, counts?: { courseCount?: number; routineCou
         routineCount: counts?.routineCount ?? data.routineCount ?? 0,
         sparringCount: counts?.sparringCount ?? data.sparringCount ?? 0,
         hidden: data.hidden || false,
+        creatorType: data.creator_type || 'instructor',
     };
 }
 
@@ -246,6 +247,7 @@ function transformCourse(data: CourseData): Course {
         isHidden: (data as any).is_hidden || false,
         published: data.published || false,
         previewVimeoId: data.preview_vimeo_id || undefined,
+        brandId: (data as any).brand_id || undefined,
     };
 }
 
@@ -288,10 +290,10 @@ export async function getCreators(): Promise<Creator[]> {
         const { data: creatorsData, error } = await withTimeout(
             supabase
                 .from('creators')
-                .select('id, name, bio, profile_image, subscriber_count, hidden')
+                .select('id, name, bio, profile_image, subscriber_count, hidden, creator_type')
                 .eq('approved', true)
-                .neq('hidden', true) // Filter out hidden creators from public view
-                .or('creator_type.eq.instructor,creator_type.eq.both,creator_type.is.null'), // 순수 주최자(organizer) 제외
+                .neq('hidden', true)
+                .or('creator_type.eq.instructor,creator_type.eq.both,creator_type.is.null'), // 순수 주최자(organizer)만 제외하고 지도자/BOTH는 노출
             10000 // 10s
         );
 
@@ -1451,6 +1453,7 @@ export async function createCourse(courseData: Partial<Course>) {
         is_subscription_excluded: courseData.isSubscriptionExcluded,
         uniform_type: courseData.uniformType,
         preview_vimeo_id: courseData.previewVimeoId,
+        brand_id: courseData.brandId,
         status: 'approved',
         published: true,
     };
@@ -1478,6 +1481,7 @@ export async function updateCourse(courseId: string, courseData: Partial<Course>
     if (courseData.published !== undefined) dbData.published = courseData.published;
     if (courseData.uniformType) dbData.uniform_type = courseData.uniformType;
     if (courseData.previewVimeoId) dbData.preview_vimeo_id = courseData.previewVimeoId;
+    if (courseData.brandId !== undefined) dbData.brand_id = courseData.brandId;
 
     const { data, error } = await supabase
         .from('courses')
@@ -5288,7 +5292,8 @@ export function transformSparringVideo(data: any): SparringVideo {
         price: Number(data.price) || 0,
         isPublished: data.is_published ?? false,
         isHidden: data.is_hidden ?? false,
-        previewVimeoId: data.preview_vimeo_id || data.preview_vimeo_url
+        previewVimeoId: data.preview_vimeo_id || data.preview_vimeo_url,
+        brandId: data.brand_id
     };
 }
 
@@ -5304,6 +5309,7 @@ export async function createSparringVideo(videoData: Partial<SparringVideo>) {
         category: videoData.category,
         difficulty: videoData.difficulty,
         uniform_type: videoData.uniformType,
+        brand_id: videoData.brandId,
         is_published: false,
         duration_minutes: videoData.durationMinutes,
         length: videoData.length,
@@ -5615,6 +5621,7 @@ export async function updateSparringVideo(id: string, updates: Partial<SparringV
     if (updates.isPublished !== undefined) dbData.is_published = updates.isPublished;
     if (updates.isHidden !== undefined) dbData.is_hidden = updates.isHidden;
     if (updates.previewVimeoId !== undefined) dbData.preview_vimeo_id = updates.previewVimeoId;
+    if (updates.brandId !== undefined) dbData.brand_id = updates.brandId;
     // Note: sparring_videos table doesn't have duration_minutes or length columns
     if (updates.creatorId) dbData.creator_id = updates.creatorId;
 
@@ -6386,6 +6393,7 @@ export async function createRoutine(routineData: Partial<DrillRoutine>, drillIds
         total_duration_minutes: routineData.totalDurationMinutes || 0,
         related_items: routineData.relatedItems || [],
         uniform_type: routineData.uniformType,
+        brand_id: routineData.brandId,
         drill_count: drillIds.length,
         status: 'pending',
     };
@@ -6457,6 +6465,7 @@ export async function updateRoutine(id: string, updates: Partial<DrillRoutine>, 
     if (updates.uniformType) dbData.uniform_type = updates.uniformType;
     if (updates.creatorId) dbData.creator_id = updates.creatorId;
     if (updates.isHidden !== undefined) dbData.is_hidden = updates.isHidden;
+    if (updates.brandId !== undefined) dbData.brand_id = updates.brandId;
     if (drillIds) dbData.drill_count = drillIds.length;
 
     const { data: routine, error: routineError } = await withTimeout(
@@ -6783,6 +6792,7 @@ function transformDrillRoutine(data: any): DrillRoutine {
         relatedItems: data.related_items || [],
         uniformType: data.uniform_type,
         isHidden: data.is_hidden ?? false,
+        brandId: data.brand_id,
         createdAt: data.created_at
     };
 }

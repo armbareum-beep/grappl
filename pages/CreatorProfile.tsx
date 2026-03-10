@@ -44,9 +44,10 @@ export const CreatorProfile: React.FC = () => {
                     getFeedbackSettings(id)
                 ]);
                 setCreator(creatorData);
-                setCourses(coursesData);
-                setRoutines(routinesData);
-                setSparringVideos(sparringData.data || []);
+                // Isolation: Show only personal videos (no brandId) on instructor profile
+                setCourses((coursesData || []).filter(c => !c.brandId));
+                setRoutines((routinesData || []).filter(r => !r.brandId));
+                setSparringVideos((sparringData.data || []).filter((v: any) => !v.brandId));
 
                 if (feedbackData.data) {
                     setFeedbackSettings(feedbackData.data);

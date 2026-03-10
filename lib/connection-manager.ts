@@ -233,9 +233,12 @@ function handleVisibilityChange() {
         if (idleDuration > LONG_IDLE_THRESHOLD) {
             console.log(`[ConnectionManager] Returning after ${Math.round(idleDuration / 1000)}s idle, refreshing session and data`);
 
-            // Refresh auth session first, then invalidate queries so refetches use valid token
+            // Refresh auth session first, then refetch active queries smoothly
             refreshAuthSession().then(() => {
-                queryClient.invalidateQueries();
+                // BUGFIX: Calling invalidateQueries() without arguments destroys the entire cache
+                // and causes a massive re-render storm as ~50 queries refetch simultaneously.
+                // Instead, we only refetch the currently active queries on the screen.
+                queryClient.invalidateQueries({ type: 'active' });
             });
         }
     } else {

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useCallback } from 'react';
 import { hardReload } from '../lib/utils';
 
 const VERSION_CHECK_INTERVAL = 5 * 60 * 1000; // Check every 5 minutes
-const MIN_CHECK_INTERVAL = 30 * 1000; // At most once per 30 seconds
+const MIN_CHECK_INTERVAL = 10 * 60 * 1000; // At most once per 10 minutes
 
 export const VersionChecker: React.FC = () => {
     const hasReloaded = useRef(false);
