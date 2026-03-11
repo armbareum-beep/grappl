@@ -831,10 +831,20 @@ const PayPalButtonsSection: React.FC<{
     const isYearly = id?.includes('price_1SYHw') || id?.includes('price_1SYI2');
 
     useEffect(() => {
+        const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID || "";
+        
+        // Diagnostic logging (visible in console)
+        if (!clientId) {
+            console.error('[PayPal] VITE_PAYPAL_CLIENT_ID is missing! PayPal cannot load.');
+        } else {
+            console.log('[PayPal] Initializing with Client ID:', clientId.substring(0, 10) + '...');
+        }
+
         const options = {
-            clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID || "",
+            clientId: clientId,
             currency: "USD",
-            intent: isSubscription ? "subscription" : "capture"
+            intent: isSubscription ? "subscription" : "capture",
+            vault: isSubscription ? true : undefined,
         };
 
         dispatch({
@@ -855,7 +865,11 @@ const PayPalButtonsSection: React.FC<{
                 <div className="flex flex-col items-center gap-4 py-8 bg-red-500/5 rounded-2xl border border-red-500/10">
                     <AlertCircle className="w-8 h-8 text-red-500" />
                     <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest italic">Failed to load PayPal Engine</p>
-                    <p className="text-[10px] text-zinc-500 text-center px-4">Possible reason: Missing Client ID or Network issue.</p>
+                    <p className="text-[10px] text-zinc-500 text-center px-4">
+                        {!import.meta.env.VITE_PAYPAL_CLIENT_ID 
+                            ? "Error: Missing PayPal Client ID in environment variables." 
+                            : "Possible reason: Invalid Client ID, Network issue, or Domain restriction."}
+                    </p>
                 </div>
             )}
             <PayPalButtons
