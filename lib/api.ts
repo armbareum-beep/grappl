@@ -9139,4 +9139,4 @@ export async function requestRoutinePublishing(routineId: string) {
 // ============================================================================
 // User Interactions (Save/Like/View) - New Unified System
 // ============================================================================
-export * from './api-user-interactions';
+// (Moved to top level exports)

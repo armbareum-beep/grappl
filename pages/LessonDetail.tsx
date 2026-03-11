@@ -14,8 +14,8 @@ import {
     checkLessonLiked,
     toggleLessonSave,
     checkLessonSaved,
-    checkGymMemberAccess
 } from '../lib/api';
+import { checkGymMemberAccess } from '../lib/api-organizers';
 import { supabase } from '../lib/supabase';
 import { updateMasteryFromWatch } from '../lib/api-technique-mastery';
 import { Heart, ArrowLeft, Calendar, Eye, Clock, BookOpen, Share2, ExternalLink, Lock, Bookmark } from 'lucide-react';
