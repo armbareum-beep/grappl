@@ -17,6 +17,7 @@ interface ContentCardProps {
     duration?: number; // durationMinutes, etc.
     createdAt?: string;
     isPublished?: boolean;
+    isSubscriptionExcluded?: boolean;
     isProcessing?: boolean;
     isError?: boolean;
     onEdit: () => void;
@@ -38,6 +39,7 @@ export const ContentCard: React.FC<ContentCardProps> = ({
     duration,
     createdAt,
     isPublished = true,
+    isSubscriptionExcluded = false,
     isProcessing = false,
     isError = false,
     onEdit,
@@ -114,11 +116,11 @@ export const ContentCard: React.FC<ContentCardProps> = ({
                     {price !== undefined && (
                         <span className={cn(
                             "px-2 py-1 rounded-md backdrop-blur-md border text-[10px] font-bold",
-                            price === 0
+                            price === 0 && isSubscriptionExcluded
                                 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/20"
                                 : "bg-violet-500/20 text-violet-400 border-violet-500/20"
                         )}>
-                            {price === 0 ? '무료' : `₩${price.toLocaleString()}`}
+                            {price === 0 && isSubscriptionExcluded ? '무료' : `₩${price.toLocaleString()}`}
                         </span>
                     )}
                 </div>

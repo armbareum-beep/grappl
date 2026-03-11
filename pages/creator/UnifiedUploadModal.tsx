@@ -13,10 +13,12 @@ import {
     createSparringVideo, getSparringVideoById, updateSparringVideo,
     uploadThumbnail,
     getCreators,
-    createVimeoThumbnailAtTime
+    createVimeoThumbnailAtTime,
+    getMuxVideoInfo,
+    isMuxPlaybackId
 } from '../../lib/api';
 import { VimeoThumbnailSelector } from '../../components/VimeoThumbnailSelector';
-import { extractVimeoId, extractVimeoHash } from '../../lib/vimeo';
+import { extractVimeoId, extractVimeoHash, getVimeoVideoInfo } from '../../lib/vimeo';
 import { Button } from '../../components/Button';
 import { ArrowLeft, Upload, Trash2, Loader, Camera } from 'lucide-react';
 import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
@@ -25,6 +27,8 @@ import { useToast } from '../../contexts/ToastContext';
 import { ImageUploader } from '../../components/ImageUploader';
 import Player from '@vimeo/player';
 import '@mux/mux-video';
+
+import { cn } from '../../lib/utils';
 
 type ContentType = 'drill' | 'lesson' | 'sparring';
 
@@ -38,6 +42,7 @@ type ProcessingState = {
     error: string | null;
     isBackgroundUploading?: boolean;
     uploadProgress?: number;
+    durationSeconds?: number;
 };
 
 const initialProcessingState: ProcessingState = {
@@ -48,7 +53,8 @@ const initialProcessingState: ProcessingState = {
     previewUrl: null,
     status: 'idle',
     error: null,
-    isBackgroundUploading: false
+    isBackgroundUploading: false,
+    durationSeconds: 0
 };
 
 const CONTENT_LABELS: Record<ContentType, string> = {
@@ -89,6 +95,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         price: 0,
         durationMinutes: 0,
         length: '0:00',
+        isSubscriptionExcluded: false
     });
     const [thumbnailUrl, setThumbnailUrl] = useState<string>('');
     const [createdContentId, setCreatedContentId] = useState<string | null>(null);
@@ -179,6 +186,8 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                 if (result) {
                     // Normalize data since API returns might be raw DB objects (snake_case) or transformed (camelCase)
                     const data = result;
+                    const vUrl = data.vimeoUrl || data.vimeo_url || data.videoUrl || data.video_url;
+                    const dUrl = data.descriptionVideoUrl || data.description_video_url || data.descriptionVimeoUrl || data.description_vimeo_url;
 
                     setFormData({
                         title: data.title || '',
@@ -190,20 +199,26 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                         price: data.price || 0,
                         durationMinutes: data.durationMinutes || data.duration_minutes || 0,
                         length: data.length || '0:00',
+                        isSubscriptionExcluded: !!data.isSubscriptionExcluded
                     });
 
                     if (data.thumbnailUrl || data.thumbnail_url) {
                         setThumbnailUrl(data.thumbnailUrl || data.thumbnail_url);
                     }
 
-                    // Handle Vimeo URL (CamelCase or SnakeCase)
-                    // Note: Sparring videos store Vimeo URLs in videoUrl field, not vimeoUrl
-                    const vUrl = data.vimeoUrl || data.vimeo_url || data.videoUrl || data.video_url;
+                    // Handle Vimeo/Mux URL
                     if (vUrl) {
                         const vId = extractVimeoId(vUrl);
                         const vHash = extractVimeoHash(vUrl);
+                        const isMux = isMuxPlaybackId(vUrl);
+                        
                         let previewUrl = vId ? `https://player.vimeo.com/video/${vId}` : null;
                         if (previewUrl && vHash) previewUrl += `?h=${vHash}`;
+                        
+                        // Fallback for Mux preview
+                        if (!previewUrl && isMux) {
+                            previewUrl = `https://image.mux.com/${vUrl}/thumbnail.jpg?width=640&height=360&fit_mode=pad`;
+                        }
 
                         setMainVideo(prev => ({
                             ...prev,
@@ -214,12 +229,18 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                     }
 
                     // Handle Description Video (Drill specific)
-                    const dUrl = data.descriptionVideoUrl || data.description_video_url || data.descriptionVimeoUrl || data.description_vimeo_url;
                     if (contentType === 'drill' && dUrl) {
                         const vId = extractVimeoId(dUrl);
                         const vHash = extractVimeoHash(dUrl);
+                        const isMux = isMuxPlaybackId(dUrl);
+                        
                         let previewUrl = vId ? `https://player.vimeo.com/video/${vId}` : null;
                         if (previewUrl && vHash) previewUrl += `?h=${vHash}`;
+                        
+                        // Fallback for Mux preview
+                        if (!previewUrl && isMux) {
+                            previewUrl = `https://image.mux.com/${dUrl}/thumbnail.jpg?width=640&height=360&fit_mode=pad`;
+                        }
 
                         setDescVideo(prev => ({
                             ...prev,
@@ -228,6 +249,47 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                             previewUrl: previewUrl
                         }));
                     }
+
+                    // --- Platform-aware Duration Fetching ---
+                    const fetchDuration = async (url: string, setter: React.Dispatch<React.SetStateAction<ProcessingState>>) => {
+                        if (!url) return;
+                        
+                        // 1. Identify platform
+                        const vimeoId = extractVimeoId(url);
+                        const isMux = isMuxPlaybackId(url) || url.includes('stream.mux.com');
+                        
+                        try {
+                            if (vimeoId || url.includes('vimeo.com')) {
+                                // Vimeo platform
+                                const info = await getVimeoVideoInfo(url);
+                                if (info && info.duration) {
+                                    setter(prev => ({ ...prev, durationSeconds: info.duration }));
+                                }
+                            } else if (isMux || url.length > 20) {
+                                // Mux platform
+                                const muxId = url.includes('stream.mux.com') 
+                                    ? url.split('/').pop()?.split('.')[0] 
+                                    : url;
+                                
+                                if (muxId) {
+                                    const info = await getMuxVideoInfo(muxId);
+                                    if (info) {
+                                        setter(prev => ({ ...prev, durationSeconds: info.durationSeconds }));
+                                    }
+                                }
+                            }
+                        } catch (err) {
+                            console.warn('[fetchDuration] Failed to fetch metadata:', err);
+                        }
+                    };
+
+                    if (contentType === 'drill' && dUrl) {
+                        fetchDuration(dUrl, setDescVideo);
+                    }
+                    if (vUrl) {
+                        fetchDuration(vUrl, setMainVideo);
+                    }
+                    // ----------------------------------------
 
                     // Handle Related Items (Drill specific)
                     if (contentType === 'drill' || contentType === 'sparring') {
@@ -268,6 +330,44 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
         setThumbnailUrl('');
     }, [contentType]);
 
+    // Update total duration when video durations change (Drill specific)
+    useEffect(() => {
+        // Special case: For drills, we sum main + description videos
+        if (contentType === 'drill') {
+            const totalSecs = (mainVideo.durationSeconds || 0) + (descVideo.durationSeconds || 0);
+            
+            // Only update if we have captured non-zero duration information
+            if (totalSecs === 0) return;
+
+            const durationMins = Math.ceil(totalSecs / 60);
+            const minutes = Math.floor(totalSecs / 60);
+            const seconds = Math.floor(totalSecs % 60);
+            const lengthStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+            setFormData(prev => ({
+                ...prev,
+                durationMinutes: durationMins,
+                length: lengthStr
+            }));
+        } 
+        // For lessons and sparring, we just use the main video duration
+        else if ((contentType === 'lesson' || contentType === 'sparring') && (mainVideo.durationSeconds || 0) > 0) {
+            const totalSecs = mainVideo.durationSeconds || 0;
+            const durationMins = Math.ceil(totalSecs / 60);
+            const minutes = Math.floor(totalSecs / 60);
+            const seconds = Math.floor(totalSecs % 60);
+            const lengthStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+            setFormData(prev => ({
+                ...prev,
+                durationMinutes: durationMins,
+                length: lengthStr,
+                // Price calculation only for sparring
+                price: contentType === 'sparring' && !prev.isSubscriptionExcluded ? durationMins * 1000 : prev.price
+            }));
+        }
+    }, [contentType, mainVideo.durationSeconds, descVideo.durationSeconds]);
+
     useEffect(() => {
         if (tasks.length === 0) return;
         tasks.forEach(task => {
@@ -293,42 +393,69 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
     const MAX_VIDEO_DURATION_SECONDS = 90; // 1분 30초 제한
 
     const handleFileUpload = async (file: File, setter: React.Dispatch<React.SetStateAction<ProcessingState>>) => {
+        setIsUpdatingDuration(true);
         const objectUrl = URL.createObjectURL(file);
-
-        // 드릴 영상 길이 검증 (1분 30초 제한)
-        if (contentType === 'drill') {
-            const video = document.createElement('video');
-            video.preload = 'metadata';
-            video.src = objectUrl;
-
-            await new Promise<void>((resolve, reject) => {
-                video.onloadedmetadata = () => {
-                    if (video.duration > MAX_VIDEO_DURATION_SECONDS) {
-                        URL.revokeObjectURL(objectUrl);
-                        toastError(`영상 길이가 1분 30초를 초과합니다. (${Math.floor(video.duration)}초) 1분 30초 이하의 영상만 업로드할 수 있습니다.`);
-                        reject(new Error('Video too long'));
-                    } else {
-                        resolve();
-                    }
-                };
-                video.onerror = () => {
-                    resolve(); // 메타데이터 로드 실패 시 일단 업로드 허용
-                };
-            }).catch(() => {
-                setter(prev => ({ ...prev, error: '영상 길이가 1분 30초를 초과합니다.' }));
-                return;
+        
+        try {
+            // Load video metadata to check duration and get length
+            const videoElement = document.createElement('video');
+            videoElement.preload = 'metadata';
+            
+            const durationSecs = await new Promise<number>((resolve, reject) => {
+                videoElement.onloadedmetadata = () => resolve(videoElement.duration);
+                videoElement.onerror = () => reject(new Error('Video load failed'));
+                videoElement.src = objectUrl;
             });
-        }
 
-        setter(prev => ({
-            ...prev,
-            file,
-            previewUrl: objectUrl,
-            status: 'ready',
-            isBackgroundUploading: false,
-            videoId: null,
-            error: null
-        }));
+            // Validation for drills
+            if (contentType === 'drill' && durationSecs > MAX_VIDEO_DURATION_SECONDS) {
+                toastError(`영상 길이가 1분 30초를 초과합니다. (${Math.floor(durationSecs)}초) 1분 30초 이하의 영상만 업로드할 수 있습니다.`);
+                setter(prev => ({ ...prev, error: '영상 길이가 1분 30초를 초과합니다.' }));
+                URL.revokeObjectURL(objectUrl);
+                return;
+            }
+
+            const durationMins = Math.ceil(durationSecs / 60);
+            const minutes = Math.floor(durationSecs / 60);
+            const seconds = Math.floor(durationSecs % 60);
+            const lengthStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+            if (contentType !== 'drill') {
+                setFormData(prev => ({
+                    ...prev,
+                    durationMinutes: durationMins,
+                    length: lengthStr,
+                    price: contentType === 'sparring' && !prev.isSubscriptionExcluded ? durationMins * 1000 : prev.price
+                }));
+            }
+
+            setter(prev => ({
+                ...prev,
+                file,
+                previewUrl: objectUrl,
+                status: 'ready',
+                isBackgroundUploading: false,
+                videoId: null,
+                error: null,
+                durationSeconds: durationSecs
+            }));
+
+        } catch (err) {
+            console.error('Duration detection failed:', err);
+            // Even if metadata fails, let them upload but warn them
+            setter(prev => ({
+                ...prev,
+                file,
+                previewUrl: objectUrl,
+                status: 'ready',
+                isBackgroundUploading: false,
+                videoId: null,
+                error: null,
+                durationSeconds: 0
+            }));
+        } finally {
+            setIsUpdatingDuration(false);
+        }
     };
 
     // 로컬 비디오 캡쳐 (Vimeo는 아래 썸네일 선택기 사용)
@@ -457,6 +584,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
 
     const ensureDraftRecord = async () => {
         const effectiveCreatorId = (isAdmin && selectedCreatorId) ? selectedCreatorId : user?.id;
+        const calculatedPrice = formData.isSubscriptionExcluded ? formData.price : (formData.durationMinutes * 1000);
         const commonData = {
             title: formData.title || 'Untitled',
             description: formData.description,
@@ -469,16 +597,18 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
             thumbnailUrl: thumbnailUrl || (mainVideo.vimeoUrl || descVideo.vimeoUrl ? undefined : `https://placehold.co/600x800/1e293b/ffffff?text=${contentType}`),
             vimeoUrl: mainVideo.vimeoUrl || undefined,
             descriptionVideoUrl: contentType === 'drill' ? (descVideo.vimeoUrl || undefined) : undefined,
+            price: calculatedPrice,
+            isSubscriptionExcluded: formData.isSubscriptionExcluded
         };
 
         let result: any;
         if (contentType === 'drill') {
-            result = await createDrill(commonData);
+            result = await createDrill(commonData as any);
         } else if (contentType === 'lesson') {
             // Fix: 'length' is required for createLesson
-            result = await createLesson({ ...commonData, courseId: undefined, lessonNumber: 1, length: formData.length });
+            result = await createLesson({ ...commonData, courseId: undefined, lessonNumber: 1, length: formData.length } as any);
         } else if (contentType === 'sparring') {
-            result = await createSparringVideo({ ...commonData, price: formData.price });
+            result = await createSparringVideo({ ...commonData, videoUrl: commonData.vimeoUrl } as any);
         }
         if (result?.error || !result?.data) throw result?.error || new Error('Failed to create record');
         const newId = result.data.id;
@@ -512,6 +642,7 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                 if (c) instructorName = c.name;
             }
 
+            const calculatedPrice = formData.isSubscriptionExcluded ? formData.price : (formData.durationMinutes * 1000);
             const commonData = {
                 title: formData.title,
                 description: formData.description,
@@ -528,18 +659,18 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                 videoUrl: contentType === 'sparring' ? mainVideo.vimeoUrl : undefined,
                 descriptionVideoUrl: contentType === 'drill' ? (descVideo.vimeoUrl || null) : undefined,
                 relatedItems: (contentType === 'drill' || contentType === 'sparring') ? relatedItems : undefined,
+                isSubscriptionExcluded: formData.isSubscriptionExcluded,
+                price: calculatedPrice
             };
 
             console.log('[DEBUG] handleSubmit - thumbnailUrl state:', thumbnailUrl);
             console.log('[DEBUG] handleSubmit - commonData.thumbnailUrl:', commonData.thumbnailUrl);
 
             let updateResult: any;
-            if (contentType === 'drill') updateResult = await updateDrill(contentId, commonData);
-            else if (contentType === 'lesson') updateResult = await updateLesson(contentId, commonData);
+            if (contentType === 'drill') updateResult = await updateDrill(contentId, commonData as any);
+            else if (contentType === 'lesson') updateResult = await updateLesson(contentId, commonData as any);
             else if (contentType === 'sparring') {
-                // sparring_videos doesn't have duration_minutes or length columns
-                const { durationMinutes, length, vimeoUrl, descriptionVideoUrl, ...sparringData } = commonData;
-                updateResult = await updateSparringVideo(contentId, { ...sparringData, price: formData.price });
+                updateResult = await updateSparringVideo(contentId, commonData as any);
             }
 
             if (updateResult?.error) {
@@ -882,6 +1013,110 @@ export const UnifiedUploadModal: React.FC<UnifiedUploadModalProps> = ({ initialC
                                 </select>
                             </div>
                         </div>
+
+                        {contentType === 'sparring' && (
+                            <div className="pt-4 border-t border-zinc-800/50 space-y-6">
+                                <div className="space-y-4">
+                                    <label className="block text-sm font-semibold text-zinc-400">가격 설정 방식</label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <label className={cn(
+                                            "flex flex-col gap-1 p-4 rounded-xl border cursor-pointer transition-all",
+                                            !formData.isSubscriptionExcluded
+                                                ? "bg-violet-500/10 border-violet-500"
+                                                : "bg-zinc-900 border-zinc-800 hover:border-zinc-700"
+                                        )}>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="radio"
+                                                    name="priceMode"
+                                                    checked={!formData.isSubscriptionExcluded}
+                                                    onChange={() => setFormData(prev => ({ ...prev, isSubscriptionExcluded: false, price: prev.durationMinutes * 1000 }))}
+                                                    className="w-4 h-4 text-violet-600 focus:ring-violet-500 bg-zinc-950 border-zinc-700"
+                                                />
+                                                <span className={cn("text-sm font-bold", !formData.isSubscriptionExcluded ? "text-violet-400" : "text-zinc-300")}>시간 비례 (자동)</span>
+                                            </div>
+                                            <span className="text-xs text-zinc-500 pl-6">구독 포함, 1분/1000원</span>
+                                        </label>
+
+                                        <label className={cn(
+                                            "flex flex-col gap-1 p-4 rounded-xl border cursor-pointer transition-all",
+                                            formData.isSubscriptionExcluded && formData.price > 0
+                                                ? "bg-violet-500/10 border-violet-500"
+                                                : "bg-zinc-900 border-zinc-800 hover:border-zinc-700"
+                                        )}>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="radio"
+                                                    name="priceMode"
+                                                    checked={formData.isSubscriptionExcluded && formData.price > 0}
+                                                    onChange={() => setFormData(prev => ({ ...prev, isSubscriptionExcluded: true, price: prev.durationMinutes * 1000 || 10000 }))}
+                                                    className="w-4 h-4 text-violet-600 focus:ring-violet-500 bg-zinc-950 border-zinc-700"
+                                                />
+                                                <span className={cn("text-sm font-bold", formData.isSubscriptionExcluded && formData.price > 0 ? "text-violet-400" : "text-zinc-300")}>개별 판매 (수동)</span>
+                                            </div>
+                                            <span className="text-xs text-zinc-500 pl-6">구독 제외, 단품 판매</span>
+                                        </label>
+
+                                        <label className={cn(
+                                            "flex flex-col gap-1 p-4 rounded-xl border cursor-pointer transition-all",
+                                            formData.isSubscriptionExcluded && formData.price === 0
+                                                ? "bg-violet-500/10 border-violet-500"
+                                                : "bg-zinc-900 border-zinc-800 hover:border-zinc-700"
+                                        )}>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="radio"
+                                                    name="priceMode"
+                                                    checked={formData.isSubscriptionExcluded && formData.price === 0}
+                                                    onChange={() => setFormData(prev => ({ ...prev, isSubscriptionExcluded: true, price: 0 }))}
+                                                    className="w-4 h-4 text-violet-600 focus:ring-violet-500 bg-zinc-950 border-zinc-700"
+                                                />
+                                                <span className={cn("text-sm font-bold", formData.isSubscriptionExcluded && formData.price === 0 ? "text-violet-400" : "text-zinc-300")}>무료 공개</span>
+                                            </div>
+                                            <span className="text-xs text-zinc-500 pl-6">누구나 무료 시청</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-zinc-400 mb-2">
+                                            가격 설정 (KRW)
+                                        </label>
+                                        <div className="relative">
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 font-bold">₩</span>
+                                            <input
+                                                type="number"
+                                                value={formData.isSubscriptionExcluded ? formData.price : (formData.durationMinutes * 1000)}
+                                                onChange={e => setFormData({ ...formData, price: parseInt(e.target.value) || 0 })}
+                                                disabled={!formData.isSubscriptionExcluded || (formData.isSubscriptionExcluded && formData.price === 0)}
+                                                className={cn(
+                                                    "w-full pl-10 pr-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none focus:border-violet-500 transition-all",
+                                                    (!formData.isSubscriptionExcluded || (formData.isSubscriptionExcluded && formData.price === 0)) && "opacity-50 cursor-not-allowed bg-zinc-900 border-transparent"
+                                                )}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-zinc-400 mb-2">재생 시간</label>
+                                        <div className="px-5 py-3.5 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-400">
+                                            {formData.length} ({formData.durationMinutes}분)
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {contentType !== 'sparring' && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-zinc-400 mb-2">재생 시간</label>
+                                    <div className="px-5 py-3.5 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-400">
+                                        {formData.length} ({formData.durationMinutes}분)
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         <div>
                             <label className="block text-sm font-semibold text-zinc-400 mb-2">설명</label>

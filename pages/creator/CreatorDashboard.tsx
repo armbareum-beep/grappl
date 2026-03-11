@@ -3,7 +3,7 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { cn } from '../../lib/utils';
 import { getCreatorCourses, calculateCreatorEarnings, getDrills, deleteDrill, getAllCreatorLessons, deleteLesson, getUserCreatedRoutines, deleteRoutine, getSparringVideos, deleteSparringVideo, deleteCourse, getRoutineById, getBundles, deleteBundle } from '../../lib/api';
-import { Course, Drill, Lesson, DrillRoutine, SparringVideo, Bundle } from '../../types';
+import { Course, Drill, Lesson, DrillRoutine, SparringVideo, Bundle, GymMemberVerification } from '../../types';
 import { MobileTabSelector } from '../../components/MobileTabSelector';
 import { Button } from '../../components/Button';
 import { BookOpen, DollarSign, Eye, TrendingUp, Package, MessageSquare, LayoutDashboard, PlayCircle, Grid, Layers, Clapperboard, X, Mail } from 'lucide-react';
@@ -23,7 +23,7 @@ import { ContentCard } from '../../components/creator/ContentCard';
 import { useDataControls, SearchInput, SortSelect, Pagination, SortOption } from '../../components/common/DataControls';
 import { UnifiedContentModal } from '../../components/creator/UnifiedContentModal';
 import { useToast } from '../../contexts/ToastContext';
-import { createCourse, updateCourse, createRoutine, updateRoutine, createSparringVideo, updateSparringVideo, updateCourseLessons, updateCourseBundles, requestCoursePublishing, requestRoutinePublishing, requestSparringPublishing } from '../../lib/api';
+import { createCourse, updateCourse, createRoutine, updateRoutine, createSparringVideo, updateSparringVideo, updateCourseLessons, updateCourseBundles, requestCoursePublishing, requestRoutinePublishing, requestSparringPublishing, fetchPendingVerifications, updateVerificationStatus } from '../../lib/api';
 import { useBackgroundUpload } from '../../contexts/BackgroundUploadContext';
 
 export const CreatorDashboard: React.FC = () => {
@@ -40,9 +40,11 @@ export const CreatorDashboard: React.FC = () => {
     const [bundles, setBundles] = useState<Bundle[]>([]);
     const [earnings, setEarnings] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [pendingVerifications, setPendingVerifications] = useState<GymMemberVerification[]>([]);
+    const [verifyingId, setVerifyingId] = useState<string | null>(null);
 
     const initialTab = (searchParams.get('tab') as any) || 'materials';
-    const [activeTab, setActiveTab] = useState<'content' | 'materials' | 'marketing' | 'feedback' | 'invitations' | 'analytics' | 'payout'>(initialTab);
+    const [activeTab, setActiveTab] = useState<'content' | 'materials' | 'marketing' | 'feedback' | 'invitations' | 'verifications' | 'analytics' | 'payout'>(initialTab);
     const initialContentTab = (searchParams.get('contentTab') as any) || 'courses';
     const [activeContentTab, setActiveContentTab] = useState<'courses' | 'routines' | 'sparring'>(initialContentTab);
     const initialMaterialsTab = (searchParams.get('materialsTab') as any) || 'lessons';
@@ -477,6 +479,13 @@ export const CreatorDashboard: React.FC = () => {
         itemsPerPage: 10
     });
 
+    const verificationControls = useDataControls<GymMemberVerification>({
+        data: pendingVerifications,
+        searchKeys: ['studentName'],
+        sortOptions: commonSortOptions,
+        itemsPerPage: 10
+    });
+
     const fetchData = React.useCallback(async (forceRefresh?: boolean) => {
         if (!user) return;
 
@@ -585,6 +594,12 @@ export const CreatorDashboard: React.FC = () => {
                 setEarnings(earningsData.data);
             } else if (earningsData && !('error' in earningsData)) {
                 setEarnings(earningsData);
+            }
+
+            // Fetch pending verifications
+            if (user.id) {
+                const verifications = await fetchPendingVerifications(user.id);
+                setPendingVerifications(verifications);
             }
         } catch (error) {
             console.error('Critical Error in Dashboard Promise.all:', error);
@@ -785,7 +800,8 @@ export const CreatorDashboard: React.FC = () => {
         // 주최자는 피드백 기능 숨김
         ...(!isOrganizer ? [{ id: 'feedback', label: '피드백', icon: MessageSquare }] : []),
         // 행사 초청 설정 탭 (지도자용)
-        ...(!isOrganizer ? [{ id: 'invitations', label: '행사 초청', icon: Mail }] : []),
+        { id: 'invitations', label: '행사 초청', icon: Mail },
+        { id: 'verifications', label: '관원 인증', icon: MessageSquare }, // Using MessageSquare as a placeholder icon or similar
         { id: 'analytics', label: '분석', icon: Eye },
         { id: 'payout', label: '정산', icon: DollarSign },
     ];
@@ -947,6 +963,7 @@ export const CreatorDashboard: React.FC = () => {
                                                         price={course.price}
                                                         views={course.views}
                                                         count={course.lessonCount}
+                                                        isSubscriptionExcluded={course.isSubscriptionExcluded}
                                                         onEdit={() => openCourseModal(course)}
                                                         onDelete={() => handleDeleteCourse(course.id, course.title)}
                                                     />
@@ -1017,6 +1034,7 @@ export const CreatorDashboard: React.FC = () => {
                                                         price={routine.price}
                                                         views={routine.views}
                                                         count={routine.drillCount}
+                                                        isSubscriptionExcluded={routine.isSubscriptionExcluded}
                                                         creatorName={routine.creatorName}
                                                         onEdit={() => openRoutineModal(routine)}
                                                         onDelete={() => handleDeleteRoutine(routine.id, routine.title)}
@@ -1073,6 +1091,7 @@ export const CreatorDashboard: React.FC = () => {
                                                 thumbnailUrl={video.thumbnailUrl}
                                                 price={video.price}
                                                 views={video.views}
+                                                isSubscriptionExcluded={video.isSubscriptionExcluded}
                                                 onClick={() => navigate(`/sparring/${video.id}`)}
                                                 onEdit={() => openSparringModal(video)}
                                                 onDelete={() => handleDeleteSparringVideo(video.id, video.title)}
@@ -1154,6 +1173,7 @@ export const CreatorDashboard: React.FC = () => {
                                                         thumbnailUrl={lesson.thumbnailUrl || (lesson as any).course?.thumbnailUrl}
                                                         views={lesson.views || 0}
                                                         duration={lesson.durationMinutes}
+                                                        isSubscriptionExcluded={lesson.isSubscriptionExcluded}
                                                         createdAt={lesson.createdAt}
                                                         isProcessing={!lesson.vimeoUrl && !lesson.videoUrl}
                                                         onClick={() => {
@@ -1219,6 +1239,8 @@ export const CreatorDashboard: React.FC = () => {
                                                         description={drill.description}
                                                         thumbnailUrl={drill.thumbnailUrl}
                                                         views={drill.views}
+                                                        duration={drill.durationMinutes}
+                                                        isSubscriptionExcluded={drill.isSubscriptionExcluded}
                                                         createdAt={drill.createdAt}
                                                         isProcessing={!!(!drill.vimeoUrl && !drill.videoUrl)}
                                                         isError={!!(drill.vimeoUrl?.startsWith('ERROR:'))}
@@ -1307,6 +1329,98 @@ export const CreatorDashboard: React.FC = () => {
                                 {activePerformanceTab === 'sparring' && <SparringPerformanceTab />}
                                 {activePerformanceTab === 'feedback' && !isOrganizer && <FeedbackPerformanceTab />}
                             </div>
+                        </div>
+                    ) : activeTab === 'verifications' ? (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <div>
+                                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                        <MessageSquare className="w-5 h-5 text-zinc-400" />
+                                        관원 인증 관리
+                                    </h2>
+                                    <p className="text-zinc-400 text-sm mt-1">소속 체육관 관원 인증 요청을 승인하거나 거절할 수 있습니다.</p>
+                                </div>
+                                <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                                    <SearchInput
+                                        value={verificationControls.searchQuery}
+                                        onChange={verificationControls.setSearchQuery}
+                                        placeholder="학생 이름 검색..."
+                                    />
+                                </div>
+                            </div>
+
+                            {verificationControls.filteredData.length === 0 ? (
+                                <div className="text-center py-16 bg-zinc-900/30 rounded-xl border border-dashed border-zinc-800">
+                                    <MessageSquare className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
+                                    <p className="text-zinc-500">대기 중인 인증 요청이 없습니다.</p>
+                                </div>
+                            ) : (
+                                <div className="grid gap-4">
+                                    {verificationControls.paginatedData.map((v) => (
+                                        <div key={v.id} className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center text-xl font-bold text-zinc-500">
+                                                    {v.studentName?.charAt(0) || 'U'}
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-bold text-white text-lg">{v.studentName || '알 수 없는 사용자'}</h3>
+                                                    <p className="text-zinc-400 text-sm">신청일: {new Date(v.createdAt).toLocaleDateString()}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                                                    disabled={verifyingId === v.id}
+                                                    onClick={async () => {
+                                                        setVerifyingId(v.id);
+                                                        try {
+                                                            const { error } = await updateVerificationStatus(v.id, 'rejected');
+                                                            if (error) throw error;
+                                                            setPendingVerifications(prev => prev.filter(item => item.id !== v.id));
+                                                            success('인증 요청을 거절했습니다.');
+                                                        } catch (err) {
+                                                            toastError('요청 처리 중 오류가 발생했습니다.');
+                                                        } finally {
+                                                            setVerifyingId(null);
+                                                        }
+                                                    }}
+                                                >
+                                                    거절
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    className="bg-violet-600 hover:bg-violet-700 text-white px-6"
+                                                    disabled={verifyingId === v.id}
+                                                    onClick={async () => {
+                                                        setVerifyingId(v.id);
+                                                        try {
+                                                            const { error } = await updateVerificationStatus(v.id, 'approved');
+                                                            if (error) throw error;
+                                                            setPendingVerifications(prev => prev.filter(item => item.id !== v.id));
+                                                            success('관원 인증이 승인되었습니다.');
+                                                        } catch (err) {
+                                                            toastError('요청 처리 중 오류가 발생했습니다.');
+                                                        } finally {
+                                                            setVerifyingId(null);
+                                                        }
+                                                    }}
+                                                >
+                                                    승인
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <div className="pt-6">
+                                        <Pagination
+                                            currentPage={verificationControls.currentPage}
+                                            totalPages={verificationControls.totalPages}
+                                            onPageChange={verificationControls.setCurrentPage}
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <PayoutSettingsTab />

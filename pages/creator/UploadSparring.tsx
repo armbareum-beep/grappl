@@ -48,6 +48,7 @@ export const UploadSparring: React.FC = () => {
     const [category, setCategory] = useState<'Sparring' | 'Competition'>('Sparring');
     const [uniformType, setUniformType] = useState<UniformType>(UniformType.Gi);
     const [price, setPrice] = useState(0);
+    const [isSubscriptionExcluded, setIsSubscriptionExcluded] = useState(false);
     const [relatedItems, setRelatedItems] = useState<SparringVideo['relatedItems']>([]);
     const [videoUrl, setVideoUrl] = useState('');
     const [thumbnailUrl, setThumbnailUrl] = useState('');
@@ -100,6 +101,7 @@ export const UploadSparring: React.FC = () => {
             setCategory(data.category as any || 'Sparring');
             setUniformType(data.uniformType as any || UniformType.Gi);
             setPrice(data.price || 0);
+            setIsSubscriptionExcluded(data.isSubscriptionExcluded || false);
             setRelatedItems(data.relatedItems || []);
             setVideoUrl(data.videoUrl || '');
             setThumbnailUrl(data.thumbnailUrl || '');
@@ -246,7 +248,7 @@ export const UploadSparring: React.FC = () => {
         e.preventDefault();
         if (!user || isSubmitting || !id) return;
 
-        if (mode === 'sales' && price <= 0) {
+        if (mode === 'sales' && price <= 0 && !isSubscriptionExcluded) {
             toastError('판매 상품으로 등록하려면 가격을 설정해야 합니다.');
             return;
         }
@@ -261,6 +263,7 @@ export const UploadSparring: React.FC = () => {
                 uniformType,
                 difficulty: undefined as any,
                 price,
+                isSubscriptionExcluded,
                 thumbnailUrl
             });
 
@@ -606,21 +609,80 @@ export const UploadSparring: React.FC = () => {
                             </div>
                             <div className="p-6 space-y-6">
                                 <div className="space-y-4">
-                                    <div className="relative">
-                                        <span className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl font-black text-violet-500">₩</span>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="1000"
-                                            value={price}
-                                            onChange={e => setPrice(Number(e.target.value))}
-                                            className="w-full pl-12 pr-6 py-5 bg-zinc-950 border border-zinc-800 rounded-2xl text-3xl font-black text-white outline-none focus:border-violet-500 transition-all placeholder:text-zinc-800 shadow-inner"
-                                            placeholder="0"
-                                        />
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setIsSubscriptionExcluded(false);
+                                                // Reset price to 0 and let backend calculate duration based
+                                                setPrice(0);
+                                            }}
+                                            className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${!isSubscriptionExcluded && price === 0
+                                                ? 'bg-violet-600/10 border-violet-500 text-violet-400'
+                                                : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:border-zinc-700'
+                                                }`}
+                                        >
+                                            <span className="font-bold text-sm">시간 비례</span>
+                                            <span className="text-[10px]">자동 (기본)</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setIsSubscriptionExcluded(true);
+                                                if (price === 0) setPrice(1000);
+                                            }}
+                                            className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${isSubscriptionExcluded && price > 0
+                                                ? 'bg-violet-600/10 border-violet-500 text-violet-400'
+                                                : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:border-zinc-700'
+                                                }`}
+                                        >
+                                            <span className="font-bold text-sm">개별 판매</span>
+                                            <span className="text-[10px]">수동 입력</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setIsSubscriptionExcluded(true);
+                                                setPrice(0);
+                                            }}
+                                            className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${isSubscriptionExcluded && price === 0
+                                                ? 'bg-emerald-600/10 border-emerald-500 text-emerald-400'
+                                                : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:border-zinc-700'
+                                                }`}
+                                        >
+                                            <span className="font-bold text-sm">무료 공개</span>
+                                            <span className="text-[10px]">제한 없음</span>
+                                        </button>
                                     </div>
-                                    <p className="text-xs text-zinc-500 leading-relaxed text-center px-4">
-                                        가격을 설정하면 해당 영상이 <span className="text-violet-400 font-bold">'내 콘텐츠'</span> 탭으로 자동 이동하며 사용자들에게 유료로 노출됩니다.
-                                    </p>
+                                    <div className={`transition-all duration-300 overflow-hidden ${isSubscriptionExcluded && price > 0 ? 'max-h-32 opacity-100' : 'max-h-0 opacity-50'}`}>
+                                        <div className="relative mt-2">
+                                            <span className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl font-black text-violet-500">₩</span>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="1000"
+                                                value={price}
+                                                onChange={e => setPrice(Number(e.target.value))}
+                                                className="w-full pl-12 pr-6 py-5 bg-zinc-950 border border-zinc-800 rounded-2xl text-3xl font-black text-white outline-none focus:border-violet-500 transition-all placeholder:text-zinc-800 shadow-inner"
+                                                placeholder="0"
+                                            />
+                                        </div>
+                                    </div>
+                                    {(!isSubscriptionExcluded && price === 0) && (
+                                        <p className="text-xs text-zinc-500 text-center px-4">
+                                            영상 길이에 비례하여 가격이 <span className="text-violet-400 font-bold">자동으로 책정</span>되며, 구독자에게는 무료로 제공됩니다.
+                                        </p>
+                                    )}
+                                    {(isSubscriptionExcluded && price > 0) && (
+                                        <p className="text-xs text-zinc-500 text-center px-4">
+                                            설정한 가격으로 단건 판매되며, 구독자도 <span className="text-rose-400 font-bold">별도 구매</span>해야 합니다.
+                                        </p>
+                                    )}
+                                    {(isSubscriptionExcluded && price === 0) && (
+                                        <p className="text-xs text-zinc-500 text-center px-4">
+                                            모든 사용자에게 <span className="text-emerald-400 font-bold">무료로 공개</span>됩니다. 구독 여부와 관계없습니다.
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div className="space-y-3">
@@ -629,7 +691,7 @@ export const UploadSparring: React.FC = () => {
                                         <div className="flex items-center justify-between p-3 bg-zinc-950/50 rounded-xl border border-zinc-800/50">
                                             <span className="text-xs text-zinc-400">판매 상태</span>
                                             <span className={cn("text-xs font-bold px-2 py-0.5 rounded", price > 0 ? "text-emerald-400 bg-emerald-500/10" : "text-zinc-500 bg-zinc-800")}>
-                                                {price > 0 ? '판매 중' : '무료/비공개'}
+                                                {price > 0 ? '개별 판매' : (isSubscriptionExcluded ? '무료 공개' : '시간 비례 (자동)')}
                                             </span>
                                         </div>
                                         <div className="flex items-center justify-between p-3 bg-zinc-950/50 rounded-xl border border-zinc-800/50">
@@ -663,7 +725,7 @@ export const UploadSparring: React.FC = () => {
                         <div className="pt-4 flex flex-col gap-3">
                             <button
                                 onClick={handleSubmit}
-                                disabled={isSubmitting || !title || (mode === 'sales' && price <= 0)}
+                                disabled={isSubmitting || !title || (mode === 'sales' && price <= 0 && !isSubscriptionExcluded)}
                                 className="w-full py-5 bg-violet-600 hover:bg-violet-500 disabled:bg-zinc-800 disabled:text-zinc-600 disabled:cursor-not-allowed text-white rounded-2xl font-black text-lg transition-all shadow-xl shadow-violet-500/10 active:scale-[0.98] flex items-center justify-center gap-3"
                             >
                                 {isSubmitting && <Loader className="w-5 h-5 animate-spin" />}

@@ -13,6 +13,7 @@ import { Creator } from '../../types';
 import { ThumbnailCropper } from '../../components/ThumbnailCropper';
 import { VimeoThumbnailSelector } from '../../components/VimeoThumbnailSelector';
 import Player from '@vimeo/player';
+import { cn } from '../../lib/utils';
 
 type ProcessingState = {
     file: File | null;
@@ -54,7 +55,9 @@ export const UploadLesson: React.FC = () => {
         category: VideoCategory.Standing,
         uniformType: UniformType.Gi,
         durationMinutes: 0,
-        length: '0:00'
+        length: '0:00',
+        price: 0,
+        isSubscriptionExcluded: false
     });
     const [thumbnailUrl, setThumbnailUrl] = useState<string>('');
     const [isLoading, setIsLoading] = useState(false);
@@ -88,7 +91,9 @@ export const UploadLesson: React.FC = () => {
                         category: data.category || VideoCategory.Standing,
                         uniformType: (data.uniformType as UniformType) || UniformType.Gi,
                         durationMinutes: data.durationMinutes || 0,
-                        length: data.length || '0:00'
+                        length: data.length || '0:00',
+                        price: data.price || 0,
+                        isSubscriptionExcluded: !!data.isSubscriptionExcluded
                     });
                     if (data.creatorId) setSelectedCreatorId(data.creatorId);
                     if (data.thumbnailUrl) setThumbnailUrl(data.thumbnailUrl);
@@ -122,6 +127,25 @@ export const UploadLesson: React.FC = () => {
 
     const handleFileUpload = async (file: File) => {
         const objectUrl = URL.createObjectURL(file);
+
+        // Auto-calculate duration from video file
+        const videoElement = document.createElement('video');
+        videoElement.src = objectUrl;
+        videoElement.onloadedmetadata = () => {
+            const durationSecs = videoElement.duration;
+            const durationMins = Math.ceil(durationSecs / 60);
+            const minutes = Math.floor(durationSecs / 60);
+            const seconds = Math.floor(durationSecs % 60);
+            const lengthStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+            setFormData(prev => ({
+                ...prev,
+                durationMinutes: durationMins,
+                length: lengthStr,
+                price: prev.isSubscriptionExcluded ? prev.price : durationMins * 1000 // 10 min = 10,000 KRW (1 min = 1,000 KRW)
+            }));
+        };
+
         setVideoState(prev => ({
             ...prev,
             file,
@@ -230,7 +254,9 @@ export const UploadLesson: React.FC = () => {
                 uniformType: formData.uniformType,
                 thumbnailUrl: currentThumbnailUrl || 'https://placehold.co/600x800/1e293b/ffffff?text=Processing...',
                 durationMinutes: formData.durationMinutes,
-                length: formData.length
+                length: formData.length,
+                price: formData.price,
+                isSubscriptionExcluded: formData.isSubscriptionExcluded
             };
 
             if (isEditMode && lessonId) {
@@ -375,140 +401,232 @@ export const UploadLesson: React.FC = () => {
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <div className="border-t border-zinc-800/50 pt-8">
-                        <label className="block text-sm font-semibold text-zinc-400 mb-4">레슨 영상 <span className="text-rose-400">*</span></label>
-
-                        {/* Vimeo URL Input */}
-                        <div className="flex flex-col gap-2 mb-4">
-                            <label className="text-sm font-medium text-zinc-400">Vimeo URL (선택)</label>
-                            <input
-                                type="text"
-                                value={videoState.vimeoUrl || ''}
-                                onChange={(e) => {
-                                    const val = e.target.value;
-                                    const vId = extractVimeoId(val);
-                                    const vHash = extractVimeoHash(val);
-
-                                    let embedUrl = '';
-                                    if (vId) {
-                                        embedUrl = `https://player.vimeo.com/video/${vId}`;
-                                        if (vHash) embedUrl += `?h=${vHash}`;
-                                    }
-
-                                    setVideoState(prev => ({
-                                        ...prev,
-                                        vimeoUrl: val ? val : null,
-                                        status: val ? 'complete' : (prev.file ? 'ready' : 'idle'),
-                                        previewUrl: val ? embedUrl : (prev.file ? prev.previewUrl : null)
-                                    }));
-                                }}
-                                placeholder="Vimeo URL 또는 ID를 입력하세요"
-                                className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-zinc-300 focus:border-violet-500 outline-none"
-                            />
-                        </div>
-
-                        {(videoState.status === 'idle' || videoState.status === 'error') && !videoState.vimeoUrl && !videoState.previewUrl ? (
-                            <div className="border-2 border-dashed border-zinc-800 rounded-2xl p-16 text-center hover:border-violet-500 hover:bg-zinc-900/50 transition-all cursor-pointer relative group">
-                                <input
-                                    type="file"
-                                    accept="video/*"
-                                    onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                />
-                                <Upload className="w-16 h-16 mx-auto mb-4 text-zinc-700 group-hover:text-violet-500" />
-                                <p className="font-bold text-white text-lg">영상 파일 선택</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                <div className="flex justify-end gap-2">
-                                    <button
-                                        onClick={captureFromVideo}
-                                        disabled={isCapturing}
-                                        className="px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:bg-violet-600/50 disabled:cursor-wait rounded-xl text-white text-sm flex items-center gap-2 transition-colors"
-                                    >
-                                        {isCapturing ? (
-                                            <><Loader className="w-4 h-4 animate-spin" /> 캡처 중...</>
-                                        ) : (
-                                            <><Camera className="w-4 h-4" /> 썸네일 캡처</>
-                                        )}
-                                    </button>
-                                    <button
-                                        onClick={() => setVideoState(initialProcessingState)}
-                                        className="px-4 py-2 bg-zinc-800 hover:bg-rose-500/20 rounded-xl text-rose-400 text-sm flex items-center gap-2 border border-zinc-700 transition-colors"
-                                    >
-                                        <Trash2 className="w-4 h-4" /> 삭제
-                                    </button>
+                <div className="pt-8 border-t border-zinc-800/50 space-y-6">
+                    <div className="space-y-4">
+                        <label className="block text-sm font-semibold text-zinc-400">가격 설정 방식</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <label className={cn(
+                                "flex flex-col gap-1 p-4 rounded-xl border cursor-pointer transition-all",
+                                !formData.isSubscriptionExcluded
+                                    ? "bg-violet-500/10 border-violet-500"
+                                    : "bg-zinc-900 border-zinc-800 hover:border-zinc-700"
+                            )}>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="radio"
+                                        name="priceMode"
+                                        checked={!formData.isSubscriptionExcluded}
+                                        onChange={() => setFormData(prev => ({ ...prev, isSubscriptionExcluded: false, price: prev.durationMinutes * 1000 }))}
+                                        className="w-4 h-4 text-violet-600 focus:ring-violet-500 bg-zinc-950 border-zinc-700"
+                                    />
+                                    <span className={cn("text-sm font-bold", !formData.isSubscriptionExcluded ? "text-violet-400" : "text-zinc-300")}>시간 비례 (자동)</span>
                                 </div>
-                                <div className="aspect-video rounded-2xl overflow-hidden bg-black border border-zinc-800">
-                                    {videoState.vimeoUrl ? (
-                                        <iframe ref={vimeoIframeRef} src={videoState.previewUrl!} className="w-full h-full" frameBorder="0" allow="autoplay; fullscreen" allowFullScreen />
-                                    ) : (
-                                        <video ref={videoRef} src={videoState.previewUrl!} className="w-full h-full object-contain" crossOrigin="anonymous" controls autoPlay muted loop playsInline />
-                                    )}
-                                </div>
-                                {videoState.file && (
-                                    <div className="flex items-center gap-3 p-4 bg-zinc-950/50 border border-zinc-800 rounded-xl">
-                                        <FileVideo className="w-5 h-5 text-violet-400" />
-                                        <span className="text-zinc-400 truncate">{videoState.file?.name}</span>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
+                                <span className="text-xs text-zinc-500 pl-6">구독 포함, 1분/1000원</span>
+                            </label>
 
-                    <div className="pt-4 border-t border-zinc-800/50">
-                        <div className="flex items-center justify-between mb-3">
-                            <p className="text-sm font-semibold text-zinc-400">썸네일</p>
-                            <label className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-sm font-medium cursor-pointer transition-colors">
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={(e) => {
-                                        const file = e.target.files?.[0];
-                                        if (file) {
-                                            const reader = new FileReader();
-                                            reader.onload = (event) => {
-                                                setCroppingImage(event.target?.result as string);
-                                            };
-                                            reader.readAsDataURL(file);
-                                        }
-                                    }}
-                                    className="hidden"
-                                />
-                                이미지 업로드
+                            <label className={cn(
+                                "flex flex-col gap-1 p-4 rounded-xl border cursor-pointer transition-all",
+                                formData.isSubscriptionExcluded && formData.price > 0
+                                    ? "bg-violet-500/10 border-violet-500"
+                                    : "bg-zinc-900 border-zinc-800 hover:border-zinc-700"
+                            )}>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="radio"
+                                        name="priceMode"
+                                        checked={formData.isSubscriptionExcluded && formData.price > 0}
+                                        onChange={() => setFormData(prev => ({ ...prev, isSubscriptionExcluded: true, price: prev.durationMinutes * 1000 || 10000 }))}
+                                        className="w-4 h-4 text-violet-600 focus:ring-violet-500 bg-zinc-950 border-zinc-700"
+                                    />
+                                    <span className={cn("text-sm font-bold", formData.isSubscriptionExcluded && formData.price > 0 ? "text-violet-400" : "text-zinc-300")}>개별 판매 (수동)</span>
+                                </div>
+                                <span className="text-xs text-zinc-500 pl-6">구독 제외, 단품 판매</span>
+                            </label>
+
+                            <label className={cn(
+                                "flex flex-col gap-1 p-4 rounded-xl border cursor-pointer transition-all",
+                                formData.isSubscriptionExcluded && formData.price === 0
+                                    ? "bg-violet-500/10 border-violet-500"
+                                    : "bg-zinc-900 border-zinc-800 hover:border-zinc-700"
+                            )}>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="radio"
+                                        name="priceMode"
+                                        checked={formData.isSubscriptionExcluded && formData.price === 0}
+                                        onChange={() => setFormData(prev => ({ ...prev, isSubscriptionExcluded: true, price: 0 }))}
+                                        className="w-4 h-4 text-violet-600 focus:ring-violet-500 bg-zinc-950 border-zinc-700"
+                                    />
+                                    <span className={cn("text-sm font-bold", formData.isSubscriptionExcluded && formData.price === 0 ? "text-violet-400" : "text-zinc-300")}>무료 공개</span>
+                                </div>
+                                <span className="text-xs text-zinc-500 pl-6">누구나 무료 시청</span>
                             </label>
                         </div>
-                        {/* Vimeo 영상인 경우 썸네일 선택기 표시 */}
-                        {videoState.vimeoUrl && (
-                            <div className="mb-6 p-4 bg-violet-500/5 rounded-xl border border-violet-500/20">
-                                <VimeoThumbnailSelector
-                                    vimeoId={extractVimeoId(videoState.vimeoUrl) || videoState.vimeoUrl}
-                                    vimeoHash={extractVimeoHash(videoState.vimeoUrl)}
-                                    onSelect={(url) => setThumbnailUrl(url)}
-                                    onSelectForCrop={(base64) => setCroppingImage(base64)}
-                                    currentThumbnailUrl={thumbnailUrl}
-                                    refreshKey={thumbnailSelectorKey}
-                                />
-                            </div>
-                        )}
-                        {thumbnailUrl && (
-                            <div className="w-48 aspect-video rounded-xl overflow-hidden border border-zinc-800">
-                                <img src={thumbnailUrl} alt="Thumbnail" loading="lazy" className="w-full h-full object-cover" />
-                            </div>
-                        )}
                     </div>
 
-                    <div className="pt-8 border-t border-zinc-800/50 flex justify-end gap-3">
-                        <button onClick={() => navigate('/creator')} className="px-6 py-3.5 bg-zinc-800 text-zinc-300 rounded-xl font-bold">취소</button>
-                        <button
-                            onClick={handleSubmit}
-                            disabled={isSubmitting || !formData.title || (!isEditMode && !videoState.file)}
-                            className="px-8 py-3.5 bg-violet-600 text-white rounded-xl font-bold disabled:opacity-50"
-                        >
-                            {isSubmitting ? <Loader className="w-5 h-5 animate-spin" /> : (isEditMode ? '수정사항 저장' : '레슨 생성하기')}
-                        </button>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-semibold text-zinc-400 mb-2">
+                                가격 설정 (KRW)
+                            </label>
+                            <div className="relative">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 font-bold">₩</span>
+                                <input
+                                    type="number"
+                                    value={formData.isSubscriptionExcluded ? formData.price : (formData.durationMinutes * 1000)}
+                                    onChange={e => setFormData({ ...formData, price: parseInt(e.target.value) || 0 })}
+                                    disabled={!formData.isSubscriptionExcluded || (formData.isSubscriptionExcluded && formData.price === 0)}
+                                    className={cn(
+                                        "w-full pl-10 pr-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none focus:border-violet-500 transition-all",
+                                        (!formData.isSubscriptionExcluded || (formData.isSubscriptionExcluded && formData.price === 0)) ? "opacity-50 cursor-not-allowed bg-zinc-900 border-transparent" : ""
+                                    )}
+                                    placeholder="가격을 입력하세요"
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-semibold text-zinc-400 mb-2">재생 시간</label>
+                            <div className="px-5 py-3.5 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-400">
+                                {formData.length} ({formData.durationMinutes}분)
+                            </div>
+                        </div>
                     </div>
+                </div>
+
+                <div className="border-t border-zinc-800/50 pt-8">
+                    <label className="block text-sm font-semibold text-zinc-400 mb-4">레슨 영상 <span className="text-rose-400">*</span></label>
+
+                    {/* Vimeo URL Input */}
+                    <div className="flex flex-col gap-2 mb-4">
+                        <label className="text-sm font-medium text-zinc-400">Vimeo URL (선택)</label>
+                        <input
+                            type="text"
+                            value={videoState.vimeoUrl || ''}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                const vId = extractVimeoId(val);
+                                const vHash = extractVimeoHash(val);
+
+                                let embedUrl = '';
+                                if (vId) {
+                                    embedUrl = `https://player.vimeo.com/video/${vId}`;
+                                    if (vHash) embedUrl += `?h=${vHash}`;
+                                }
+
+                                setVideoState(prev => ({
+                                    ...prev,
+                                    vimeoUrl: val ? val : null,
+                                    status: val ? 'complete' : (prev.file ? 'ready' : 'idle'),
+                                    previewUrl: val ? embedUrl : (prev.file ? prev.previewUrl : null)
+                                }));
+                            }}
+                            placeholder="Vimeo URL 또는 ID를 입력하세요"
+                            className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-zinc-300 focus:border-violet-500 outline-none"
+                        />
+                    </div>
+
+                    {(videoState.status === 'idle' || videoState.status === 'error') && !videoState.vimeoUrl && !videoState.previewUrl ? (
+                        <div className="border-2 border-dashed border-zinc-800 rounded-2xl p-16 text-center hover:border-violet-500 hover:bg-zinc-900/50 transition-all cursor-pointer relative group">
+                            <input
+                                type="file"
+                                accept="video/*"
+                                onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            />
+                            <Upload className="w-16 h-16 mx-auto mb-4 text-zinc-700 group-hover:text-violet-500" />
+                            <p className="font-bold text-white text-lg">영상 파일 선택</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            <div className="flex justify-end gap-2">
+                                <button
+                                    onClick={captureFromVideo}
+                                    disabled={isCapturing}
+                                    className="px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:bg-violet-600/50 disabled:cursor-wait rounded-xl text-white text-sm flex items-center gap-2 transition-colors"
+                                >
+                                    {isCapturing ? (
+                                        <><Loader className="w-4 h-4 animate-spin" /> 캡처 중...</>
+                                    ) : (
+                                        <><Camera className="w-4 h-4" /> 썸네일 캡처</>
+                                    )}
+                                </button>
+                                <button
+                                    onClick={() => setVideoState(initialProcessingState)}
+                                    className="px-4 py-2 bg-zinc-800 hover:bg-rose-500/20 rounded-xl text-rose-400 text-sm flex items-center gap-2 border border-zinc-700 transition-colors"
+                                >
+                                    <Trash2 className="w-4 h-4" /> 삭제
+                                </button>
+                            </div>
+                            <div className="aspect-video rounded-2xl overflow-hidden bg-black border border-zinc-800">
+                                {videoState.vimeoUrl ? (
+                                    <iframe ref={vimeoIframeRef} src={videoState.previewUrl!} className="w-full h-full" frameBorder="0" allow="autoplay; fullscreen" allowFullScreen />
+                                ) : (
+                                    <video ref={videoRef} src={videoState.previewUrl!} className="w-full h-full object-contain" crossOrigin="anonymous" controls autoPlay muted loop playsInline />
+                                )}
+                            </div>
+                            {videoState.file && (
+                                <div className="flex items-center gap-3 p-4 bg-zinc-950/50 border border-zinc-800 rounded-xl">
+                                    <FileVideo className="w-5 h-5 text-violet-400" />
+                                    <span className="text-zinc-400 truncate">{videoState.file?.name}</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                <div className="pt-4 border-t border-zinc-800/50">
+                    <div className="flex items-center justify-between mb-3">
+                        <p className="text-sm font-semibold text-zinc-400">썸네일</p>
+                        <label className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-sm font-medium cursor-pointer transition-colors">
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                        const reader = new FileReader();
+                                        reader.onload = (event) => {
+                                            setCroppingImage(event.target?.result as string);
+                                        };
+                                        reader.readAsDataURL(file);
+                                    }
+                                }}
+                                className="hidden"
+                            />
+                            이미지 업로드
+                        </label>
+                    </div>
+                    {/* Vimeo 영상인 경우 썸네일 선택기 표시 */}
+                    {videoState.vimeoUrl && (
+                        <div className="mb-6 p-4 bg-violet-500/5 rounded-xl border border-violet-500/20">
+                            <VimeoThumbnailSelector
+                                vimeoId={extractVimeoId(videoState.vimeoUrl) || videoState.vimeoUrl}
+                                vimeoHash={extractVimeoHash(videoState.vimeoUrl)}
+                                onSelect={(url) => setThumbnailUrl(url)}
+                                onSelectForCrop={(base64) => setCroppingImage(base64)}
+                                currentThumbnailUrl={thumbnailUrl}
+                                refreshKey={thumbnailSelectorKey}
+                            />
+                        </div>
+                    )}
+                    {thumbnailUrl && (
+                        <div className="w-48 aspect-video rounded-xl overflow-hidden border border-zinc-800">
+                            <img src={thumbnailUrl} alt="Thumbnail" loading="lazy" className="w-full h-full object-cover" />
+                        </div>
+                    )}
+                </div>
+
+                <div className="pt-8 border-t border-zinc-800/50 flex justify-end gap-3">
+                    <button onClick={() => navigate('/creator')} className="px-6 py-3.5 bg-zinc-800 text-zinc-300 rounded-xl font-bold">취소</button>
+                    <button
+                        onClick={handleSubmit}
+                        disabled={isSubmitting || !formData.title || (!isEditMode && !videoState.file)}
+                        className="px-8 py-3.5 bg-violet-600 text-white rounded-xl font-bold disabled:opacity-50"
+                    >
+                        {isSubmitting ? <Loader className="w-5 h-5 animate-spin" /> : (isEditMode ? '수정사항 저장' : '레슨 생성하기')}
+                    </button>
                 </div>
             </div>
         </div>

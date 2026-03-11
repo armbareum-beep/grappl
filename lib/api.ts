@@ -1,6 +1,7 @@
 import { createNotification as createNotify } from './api-notifications';
 export * from './api-user-interactions';
 export * from './api-lessons';
+export * from './api-organizers';
 import { transformLesson } from './api-lessons';
 import { supabase } from './supabase';
 
@@ -228,6 +229,23 @@ type CourseData = Tables<'courses'> & {
 };
 
 function transformCourse(data: CourseData): Course {
+    // Calculate duration-based price (1000 KRW per minute)
+    // Only use manual price if explicitly excluded from subscription
+    const isExcluded = data.is_subscription_excluded ?? (data as any).isSubscriptionExcluded ?? false;
+    let price = Number(data.price) || 0;
+
+    if (!isExcluded) {
+        // For courses, sum of lesson durations
+        const lessons = (data as any).lessons || [];
+        const totalDurationFromLessons = lessons.reduce((sum: number, lesson: any) => sum + (Number(lesson.duration_minutes) || 0), 0);
+
+        // Fallback to total_duration_minutes from course record
+        const totalDurationFromCourse = Number((data as any).total_duration_minutes) || Number((data as any).totalDurationMinutes) || 0;
+
+        const finalDuration = totalDurationFromLessons || totalDurationFromCourse;
+        price = finalDuration * 1000;
+    }
+
     return {
         id: data.id,
         title: data.title,
@@ -238,12 +256,13 @@ function transformCourse(data: CourseData): Course {
         category: data.category as any,
         difficulty: data.difficulty as any,
         thumbnailUrl: data.thumbnail_url || '',
-        price: data.price,
+        price: price,
         views: data.views || 0,
         lessonCount: data.lesson_count || 0,
         createdAt: data.created_at || '',
         uniformType: data.uniform_type as any,
-        isSubscriptionExcluded: data.is_subscription_excluded || false,
+        isSubscriptionExcluded: isExcluded,
+        totalDurationMinutes: (data as any).total_duration_minutes || 0,
         isHidden: (data as any).is_hidden || false,
         published: data.published || false,
         previewVimeoId: data.preview_vimeo_id || undefined,
@@ -456,8 +475,10 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
                 .from('courses')
                 .select(`
                     *,
+                    is_subscription_excluded,
+                    total_duration_minutes,
                     creator:creators!creator_id(name, profile_image),
-                    lessons:lessons(vimeo_url, lesson_number, title, views)
+                    lessons:lessons(vimeo_url, lesson_number, title, views, duration_minutes, length)
                 `)
                 .eq('published', true)
                 .order('created_at', { ascending: false })
@@ -473,7 +494,9 @@ export async function getCourses(limit: number = 50, offset: number = 0): Promis
                     .from('courses')
                     .select(`
                         *,
-                        lessons:lessons(vimeo_url, lesson_number, title, views)
+                        is_subscription_excluded,
+                        total_duration_minutes,
+                        lessons:lessons(vimeo_url, lesson_number, title, views, duration_minutes, length)
                     `)
                     .eq('published', true)
                     .order('created_at', { ascending: false })
@@ -723,7 +746,7 @@ export async function getCourseById(id: string): Promise<Course | null> {
             .select(`
       *,
       creator:creators(name, profile_image),
-      lessons:lessons(vimeo_url, lesson_number, is_preview, id, views)
+      lessons:lessons(vimeo_url, lesson_number, is_preview, id, views, duration_minutes, length)
     `)
             .eq('id', id)
             .maybeSingle(), 10000);
@@ -1445,17 +1468,18 @@ export async function createCourse(courseData: Partial<Course>) {
     const dbData = {
         title: courseData.title,
         description: courseData.description,
-        creator_id: courseData.creatorId,
+        creator_id: courseData.creatorId || null,
         category: courseData.category,
         difficulty: courseData.difficulty,
         thumbnail_url: courseData.thumbnailUrl,
         price: courseData.price,
-        is_subscription_excluded: courseData.isSubscriptionExcluded,
+        is_subscription_excluded: courseData.isSubscriptionExcluded || false,
+        is_hidden: courseData.isHidden || false, // Added from snippet
         uniform_type: courseData.uniformType,
         preview_vimeo_id: courseData.previewVimeoId,
-        brand_id: courseData.brandId,
-        status: 'approved',
-        published: true,
+        brand_id: courseData.brandId || null,
+        status: 'pending', // Changed from 'approved' to 'pending'
+        published: courseData.published ?? false, // Added from snippet, default to false
     };
 
     const { data, error } = await supabase
@@ -1472,7 +1496,7 @@ export async function updateCourse(courseId: string, courseData: Partial<Course>
     const dbData: any = {};
     if (courseData.title) dbData.title = courseData.title;
     if (courseData.description) dbData.description = courseData.description;
-    if (courseData.creatorId) dbData.creator_id = courseData.creatorId;
+    if (courseData.creatorId !== undefined) dbData.creator_id = courseData.creatorId || null;
     if (courseData.category) dbData.category = courseData.category;
     if (courseData.difficulty) dbData.difficulty = courseData.difficulty;
     if (courseData.thumbnailUrl !== undefined) dbData.thumbnail_url = courseData.thumbnailUrl;
@@ -1480,8 +1504,9 @@ export async function updateCourse(courseId: string, courseData: Partial<Course>
     if (courseData.isSubscriptionExcluded !== undefined) dbData.is_subscription_excluded = courseData.isSubscriptionExcluded;
     if (courseData.published !== undefined) dbData.published = courseData.published;
     if (courseData.uniformType) dbData.uniform_type = courseData.uniformType;
-    if (courseData.previewVimeoId) dbData.preview_vimeo_id = courseData.previewVimeoId;
-    if (courseData.brandId !== undefined) dbData.brand_id = courseData.brandId;
+    if (courseData.previewVimeoId !== undefined) dbData.preview_vimeo_id = courseData.previewVimeoId;
+    if (courseData.brandId !== undefined) dbData.brand_id = courseData.brandId || null;
+    if (courseData.isHidden !== undefined) dbData.is_hidden = courseData.isHidden; // Added from snippet
 
     const { data, error } = await supabase
         .from('courses')
@@ -3608,7 +3633,7 @@ export async function createBundle(bundle: {
     const { data: newBundle, error: bundleError } = await supabase
         .from('bundles')
         .insert({
-            creator_id: bundle.creatorId,
+            creator_id: bundle.creatorId || null, // Ensure null for empty string
             title: bundle.title,
             description: bundle.description,
             price: bundle.price,
@@ -3683,7 +3708,8 @@ export async function updateBundle(id: string, bundle: Partial<Bundle>) {
             title: bundle.title,
             description: bundle.description,
             price: bundle.price,
-            thumbnail_url: bundle.thumbnailUrl
+            thumbnail_url: bundle.thumbnailUrl,
+            creator_id: bundle.creatorId || null, // Ensure null for empty string
         })
         .eq('id', id);
 
@@ -3806,7 +3832,7 @@ export async function createCoupon(coupon: {
         .from('coupons')
         .insert({
             code: coupon.code.toUpperCase(),
-            creator_id: coupon.creatorId,
+            creator_id: coupon.creatorId || null, // Ensure null for empty string
             discount_type: coupon.discountType,
             value: coupon.value,
             max_uses: coupon.maxUses,
@@ -3883,7 +3909,8 @@ export async function updateCoupon(id: string, coupon: Partial<Coupon>) {
             discount_type: coupon.discountType,
             value: coupon.value,
             max_uses: coupon.maxUses,
-            expires_at: coupon.expiresAt
+            expires_at: coupon.expiresAt,
+            creator_id: coupon.creatorId || null, // Ensure null for empty string
         })
         .eq('id', id);
 
@@ -4352,8 +4379,8 @@ export async function getAllUsersAdmin() {
     const data = usersData?.map(user => {
         const creatorInfo = creatorMap.get(user.id);
         const isOrganizer = creatorInfo?.creator_type === 'organizer' ||
-                           creatorInfo?.creator_type === 'both' ||
-                           creatorInfo?.can_host_events === true;
+            creatorInfo?.creator_type === 'both' ||
+            creatorInfo?.can_host_events === true;
         return {
             ...user,
             is_creator: creatorInfo?.creator_type === 'instructor' || creatorInfo?.creator_type === 'both',
@@ -5099,7 +5126,7 @@ export async function createDrill(drillData: Partial<Drill>) {
     const dbData: any = {
         title: drillData.title,
         description: drillData.description,
-        creator_id: drillData.creatorId,
+        creator_id: drillData.creatorId || null, // Ensure null for empty string
         category: drillData.category,
         difficulty: drillData.difficulty,
         thumbnail_url: drillData.thumbnailUrl,
@@ -5107,9 +5134,10 @@ export async function createDrill(drillData: Partial<Drill>) {
         description_video_url: drillData.descriptionVideoUrl,
         duration_minutes: drillData.durationMinutes,
         uniform_type: drillData.uniformType,
-        // duration: drillData.length || drillData.duration, // Column doesn't exist in DB
         related_items: drillData.relatedItems || [],
         related_lesson_id: drillData.relatedLessonId,
+        is_subscription_excluded: drillData.isSubscriptionExcluded || false,
+        price: drillData.price || 0,
     };
 
     // Auto-fetch video info based on the video source
@@ -5180,17 +5208,20 @@ export async function updateDrill(drillId: string, drillData: Partial<Drill>) {
     const dbData: any = {};
     if (drillData.title) dbData.title = drillData.title;
     if (drillData.description) dbData.description = drillData.description;
+    if (drillData.creatorId !== undefined) dbData.creator_id = drillData.creatorId || null; // Ensure null for empty string
     if (drillData.category) dbData.category = drillData.category;
     if (drillData.difficulty) dbData.difficulty = drillData.difficulty;
-    if (drillData.thumbnailUrl) dbData.thumbnail_url = drillData.thumbnailUrl;
-    if (drillData.vimeoUrl) dbData.vimeo_url = drillData.vimeoUrl;
+    if (drillData.thumbnailUrl !== undefined) dbData.thumbnail_url = drillData.thumbnailUrl;
+    if (drillData.vimeoUrl !== undefined) dbData.vimeo_url = drillData.vimeoUrl;
     // Allow explicit null to clear description video
     if ('descriptionVideoUrl' in drillData) dbData.description_video_url = drillData.descriptionVideoUrl || null;
     if (drillData.durationMinutes !== undefined) dbData.duration_minutes = drillData.durationMinutes;
-    if (drillData.uniformType) dbData.uniform_type = drillData.uniformType;
+    if (drillData.uniformType !== undefined) dbData.uniform_type = drillData.uniformType;
     // if (drillData.length || drillData.duration) dbData.duration = drillData.length || drillData.duration; // Column doesn't exist
     if (drillData.relatedItems !== undefined) dbData.related_items = drillData.relatedItems;
     if (drillData.relatedLessonId !== undefined) dbData.related_lesson_id = drillData.relatedLessonId || null;
+    if (drillData.isSubscriptionExcluded !== undefined) dbData.is_subscription_excluded = drillData.isSubscriptionExcluded;
+    if (drillData.price !== undefined) dbData.price = drillData.price;
 
     // Auto-fetch video info based on the video source
     if (drillData.vimeoUrl) {
@@ -5273,6 +5304,16 @@ export function transformSparringVideo(data: any): SparringVideo {
         thumb = creatorData.profile_image || creatorData.avatar_url || '';
     }
 
+    // Calculate duration-based price (1000 KRW per minute)
+    // Only use manual price if explicitly excluded from subscription
+    const isExcluded = data.is_subscription_excluded ?? (data as any).isSubscriptionExcluded ?? false;
+    let price = Number(data.price) || 0;
+
+    if (!isExcluded) {
+        const duration = Number(data.duration_minutes) || Number(data.durationMinutes) || 0;
+        price = duration * 1000;
+    }
+
     return {
         id: data.id,
         creatorId: data.creator_id,
@@ -5289,17 +5330,18 @@ export function transformSparringVideo(data: any): SparringVideo {
         creatorProfileImage: creatorData?.profile_image || creatorData?.avatar_url,
         createdAt: data.created_at,
         difficulty: data.difficulty,
-        price: Number(data.price) || 0,
+        price: price,
         isPublished: data.is_published ?? false,
         isHidden: data.is_hidden ?? false,
         previewVimeoId: data.preview_vimeo_id || data.preview_vimeo_url,
-        brandId: data.brand_id
+        brandId: data.brand_id,
+        isSubscriptionExcluded: isExcluded
     };
 }
 
 export async function createSparringVideo(videoData: Partial<SparringVideo>) {
     const dbData: any = {
-        creator_id: videoData.creatorId,
+        creator_id: videoData.creatorId || null, // Ensure null for empty string
         title: videoData.title,
         description: videoData.description,
         video_url: videoData.videoUrl,
@@ -5309,10 +5351,12 @@ export async function createSparringVideo(videoData: Partial<SparringVideo>) {
         category: videoData.category,
         difficulty: videoData.difficulty,
         uniform_type: videoData.uniformType,
-        brand_id: videoData.brandId,
+        brand_id: videoData.brandId || null, // Ensure null for empty string
         is_published: false,
         duration_minutes: videoData.durationMinutes,
         length: videoData.length,
+        is_subscription_excluded: videoData.isSubscriptionExcluded || false,
+        price: videoData.price || 0,
         status: 'pending',
     };
 
@@ -5611,18 +5655,20 @@ export async function updateSparringVideo(id: string, updates: Partial<SparringV
     const dbData: any = {};
     if (updates.title) dbData.title = updates.title;
     if (updates.description) dbData.description = updates.description;
-    if (updates.videoUrl) dbData.video_url = updates.videoUrl;
-    if (updates.thumbnailUrl) dbData.thumbnail_url = updates.thumbnailUrl;
-    if (updates.relatedItems) dbData.related_items = updates.relatedItems;
-    if (updates.category) dbData.category = updates.category;
-    if (updates.difficulty) dbData.difficulty = updates.difficulty;
-    if (updates.uniformType) dbData.uniform_type = updates.uniformType;
+    if (updates.videoUrl !== undefined) dbData.video_url = updates.videoUrl;
+    if (updates.thumbnailUrl !== undefined) dbData.thumbnail_url = updates.thumbnailUrl;
+    if (updates.relatedItems !== undefined) dbData.related_items = updates.relatedItems;
+    if (updates.category !== undefined) dbData.category = updates.category;
+    if (updates.difficulty !== undefined) dbData.difficulty = updates.difficulty;
+    if (updates.uniformType !== undefined) dbData.uniform_type = updates.uniformType;
     if (updates.price !== undefined) dbData.price = updates.price;
     if (updates.isPublished !== undefined) dbData.is_published = updates.isPublished;
     if (updates.isHidden !== undefined) dbData.is_hidden = updates.isHidden;
     if (updates.previewVimeoId !== undefined) dbData.preview_vimeo_id = updates.previewVimeoId;
-    if (updates.brandId !== undefined) dbData.brand_id = updates.brandId;
-    // Note: sparring_videos table doesn't have duration_minutes or length columns
+    if (updates.brandId !== undefined) dbData.brand_id = updates.brandId || null; // Ensure null for empty string
+    if (updates.durationMinutes !== undefined) dbData.duration_minutes = updates.durationMinutes;
+    if (updates.length !== undefined) dbData.length = updates.length;
+    if (updates.isSubscriptionExcluded !== undefined) dbData.is_subscription_excluded = updates.isSubscriptionExcluded;
     if (updates.creatorId) dbData.creator_id = updates.creatorId;
 
     // If videoUrl changed, fetch thumbnail only (sparring_videos has no duration/length columns)
@@ -5688,7 +5734,7 @@ export async function getRoutines(creatorId?: string, includeAll = false) {
         .select(`
             *,
             items:routine_drills(
-                drill:drills(views)
+                drill:drills(views, duration_minutes, title, length)
             )
         `)
         .order('created_at', { ascending: false });
@@ -6317,8 +6363,10 @@ export async function getRelatedRoutines(currentRoutineId: string, title: string
             .from('routines')
             .select(`
                 *,
+                is_subscription_excluded,
+                total_duration_minutes,
                 items:routine_drills(
-                    drill:drills(views)
+                    drill:drills(id, title, vimeo_url, length, thumbnail_url, views, duration_minutes)
                 )
             `)
             .neq('id', currentRoutineId) // Exclude current
@@ -6385,7 +6433,7 @@ export async function createRoutine(routineData: Partial<DrillRoutine>, drillIds
     const dbData = {
         title: routineData.title,
         description: routineData.description,
-        creator_id: routineData.creatorId,
+        creator_id: routineData.creatorId || null,
         thumbnail_url: thumbnailUrl,
         price: routineData.price,
         category: routineData.category,
@@ -6393,7 +6441,8 @@ export async function createRoutine(routineData: Partial<DrillRoutine>, drillIds
         total_duration_minutes: routineData.totalDurationMinutes || 0,
         related_items: routineData.relatedItems || [],
         uniform_type: routineData.uniformType,
-        brand_id: routineData.brandId,
+        brand_id: routineData.brandId || null,
+        is_subscription_excluded: routineData.isSubscriptionExcluded || false,
         drill_count: drillIds.length,
         status: 'pending',
     };
@@ -6463,9 +6512,10 @@ export async function updateRoutine(id: string, updates: Partial<DrillRoutine>, 
     if (updates.price !== undefined) dbData.price = updates.price;
     if (updates.relatedItems) dbData.related_items = updates.relatedItems;
     if (updates.uniformType) dbData.uniform_type = updates.uniformType;
-    if (updates.creatorId) dbData.creator_id = updates.creatorId;
+    if (updates.creatorId !== undefined) dbData.creator_id = updates.creatorId || null;
     if (updates.isHidden !== undefined) dbData.is_hidden = updates.isHidden;
-    if (updates.brandId !== undefined) dbData.brand_id = updates.brandId;
+    if (updates.brandId !== undefined) dbData.brand_id = updates.brandId || null;
+    if (updates.isSubscriptionExcluded !== undefined) dbData.is_subscription_excluded = updates.isSubscriptionExcluded;
     if (drillIds) dbData.drill_count = drillIds.length;
 
     const { data: routine, error: routineError } = await withTimeout(
@@ -6761,7 +6811,8 @@ export function transformDrill(data: any): Drill {
         length: data.length || data.duration,
         tags: data.tags || [],
         likes: data.likes || 0,
-        price: Number(data.price) || 0,
+        price: (data.is_subscription_excluded || data.isSubscriptionExcluded) ? (Number(data.price) || 0) : ((data.duration_minutes || 0) * 1000),
+        isSubscriptionExcluded: data.is_subscription_excluded || data.isSubscriptionExcluded || false,
         createdAt: data.created_at,
         uniformType: data.uniform_type,
         isHidden: data.is_hidden ?? false,
@@ -6771,8 +6822,26 @@ export function transformDrill(data: any): Drill {
 
 // Helper for transforming routine data
 function transformDrillRoutine(data: any): DrillRoutine {
-    if (!data) return {} as DrillRoutine;
-    // Safety check for duration and drill count which are often missing or misnamed in DB
+    // Calculate duration-based price (1000 KRW per minute)
+    // Only use manual price if explicitly excluded from subscription
+    const isExcluded = data.is_subscription_excluded ?? (data as any).isSubscriptionExcluded ?? false;
+    let price = Number(data.price) || 0;
+
+    if (!isExcluded) {
+        // For routines, sum of drill durations
+        const totalDurationFromItems = (data.items || []).reduce((sum: number, item: any) => {
+            const drill = item.drill || item;
+            return sum + (Number(drill.duration_minutes) || 0);
+        }, 0);
+
+        // Fallback to data.total_duration_minutes if items are not available
+        const totalDurationFromRoutine = Number(data.total_duration_minutes) || Number(data.totalDurationMinutes) || Number(data.duration_minutes) || 0;
+        const finalDuration = totalDurationFromItems || totalDurationFromRoutine;
+        price = finalDuration * 1000;
+    } else {
+        price = Number(data.price) || 0;
+    }
+
     return {
         id: data.id,
         title: data.title,
@@ -6782,7 +6851,7 @@ function transformDrillRoutine(data: any): DrillRoutine {
         // Prioritize profileImage (from creator table) over avatar_url (from auth/user table)
         creatorProfileImage: data.creator?.profileImage || data.creator?.profile_image || data.creator?.avatar_url || data.creatorProfileImage || undefined,
         thumbnailUrl: data.thumbnail_url || data.thumbnailUrl || '', // Support both snake and camel case
-        price: data.price || 0,
+        price: price,
         views: data.views || 0,
         difficulty: data.difficulty,
         category: data.category,
@@ -6793,7 +6862,8 @@ function transformDrillRoutine(data: any): DrillRoutine {
         uniformType: data.uniform_type,
         isHidden: data.is_hidden ?? false,
         brandId: data.brand_id,
-        createdAt: data.created_at
+        createdAt: data.created_at,
+        isSubscriptionExcluded: isExcluded
     };
 }
 

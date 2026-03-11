@@ -5,6 +5,7 @@ import { createRoutine, getDrills, getRoutineById, updateRoutine, getCreators } 
 import { VideoCategory, Difficulty, Drill, UniformType, QuantentPosition, ContentLevel, Creator } from '../../types';
 import { Image as ImageIcon, DollarSign, Type, AlignLeft, X, CheckCircle, ArrowLeft, Dumbbell, Clock, RefreshCw, Clapperboard, Search } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
+import { cn } from '../../lib/utils';
 
 export const CreateRoutine: React.FC = () => {
     const { user, isAdmin } = useAuth();
@@ -155,6 +156,30 @@ export const CreateRoutine: React.FC = () => {
 
         if (sparringRes && sparringRes.data) {
             setSparringVideos(sparringRes.data);
+        }
+    };
+
+    const [pricingType, setPricingType] = useState<'auto' | 'manual' | 'free'>('auto');
+
+    // Handle set pricing type based on formData
+    useEffect(() => {
+        if (formData.price === 0 && formData.isSubscriptionExcluded) {
+            setPricingType('free');
+        } else if (formData.isSubscriptionExcluded) {
+            setPricingType('manual');
+        } else {
+            setPricingType('auto');
+        }
+    }, [formData.price, formData.isSubscriptionExcluded]);
+
+    const handlePricingTypeChange = (type: 'auto' | 'manual' | 'free') => {
+        setPricingType(type);
+        if (type === 'auto') {
+            setFormData(prev => ({ ...prev, isSubscriptionExcluded: false, price: 0 }));
+        } else if (type === 'manual') {
+            setFormData(prev => ({ ...prev, isSubscriptionExcluded: true, price: prev.price === 0 ? 1000 : prev.price }));
+        } else if (type === 'free') {
+            setFormData(prev => ({ ...prev, isSubscriptionExcluded: true, price: 0 }));
         }
     };
 
@@ -447,24 +472,113 @@ export const CreateRoutine: React.FC = () => {
                         <p className="text-xs text-zinc-500 mt-3 ml-13">선택한 드릴들의 시간 합계입니다.</p>
                     </div>
 
-                    {/* Price */}
+                    {/* Pricing & Visibility Options */}
                     <div>
-                        <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">가격 (원)</label>
-                        <div className="relative">
-                            <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-600" />
+                        <label className="block text-sm font-semibold text-zinc-400 mb-2 ml-1">가격 설정</label>
+                        <div className="flex flex-col gap-3 p-4 rounded-xl border border-zinc-800 bg-zinc-950/30">
+
+                            {/* Auto Pricing */}
+                            <label className={cn(
+                                "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all",
+                                pricingType === 'auto' ? "border-emerald-500 bg-emerald-500/5" : "border-zinc-800 hover:bg-zinc-900"
+                            )}>
+                                <div className="flex items-center h-5 mt-0.5">
+                                    <input
+                                        type="radio"
+                                        name="pricingType"
+                                        checked={pricingType === 'auto'}
+                                        onChange={() => handlePricingTypeChange('auto')}
+                                        className="w-4 h-4 text-emerald-500 bg-zinc-900 border-zinc-700"
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <span className={cn("block font-semibold text-sm", pricingType === 'auto' ? "text-emerald-400" : "text-zinc-300")}>
+                                        시간비례 자동 가격 (구독 포함)
+                                    </span>
+                                    <span className="block text-xs text-zinc-500 mt-1">
+                                        영상 길이에 비례해 자동으로 가격이 책정되며, 구독권 이용자는 자유롭게 시청할 수 있습니다.
+                                    </span>
+                                </div>
+                            </label>
+
+                            {/* Manual Pricing */}
+                            <label className={cn(
+                                "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all",
+                                pricingType === 'manual' ? "border-violet-500 bg-violet-500/5" : "border-zinc-800 hover:bg-zinc-900"
+                            )}>
+                                <div className="flex items-center h-5 mt-0.5">
+                                    <input
+                                        type="radio"
+                                        name="pricingType"
+                                        checked={pricingType === 'manual'}
+                                        onChange={() => handlePricingTypeChange('manual')}
+                                        className="w-4 h-4 text-violet-500 bg-zinc-900 border-zinc-700"
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <span className={cn("block font-semibold text-sm", pricingType === 'manual' ? "text-violet-400" : "text-zinc-300")}>
+                                        개별 단품 판매 (구독 제외)
+                                    </span>
+                                    <span className="block text-xs text-zinc-500 mt-1">
+                                        모든 사용자가 설정한 가격으로 구매해야 합니다. (구독권 사용자도 별도 결제 필요)
+                                    </span>
+                                </div>
+                            </label>
+
+                            {/* Free Pricing */}
+                            <label className={cn(
+                                "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all",
+                                pricingType === 'free' ? "border-amber-500 bg-amber-500/5" : "border-zinc-800 hover:bg-zinc-900"
+                            )}>
+                                <div className="flex items-center h-5 mt-0.5">
+                                    <input
+                                        type="radio"
+                                        name="pricingType"
+                                        checked={pricingType === 'free'}
+                                        onChange={() => handlePricingTypeChange('free')}
+                                        className="w-4 h-4 text-amber-500 bg-zinc-900 border-zinc-700"
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <span className={cn("block font-semibold text-sm", pricingType === 'free' ? "text-amber-400" : "text-zinc-300")}>
+                                        무료 공개
+                                    </span>
+                                    <span className="block text-xs text-zinc-500 mt-1">
+                                        모든 사용자가 결제 없이 무료로 시청할 수 있습니다. (구독 없이도 재생 가능)
+                                    </span>
+                                </div>
+                            </label>
+
+                        </div>
+
+                        {/* Price Input - Only enabled when manual is selected */}
+                        <div className="mt-4 relative">
+                            <DollarSign className={cn(
+                                "absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors",
+                                pricingType === 'manual' ? "text-violet-500" : "text-zinc-600"
+                            )} />
                             <input
                                 type="number"
                                 name="price"
                                 min="0"
-                                step="100"
-                                required
-                                value={formData.price}
+                                step="1000"
+                                value={pricingType === 'manual' ? formData.price : (formData.totalDurationMinutes || 0) * 1000}
                                 onChange={handleChange}
-                                className="pl-12 w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all placeholder:text-zinc-700"
-                                placeholder="0"
+                                disabled={pricingType !== 'manual'}
+                                className={cn(
+                                    "pl-12 w-full px-5 py-3.5 bg-zinc-950 border rounded-xl text-white outline-none text-lg font-bold transition-all",
+                                    pricingType === 'manual'
+                                        ? "border-violet-500 focus:ring-2 ring-violet-500/20"
+                                        : "border-zinc-800 text-zinc-500 cursor-not-allowed"
+                                )}
                             />
+                            {pricingType === 'auto' && (
+                                <p className="text-xs text-zinc-500 mt-2 flex items-center gap-1.5 ml-1">
+                                    <Clock className="w-3.5 h-3.5" />
+                                    총 {formData.totalDurationMinutes || 0}분 × 1,000원 = {((formData.totalDurationMinutes || 0) * 1000).toLocaleString()}원 (자동 설정됨)
+                                </p>
+                            )}
                         </div>
-                        <p className="text-xs text-zinc-500 mt-2 ml-1">0원으로 설정하면 무료로 공개됩니다.</p>
                     </div>
                 </div>
 
@@ -557,46 +671,46 @@ export const CreateRoutine: React.FC = () => {
                                             );
                                         })
                                         .map(drill => (
-                                        <div
-                                            key={drill.id}
-                                            onClick={() => toggleDrillSelection(drill.id)}
-                                            className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all group ${selectedDrillIds.includes(drill.id)
-                                                ? 'border-violet-500 bg-violet-600/10 shadow-lg shadow-violet-500/5'
-                                                : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700 hover:bg-zinc-900'
-                                                }`}
-                                        >
-                                            <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center mt-1 shrink-0 transition-all ${selectedDrillIds.includes(drill.id)
-                                                ? 'bg-violet-500 border-violet-500 scale-110 shadow-lg'
-                                                : 'border-zinc-700 group-hover:border-zinc-500 bg-zinc-900'
-                                                }`}>
-                                                {selectedDrillIds.includes(drill.id) && (
-                                                    <CheckCircle className="w-4 h-4 text-white" />
-                                                )}
-                                            </div>
-                                            <div className="flex-1 min-w-0 pr-16">
-                                                <h4 className={`font-bold text-lg leading-tight transition-colors ${selectedDrillIds.includes(drill.id) ? 'text-violet-400' : 'text-white'}`}>
-                                                    {drill.title}
-                                                </h4>
-                                                {drill.creatorName && (
-                                                    <p className="text-xs text-violet-400/80 font-medium mt-0.5">by {drill.creatorName}</p>
-                                                )}
-                                                <p className="text-xs text-zinc-500 mt-1 line-clamp-1 leading-relaxed">{drill.description}</p>
-                                                <div className="flex items-center gap-2 mt-3 overflow-hidden flex-wrap">
-                                                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded-md border border-zinc-700/50">
-                                                        {drill.category}
-                                                    </span>
-                                                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded-md border border-zinc-700/50">
-                                                        {drill.difficulty}
-                                                    </span>
+                                            <div
+                                                key={drill.id}
+                                                onClick={() => toggleDrillSelection(drill.id)}
+                                                className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all group ${selectedDrillIds.includes(drill.id)
+                                                    ? 'border-violet-500 bg-violet-600/10 shadow-lg shadow-violet-500/5'
+                                                    : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700 hover:bg-zinc-900'
+                                                    }`}
+                                            >
+                                                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center mt-1 shrink-0 transition-all ${selectedDrillIds.includes(drill.id)
+                                                    ? 'bg-violet-500 border-violet-500 scale-110 shadow-lg'
+                                                    : 'border-zinc-700 group-hover:border-zinc-500 bg-zinc-900'
+                                                    }`}>
+                                                    {selectedDrillIds.includes(drill.id) && (
+                                                        <CheckCircle className="w-4 h-4 text-white" />
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 min-w-0 pr-16">
+                                                    <h4 className={`font-bold text-lg leading-tight transition-colors ${selectedDrillIds.includes(drill.id) ? 'text-violet-400' : 'text-white'}`}>
+                                                        {drill.title}
+                                                    </h4>
+                                                    {drill.creatorName && (
+                                                        <p className="text-xs text-violet-400/80 font-medium mt-0.5">by {drill.creatorName}</p>
+                                                    )}
+                                                    <p className="text-xs text-zinc-500 mt-1 line-clamp-1 leading-relaxed">{drill.description}</p>
+                                                    <div className="flex items-center gap-2 mt-3 overflow-hidden flex-wrap">
+                                                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded-md border border-zinc-700/50">
+                                                            {drill.category}
+                                                        </span>
+                                                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded-md border border-zinc-700/50">
+                                                            {drill.difficulty}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="absolute right-4 top-4 w-16 h-16 rounded-xl bg-zinc-900/80 border border-zinc-800 flex-shrink-0 overflow-hidden shadow-inner ring-1 ring-white/5 group-hover:scale-105 transition-transform">
+                                                    {drill.thumbnailUrl && (
+                                                        <img src={drill.thumbnailUrl} alt={drill.title || "썸네일"} loading="lazy" className="w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all" />
+                                                    )}
                                                 </div>
                                             </div>
-                                            <div className="absolute right-4 top-4 w-16 h-16 rounded-xl bg-zinc-900/80 border border-zinc-800 flex-shrink-0 overflow-hidden shadow-inner ring-1 ring-white/5 group-hover:scale-105 transition-transform">
-                                                {drill.thumbnailUrl && (
-                                                    <img src={drill.thumbnailUrl} alt={drill.title || "썸네일"} loading="lazy" className="w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all" />
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
+                                        ))}
                                 </div>
                             )
                         )}
@@ -620,45 +734,45 @@ export const CreateRoutine: React.FC = () => {
                                             );
                                         })
                                         .map(lesson => {
-                                        const isSelected = relatedItems.some(i => i.id === lesson.id && i.type === 'lesson');
-                                        return (
-                                            <div
-                                                key={lesson.id}
-                                                onClick={() => toggleRelatedItem(lesson, 'lesson')}
-                                                className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all group ${isSelected
-                                                    ? 'border-blue-500 bg-blue-600/10 shadow-lg shadow-blue-500/5'
-                                                    : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700 hover:bg-zinc-900'
-                                                    }`}
-                                            >
-                                                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center mt-1 shrink-0 transition-all ${isSelected
-                                                    ? 'bg-blue-500 border-blue-500 scale-110 shadow-lg'
-                                                    : 'border-zinc-700 group-hover:border-zinc-500 bg-zinc-900'
-                                                    }`}>
-                                                    {isSelected && (
-                                                        <CheckCircle className="w-4 h-4 text-white" />
-                                                    )}
+                                            const isSelected = relatedItems.some(i => i.id === lesson.id && i.type === 'lesson');
+                                            return (
+                                                <div
+                                                    key={lesson.id}
+                                                    onClick={() => toggleRelatedItem(lesson, 'lesson')}
+                                                    className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all group ${isSelected
+                                                        ? 'border-blue-500 bg-blue-600/10 shadow-lg shadow-blue-500/5'
+                                                        : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700 hover:bg-zinc-900'
+                                                        }`}
+                                                >
+                                                    <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center mt-1 shrink-0 transition-all ${isSelected
+                                                        ? 'bg-blue-500 border-blue-500 scale-110 shadow-lg'
+                                                        : 'border-zinc-700 group-hover:border-zinc-500 bg-zinc-900'
+                                                        }`}>
+                                                        {isSelected && (
+                                                            <CheckCircle className="w-4 h-4 text-white" />
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0 pr-16">
+                                                        <h4 className={`font-bold text-lg leading-tight transition-colors ${isSelected ? 'text-blue-400' : 'text-white'}`}>
+                                                            {lesson.title}
+                                                        </h4>
+                                                        {(lesson.course?.creatorName || lesson.courseTitle) && (
+                                                            <p className="text-xs text-blue-400/80 font-medium mt-0.5">
+                                                                {lesson.course?.creatorName && `by ${lesson.course.creatorName}`}
+                                                                {lesson.course?.creatorName && lesson.courseTitle && ' · '}
+                                                                {lesson.courseTitle && `${lesson.courseTitle}`}
+                                                            </p>
+                                                        )}
+                                                        <p className="text-xs text-zinc-500 mt-1 line-clamp-1 leading-relaxed">{lesson.description}</p>
+                                                    </div>
+                                                    <div className="absolute right-4 top-4 w-16 h-16 rounded-xl bg-zinc-900/80 border border-zinc-800 flex-shrink-0 overflow-hidden shadow-inner ring-1 ring-white/5">
+                                                        {lesson.thumbnailUrl && (
+                                                            <img src={lesson.thumbnailUrl} alt={lesson.title || "썸네일"} loading="lazy" className="w-full h-full object-cover" />
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div className="flex-1 min-w-0 pr-16">
-                                                    <h4 className={`font-bold text-lg leading-tight transition-colors ${isSelected ? 'text-blue-400' : 'text-white'}`}>
-                                                        {lesson.title}
-                                                    </h4>
-                                                    {(lesson.course?.creatorName || lesson.courseTitle) && (
-                                                        <p className="text-xs text-blue-400/80 font-medium mt-0.5">
-                                                            {lesson.course?.creatorName && `by ${lesson.course.creatorName}`}
-                                                            {lesson.course?.creatorName && lesson.courseTitle && ' · '}
-                                                            {lesson.courseTitle && `${lesson.courseTitle}`}
-                                                        </p>
-                                                    )}
-                                                    <p className="text-xs text-zinc-500 mt-1 line-clamp-1 leading-relaxed">{lesson.description}</p>
-                                                </div>
-                                                <div className="absolute right-4 top-4 w-16 h-16 rounded-xl bg-zinc-900/80 border border-zinc-800 flex-shrink-0 overflow-hidden shadow-inner ring-1 ring-white/5">
-                                                    {lesson.thumbnailUrl && (
-                                                        <img src={lesson.thumbnailUrl} alt={lesson.title || "썸네일"} loading="lazy" className="w-full h-full object-cover" />
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
                                 </div>
                             )
                         )}
@@ -681,45 +795,45 @@ export const CreateRoutine: React.FC = () => {
                                             );
                                         })
                                         .map(video => {
-                                        const isSelected = relatedItems.some(i => i.id === video.id && i.type === 'sparring');
-                                        return (
-                                            <div
-                                                key={video.id}
-                                                onClick={() => toggleRelatedItem(video, 'sparring')}
-                                                className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all group ${isSelected
-                                                    ? 'border-emerald-500 bg-emerald-600/10 shadow-lg shadow-emerald-500/5'
-                                                    : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700 hover:bg-zinc-900'
-                                                    }`}
-                                            >
-                                                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center mt-1 shrink-0 transition-all ${isSelected
-                                                    ? 'bg-emerald-500 border-emerald-500 scale-110 shadow-lg'
-                                                    : 'border-zinc-700 group-hover:border-zinc-500 bg-zinc-900'
-                                                    }`}>
-                                                    {isSelected && (
-                                                        <CheckCircle className="w-4 h-4 text-white" />
-                                                    )}
+                                            const isSelected = relatedItems.some(i => i.id === video.id && i.type === 'sparring');
+                                            return (
+                                                <div
+                                                    key={video.id}
+                                                    onClick={() => toggleRelatedItem(video, 'sparring')}
+                                                    className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all group ${isSelected
+                                                        ? 'border-emerald-500 bg-emerald-600/10 shadow-lg shadow-emerald-500/5'
+                                                        : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700 hover:bg-zinc-900'
+                                                        }`}
+                                                >
+                                                    <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center mt-1 shrink-0 transition-all ${isSelected
+                                                        ? 'bg-emerald-500 border-emerald-500 scale-110 shadow-lg'
+                                                        : 'border-zinc-700 group-hover:border-zinc-500 bg-zinc-900'
+                                                        }`}>
+                                                        {isSelected && (
+                                                            <CheckCircle className="w-4 h-4 text-white" />
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0 pr-16">
+                                                        <h4 className={`font-bold text-lg leading-tight transition-colors ${isSelected ? 'text-emerald-400' : 'text-white'}`}>
+                                                            {video.title}
+                                                        </h4>
+                                                        {video.creator?.name && (
+                                                            <p className="text-xs text-emerald-400/80 font-medium mt-0.5">by {video.creator.name}</p>
+                                                        )}
+                                                        <p className="text-xs text-zinc-500 mt-1 line-clamp-1 leading-relaxed">{video.description}</p>
+                                                    </div>
+                                                    <div className="absolute right-4 top-4 w-24 h-16 rounded-xl bg-zinc-900/80 border border-zinc-800 flex-shrink-0 overflow-hidden shadow-inner ring-1 ring-white/5">
+                                                        {video.thumbnailUrl ? (
+                                                            <img src={video.thumbnailUrl} alt={video.title || "썸네일"} loading="lazy" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center">
+                                                                <Clapperboard className="w-6 h-6 text-zinc-600" />
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div className="flex-1 min-w-0 pr-16">
-                                                    <h4 className={`font-bold text-lg leading-tight transition-colors ${isSelected ? 'text-emerald-400' : 'text-white'}`}>
-                                                        {video.title}
-                                                    </h4>
-                                                    {video.creator?.name && (
-                                                        <p className="text-xs text-emerald-400/80 font-medium mt-0.5">by {video.creator.name}</p>
-                                                    )}
-                                                    <p className="text-xs text-zinc-500 mt-1 line-clamp-1 leading-relaxed">{video.description}</p>
-                                                </div>
-                                                <div className="absolute right-4 top-4 w-24 h-16 rounded-xl bg-zinc-900/80 border border-zinc-800 flex-shrink-0 overflow-hidden shadow-inner ring-1 ring-white/5">
-                                                    {video.thumbnailUrl ? (
-                                                        <img src={video.thumbnailUrl} alt={video.title || "썸네일"} loading="lazy" className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <div className="w-full h-full flex items-center justify-center">
-                                                            <Clapperboard className="w-6 h-6 text-zinc-600" />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
                                 </div>
                             )
                         )}

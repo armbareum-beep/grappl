@@ -657,7 +657,7 @@ export const RoutineDetail: React.FC = () => {
         isDailyFreeDrill;
 
     // Full access means the user owns the routine, is subscribed, or the routine is free
-    const hasFullAccess = isSubscribed || owns || routine?.price === 0;
+    const hasFullAccess = isSubscribed || owns || (routine?.price === 0 && routine?.isSubscriptionExcluded);
 
     // Action videos are ALWAYS accessible (even for non-logged-in users)
     // Description videos require hasDescriptionAccess
@@ -807,7 +807,7 @@ export const RoutineDetail: React.FC = () => {
                                     <>
                                         <div className="flex items-center justify-between px-2 mb-1">
                                             <span className="text-[10px] font-extrabold text-zinc-500 uppercase tracking-widest">Access Pass</span>
-                                            <span className="text-xl font-black text-white">{routine.price === 0 ? 'Free' : `₩${routine.price.toLocaleString()}`}</span>
+                                            <span className="text-xl font-black text-white">{(routine.price === 0 && routine.isSubscriptionExcluded) ? 'Free' : `₩${routine.price.toLocaleString()}`}</span>
                                         </div>
                                         <div className="flex flex-col gap-3">
                                             <button
@@ -1112,7 +1112,7 @@ export const RoutineDetail: React.FC = () => {
                                     <h3 className="text-lg font-bold text-zinc-400 mb-6 uppercase tracking-wider">Access Pass</h3>
                                     <div className="space-y-8">
                                         <div className="flex items-end gap-2">
-                                            <span className="text-5xl font-black text-zinc-50">{routine.price === 0 ? 'Free' : `₩${routine.price.toLocaleString()}`}</span>
+                                            <span className="text-5xl font-black text-zinc-50">{(routine.price === 0 && routine.isSubscriptionExcluded) ? 'Free' : `₩${routine.price.toLocaleString()}`}</span>
                                         </div>
                                         <div className="space-y-4">
                                             <button

@@ -305,6 +305,7 @@ export interface SparringVideo {
   rank?: number;
   isDailyFree?: boolean;
   brandId?: string; // For organizer teams
+  isSubscriptionExcluded?: boolean;
 }
 
 export interface LogFeedback {
@@ -520,6 +521,7 @@ export interface Drill {
     description?: string;
     difficulty?: string;
   }[];
+  isSubscriptionExcluded?: boolean;
 }
 
 export interface DrillRoutine {
@@ -553,6 +555,7 @@ export interface DrillRoutine {
   isDailyFree?: boolean;
   status?: 'draft' | 'pending' | 'approved' | 'rejected';
   brandId?: string; // For organizer teams
+  isSubscriptionExcluded?: boolean;
 }
 
 export interface DrillRoutineItem {
@@ -1100,6 +1103,7 @@ export interface Event {
 
   createdAt: string;
   updatedAt: string;
+  nextOccurrence?: string;
 }
 
 export interface EventRegistration {

@@ -65,8 +65,8 @@ const useSparringSchema = (video: SparringVideo | null) => {
             "thumbnailUrl": video.thumbnailUrl,
             "uploadDate": video.createdAt,
             "contentUrl": `https://grapplay.com/sparring/${video.id}`,
-            "embedUrl": `https://player.vimeo.com/video/${video.vimeoUrl}`,
-            "duration": video.duration ? `PT${Math.floor(video.duration / 60)}M${video.duration % 60}S` : undefined,
+            "embedUrl": `https://player.vimeo.com/video/${video.videoUrl}`,
+            "duration": (video as any).durationMinutes ? `PT${(video as any).durationMinutes}M` : undefined,
             "interactionStatistic": {
                 "@type": "InteractionCounter",
                 "interactionType": "https://schema.org/WatchAction",
@@ -133,7 +133,7 @@ export const SparringDetail: React.FC = () => {
     const lastTickRef = useRef<number>(0);
     const accumulatedTimeRef = useRef<number>(0);
 
-    const handleProgress = (seconds: number, playing?: boolean) => {
+    const handleProgress = (_seconds: number, playing?: boolean) => {
         // Skip if paused
         if (playing === false) return;
 
@@ -253,7 +253,7 @@ export const SparringDetail: React.FC = () => {
 
     const checkOwnership = async (videoData: SparringVideo) => {
         if (!contextUser) {
-            if (!videoData.price || videoData.price === 0) setOwns(true);
+            if (!videoData.price || (videoData.price === 0 && (videoData as any).isSubscriptionExcluded)) setOwns(true);
             return;
         }
 
@@ -262,7 +262,7 @@ export const SparringDetail: React.FC = () => {
             return;
         }
 
-        if (!videoData.price || videoData.price === 0) {
+        if (!videoData.price || (videoData.price === 0 && (videoData as any).isSubscriptionExcluded)) {
             setOwns(true);
             return;
         }

@@ -13,7 +13,8 @@ import {
     toggleLessonLike,
     checkLessonLiked,
     toggleLessonSave,
-    checkLessonSaved
+    checkLessonSaved,
+    checkGymMemberAccess
 } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { updateMasteryFromWatch } from '../lib/api-technique-mastery';
@@ -211,8 +212,16 @@ export const LessonDetail: React.FC = () => {
                         }
                     }
 
+                    // 0. Check Gym Member Verification Access
+                    if (!hasAccess && user && lessonData.creatorId) {
+                        const isVerifiedMember = await checkGymMemberAccess(user.id, lessonData.creatorId);
+                        if (isVerifiedMember) {
+                            hasAccess = true;
+                        }
+                    }
+
                     // 1. Check if course is free (Free Preview/Access)
-                    if (!hasAccess && (courseData && courseData.price === 0)) {
+                    if (!hasAccess && (courseData && courseData.price === 0 && courseData.isSubscriptionExcluded)) {
                         hasAccess = true;
                     }
 
