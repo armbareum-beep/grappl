@@ -125,7 +125,7 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
             if (formData.creatorId) {
                 const fetchedBrands = await fetchBrandsByCreator(formData.creatorId);
                 setBrands(fetchedBrands);
-                
+
                 // Reset brandId if the selected creator doesn't own the previously selected brand
                 if (formData.brandId && !fetchedBrands.some(b => b.id === formData.brandId)) {
                     setFormData(prev => ({ ...prev, brandId: '' }));
@@ -157,6 +157,29 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
     const [relatedFilter, setRelatedFilter] = useState<'lesson' | 'drill' | 'sparring' | null>(null);
     const [showPublishingModal, setShowPublishingModal] = useState(false);
     const [pendingSaveData, setPendingSaveData] = useState<any>(null);
+    const [pricingType, setPricingType] = useState<'auto' | 'manual' | 'free'>('auto');
+
+    // Handle set pricing type based on formData
+    useEffect(() => {
+        if (formData.price === 0 && formData.isSubscriptionExcluded) {
+            setPricingType('free');
+        } else if (formData.isSubscriptionExcluded) {
+            setPricingType('manual');
+        } else {
+            setPricingType('auto');
+        }
+    }, [formData.price, formData.isSubscriptionExcluded]);
+
+    const handlePricingTypeChange = (type: 'auto' | 'manual' | 'free') => {
+        setPricingType(type);
+        if (type === 'auto') {
+            setFormData(prev => ({ ...prev, isSubscriptionExcluded: false, price: 0 }));
+        } else if (type === 'manual') {
+            setFormData(prev => ({ ...prev, isSubscriptionExcluded: true, price: prev.price === 0 ? 1000 : prev.price }));
+        } else if (type === 'free') {
+            setFormData(prev => ({ ...prev, isSubscriptionExcluded: true, price: 0 }));
+        }
+    };
 
     // Initialize related filter when tab changes or content type changes
     useEffect(() => {
@@ -169,8 +192,14 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
 
     // Computed Values
     const totalDurationMinutes = contentType === 'routine'
-        ? drills.filter(d => selectedDrillIds.includes(d.id)).reduce((acc, d) => acc + (d.durationMinutes || 0), 0)
-        : 0;
+        ? (drills || []).filter(d => selectedDrillIds.includes(d.id)).reduce((acc, d) => acc + (d.durationMinutes || 0), 0)
+        : contentType === 'course'
+            ? (lessons || []).filter(l => selectedLessonIds.includes(l.id)).reduce((acc, l) => acc + (l.durationMinutes || 0), 0)
+            : (editingItem as SparringVideo)?.durationMinutes || 0;
+
+    const calculatedPrice = formData.isSubscriptionExcluded
+        ? formData.price
+        : totalDurationMinutes * 1000;
 
     // Initialize form data when editing
     useEffect(() => {
@@ -452,6 +481,7 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
         try {
             const saveData = {
                 ...formData,
+                price: formData.isSubscriptionExcluded ? formData.price : calculatedPrice,
                 category: contentType === 'sparring' ? formData.sparringType : formData.category,
                 difficulty: contentType === 'sparring' ? undefined : formData.difficulty,
                 totalDurationMinutes,
@@ -750,21 +780,115 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                             )}
 
                             {/* Price */}
-                            <div>
-                                <label className="block text-sm font-semibold text-zinc-400 mb-2">가격 (원)</label>
-                                <div className="relative">
-                                    <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-600" />
+                            {/* Pricing & Visibility Options */}
+                            <div className="bg-zinc-900/50 p-6 rounded-2xl border border-zinc-800/50">
+                                <div>
+                                    <label className="block text-sm font-semibold text-zinc-400 mb-3">가격 설정</label>
+                                    <div className="flex flex-col gap-3 p-4 rounded-xl border border-zinc-800 bg-zinc-950/30">
+
+                                        {/* Auto Pricing */}
+                                        <label className={cn(
+                                            "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all",
+                                            pricingType === 'auto' ? "border-emerald-500 bg-emerald-500/5" : "border-zinc-800 hover:bg-zinc-900"
+                                        )}>
+                                            <div className="flex items-center h-5 mt-0.5">
+                                                <input
+                                                    type="radio"
+                                                    name="pricingType"
+                                                    checked={pricingType === 'auto'}
+                                                    onChange={() => handlePricingTypeChange('auto')}
+                                                    className="w-4 h-4 text-emerald-500 bg-zinc-900 border-zinc-700"
+                                                />
+                                            </div>
+                                            <div className="flex-1">
+                                                <span className={cn("block font-semibold text-sm", pricingType === 'auto' ? "text-emerald-400" : "text-zinc-300")}>
+                                                    시간비례 자동 가격 (구독 포함)
+                                                </span>
+                                                <span className="block text-xs text-zinc-500 mt-1">
+                                                    영상 길이에 비례해 자동으로 가격이 책정되며, 구독권 이용자는 자유롭게 재생할 수 있습니다.
+                                                </span>
+                                            </div>
+                                        </label>
+
+                                        {/* Manual Pricing */}
+                                        <label className={cn(
+                                            "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all",
+                                            pricingType === 'manual' ? "border-violet-500 bg-violet-500/5" : "border-zinc-800 hover:bg-zinc-900"
+                                        )}>
+                                            <div className="flex items-center h-5 mt-0.5">
+                                                <input
+                                                    type="radio"
+                                                    name="pricingType"
+                                                    checked={pricingType === 'manual'}
+                                                    onChange={() => handlePricingTypeChange('manual')}
+                                                    className="w-4 h-4 text-violet-500 bg-zinc-900 border-zinc-700"
+                                                />
+                                            </div>
+                                            <div className="flex-1">
+                                                <span className={cn("block font-semibold text-sm", pricingType === 'manual' ? "text-violet-400" : "text-zinc-300")}>
+                                                    개별 단품 판매 (구독 제외)
+                                                </span>
+                                                <span className="block text-xs text-zinc-500 mt-1">
+                                                    구독권 이용자도 재생할 수 없으며, 모든 사용자가 설정한 가격으로 구매해야 합니다.
+                                                </span>
+                                            </div>
+                                        </label>
+
+                                        {/* Free Pricing */}
+                                        <label className={cn(
+                                            "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all",
+                                            pricingType === 'free' ? "border-amber-500 bg-amber-500/5" : "border-zinc-800 hover:bg-zinc-900"
+                                        )}>
+                                            <div className="flex items-center h-5 mt-0.5">
+                                                <input
+                                                    type="radio"
+                                                    name="pricingType"
+                                                    checked={pricingType === 'free'}
+                                                    onChange={() => handlePricingTypeChange('free')}
+                                                    className="w-4 h-4 text-amber-500 bg-zinc-900 border-zinc-700"
+                                                />
+                                            </div>
+                                            <div className="flex-1">
+                                                <span className={cn("block font-semibold text-sm", pricingType === 'free' ? "text-amber-400" : "text-zinc-300")}>
+                                                    무료 공개
+                                                </span>
+                                                <span className="block text-xs text-zinc-500 mt-1">
+                                                    모든 사용자가 결제 없이 무료로 시청할 수 있습니다. (구독 없이도 재생 가능)
+                                                </span>
+                                            </div>
+                                        </label>
+
+                                    </div>
+                                </div>
+
+                                {/* Price Input - Only enabled when manual is selected */}
+                                <div className="mt-4 relative">
+                                    <DollarSign className={cn(
+                                        "absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors",
+                                        pricingType === 'manual' ? "text-violet-500" : "text-zinc-600"
+                                    )} />
                                     <input
                                         type="number"
                                         name="price"
                                         min="0"
                                         step="1000"
-                                        value={formData.price}
+                                        value={pricingType === 'manual' ? formData.price : calculatedPrice}
                                         onChange={handleChange}
-                                        className="pl-12 w-full px-5 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white focus:border-violet-500 outline-none text-lg font-bold"
+                                        disabled={pricingType !== 'manual'}
+                                        className={cn(
+                                            "pl-12 w-full px-5 py-3.5 bg-zinc-950 border rounded-xl text-white outline-none text-lg font-bold transition-all",
+                                            pricingType === 'manual'
+                                                ? "border-violet-500 focus:ring-2 ring-violet-500/20"
+                                                : "border-zinc-800 text-zinc-500 cursor-not-allowed"
+                                        )}
                                     />
+                                    {pricingType === 'auto' && (
+                                        <p className="text-xs text-zinc-500 mt-2 flex items-center gap-1.5">
+                                            <Clock className="w-3.5 h-3.5" />
+                                            총 {totalDurationMinutes}분 × 1,000원 = {calculatedPrice.toLocaleString()}원 (자동 설정됨)
+                                        </p>
+                                    )}
                                 </div>
-                                <p className="text-xs text-zinc-500 mt-2">0원으로 설정하면 무료로 공개됩니다.</p>
                             </div>
 
                             {/* Thumbnail */}
@@ -861,18 +985,6 @@ export const UnifiedContentModal: React.FC<UnifiedContentModalProps> = ({
                             {/* Course/Routine/Sparring specific options - Publishing */}
                             {(contentType === 'course' || contentType === 'routine' || contentType === 'sparring') && (
                                 <div className="space-y-3 pt-4 border-t border-zinc-800">
-                                    <label className="flex items-start gap-4 p-4 rounded-xl border border-zinc-800 bg-zinc-950/30 hover:bg-zinc-800/20 transition-all cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.isSubscriptionExcluded}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, isSubscriptionExcluded: e.target.checked }))}
-                                            className="mt-1 h-5 w-5 text-violet-600 border-zinc-700 rounded-md bg-zinc-900"
-                                        />
-                                        <div>
-                                            <span className="block font-semibold text-zinc-200">구독 제외 상품</span>
-                                            <span className="block text-sm text-zinc-500 mt-1">체크하면 구독권 사용자도 별도 구매가 필요합니다.</span>
-                                        </div>
-                                    </label>
                                     <label className="flex items-start gap-4 p-4 rounded-xl border border-zinc-800 bg-zinc-950/30 hover:bg-zinc-800/20 transition-all cursor-pointer">
                                         <input
                                             type="checkbox"

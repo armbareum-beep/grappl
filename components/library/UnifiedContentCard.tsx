@@ -208,7 +208,7 @@ export const UnifiedContentCard: React.FC<UnifiedContentCardProps> = ({ item, on
 
                     {/* Badge — top-left, single: FREE > HOT > NEW priority */}
                     <div className="absolute top-2.5 left-2.5 pointer-events-none z-10">
-                        {(item.isDailyFree || (item.originalData as any).price === 0) ? (
+                        {(item.isDailyFree || ((item.originalData as any).price === 0 && (item.originalData as any).isSubscriptionExcluded === true)) ? (
                             <ContentBadge type="daily_free" />
                         ) : item.rank ? (
                             <ContentBadge type="popular" rank={item.rank} />

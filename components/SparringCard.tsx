@@ -195,7 +195,7 @@ export const SparringCard: React.FC<SparringCardProps> = ({ video, rank, hasAcce
                     </button>
                 )}
 
-                {(video.isDailyFree || video.price === 0) ? (
+                {(video.isDailyFree || (video.price === 0 && (video as any).isSubscriptionExcluded === true)) ? (
                     <div className="absolute top-2.5 left-2.5 pointer-events-none z-10">
                         <ContentBadge type="daily_free" />
                     </div>

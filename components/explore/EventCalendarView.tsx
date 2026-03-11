@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 import { Event, EventType } from '../../types';
+import { getTodayString } from '../../lib/api-events';
 
 interface EventCalendarViewProps {
     events: Event[];
@@ -43,12 +44,15 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
 
     const getEventsForDate = (day: number): Event[] => {
         const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        return events.filter(event => event.eventDate === dateStr);
+        return events.filter(event =>
+            (event.nextOccurrence || event.eventDate) === dateStr ||
+            event.eventDate === dateStr
+        );
     };
 
     const renderCalendarDays = () => {
         const days = [];
-        const today = new Date().toISOString().split('T')[0];
+        const today = getTodayString();
 
         // Empty cells for days before first day of month
         for (let i = 0; i < firstDayOfMonth; i++) {

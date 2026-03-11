@@ -253,7 +253,8 @@ export const EventDetail: React.FC = () => {
     }
 
     const isFull = event.maxParticipants && (event.currentParticipants || 0) >= event.maxParticipants;
-    const isPast = new Date(event.eventDate) < new Date();
+    const effectiveDate = event.nextOccurrence || event.eventDate;
+    const isPast = new Date(effectiveDate) < new Date();
     const canRegister = !isPast && !isFull && !myRegistration && (event.useInternalRegistration !== false);
 
     return (
@@ -314,7 +315,7 @@ export const EventDetail: React.FC = () => {
                             <div>
                                 <div className="text-sm text-zinc-500">일시</div>
                                 <div className="font-bold">
-                                    {new Date(event.eventDate).toLocaleDateString('ko-KR', {
+                                    {new Date(event.nextOccurrence || event.eventDate).toLocaleDateString('ko-KR', {
                                         year: 'numeric',
                                         month: 'long',
                                         day: 'numeric',
@@ -404,8 +405,8 @@ export const EventDetail: React.FC = () => {
                                 <p>신청자: {myRegistration.participantName}</p>
                                 <p>상태: {
                                     myRegistration.paymentStatus === 'confirmed' ? '입금 확인됨' :
-                                    myRegistration.paymentStatus === 'pending' ? '입금 대기중' :
-                                    myRegistration.paymentStatus
+                                        myRegistration.paymentStatus === 'pending' ? '입금 대기중' :
+                                            myRegistration.paymentStatus
                                 }</p>
                             </div>
                         </div>
@@ -507,8 +508,8 @@ export const EventDetail: React.FC = () => {
                                             key={video.id}
                                             onClick={() => navigate(
                                                 video.type === 'drill' ? `/drill/${video.contentId}` :
-                                                video.type === 'lesson' ? `/lessons/${video.contentId}` :
-                                                `/sparring/${video.contentId}`
+                                                    video.type === 'lesson' ? `/lessons/${video.contentId}` :
+                                                        `/sparring/${video.contentId}`
                                             )}
                                             className="bg-zinc-800 rounded-xl overflow-hidden cursor-pointer group hover:ring-2 ring-violet-500 transition-all"
                                         >
@@ -525,11 +526,10 @@ export const EventDetail: React.FC = () => {
                                                 </div>
                                             </div>
                                             <div className="p-3">
-                                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${
-                                                    video.type === 'drill' ? 'bg-violet-500/20 text-violet-400' :
-                                                    video.type === 'lesson' ? 'bg-blue-500/20 text-blue-400' :
-                                                    'bg-red-500/20 text-red-400'
-                                                }`}>
+                                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${video.type === 'drill' ? 'bg-violet-500/20 text-violet-400' :
+                                                        video.type === 'lesson' ? 'bg-blue-500/20 text-blue-400' :
+                                                            'bg-red-500/20 text-red-400'
+                                                    }`}>
                                                     {video.type === 'drill' ? '드릴' : video.type === 'lesson' ? '레슨' : '스파링'}
                                                 </span>
                                                 <p className="text-sm font-medium truncate mt-2">{video.title}</p>
@@ -546,8 +546,8 @@ export const EventDetail: React.FC = () => {
                                 </p>
                                 <p className="text-zinc-500 text-sm">
                                     {!myRegistration ? '참가 신청 후 입금이 확인되면 시청하실 수 있습니다' :
-                                     myRegistration.paymentStatus === 'pending' ? '입금 확인 후 시청하실 수 있습니다' :
-                                     '참가 확인 후 시청하실 수 있습니다'}
+                                        myRegistration.paymentStatus === 'pending' ? '입금 확인 후 시청하실 수 있습니다' :
+                                            '참가 확인 후 시청하실 수 있습니다'}
                                 </p>
                             </div>
                         )}

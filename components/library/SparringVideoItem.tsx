@@ -181,7 +181,7 @@ export const SparringVideoItem = React.forwardRef<VideoItemRef, {
 
     const vimeoFullId = extractVimeoId(video.videoUrl);
     const isDailyFree = dailyFreeId === video.id;
-    const hasAccess = !!(isDailyFree || video.price === 0 || owns || (user && (isSubscribed || isAdmin || video.creatorId === user.id)));
+    const hasAccess = !!(isDailyFree || (video.price === 0 && (video as any).isSubscriptionExcluded === true) || owns || (user && (isSubscribed || isAdmin || video.creatorId === user.id)));
     const activeVimeoId = vimeoFullId;
 
     useEffect(() => {

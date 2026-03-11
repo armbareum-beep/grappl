@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { animate, motion, useMotionValue, useTransform } from 'framer-motion';
-import { Calendar, List, MapPin, Trophy, Users, ChevronRight } from 'lucide-react';
+import { Calendar, List, MapPin, Trophy, Users } from 'lucide-react';
+import { getTodayString } from '../../lib/api-events';
 import { Event, EventType } from '../../types';
 import { EventCalendarView } from './EventCalendarView';
 
@@ -35,7 +35,7 @@ export const EventBottomSheet: React.FC<EventBottomSheetProps> = ({
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const y = useMotionValue(0);
-    
+
     // y값(내려간 수치)만큼 스크롤 영역에 패딩을 줘서, 하프모드에서도 잘리는 콘텐츠 없이 끝까지 스크롤 가능하게 처리
     const contentPaddingBottom = useTransform(y, (currentY) => `${Math.max(120, currentY + 120)}px`);
 
@@ -47,7 +47,6 @@ export const EventBottomSheet: React.FC<EventBottomSheetProps> = ({
     const dragStartMotionY = useRef(0);
 
     const [snapPts, setSnapPts] = useState({ full: 0, half: 300, peek: 500, hidden: 600 });
-    const [snapName, setSnapName] = useState<'peek' | 'half' | 'full' | 'hidden'>('peek');
 
     const getSnapPoints = useCallback(() => {
         const h = containerRef.current?.offsetHeight ?? 0;
@@ -67,7 +66,6 @@ export const EventBottomSheet: React.FC<EventBottomSheetProps> = ({
         const pts = getSnapPoints();
         animate(y, pts.hidden, { type: 'spring', stiffness: 400, damping: 35 });
         setSnapPts(pts);
-        setSnapName('hidden');
     }, [collapseSignal]);
 
     // Expand when signal increments (map marker tap)
@@ -76,14 +74,12 @@ export const EventBottomSheet: React.FC<EventBottomSheetProps> = ({
         const pts = getSnapPoints();
         animate(y, pts.half, { type: 'spring', stiffness: 400, damping: 35 });
         setSnapPts(pts);
-        setSnapName('half');
     }, [expandSignal]);
 
     const snapTo = useCallback((target: 'full' | 'half' | 'peek' | 'hidden') => {
         const pts = getSnapPoints();
         setSnapPts(pts);
         animate(y, pts[target], { type: 'spring', stiffness: 400, damping: 35 });
-        setSnapName(target);
     }, [getSnapPoints]);
 
     const snapToNearest = useCallback(() => {
@@ -96,7 +92,6 @@ export const EventBottomSheet: React.FC<EventBottomSheetProps> = ({
             nearest === pts.full ? 'full' : nearest === pts.half ? 'half' : nearest === pts.peek ? 'peek' : 'hidden';
         animate(y, nearest, { type: 'spring', stiffness: 400, damping: 35 });
         setSnapPts(pts);
-        setSnapName(name);
     }, [getSnapPoints]);
 
     // ── Pointer handlers ──────────────────────────────────────────────────────
@@ -224,10 +219,12 @@ interface SheetEventCardProps {
 const SheetEventCard: React.FC<SheetEventCardProps> = ({ event, onMapClick }) => {
     const config = EVENT_TYPE_CONFIG[event.type as EventType] || EVENT_TYPE_CONFIG.openmat;
     const Icon = config.icon;
-    const hasLocation = !!(event.latitude && event.longitude);
 
     return (
-        <div className="flex gap-3 p-3 bg-zinc-800/60 border border-zinc-700/50 rounded-2xl">
+        <div
+            onClick={() => onMapClick(event.id)}
+            className="flex gap-3 p-3 bg-zinc-800/60 border border-zinc-700/50 rounded-2xl cursor-pointer hover:bg-zinc-800 hover:border-zinc-600 transition-all active:scale-[0.98]"
+        >
             {/* Cover image / icon */}
             <div className="w-16 h-16 rounded-xl overflow-hidden bg-zinc-700 flex-shrink-0">
                 {event.coverImage ? (
@@ -241,14 +238,21 @@ const SheetEventCard: React.FC<SheetEventCardProps> = ({ event, onMapClick }) =>
 
             {/* Info */}
             <div className="flex-1 min-w-0">
-                <span className={`inline-block px-2 py-0.5 text-xs font-bold rounded-full mb-1 ${config.color}/20 ${config.textColor} border ${config.borderColor}`}>
-                    {config.label}
-                </span>
+                <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                    <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${config.color}/20 ${config.textColor} border ${config.borderColor}`}>
+                        {config.label}
+                    </span>
+                    {(event.nextOccurrence || event.eventDate) < getTodayString() && (
+                        <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-zinc-800 text-zinc-500 border border-zinc-700">
+                            종료됨
+                        </span>
+                    )}
+                </div>
                 <p className="font-semibold text-white text-sm leading-tight truncate">{event.title}</p>
                 <div className="flex items-center gap-1.5 text-xs text-zinc-400 mt-1">
                     <Calendar className="w-3 h-3 flex-shrink-0" />
                     <span>
-                        {new Date(event.eventDate).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                        {new Date(event.nextOccurrence || event.eventDate).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
                         {event.startTime && ` ${event.startTime}`}
                     </span>
                 </div>
@@ -256,26 +260,6 @@ const SheetEventCard: React.FC<SheetEventCardProps> = ({ event, onMapClick }) =>
                     <MapPin className="w-3 h-3 flex-shrink-0" />
                     <span className="truncate">{event.venueName || event.address || event.region || '장소 미정'}</span>
                 </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex flex-col gap-1.5 justify-center flex-shrink-0">
-                {hasLocation && (
-                    <button
-                        onClick={() => onMapClick(event.id)}
-                        className="p-1.5 bg-zinc-700 hover:bg-amber-600/30 rounded-lg transition-colors"
-                        title="지도에서 보기"
-                    >
-                        <MapPin className="w-4 h-4 text-amber-400" />
-                    </button>
-                )}
-                <Link
-                    to={`/event/${event.id}`}
-                    className="p-1.5 bg-zinc-700 hover:bg-zinc-600 rounded-lg transition-colors"
-                    title="상세 보기"
-                >
-                    <ChevronRight className="w-4 h-4 text-zinc-300" />
-                </Link>
             </div>
         </div>
     );

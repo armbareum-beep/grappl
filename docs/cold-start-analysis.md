@@ -115,23 +115,45 @@ React.useEffect(() => {
 - Layout이 마운트될 때마다 매번 Supabase 쿼리 실행
 - 응답 오면 `setSiteSettings()` → Layout 전체 리렌더
 
-### ℹ️ 원인 6: 네이버 지도 SDK 동기 로딩
-**현재 `index.html` 154번째 줄:**
-```html
-<script src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=...&submodules=geocoder"></script>
-```
-- **동기 스크립트** → HTML 파싱 차단
-- 지도를 사용하지 않는 페이지에서도 매번 로드
+### 🔴 원인 8: `PersistQueryClientProvider`의 렌더링 차단 (🔥 핵심)
+**파일: `index.tsx` 47번째 줄**
+- 현재 `PersistQueryClientProvider`를 사용 중인데, 이는 **IndexedDB에서 캐시를 다 불러올 때까지 앱 전체의 첫 렌더링을 멈춥니다(Blocking)**.
+- 캐시 데이터가 많아질수록(1MB 이상) 화면이 뜨기 전 '화이트 스크린' 시간이 길어집니다.
 
-### ℹ️ 원인 7: Cache-Control `no-cache, no-store` 메타 태그
-```html
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-```
-- Vite 빌드 파일은 해시가 포함되어 캐시해도 안전한데 강제로 재검증
+### 🔴 원인 9: `AuthContext`와 `RootRedirect`의 Waterfall
+- `RootRedirect`가 `loading` 상태일 때 무조건 3초를 기다리거나 스피너를 보여주는데, 이 `loading`은 Supabase 세션 체크 + 권한 체크가 모두 끝나야 `false`가 됩니다.
+- 이 과정이 병렬이 아닌 순차적으로 일어날 경우, 네트워크 지연이 그대로 초기 로딩 지연으로 이어집니다.
+
+### 🔴 원인 10: 인위적인 15초 재시도 지연 (🔥 사용자 보고 원인)
+**파일: `use-home-queries.ts` 43-51번째 줄**
+- 쿼리 에러 발생 시 `setTimeout`으로 **15초를 기다린 후** `invalidateQueries`를 실행하도록 되어 있습니다.
+- 첫 로딩 시 Supabase 연결 지연으로 아주 잠깐(0.5초) 에러가 나더라도, 이 로직 때문에 사용자는 무조건 15초를 더 기다려야 합니다. 10~15초 지연 보고와 정확히 일치합니다.
+
+### 🔴 원인 11: 6개 병렬 쿼리의 DB 부하 (`api-home.ts` 및 `AllContentFeed.tsx`)
+**파일: `api-home.ts` 83번째 줄 및 `components/library/AllContentFeed.tsx` 150번째 줄**
+- 초기 진입 페이지(`Home` 및 라이브러리 `AllContentFeed`)에서 각각 6개의 무거운 쿼리가 동시에 실행됩니다.
+- 초기 로딩 시 DB 커넥션 풀을 과도하게 점유하여 큐잉(Queueing) 지연을 발생시키며 10-15s Timeout을 유발합니다.
+
+### 🔴 원인 12: iOS 메모리 정리로 인한 백그라운드 탭 복귀 시 전체 리로드 (🔥 실제 체감 지연 원인)
+**현상: "잠시 다른 거 하다 오면 10-15초간 콘텐츠를 불러오는 중..."**
+- iOS Safari 등 모바일 환경에서 앱을 백그라운드로 내리면 메모리 확보를 위해 탭이 일시중지(Suspend) 되거나 메모리에서 아예 해제됩니다.
+- 유저가 다시 탭으로 돌아왔을 때(visibilitychange), 브라우저가 화면을 **처음부터 다시 렌더링(Cold Start)** 합니다.
+- 이때 `AllContentFeed`가 렌더링되면서 6개의 병렬 DB 조회(`getCourses`, `fetchRoutines` 등)를 다시 수행하고, DB 연결 지연으로 10-15초 이상 블로킹됩니다.
+- 또한, 전체 화면을 검은 스크린으로 덮는 `LoadingScreen` 컴포넌트가 `LoadingTimeoutGuard` 팝업을 띄우게 되어 사용자 경험이 크게 저하되었습니다.
 
 ---
 
-## 🆕 추가 해결책 (아직 적용되지 않은 것들)
+## 🆕 Phase 2 해결책 제안 (Deep Dive 최적화)
+
+### 해결책 A: SQL RPC 도입을 통한 쿼리 단일화 (⭐ 최우선)
+- 6개의 개별 쿼리를 Supabase 1개의 RPC(`get_home_page_data_v2`)로 통합합니다.
+- 네트워크 왕복(Round-trip) 6회 → 1회로 감소.
+- DB 커넥션 점유 6개 → 1개로 감소.
+- `withTimeout` 10초 대기 없이 DB 엔진에서 아토믹하게 처리하여 체감 속도 극대화.
+
+### 해결책 B: 인위적 지연 제거 및 React Query 최적화
+- `useHomeQueries`의 15초 지연 `useEffect`를 제거합니다.
+- React Query의 `retry`와 `retryDelay` 옵션을 통해 지연 없이 지수 백오프(1s, 2s, 4s...)로 자동 재시도하게 변경합니다.
 
 ### 해결책 A: 네이버 지도 SDK 지연 로드 (⭐ 최우선)
 

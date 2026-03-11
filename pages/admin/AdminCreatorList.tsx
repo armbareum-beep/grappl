@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { getAdminCreators, getPendingCreators, approveCreator, rejectCreator } from '../../lib/api';
 import { deleteCreator, updateCreatorProfileAdmin, CreatorProfileUpdate, toggleCreatorHidden } from '../../lib/api-admin';
 import { Creator } from '../../types';
@@ -10,6 +11,7 @@ import { ConfirmModal } from '../../components/common/ConfirmModal';
 
 export const AdminCreatorList: React.FC = () => {
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const { success, error: toastError } = useToast();
     const [creators, setCreators] = useState<Creator[]>([]);
     const [pendingCreators, setPendingCreators] = useState<any[]>([]);
@@ -56,6 +58,7 @@ export const AdminCreatorList: React.FC = () => {
             if (error) throw error;
 
             setCreators(creators.filter(c => c.id !== creatorId));
+            queryClient.invalidateQueries({ queryKey: ['creators'] });
             success('인스트럭터가 삭제되었습니다.');
         } catch (error) {
             console.error('Error deleting creator:', error);
@@ -74,6 +77,7 @@ export const AdminCreatorList: React.FC = () => {
             const { error } = await approveCreator(creatorId);
             if (error) throw error;
             success('인스트럭터 승인이 완료되었습니다.');
+            queryClient.invalidateQueries({ queryKey: ['creators'] });
             fetchData();
         } catch (error) {
             console.error('Approval failed:', error);
@@ -117,6 +121,7 @@ export const AdminCreatorList: React.FC = () => {
             setCreators(creators.map(c =>
                 c.id === creatorId ? { ...c, hidden: !currentHidden } : c
             ));
+            queryClient.invalidateQueries({ queryKey: ['creators'] });
             success(currentHidden ? '인스트럭터가 공개되었습니다.' : '인스트럭터가 숨김 처리되었습니다.');
         } catch (error) {
             console.error('Toggle hidden failed:', error);
@@ -168,6 +173,7 @@ export const AdminCreatorList: React.FC = () => {
 
             success('인스트럭터 정보가 수정되었습니다.');
             setIsEditModalOpen(false);
+            queryClient.invalidateQueries({ queryKey: ['creators'] });
             fetchData(); // Refresh list
         } catch (error) {
             console.error('Update failed:', error);
@@ -301,11 +307,10 @@ export const AdminCreatorList: React.FC = () => {
                                     <div className="flex items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
                                         <button
                                             onClick={() => handleToggleHidden(creator.id, creator.hidden || false)}
-                                            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-medium transition-all ${
-                                                creator.hidden
+                                            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-medium transition-all ${creator.hidden
                                                     ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 hover:text-emerald-300 border border-emerald-500/20'
                                                     : 'bg-zinc-700/50 hover:bg-zinc-700 text-zinc-300 border border-zinc-600'
-                                            }`}
+                                                }`}
                                             title={creator.hidden ? '공개하기' : '숨기기'}
                                         >
                                             {creator.hidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}

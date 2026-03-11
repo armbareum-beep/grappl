@@ -45,6 +45,23 @@ async function verifyPayPalOrder(orderId: string) {
     return await response.json()
 }
 
+async function verifyPayPalSubscription(subscriptionId: string) {
+    const env = Deno.env.get('VITE_PAYPAL_ENV') || 'sandbox'
+    const subUrl = env === 'live'
+        ? `https://api-m.paypal.com/v1/billing/subscriptions/${subscriptionId}`
+        : `https://api-m.sandbox.paypal.com/v1/billing/subscriptions/${subscriptionId}`
+
+    const accessToken = await getPayPalAccessToken()
+    const response = await fetch(subUrl, {
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+        },
+    })
+
+    return await response.json()
+}
+
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
@@ -56,19 +73,35 @@ Deno.serve(async (req) => {
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
         )
 
-        const { orderID, mode, id, userId } = await req.json()
+        const { orderID, subscriptionID, mode, id, userId } = await req.json()
 
-        console.log(`Verifying PayPal payment: order=${orderID}, mode=${mode}, user=${userId}`)
+        console.log(`Verifying PayPal payment: order=${orderID}, sub=${subscriptionID}, mode=${mode}, user=${userId}`)
 
-        // 1. Verify with PayPal
-        const orderDetails = await verifyPayPalOrder(orderID)
+        let amountValue = '0'
+        let currencyCode = 'USD'
 
-        if (orderDetails.status !== 'COMPLETED') {
-            throw new Error(`Order status is ${orderDetails.status}, not COMPLETED`)
+        if (subscriptionID) {
+            // 1a. Verify Subscription
+            const subDetails = await verifyPayPalSubscription(subscriptionID)
+            if (subDetails.status !== 'ACTIVE' && subDetails.status !== 'APPROVED') {
+                throw new Error(`Subscription status is ${subDetails.status}, not ACTIVE/APPROVED`)
+            }
+            // Subscription details don't always have the amount in the same place, 
+            // but we can trust the flow if status is active.
+            // For revenue tracking, we might need more info or just use the plan defaults.
+        } else if (orderID) {
+            // 1b. Verify Order (One-time)
+            const orderDetails = await verifyPayPalOrder(orderID)
+
+            if (orderDetails.status !== 'COMPLETED') {
+                throw new Error(`Order status is ${orderDetails.status}, not COMPLETED`)
+            }
+
+            amountValue = orderDetails.purchase_units[0].amount.value
+            currencyCode = orderDetails.purchase_units[0].amount.currency_code
+        } else {
+            throw new Error('Neither orderID nor subscriptionID provided')
         }
-
-        const amountValue = orderDetails.purchase_units[0].amount.value
-        const currencyCode = orderDetails.purchase_units[0].amount.currency_code
 
         // 2. Update Database based on mode
         if (mode === 'course') {
@@ -168,7 +201,8 @@ Deno.serve(async (req) => {
                     plan_interval: isYearly ? 'year' : 'month',
                     current_period_start: new Date().toISOString(),
                     current_period_end: endDate.toISOString(),
-                    paypal_order_id: orderID
+                    paypal_subscription_id: subscriptionID || null,
+                    paypal_order_id: orderID || null
                 })
                 .select()
                 .single()
@@ -240,7 +274,8 @@ Deno.serve(async (req) => {
                 currency: currencyCode,
                 status: 'completed',
                 payment_method: 'paypal',
-                paypal_order_id: orderID,
+                paypal_order_id: orderID || null,
+                paypal_subscription_id: subscriptionID || null,
                 mode: mode,
                 target_id: id
             })

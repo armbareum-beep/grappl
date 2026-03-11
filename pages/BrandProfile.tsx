@@ -2,8 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Calendar, Users, Trophy, MapPin, ArrowRight, Instagram, Youtube, Globe, CheckCircle, Star } from 'lucide-react';
 import { LoadingScreen } from '../components/LoadingScreen';
-import { fetchBrandById, fetchBrandBySlug, fetchEventsByBrand, getBrandStats } from '../lib/api-organizers';
+import { fetchBrandById, fetchBrandBySlug, fetchEventsByBrand, getBrandStats, fetchGymVerificationStatus, requestGymVerification, cancelGymVerification } from '../lib/api-organizers';
 import { EventBrand, Event } from '../types';
+import { getTodayString } from '../lib/api-events';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import { Button } from '../components/Button';
+import { Loader2 } from 'lucide-react';
 
 const EventTypeLabel: React.FC<{ type: string }> = ({ type }) => {
     const config = {
@@ -22,11 +27,17 @@ const EventTypeLabel: React.FC<{ type: string }> = ({ type }) => {
 export const BrandProfile: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const { error: toastError } = useToast();
 
     const [loading, setLoading] = useState(true);
     const [brand, setBrand] = useState<EventBrand | null>(null);
     const [events, setEvents] = useState<Event[]>([]);
     const [stats, setStats] = useState<{ totalEvents: number; totalParticipants: number; upcomingEvents: number; completedEvents: number } | null>(null);
+
+    const [subscriptionStatus, setSubscriptionStatus] = useState<'pending' | 'approved' | 'rejected' | null>(null);
+    const [verificationStatus, setVerificationStatus] = useState<'pending' | 'approved' | 'rejected' | null>(null);
+    const [requesting, setRequesting] = useState(false);
 
     useEffect(() => {
         async function fetchData() {
@@ -51,6 +62,15 @@ export const BrandProfile: React.FC = () => {
 
                 setEvents(eventsData);
                 setStats(statsData);
+
+                if (user) {
+                    const [subStatus, verStatus] = await Promise.all([
+                        fetchGymVerificationStatus(user.id, brandData.creatorId, brandData.id, 'brand_subscription'),
+                        fetchGymVerificationStatus(user.id, brandData.creatorId, brandData.id, 'gym')
+                    ]);
+                    setSubscriptionStatus(subStatus);
+                    setVerificationStatus(verStatus);
+                }
             } catch (error) {
                 console.error('Error loading brand:', error);
                 navigate('/events');
@@ -60,7 +80,50 @@ export const BrandProfile: React.FC = () => {
         }
 
         fetchData();
-    }, [id, navigate]);
+    }, [id, navigate, user]);
+
+    const handleRequest = async (type: 'gym' | 'brand_subscription') => {
+        if (!user || !brand) {
+            navigate('/login');
+            return;
+        }
+
+        setRequesting(true);
+        try {
+            await requestGymVerification(user.id, brand.creatorId, brand.id, type);
+            if (type === 'brand_subscription') {
+                setSubscriptionStatus('approved');
+                success('구독이 완료되었습니다!');
+            } else {
+                setVerificationStatus('pending');
+                success('관원인증 신청이 접수되었습니다.');
+            }
+        } catch (error) {
+            console.error(`Error requesting ${type}:`, error);
+            toastError('요청 중 오류가 발생했습니다.');
+        } finally {
+            setRequesting(false);
+        }
+    };
+
+    const handleCancel = async (type: 'gym' | 'brand_subscription') => {
+        if (!user || !brand) return;
+
+        const confirmMessage = type === 'brand_subscription' ? '구독을 취소하시겠습니까?' : '관원인증 신청을 취소하시겠습니까?';
+        if (!window.confirm(confirmMessage)) return;
+
+        setRequesting(true);
+        try {
+            await cancelGymVerification(user.id, brand.creatorId, brand.id, type);
+            if (type === 'brand_subscription') setSubscriptionStatus(null);
+            else setVerificationStatus(null);
+        } catch (error) {
+            console.error(`Error canceling ${type}:`, error);
+            toastError('요청 취소 중 오류가 발생했습니다.');
+        } finally {
+            setRequesting(false);
+        }
+    };
 
     if (loading) {
         return <LoadingScreen message="이벤트 팀 정보 불러오는 중..." />;
@@ -70,13 +133,13 @@ export const BrandProfile: React.FC = () => {
         return null;
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayString();
     const upcomingEvents = events
-        .filter(e => e.eventDate >= today && e.status === 'published')
-        .sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
+        .filter(e => (e.nextOccurrence || e.eventDate) >= today && e.status === 'published')
+        .sort((a, b) => new Date(a.nextOccurrence || a.eventDate).getTime() - new Date(b.nextOccurrence || b.eventDate).getTime());
     const pastEvents = events
-        .filter(e => e.eventDate < today || e.status === 'completed')
-        .sort((a, b) => new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime());
+        .filter(e => (e.nextOccurrence || e.eventDate) < today || e.status === 'completed')
+        .sort((a, b) => new Date(b.nextOccurrence || b.eventDate).getTime() - new Date(a.nextOccurrence || a.eventDate).getTime());
 
     return (
         <div className="min-h-screen bg-zinc-950 text-white pb-24">
@@ -155,6 +218,67 @@ export const BrandProfile: React.FC = () => {
                                 </a>
                             )}
                         </div>
+
+                        {/* Subscription and Verification Buttons */}
+                        <div className="flex flex-wrap gap-2 mt-4">
+                            {subscriptionStatus === 'approved' ? (
+                                <div className="flex items-center gap-1.5 px-4 py-2 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-xl font-bold text-sm">
+                                    <CheckCircle className="w-4 h-4" />
+                                    구독 중
+                                </div>
+                            ) : subscriptionStatus === 'pending' ? (
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => handleCancel('brand_subscription')}
+                                    disabled={requesting}
+                                    className="px-4 py-2 font-bold"
+                                >
+                                    {requesting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                    구독 중... (취소)
+                                </Button>
+                            ) : (
+                                <Button
+                                    variant="primary"
+                                    size="sm"
+                                    onClick={() => handleRequest('brand_subscription')}
+                                    disabled={requesting}
+                                    className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-black font-black"
+                                >
+                                    {requesting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                    구독하기
+                                </Button>
+                            )}
+
+                            {verificationStatus === 'approved' ? (
+                                <div className="flex items-center gap-1.5 px-4 py-2 bg-green-500/10 text-green-400 border border-green-500/20 rounded-xl font-bold text-sm">
+                                    <CheckCircle className="w-4 h-4" />
+                                    관원 인증됨
+                                </div>
+                            ) : verificationStatus === 'pending' ? (
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => handleCancel('gym')}
+                                    disabled={requesting}
+                                    className="px-4 py-2 font-bold"
+                                >
+                                    {requesting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                    인증 대기 중... (취소)
+                                </Button>
+                            ) : (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleRequest('gym')}
+                                    disabled={requesting}
+                                    className="px-4 py-2 border-zinc-700 text-zinc-300 hover:bg-zinc-800 font-bold"
+                                >
+                                    {requesting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                    관원인증 신청
+                                </Button>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -215,7 +339,7 @@ export const BrandProfile: React.FC = () => {
                                         <div className="flex items-center gap-4 text-sm text-zinc-400">
                                             <span className="flex items-center gap-1">
                                                 <Calendar className="w-4 h-4" />
-                                                {new Date(event.eventDate).toLocaleDateString('ko-KR')}
+                                                {new Date(event.nextOccurrence || event.eventDate).toLocaleDateString('ko-KR')}
                                             </span>
                                             {event.venueName && (
                                                 <span className="flex items-center gap-1">
@@ -262,7 +386,7 @@ export const BrandProfile: React.FC = () => {
                                         <div className="flex items-center gap-2 mb-1">
                                             <EventTypeLabel type={event.type} />
                                             <span className="text-xs text-zinc-500">
-                                                {new Date(event.eventDate).toLocaleDateString('ko-KR')}
+                                                {new Date(event.nextOccurrence || event.eventDate).toLocaleDateString('ko-KR')}
                                             </span>
                                         </div>
                                         <h3 className="font-bold truncate group-hover:text-amber-400 transition-colors">

@@ -56,8 +56,7 @@ import {
     useSensors,
     PointerSensor,
     TouchSensor,
-    DragEndEvent,
-    DragOverEvent
+    DragEndEvent
 } from '@dnd-kit/core';
 import {
     SortableContext,
@@ -638,8 +637,8 @@ export const TechniqueSkillTree: React.FC = () => {
                 skills = userSkillsRes;
                 masteryRes = mastery;
                 if (user) {
-                    setSavedLessons(savedLessonsData);
-                    setSavedDrills(savedDrillsData);
+                    setSavedLessons(savedLessonsData as any);
+                    setSavedDrills(savedDrillsData as any);
                 }
 
                 // 공유된 트리를 찾을 수 없으면 에러 표시
@@ -659,8 +658,8 @@ export const TechniqueSkillTree: React.FC = () => {
                 treeRes = tr as any;
                 skills = userSkillsRes;
                 masteryRes = mastery;
-                setSavedLessons(savedLessonsData);
-                setSavedDrills(savedDrillsData);
+                setSavedLessons(savedLessonsData as any);
+                setSavedDrills(savedDrillsData as any);
             }
 
             setUserSkills(skills);
@@ -1200,7 +1199,6 @@ export const TechniqueSkillTree: React.FC = () => {
                 sourceHandle: sourceHandle || undefined,
                 targetHandle: targetHandle || undefined,
                 type: 'default',
-                selectable: true,
                 focusable: true,
                 style: { stroke, strokeWidth, strokeDasharray },
                 className
@@ -1426,7 +1424,7 @@ export const TechniqueSkillTree: React.FC = () => {
                 if (d.contentType === 'lesson' && d.lesson?.courseId) {
                     hasAccess = await checkCourseOwnership(user.id, d.lesson.courseId);
                 } else if (d.contentType === 'drill') {
-                    if (d.drill?.price === 0) {
+                    if (d.drill?.price === 0 && (d.drill as any)?.isSubscriptionExcluded) {
                         hasAccess = true;
                     } else if (d.drill?.routineId) {
                         hasAccess = await checkDrillRoutineOwnership(user.id, d.drill.routineId);
@@ -2027,7 +2025,6 @@ export const TechniqueSkillTree: React.FC = () => {
                 sourceHandle: sourceHandle || undefined,
                 targetHandle: targetHandle || undefined,
                 type: 'default',
-                selectable: true,
                 focusable: true,
                 style: { stroke: '#ffffff', strokeWidth: isGroupConnection ? 3.5 : 2 },
                 className: ''
@@ -2384,7 +2381,6 @@ export const TechniqueSkillTree: React.FC = () => {
                     sourceHandle: optimalSource,
                     targetHandle: optimalTarget,
                     type: 'default',
-                    selectable: true,
                     focusable: true,
                     style: { stroke: '#ffffff', strokeWidth: 2 }
                 });
@@ -3200,7 +3196,6 @@ export const TechniqueSkillTree: React.FC = () => {
                             elementsSelectable={true}
                             defaultEdgeOptions={{
                                 type: 'default',
-                                selectable: true,
                                 focusable: true,
                                 style: { stroke: '#ffffff', strokeWidth: 2, cursor: 'pointer' },
                                 interactionWidth: 50,
@@ -3372,7 +3367,7 @@ export const TechniqueSkillTree: React.FC = () => {
                         collisionDetection={closestCenter}
                         onDragEnd={handleDragEnd}
                         onDragOver={(event) => {
-                            const { active, over } = event;
+                            const { over } = event;
                             if (!over) return;
 
                             // Only handle reparenting logic here if needed, but for now allow SortableContext to handle visual reorder

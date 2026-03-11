@@ -532,7 +532,7 @@ export async function applyAsOrganizer(userId: string, creatorId?: string) {
         name: fallbackName,
         is_default: true
       }]);
-    
+
     if (brandError && !brandError.message.includes('duplicate')) {
       console.error('Failed to create default event team during application:', brandError);
     }
@@ -1297,4 +1297,119 @@ export function generateCalendarUrl(event: {
   ].join('\n');
 
   return `data:text/calendar;charset=utf-8,${encodeURIComponent(icsContent)}`;
+}
+
+// ==================== Gym Member Verification ====================
+
+export async function requestGymVerification(studentId: string, instructorId: string, brandId?: string, type: 'gym' | 'brand_subscription' = 'gym') {
+  const { data, error } = await supabase
+    .from('gym_member_verifications')
+    .insert([{
+      student_id: studentId,
+      instructor_id: instructorId,
+      brand_id: brandId,
+      verification_type: type,
+      status: type === 'brand_subscription' ? 'approved' : 'pending'
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function cancelGymVerification(studentId: string, instructorId: string, brandId?: string, type: 'gym' | 'brand_subscription' = 'gym') {
+  let query = supabase
+    .from('gym_member_verifications')
+    .delete()
+    .eq('student_id', studentId)
+    .eq('instructor_id', instructorId)
+    .eq('verification_type', type);
+
+  // For gym membership, only allow canceling if it's pending.
+  // For brand_subscription (following), allow unfollowing anytime.
+  if (type === 'gym') {
+    query = query.eq('status', 'pending');
+  }
+
+  if (brandId) {
+    query = query.eq('brand_id', brandId);
+  }
+
+  const { error } = await query;
+
+  if (error) throw error;
+  return true;
+}
+
+export async function fetchGymVerificationStatus(studentId: string, instructorId: string, brandId?: string, type: 'gym' | 'brand_subscription' = 'gym') {
+  let query = supabase
+    .from('gym_member_verifications')
+    .select('status')
+    .eq('student_id', studentId)
+    .eq('instructor_id', instructorId)
+    .eq('verification_type', type);
+
+  if (brandId) {
+    query = query.eq('brand_id', brandId);
+  }
+
+  const { data, error } = await query.maybeSingle();
+
+  if (error) throw error;
+  return data?.status || null;
+}
+
+export async function fetchPendingVerifications(instructorId: string, brandId?: string) {
+  let query = supabase
+    .from('gym_member_verifications')
+    .select(`
+      *,
+      student:users!student_id(id, name, profile_image_url, email)
+    `)
+    .eq('instructor_id', instructorId)
+    .eq('status', 'pending');
+
+  if (brandId) {
+    query = query.eq('brand_id', brandId);
+  } else {
+    query = query.is('brand_id', null);
+  }
+
+  const { data, error } = await query.order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function updateVerificationStatus(verificationId: string, status: 'approved' | 'rejected') {
+  const { data, error } = await supabase
+    .from('gym_member_verifications')
+    .update({
+      status,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', verificationId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function checkGymMemberAccess(studentId: string, instructorId: string) {
+  const { data, error } = await supabase
+    .from('gym_member_verifications')
+    .select('status')
+    .eq('student_id', studentId)
+    .eq('instructor_id', instructorId)
+    .eq('status', 'approved')
+    .maybeSingle();
+
+  if (error) {
+    console.warn('Gym member access check failed:', error);
+    return false;
+  }
+
+  return !!data;
 }

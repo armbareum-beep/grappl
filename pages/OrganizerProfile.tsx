@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar, ArrowLeft, Trophy, Users, MapPin, Star, CheckCircle, ExternalLink, Video, Play } from 'lucide-react';
 import { LoadingScreen } from '../components/LoadingScreen';
-import { fetchOrganizerById, getOrganizerStats, fetchOrganizerReviews, fetchCreatorVideos } from '../lib/api-organizers';
-import { fetchEvents } from '../lib/api-events';
+import { fetchOrganizerById, getOrganizerStats, fetchOrganizerReviews, fetchCreatorVideos, fetchGymVerificationStatus, requestGymVerification, cancelGymVerification } from '../lib/api-organizers';
+import { fetchEvents, getTodayString } from '../lib/api-events';
 import { Creator, Event, OrganizerReview } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 const OrganizerAvatar: React.FC<{ src: string; name: string }> = ({ src, name }) => {
     const [error, setError] = useState(false);
@@ -50,6 +51,7 @@ interface CreatorVideos {
 export const OrganizerProfile: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [organizer, setOrganizer] = useState<Creator | null>(null);
     const [events, setEvents] = useState<Event[]>([]);
     const [reviews, setReviews] = useState<OrganizerReview[]>([]);
@@ -57,6 +59,8 @@ export const OrganizerProfile: React.FC = () => {
     const [stats, setStats] = useState<{ totalEvents: number; avgRating: number; reviewCount: number; totalParticipants: number } | null>(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'upcoming' | 'past' | 'videos'>('upcoming');
+    const [verificationStatus, setVerificationStatus] = useState<'pending' | 'approved' | 'rejected' | null>(null);
+    const [requestingVerification, setRequestingVerification] = useState(false);
 
     useEffect(() => {
         async function fetchData() {
@@ -75,10 +79,15 @@ export const OrganizerProfile: React.FC = () => {
                 setReviews(reviewsData);
                 setStats(statsData);
 
-                // Fetch videos if organizer can upload content
-                if (organizerData.creatorType === 'both') {
+                // Fetch videos and verification status
+                if (organizerData.creatorType === 'both' || organizerData.creatorType === 'creator') {
                     const videosData = await fetchCreatorVideos(id);
                     setVideos(videosData);
+                }
+
+                if (user && id) {
+                    const status = await fetchGymVerificationStatus(user.id, id);
+                    setVerificationStatus(status);
                 }
             } catch (error) {
                 console.error('Error fetching organizer data:', error);
@@ -88,7 +97,44 @@ export const OrganizerProfile: React.FC = () => {
         }
 
         fetchData();
-    }, [id]);
+    }, [id, user?.id]);
+
+    const handleRequestVerification = async () => {
+        if (!user || !id) {
+            navigate('/login');
+            return;
+        }
+
+        setRequestingVerification(true);
+        try {
+            await requestGymVerification(user.id, id);
+            setVerificationStatus('pending');
+            alert('관원 인증 신청이 완료되었습니다. 지도자의 승인을 기다려주세요.');
+        } catch (error) {
+            console.error('Error requesting verification:', error);
+            alert('인증 신청 중 오류가 발생했습니다.');
+        } finally {
+            setRequestingVerification(false);
+        }
+    };
+
+    const handleCancelVerification = async () => {
+        if (!user || !id) return;
+
+        if (!window.confirm('관원 인증 신청을 취소하시겠습니까?')) return;
+
+        setRequestingVerification(true);
+        try {
+            await cancelGymVerification(user.id, id);
+            setVerificationStatus(null);
+            alert('인증 신청이 취소되었습니다.');
+        } catch (error) {
+            console.error('Error canceling verification:', error);
+            alert('신청 취소 중 오류가 발생했습니다.');
+        } finally {
+            setRequestingVerification(false);
+        }
+    };
 
     const hasVideos = videos && (videos.drills.length > 0 || videos.lessons.length > 0 || videos.sparring.length > 0);
     const totalVideos = videos ? videos.drills.length + videos.lessons.length + videos.sparring.length : 0;
@@ -113,9 +159,9 @@ export const OrganizerProfile: React.FC = () => {
         );
     }
 
-    const today = new Date().toISOString().split('T')[0];
-    const upcomingEvents = events.filter(e => e.eventDate >= today && e.status === 'published');
-    const pastEvents = events.filter(e => e.eventDate < today || e.status === 'completed');
+    const today = getTodayString();
+    const upcomingEvents = events.filter(e => (e.nextOccurrence || e.eventDate) >= today && e.status === 'published');
+    const pastEvents = events.filter(e => (e.nextOccurrence || e.eventDate) < today || e.status === 'completed');
     const displayedEvents = activeTab === 'upcoming' ? upcomingEvents : pastEvents;
 
     return (
@@ -147,6 +193,44 @@ export const OrganizerProfile: React.FC = () => {
                                 <h1 className="text-3xl md:text-4xl font-black">{organizer.name}</h1>
                                 {organizer.verifiedOrganizer && (
                                     <CheckCircle className="w-6 h-6 text-amber-500 fill-amber-500/10" />
+                                )}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3 mb-6">
+                                {verificationStatus === 'approved' ? (
+                                    <div className="flex items-center gap-2 px-4 py-2 bg-green-500/20 text-green-400 border border-green-500/30 rounded-full text-sm font-bold">
+                                        <CheckCircle className="w-4 h-4" />
+                                        인증된 관원
+                                    </div>
+                                ) : verificationStatus === 'pending' ? (
+                                    <div className="flex items-center gap-2">
+                                        <div className="px-4 py-2 bg-zinc-800 text-zinc-400 border border-zinc-700 rounded-full text-sm font-bold">
+                                            관원 인증 대기 중
+                                        </div>
+                                        <button
+                                            onClick={handleCancelVerification}
+                                            disabled={requestingVerification}
+                                            className="text-xs text-zinc-500 hover:text-red-400 font-bold underline underline-offset-4 transition-colors disabled:opacity-50"
+                                        >
+                                            신청 취소
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={handleRequestVerification}
+                                        disabled={requestingVerification}
+                                        className="px-6 py-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white rounded-full text-sm font-bold transition-all shadow-lg shadow-amber-900/20 flex items-center gap-2"
+                                    >
+                                        <Users className="w-4 h-4" />
+                                        {requestingVerification ? '처리 중...' : '관원인증 신청'}
+                                    </button>
+                                )}
+
+                                {organizer.creatorType === 'both' && (
+                                    <div className="px-4 py-2 bg-violet-500/20 text-violet-400 border border-violet-500/30 rounded-full text-sm font-bold flex items-center gap-2">
+                                        <Video className="w-4 h-4" />
+                                        지도자
+                                    </div>
                                 )}
                             </div>
 
@@ -188,32 +272,29 @@ export const OrganizerProfile: React.FC = () => {
                 <div className="flex gap-2 mb-8 overflow-x-auto">
                     <button
                         onClick={() => setActiveTab('upcoming')}
-                        className={`px-6 py-3 rounded-xl font-bold transition-all whitespace-nowrap ${
-                            activeTab === 'upcoming'
-                                ? 'bg-amber-600 text-white'
-                                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-                        }`}
+                        className={`px-6 py-3 rounded-xl font-bold transition-all whitespace-nowrap ${activeTab === 'upcoming'
+                            ? 'bg-amber-600 text-white'
+                            : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                            }`}
                     >
                         예정된 이벤트 ({upcomingEvents.length})
                     </button>
                     <button
                         onClick={() => setActiveTab('past')}
-                        className={`px-6 py-3 rounded-xl font-bold transition-all whitespace-nowrap ${
-                            activeTab === 'past'
-                                ? 'bg-amber-600 text-white'
-                                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-                        }`}
+                        className={`px-6 py-3 rounded-xl font-bold transition-all whitespace-nowrap ${activeTab === 'past'
+                            ? 'bg-amber-600 text-white'
+                            : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                            }`}
                     >
                         지난 이벤트 ({pastEvents.length})
                     </button>
                     {organizer?.creatorType === 'both' && (
                         <button
                             onClick={() => setActiveTab('videos')}
-                            className={`px-6 py-3 rounded-xl font-bold transition-all whitespace-nowrap flex items-center gap-2 ${
-                                activeTab === 'videos'
-                                    ? 'bg-violet-600 text-white'
-                                    : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-                            }`}
+                            className={`px-6 py-3 rounded-xl font-bold transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'videos'
+                                ? 'bg-violet-600 text-white'
+                                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                                }`}
                         >
                             <Video className="w-4 h-4" />
                             영상 ({totalVideos})
@@ -254,7 +335,7 @@ export const OrganizerProfile: React.FC = () => {
                                         <div className="space-y-2 text-sm text-zinc-400">
                                             <div className="flex items-center gap-2">
                                                 <Calendar className="w-4 h-4" />
-                                                <span>{new Date(event.eventDate).toLocaleDateString('ko-KR', {
+                                                <span>{new Date(event.nextOccurrence || event.eventDate).toLocaleDateString('ko-KR', {
                                                     year: 'numeric',
                                                     month: 'long',
                                                     day: 'numeric',
@@ -431,9 +512,8 @@ export const OrganizerProfile: React.FC = () => {
                                                 {Array.from({ length: 5 }).map((_, i) => (
                                                     <Star
                                                         key={i}
-                                                        className={`w-4 h-4 ${
-                                                            i < review.rating ? 'text-amber-400 fill-amber-400' : 'text-zinc-600'
-                                                        }`}
+                                                        className={`w-4 h-4 ${i < review.rating ? 'text-amber-400 fill-amber-400' : 'text-zinc-600'
+                                                            }`}
                                                     />
                                                 ))}
                                             </div>

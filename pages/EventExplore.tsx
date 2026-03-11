@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Calendar, Map, Trophy, Users, MapPin, ChevronRight, Clock } from 'lucide-react';
-import { fetchEvents } from '../lib/api-events';
+import { Calendar, Map, Trophy, Users, MapPin, ChevronRight, Clock, X, Navigation } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { fetchEvents, getTodayString } from '../lib/api-events';
 import { Event, EventType } from '../types';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { EventCalendarView } from '../components/explore/EventCalendarView';
@@ -63,17 +64,36 @@ export const EventExplore: React.FC = () => {
     useEffect(() => {
         const loadEvents = async () => {
             try {
-                setLoading(true);
                 const data = await fetchEvents({
                     status: 'published',
                 });
-                const now = new Date().toISOString().split('T')[0];
-                const futureEvents = data.filter(e => e.eventDate >= now);
+
+                const now = getTodayString();
+
+                // Sort: Upcoming (closest first) then Past (latest first)
+                const sortedEvents = [...data].sort((a, b) => {
+                    const dateA = a.nextOccurrence || a.eventDate;
+                    const dateB = b.nextOccurrence || b.eventDate;
+
+                    const isPastA = dateA < now;
+                    const isPastB = dateB < now;
+
+                    if (isPastA !== isPastB) {
+                        return isPastA ? 1 : -1; // Future first
+                    }
+
+                    // Both future or both past
+                    if (!isPastA) {
+                        return dateA.localeCompare(dateB); // Ascending for future
+                    } else {
+                        return dateB.localeCompare(dateA); // Descending for past
+                    }
+                });
 
                 // Client-side filtering if types are selected
-                const typeFilteredEvents = selectedTypes.length > 0 
-                    ? futureEvents.filter(e => selectedTypes.includes(e.type as EventType))
-                    : futureEvents;
+                const typeFilteredEvents = selectedTypes.length > 0
+                    ? sortedEvents.filter(e => selectedTypes.includes(e.type as EventType))
+                    : sortedEvents;
 
                 setEvents(typeFilteredEvents);
             } catch (error) {
@@ -85,9 +105,15 @@ export const EventExplore: React.FC = () => {
         loadEvents();
     }, [selectedTypes]);
 
+    const now = getTodayString();
     const filteredEvents = selectedDate
-        ? events.filter(e => e.eventDate === selectedDate)
+        ? events.filter(e =>
+            (e.nextOccurrence || e.eventDate) === selectedDate ||
+            e.eventDate === selectedDate
+        )
         : events;
+
+    const mapEvents = filteredEvents.filter(e => (e.nextOccurrence || e.eventDate) >= now);
 
     if (loading) {
         return <LoadingScreen message="이벤트 불러오는 중..." />;
@@ -104,17 +130,16 @@ export const EventExplore: React.FC = () => {
                     <button
                         key={type}
                         onClick={() => {
-                            setSelectedTypes(prev => 
-                                prev.includes(type) 
+                            setSelectedTypes(prev =>
+                                prev.includes(type)
                                     ? prev.filter(t => t !== type)
                                     : [...prev, type]
                             );
                         }}
-                        className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
-                            isSelected
-                                ? `${config.color} text-white`
-                                : `bg-zinc-800 ${config.textColor} hover:bg-zinc-700 border ${config.borderColor}`
-                        }`}
+                        className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${isSelected
+                            ? `${config.color} text-white`
+                            : `bg-zinc-800 ${config.textColor} hover:bg-zinc-700 border ${config.borderColor}`
+                            }`}
                     >
                         <Icon className="w-4 h-4" />
                         {config.label}
@@ -140,9 +165,9 @@ export const EventExplore: React.FC = () => {
                             {TypeFilterTabs}
                         </div>
                     </div>
-                    
+
                     <EventMapView
-                        events={filteredEvents}
+                        events={mapEvents}
                         selectedEventId={selectedMapEventId}
                         onEventSelect={(id) => {
                             setSelectedMapEventId(id);
@@ -155,7 +180,7 @@ export const EventExplore: React.FC = () => {
                         className="absolute inset-0 rounded-none border-0 z-0"
                     />
 
-                    {/* Bottom Sheet — hidden in expanded/fullscreen mode */}
+                    {/* Bottom Sheet — Always shown in normal mode */}
                     {mapMode === 'normal' && (
                         <EventBottomSheet
                             events={events}
@@ -167,6 +192,7 @@ export const EventExplore: React.FC = () => {
                             expandSignal={expandSignal}
                         />
                     )}
+
                 </div>
             </div>
 
@@ -193,7 +219,7 @@ export const EventExplore: React.FC = () => {
                                 onDateSelect={setSelectedDate}
                             />
                             <EventMapView
-                                events={filteredEvents}
+                                events={mapEvents}
                                 selectedEventId={selectedMapEventId}
                                 onEventSelect={setSelectedMapEventId}
                                 className="relative w-full h-[480px] rounded-2xl overflow-hidden border border-zinc-800"
@@ -211,7 +237,7 @@ export const EventExplore: React.FC = () => {
                                     )}
                                     {selectedDate
                                         ? `${new Date(selectedDate).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 이벤트`
-                                        : '다가오는 이벤트'}
+                                        : '이벤트 목록'}
                                     <span className="text-sm text-zinc-500">({filteredEvents.length})</span>
                                 </h2>
                                 {!selectedDate && events.length > 5 && (
@@ -250,7 +276,124 @@ export const EventExplore: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Independent Event Detail Modal — Common for Mobile/Desktop */}
+            {selectedMapEventId && (
+                <EventDetailModal
+                    event={events.find(e => e.id === selectedMapEventId) || null}
+                    onClose={() => setSelectedMapEventId(null)}
+                />
+            )}
         </div>
+    );
+};
+
+// Independent Event Detail Modal Component
+interface EventDetailModalProps {
+    event: Event | null;
+    onClose: () => void;
+}
+
+const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, onClose }) => {
+    if (!event) return null;
+
+    const config = EVENT_TYPE_CONFIG[event.type as EventType] || EVENT_TYPE_CONFIG.openmat;
+    const Icon = config.icon;
+
+    return createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <div
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+                onClick={onClose}
+            />
+
+            {/* Modal Content */}
+            <div className="relative w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 pointer-events-auto">
+                {/* Close Button */}
+                <button
+                    onClick={onClose}
+                    className="absolute top-3 right-3 p-1.5 bg-black/50 hover:bg-black/70 rounded-full z-20 transition-colors backdrop-blur-sm"
+                >
+                    <X className="w-4 h-4 text-white" />
+                </button>
+
+                {/* Cover Image */}
+                <div className="w-full h-40 bg-zinc-800 relative">
+                    {event.coverImage ? (
+                        <img src={event.coverImage} alt={event.title} className="w-full h-full object-cover" />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                            <Icon className={`w-12 h-12 ${config.textColor} opacity-20`} />
+                        </div>
+                    )}
+                    {/* Type Badge on image */}
+                    <div className="absolute top-3 left-3">
+                        <span className={`px-2.5 py-1 text-xs font-bold rounded-lg bg-black/60 backdrop-blur-md text-white border border-white/20 shadow-sm flex items-center gap-1.5`}>
+                            <Icon className="w-3.5 h-3.5" />
+                            {config.label}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="p-5">
+                    {/* Title */}
+                    <h3 className="font-bold text-white text-lg mb-4 line-clamp-2 leading-tight">
+                        {event.title}
+                    </h3>
+
+                    {/* Date & Time */}
+                    <div className="flex flex-col gap-2.5 mb-6">
+                        <div className="flex items-center gap-2.5 text-sm text-zinc-300">
+                            <Calendar className="w-4 h-4 text-zinc-500" />
+                            <span>
+                                {new Date(event.nextOccurrence || event.eventDate).toLocaleDateString('ko-KR', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                    weekday: 'short'
+                                })}
+                                {event.startTime && ` ${event.startTime}`}
+                            </span>
+                        </div>
+
+                        {/* Venue & Navigation */}
+                        {(event.venueName || event.address || (typeof event.latitude === 'number' && typeof event.longitude === 'number')) && (
+                            <div className="flex items-center justify-between gap-4 text-sm text-zinc-300">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <MapPin className="w-4 h-4 text-zinc-500 flex-shrink-0" />
+                                    <span className="truncate">
+                                        {event.venueName || event.address || '상세 장소 확인 필요'}
+                                    </span>
+                                </div>
+
+                                {(typeof event.latitude === 'number' && typeof event.longitude === 'number') && (
+                                    <a
+                                        href={`https://map.naver.com/index.naver?slng=&slat=&stext=&elng=${event.longitude}&elat=${event.latitude}&etext=${encodeURIComponent(event.address || event.venueName || event.title)}&menu=route`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-xs font-medium text-amber-500 transition-colors flex-shrink-0"
+                                    >
+                                        <Navigation className="w-3.5 h-3.5" />
+                                        길찾기
+                                    </a>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Detail Link */}
+                    <Link
+                        to={`/event/${event.id}`}
+                        className="flex items-center justify-center gap-2 w-full py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl transition-colors shadow-lg shadow-amber-900/20"
+                    >
+                        상세 보기
+                        <ChevronRight className="w-4 h-4" />
+                    </Link>
+                </div>
+            </div>
+        </div>,
+        document.body
     );
 };
 
@@ -270,9 +413,8 @@ const EventCard: React.FC<EventCardProps> = ({ event, onMapClick }) => {
             <button
                 onClick={() => hasLocation && onMapClick(event.id)}
                 disabled={!hasLocation}
-                className={`flex gap-4 p-4 bg-zinc-900 border border-zinc-800 rounded-2xl transition-all group text-left w-full ${
-                    hasLocation ? 'hover:border-amber-500/50 cursor-pointer' : 'opacity-60 cursor-not-allowed'
-                }`}
+                className={`flex gap-4 p-4 bg-zinc-900 border border-zinc-800 rounded-2xl transition-all group text-left w-full ${hasLocation ? 'hover:border-amber-500/50 cursor-pointer' : 'opacity-60 cursor-not-allowed'
+                    }`}
             >
                 <div className="w-24 h-24 rounded-xl overflow-hidden bg-zinc-800 flex-shrink-0">
                     {event.coverImage ? (
@@ -288,6 +430,11 @@ const EventCard: React.FC<EventCardProps> = ({ event, onMapClick }) => {
                         <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${config.color}/20 ${config.textColor} border ${config.borderColor}`}>
                             {config.label}
                         </span>
+                        {(event.nextOccurrence || event.eventDate) < getTodayString() && (
+                            <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-zinc-800 text-zinc-500 border border-zinc-700">
+                                종료됨
+                            </span>
+                        )}
                         {!hasLocation && (
                             <span className="text-xs text-zinc-500">(위치 없음)</span>
                         )}
@@ -298,7 +445,7 @@ const EventCard: React.FC<EventCardProps> = ({ event, onMapClick }) => {
                     <div className="flex items-center gap-2 text-sm text-zinc-400 mt-1">
                         <Calendar className="w-4 h-4" />
                         <span>
-                            {new Date(event.eventDate).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                            {new Date(event.nextOccurrence || event.eventDate).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
                             {event.startTime && ` ${event.startTime}`}
                         </span>
                     </div>
@@ -331,6 +478,11 @@ const EventCard: React.FC<EventCardProps> = ({ event, onMapClick }) => {
                     <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${config.color}/20 ${config.textColor} border ${config.borderColor}`}>
                         {config.label}
                     </span>
+                    {(event.nextOccurrence || event.eventDate) < getTodayString() && (
+                        <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-zinc-800 text-zinc-500 border border-zinc-700">
+                            종료됨
+                        </span>
+                    )}
                 </div>
                 <h3 className="font-bold text-white group-hover:text-amber-400 transition-colors truncate">
                     {event.title}
@@ -338,7 +490,7 @@ const EventCard: React.FC<EventCardProps> = ({ event, onMapClick }) => {
                 <div className="flex items-center gap-2 text-sm text-zinc-400 mt-1">
                     <Calendar className="w-4 h-4" />
                     <span>
-                        {new Date(event.eventDate).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                        {new Date(event.nextOccurrence || event.eventDate).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
                         {event.startTime && ` ${event.startTime}`}
                     </span>
                 </div>

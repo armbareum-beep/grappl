@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { BookOpen, MessageSquare, Clock, DollarSign, Shield, Zap, PlayCircle, ArrowLeft, Upload, Video, AlertCircle, Loader2 } from 'lucide-react';
+import { BookOpen, MessageSquare, Clock, DollarSign, Shield, Zap, PlayCircle, ArrowLeft, Upload, Video, AlertCircle, Loader2, Users, CheckCircle } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { getCreatorById, getCoursesByCreator, getRoutines, getSparringVideos, getFeedbackSettings, createFeedbackRequest, toggleCreatorFollow, checkCreatorFollowStatus, uploadFeedbackVideo, getFeedbackRequests, deleteFeedbackRequest } from '../lib/api';
+import { fetchGymVerificationStatus, requestGymVerification, cancelGymVerification } from '../lib/api-organizers';
 import { Creator, Course, FeedbackSettings, DrillRoutine, SparringVideo } from '../types';
 import { CourseCard } from '../components/CourseCard';
 import { UnifiedContentCard } from '../components/library/UnifiedContentCard';
@@ -30,6 +31,8 @@ export const CreatorProfile: React.FC = () => {
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isSubscribed, setIsSubscribed] = useState(false);
     const [subscribeLoading, setSubscribeLoading] = useState(false);
+    const [verificationStatus, setVerificationStatus] = useState<'pending' | 'approved' | 'rejected' | null>(null);
+    const [requestingVerification, setRequestingVerification] = useState(false);
 
     useEffect(() => {
         async function fetchData() {
@@ -54,8 +57,12 @@ export const CreatorProfile: React.FC = () => {
                 }
 
                 if (user && id) {
-                    const subscribed = await checkCreatorFollowStatus(user.id, id);
+                    const [subscribed, status] = await Promise.all([
+                        checkCreatorFollowStatus(user.id, id),
+                        fetchGymVerificationStatus(user.id, id)
+                    ]);
                     setIsSubscribed(subscribed);
+                    setVerificationStatus(status);
                 }
             } catch (error) {
                 console.error('Error fetching creator data:', error);
@@ -113,6 +120,43 @@ export const CreatorProfile: React.FC = () => {
         } finally {
             setSubmitting(false);
             setUploadProgress(0);
+        }
+    };
+
+    const handleRequestVerification = async () => {
+        if (!user || !id) {
+            navigate('/login');
+            return;
+        }
+
+        setRequestingVerification(true);
+        try {
+            await requestGymVerification(user.id, id);
+            setVerificationStatus('pending');
+            // success('관원 인증 신청이 완료되었습니다. 지도자의 승인을 기다려주세요.');
+        } catch (error) {
+            console.error('Error requesting verification:', error);
+            toastError('인증 신청 중 오류가 발생했습니다.');
+        } finally {
+            setRequestingVerification(false);
+        }
+    };
+
+    const handleCancelVerification = async () => {
+        if (!user || !id) return;
+
+        if (!window.confirm('관원 인증 신청을 취소하시겠습니까?')) return;
+
+        setRequestingVerification(true);
+        try {
+            await cancelGymVerification(user.id, id);
+            setVerificationStatus(null);
+            // toastError('인증 신청이 취소되었습니다.');
+        } catch (error) {
+            console.error('Error canceling verification:', error);
+            toastError('신청 취소 중 오류가 발생했습니다.');
+        } finally {
+            setRequestingVerification(false);
         }
     };
 
@@ -239,16 +283,47 @@ export const CreatorProfile: React.FC = () => {
                                             </Link>
                                         </div>
                                     ) : (
-                                        <Button
-                                            size="sm"
-                                            className={`shadow-lg transition-all px-6 font-bold ${isSubscribed
-                                                ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 border border-zinc-700'
-                                                : 'bg-violet-600 hover:bg-violet-500 text-white shadow-violet-500/20'}`}
-                                            onClick={handleSubscribe}
-                                            disabled={subscribeLoading}
-                                        >
-                                            {isSubscribed ? '팔로잉' : '팔로우'}
-                                        </Button>
+                                        <div className="flex items-center gap-3">
+                                            {verificationStatus === 'approved' ? (
+                                                <div className="flex items-center gap-2 px-4 py-1.5 bg-green-500/20 text-green-400 border border-green-500/30 rounded-lg text-xs font-bold">
+                                                    <CheckCircle className="w-3.5 h-3.5" />
+                                                    인증된 관원
+                                                </div>
+                                            ) : verificationStatus === 'pending' ? (
+                                                <div className="flex flex-col items-center gap-1">
+                                                    <div className="px-4 py-1.5 bg-zinc-800 text-zinc-400 border border-zinc-700 rounded-lg text-xs font-bold text-center">
+                                                        관원 인증 대기 중
+                                                    </div>
+                                                    <button
+                                                        onClick={handleCancelVerification}
+                                                        disabled={requestingVerification}
+                                                        className="text-[10px] text-zinc-500 hover:text-red-400 font-bold underline underline-offset-2 transition-colors disabled:opacity-50"
+                                                    >
+                                                        신청 취소
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={handleRequestVerification}
+                                                    disabled={requestingVerification}
+                                                    className="px-4 py-2 bg-amber-600/20 hover:bg-amber-600/30 text-amber-500 border border-amber-500/30 rounded-lg text-xs font-bold transition-all flex items-center gap-2"
+                                                >
+                                                    <Users className="w-3.5 h-3.5" />
+                                                    {requestingVerification ? '처리 중...' : '관원인증 신청'}
+                                                </button>
+                                            )}
+
+                                            <Button
+                                                size="sm"
+                                                className={`shadow-lg transition-all px-6 font-bold ${isSubscribed
+                                                    ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 border border-zinc-700'
+                                                    : 'bg-violet-600 hover:bg-violet-500 text-white shadow-violet-500/20'}`}
+                                                onClick={handleSubscribe}
+                                                disabled={subscribeLoading}
+                                            >
+                                                {isSubscribed ? '팔로잉' : '팔로우'}
+                                            </Button>
+                                        </div>
                                     )}
                                 </div>
                             </div>

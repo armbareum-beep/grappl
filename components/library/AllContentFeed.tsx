@@ -3,10 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Search, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getCourses, fetchRoutines, getSparringVideos, getDailyFreeLesson, getDailyFreeSparring, getDailyFreeDrill } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 import { Course, DrillRoutine, SparringVideo } from '../../types';
-import { LoadingScreen } from '../LoadingScreen';
+// LoadingScreen removed
 import { UnifiedContentCard, UnifiedContentItem, ContentType } from './UnifiedContentCard';
 import { LibraryTabs, LibraryTabType } from './LibraryTabs';
 import { batchCheckInteractions, getCreatorsWithNewContent, recordView } from '../../lib/api-user-interactions';
@@ -146,44 +145,36 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
         try {
             setLoading(true);
 
-            // Fetch all content types and daily free items in parallel
-            const [
-                coursesData,
-                routinesRes,
-                sparringRes,
-                dailyFreeLessonRes,
-                dailyFreeSparringRes,
-                dailyFreeDrillRes,
-            ] = await Promise.all([
-                getCourses(100, 0),
-                fetchRoutines(100),
-                getSparringVideos(100, undefined, true),
-                getDailyFreeLesson(),
-                getDailyFreeSparring(),
-                getDailyFreeDrill(),
-            ]);
+            // Fix 10-15s Hang: Replaced 6 parallel heavy queries with a single optimized RPC call
+            const { data: rawRpcData, error: rpcError } = await supabase.rpc('get_library_feed_data' as any);
 
-            // Extract daily free IDs
-            const dailyFreeIds: { course?: string; sparring?: string; routineIds: string[] } = {
-                course: dailyFreeLessonRes.data?.courseId,
-                sparring: dailyFreeSparringRes.data?.id,
-                routineIds: []
+            if (rpcError) throw rpcError;
+
+            const rpcData: any = rawRpcData;
+
+            const mapToCamel = (arr: any[]) => arr.map(item => ({
+                ...item,
+                thumbnailUrl: item.thumbnail_url,
+                creatorName: item.creator_name,
+                creatorProfileImage: item.creator_profile_image,
+                creatorId: item.creator_id,
+                brandId: item.brand_id,
+                createdAt: item.created_at,
+                drillCount: item.drill_count,
+                creator: { name: item.creator_name, avatar_url: item.creator_profile_image } // For sparring mapping
+            }));
+
+            const coursesData = mapToCamel(rpcData.courses || []);
+            const routinesRes = { data: mapToCamel(rpcData.routines || []) };
+            const sparringRes = { data: mapToCamel(rpcData.sparringVideos || []) };
+
+            const dailyFreeIds = {
+                course: rpcData.dailyFree?.courseId,
+                sparring: rpcData.dailyFree?.sparringId,
+                routineIds: rpcData.dailyFree?.routineIds || []
             };
 
-            if (dailyFreeDrillRes.data) {
-                const { data: relations } = await supabase
-                    .from('routine_drills')
-                    .select('routine_id')
-                    .eq('drill_id', dailyFreeDrillRes.data.id);
-                if (relations) {
-                    dailyFreeIds.routineIds = relations.map((r: any) => r.routine_id);
-                }
-            }
-
-            setFreeIds({
-                course: dailyFreeIds.course,
-                sparring: dailyFreeIds.sparring
-            });
+            setFreeIds(dailyFreeIds);
 
             const now = Date.now();
             const getHotScore = (item: { views?: number; createdAt?: string }) => {
@@ -351,8 +342,33 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
         setSearchParams({ tab: 'sparring', id: item.id, view: 'reels' });
     };
 
-    if (loading) {
-        return <LoadingScreen message="콘텐츠를 불러오는 중..." />;
+    if (loading && allItems.length === 0) {
+        return (
+            <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col flex-1 p-4 md:px-12 md:pb-8">
+                {/* Header Skeleton */}
+                <div className="flex flex-col gap-8 mb-8 mt-8">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full">
+                        <div className="h-12 w-full max-w-md bg-zinc-900 rounded-2xl animate-pulse" />
+                        <div className="h-6 w-32 bg-zinc-900 rounded-lg animate-pulse" />
+                    </div>
+                </div>
+                {/* Creators Skeleton Row */}
+                <div className="flex gap-5 mb-8 overflow-hidden py-2">
+                    {[...Array(6)].map((_, i) => (
+                        <div key={i} className="flex flex-col items-center gap-2 shrink-0">
+                            <div className="w-16 h-16 md:w-20 md:h-20 bg-zinc-900 rounded-full animate-pulse" />
+                            <div className="h-3 w-16 bg-zinc-900 rounded animate-pulse" />
+                        </div>
+                    ))}
+                </div>
+                {/* Grid Skeleton */}
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-x-3 grid-flow-dense">
+                    {[...Array(14)].map((_, i) => (
+                        <div key={i} className={`bg-zinc-900/50 rounded-2xl animate-pulse mb-6 ${i % 3 === 0 ? 'aspect-video' : 'aspect-[9/16]'}`} />
+                    ))}
+                </div>
+            </div>
+        );
     }
 
     return (
@@ -423,11 +439,10 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                                             className="flex flex-col items-center gap-2 shrink-0 group select-none"
                                         >
                                             <div className="relative">
-                                                <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-zinc-800 transition-all ${
-                                                    selectedCreatorId === creator.id
-                                                        ? 'ring-2 ring-violet-500 ring-offset-2 ring-offset-zinc-950'
-                                                        : 'group-hover:ring-2 group-hover:ring-zinc-600 group-hover:ring-offset-2 group-hover:ring-offset-zinc-950'
-                                                }`}>
+                                                <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-zinc-800 transition-all ${selectedCreatorId === creator.id
+                                                    ? 'ring-2 ring-violet-500 ring-offset-2 ring-offset-zinc-950'
+                                                    : 'group-hover:ring-2 group-hover:ring-zinc-600 group-hover:ring-offset-2 group-hover:ring-offset-zinc-950'
+                                                    }`}>
                                                     {creator.profileImage ? (
                                                         <img
                                                             src={creator.profileImage}
@@ -445,11 +460,10 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                                                     <div className="absolute top-0 right-0 w-3.5 h-3.5 md:w-4 md:h-4 bg-red-500 rounded-full border-2 border-zinc-950 animate-pulse" />
                                                 )}
                                             </div>
-                                            <span className={`text-xs font-medium max-w-[80px] truncate transition-colors ${
-                                                selectedCreatorId === creator.id
-                                                    ? 'text-violet-400'
-                                                    : 'text-zinc-400 group-hover:text-zinc-200'
-                                            }`}>
+                                            <span className={`text-xs font-medium max-w-[80px] truncate transition-colors ${selectedCreatorId === creator.id
+                                                ? 'text-violet-400'
+                                                : 'text-zinc-400 group-hover:text-zinc-200'
+                                                }`}>
                                                 {creator.name}
                                             </span>
                                         </button>
@@ -482,11 +496,10 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                                             className="flex flex-col items-center gap-2 shrink-0 group select-none"
                                         >
                                             <div className="relative">
-                                                <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-zinc-800 transition-all ${
-                                                    selectedBrandId === brand.id
-                                                        ? 'ring-2 ring-violet-500 ring-offset-2 ring-offset-zinc-950'
-                                                        : 'group-hover:ring-2 group-hover:ring-zinc-600 group-hover:ring-offset-2 group-hover:ring-offset-zinc-950'
-                                                }`}>
+                                                <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-zinc-800 transition-all ${selectedBrandId === brand.id
+                                                    ? 'ring-2 ring-violet-500 ring-offset-2 ring-offset-zinc-950'
+                                                    : 'group-hover:ring-2 group-hover:ring-zinc-600 group-hover:ring-offset-2 group-hover:ring-offset-zinc-950'
+                                                    }`}>
                                                     {brand.logo ? (
                                                         <img
                                                             src={brand.logo}
@@ -501,11 +514,10 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
                                                     )}
                                                 </div>
                                             </div>
-                                            <span className={`text-xs font-medium max-w-[80px] truncate transition-colors ${
-                                                selectedBrandId === brand.id
-                                                    ? 'text-violet-400'
-                                                    : 'text-zinc-400 group-hover:text-zinc-200'
-                                            }`}>
+                                            <span className={`text-xs font-medium max-w-[80px] truncate transition-colors ${selectedBrandId === brand.id
+                                                ? 'text-violet-400'
+                                                : 'text-zinc-400 group-hover:text-zinc-200'
+                                                }`}>
                                                 {brand.name}
                                             </span>
                                         </button>

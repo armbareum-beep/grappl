@@ -515,7 +515,7 @@ export const CourseDetail: React.FC = () => {
             }
         }
 
-        if (course && course.price === 0) return true;
+        if (course && course.price === 0 && course.isSubscriptionExcluded) return true;
 
         if (lesson.id === dailyFreeLessonId) {
             return true;
@@ -1138,7 +1138,7 @@ export const CourseDetail: React.FC = () => {
                         className="w-full h-16 rounded-2xl bg-white text-black hover:bg-zinc-200 font-black text-lg transition-all duration-300 active:scale-95"
                     >
                         {purchasing ? '처리 중...' :
-                            course?.price === 0 ? '지금 무료 소장하기' : '단품 평생 소장하기'}
+                            (course?.price === 0 && course?.isSubscriptionExcluded) ? '지금 무료 소장하기' : '단품 평생 소장하기'}
                     </Button>
                 )}
 
@@ -1315,7 +1315,7 @@ export const CourseDetail: React.FC = () => {
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center bg-zinc-800"><Play className="w-10 h-10 text-zinc-600" /></div>
                                             )}
-                                            {course.price === 0 && (
+                                            {(course.price === 0 && course.isSubscriptionExcluded) && (
                                                 <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[10px] text-white font-bold border border-white/10 uppercase tracking-wide">Free</div>
                                             )}
                                         </div>

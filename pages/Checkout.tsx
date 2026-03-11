@@ -301,6 +301,7 @@ export const Checkout: React.FC = () => {
                     },
                     body: JSON.stringify({
                         orderID: details.id,
+                        subscriptionID: details.subscriptionID, // Add subscriptionID
                         mode: type,
                         id: id,
                         userId: user!.id,
@@ -782,6 +783,8 @@ export const Checkout: React.FC = () => {
                                                 productTitle={productTitle}
                                                 handleSuccess={handleSuccess}
                                                 setError={setError}
+                                                type={type || ""}
+                                                id={id || ""}
                                             />
                                         </div>
                                         <p className="text-[10px] text-zinc-500 text-center font-bold uppercase tracking-wider">
@@ -819,8 +822,26 @@ const PayPalButtonsSection: React.FC<{
     productTitle: string;
     handleSuccess: (details: any) => Promise<void>;
     setError: (msg: string) => void;
-}> = ({ usdAmount, productTitle, handleSuccess, setError }) => {
-    const [{ isPending, isRejected }] = usePayPalScriptReducer();
+    type: string;
+    id: string;
+}> = ({ usdAmount, productTitle, handleSuccess, setError, type, id }) => {
+    const [{ isPending, isRejected }, dispatch] = usePayPalScriptReducer();
+
+    const isSubscription = type === 'subscription';
+    const isYearly = id?.includes('price_1SYHw') || id?.includes('price_1SYI2');
+
+    useEffect(() => {
+        const options = {
+            clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID || "",
+            currency: "USD",
+            intent: isSubscription ? "subscription" : "capture"
+        };
+
+        dispatch({
+            type: "resetOptions",
+            value: options as any,
+        });
+    }, [dispatch, isSubscription]);
 
     return (
         <div className="w-full">
@@ -840,7 +861,7 @@ const PayPalButtonsSection: React.FC<{
             <PayPalButtons
                 style={{ layout: "vertical", color: "blue", shape: "rect", label: "checkout" }}
                 forceReRender={[usdAmount]}
-                createOrder={(_, actions) => {
+                createOrder={isSubscription ? undefined : (_, actions) => {
                     return actions.order.create({
                         intent: "CAPTURE",
                         purchase_units: [
@@ -854,8 +875,31 @@ const PayPalButtonsSection: React.FC<{
                         ],
                     });
                 }}
-                onApprove={async (_, actions) => {
-                    if (actions.order) {
+                createSubscription={isSubscription ? (_, actions) => {
+                    // Plan IDs should be provided by environment variables
+                    // If not found, it won't work correctly, providing a fallback or error handling is good
+                    const planId = isYearly
+                        ? import.meta.env.VITE_PAYPAL_PLAN_ID_YEARLY
+                        : import.meta.env.VITE_PAYPAL_PLAN_ID_MONTHLY;
+
+                    if (!planId) {
+                        setError('PayPal Plan ID가 설정되지 않았습니다. 관리자에게 문의하세요.');
+                        return Promise.reject('Missing Plan ID');
+                    }
+
+                    return actions.subscription.create({
+                        plan_id: planId
+                    });
+                } : undefined}
+                onApprove={async (data, actions) => {
+                    if (isSubscription) {
+                        // For subscriptions, data contains subscriptionID
+                        await handleSuccess({
+                            id: data.orderID, // Subscriptions still have an associated orderID for the first segment
+                            subscriptionID: data.subscriptionID,
+                            ...data
+                        });
+                    } else if (actions.order) {
                         const details = await actions.order.capture();
                         await handleSuccess(details);
                     }

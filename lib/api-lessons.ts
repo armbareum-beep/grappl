@@ -26,7 +26,9 @@ export function transformLesson(data: any): Lesson & { course?: { title: string;
         isPreview: !!data.is_preview,
         isHidden: data.is_hidden ?? false,
         uniformType: data.uniform_type,
-        price: data.price ?? data.course?.price ?? 0,
+        price: (data.is_subscription_excluded || data.isSubscriptionExcluded)
+            ? (data.price ?? data.course?.price ?? 0)
+            : ((data.duration_minutes || 0) * 1000),
         likes: data.likes || 0,
         // Include course object for AddTechniqueModal
         course: data.course ? {

@@ -1,7 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
-import { Calendar, MapPin, Trophy, Users, ChevronRight, X, Navigation } from 'lucide-react';
+import { MapPin, Trophy, Users } from 'lucide-react';
 import { Event, EventType } from '../../types';
 
 declare global {
@@ -30,24 +28,17 @@ export const EventMapView: React.FC<EventMapViewProps> = ({ events, selectedEven
     const markersRef = useRef<naver.maps.Marker[]>([]);
     const clickHandlerRef = useRef(onMapBackgroundClick);
 
+    const [mapReady, setMapReady] = useState(false);
+    const [mapError, setMapError] = useState<string | null>(null);
+
     useEffect(() => {
         clickHandlerRef.current = onMapBackgroundClick;
     }, [onMapBackgroundClick]);
 
-    const [internalSelectedEvent, setInternalSelectedEvent] = useState<Event | null>(null);
-    const [mapReady, setMapReady] = useState(false);
-    const [mapError, setMapError] = useState<string | null>(null);
-
-    // Determine the selected event (external prop takes precedence)
-    const selectedEvent = selectedEventId
-        ? events.find(e => e.id === selectedEventId) || null
-        : internalSelectedEvent;
 
     const setSelectedEvent = (event: Event | null) => {
         if (onEventSelect) {
             onEventSelect(event?.id || null);
-        } else {
-            setInternalSelectedEvent(event);
         }
     };
 
@@ -136,11 +127,11 @@ export const EventMapView: React.FC<EventMapViewProps> = ({ events, selectedEven
                 ">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="2">
                         ${event.type === 'competition'
-                            ? '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>'
-                            : event.type === 'seminar'
-                            ? '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>'
-                            : '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle>'
-                        }
+                    ? '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>'
+                    : event.type === 'seminar'
+                        ? '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>'
+                        : '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle>'
+                }
                     </svg>
                 </div>
             `;
@@ -187,8 +178,6 @@ export const EventMapView: React.FC<EventMapViewProps> = ({ events, selectedEven
         }
     }, [selectedEventId, events, mapReady]);
 
-    const config = selectedEvent ? EVENT_TYPE_CONFIG[selectedEvent.type as EventType] || EVENT_TYPE_CONFIG.openmat : null;
-    const Icon = config?.icon || MapPin;
 
     return (
         <div className={className ?? 'relative w-full h-[60vh] sm:h-[70vh] rounded-2xl overflow-hidden border border-zinc-800'}>
@@ -224,95 +213,6 @@ export const EventMapView: React.FC<EventMapViewProps> = ({ events, selectedEven
                 </div>
             )}
 
-            {/* Selected Event Card Center Overlay - Portal to body */}
-            {selectedEvent && config && createPortal(
-                <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none p-4">
-                    <div className="relative w-full max-w-sm bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 pointer-events-auto">
-                        {/* Close Button */}
-                        <button
-                            onClick={() => setSelectedEvent(null)}
-                            className="absolute top-3 right-3 p-1.5 bg-black/50 hover:bg-black/70 rounded-full z-10 transition-colors backdrop-blur-sm"
-                        >
-                            <X className="w-4 h-4 text-white" />
-                        </button>
-
-                        {/* Cover Image */}
-                        <div className="w-full h-40 bg-zinc-800 relative">
-                            {selectedEvent.coverImage ? (
-                                <img src={selectedEvent.coverImage} alt={selectedEvent.title} className="w-full h-full object-cover" />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                    <Icon className={`w-12 h-12 ${config.textColor} opacity-20`} />
-                                </div>
-                            )}
-                            {/* Type Badge on image */}
-                            <div className="absolute top-3 left-3">
-                                <span className={`px-2.5 py-1 text-xs font-bold rounded-lg bg-black/60 backdrop-blur-md text-white border border-white/20 shadow-sm flex items-center gap-1.5`}>
-                                    <Icon className="w-3.5 h-3.5" />
-                                    {config.label}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div className="p-5">
-                            {/* Title */}
-                            <h3 className="font-bold text-white text-lg mb-4 line-clamp-2 leading-tight">
-                                {selectedEvent.title}
-                            </h3>
-
-                            {/* Date & Time */}
-                            <div className="flex flex-col gap-2.5 mb-6">
-                                <div className="flex items-center gap-2.5 text-sm text-zinc-300">
-                                    <Calendar className="w-4 h-4 text-zinc-500" />
-                                    <span>
-                                        {new Date(selectedEvent.eventDate).toLocaleDateString('ko-KR', {
-                                            year: 'numeric',
-                                            month: 'long',
-                                            day: 'numeric',
-                                            weekday: 'short'
-                                        })}
-                                        {selectedEvent.startTime && ` ${selectedEvent.startTime}`}
-                                    </span>
-                                </div>
-
-                                {/* Venue & Navigation */}
-                                {(selectedEvent.venueName || selectedEvent.address || (typeof selectedEvent.latitude === 'number' && typeof selectedEvent.longitude === 'number')) && (
-                                    <div className="flex items-center justify-between gap-4 text-sm text-zinc-300">
-                                        <div className="flex items-center gap-2.5 min-w-0">
-                                            <MapPin className="w-4 h-4 text-zinc-500 flex-shrink-0" />
-                                            <span className="truncate">
-                                                {selectedEvent.venueName || selectedEvent.address || '상세 장소 확인 필요'}
-                                            </span>
-                                        </div>
-                                        
-                                        {(typeof selectedEvent.latitude === 'number' && typeof selectedEvent.longitude === 'number') && (
-                                            <a 
-                                                href={`https://map.naver.com/index.naver?slng=&slat=&stext=&elng=${selectedEvent.longitude}&elat=${selectedEvent.latitude}&etext=${encodeURIComponent(selectedEvent.address || selectedEvent.venueName || selectedEvent.title)}&menu=route`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-xs font-medium text-amber-500 transition-colors flex-shrink-0"
-                                            >
-                                                <Navigation className="w-3.5 h-3.5" />
-                                                길찾기
-                                            </a>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Detail Link */}
-                            <Link
-                                to={`/event/${selectedEvent.id}`}
-                                className="flex items-center justify-center gap-2 w-full py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl transition-colors shadow-lg shadow-amber-900/20"
-                            >
-                                상세 보기
-                                <ChevronRight className="w-4 h-4" />
-                            </Link>
-                        </div>
-                    </div>
-                </div>,
-                document.body
-            )}
 
             {/* Legend (Removed per user request) */}
         </div>

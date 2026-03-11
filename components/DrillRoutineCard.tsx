@@ -150,7 +150,7 @@ export const DrillRoutineCard: React.FC<DrillRoutineCardProps> = ({ routine, ran
 
                     {/* Badge — top-left, single: FREE > HOT > NEW */}
                     <div className="absolute top-2.5 left-2.5 pointer-events-none z-10">
-                        {(routine.isDailyFree || routine.price === 0) ? (
+                        {(routine.isDailyFree || (routine.price === 0 && routine.isSubscriptionExcluded === true)) ? (
                             <ContentBadge type="daily_free" />
                         ) : rank ? (
                             <ContentBadge type="popular" rank={rank} />

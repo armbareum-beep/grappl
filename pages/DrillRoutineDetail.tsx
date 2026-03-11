@@ -295,7 +295,7 @@ export const DrillRoutineDetail: React.FC = () => {
                                 <div
                                     key={drill.id}
                                     onClick={() => {
-                                        if (owns || isSubscriber || routine.price === 0) {
+                                        if (owns || isSubscriber || (routine.price === 0 && routine.isSubscriptionExcluded)) {
                                             navigate(`/routines/${routine.id}?drill=${drill.id}`);
                                         } else {
                                             handlePurchase();

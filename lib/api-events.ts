@@ -7,8 +7,17 @@ import {
 
 // ==================== Transform Functions ====================
 
+export function getTodayString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export function transformEvent(data: any): Event {
-  return {
+  const now = getTodayString();
+  const baseEvent = {
     id: data.id,
     organizerId: data.organizer_id,
     organizerName: data.organizer?.name,
@@ -72,6 +81,131 @@ export function transformEvent(data: any): Event {
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   };
+
+  return {
+    ...(baseEvent as Event),
+    nextOccurrence: getNextOccurrence(baseEvent as Event, now)
+  };
+}
+
+/**
+ * Calculates the next occurrence of a recurring event from a given date.
+ */
+export function getNextOccurrence(event: Event, fromDate: string): string {
+  if (!event.isRecurring || !event.eventDate) return event.eventDate;
+
+  const start = new Date(event.eventDate);
+  const from = new Date(fromDate);
+
+  // If the event is in the future, return it
+  if (event.eventDate >= fromDate) return event.eventDate;
+
+  // If we have an end date and we're past it, return original
+  if (event.recurrenceEndDate && event.recurrenceEndDate < fromDate) return event.eventDate;
+
+  let current = new Date(start);
+
+  // Safety break to prevent infinite loops (max 2 years in future)
+  const maxSearch = new Date(from);
+  maxSearch.setFullYear(maxSearch.getFullYear() + 2);
+
+  while (current <= maxSearch) {
+    if (event.recurrencePattern === 'weekly') {
+      // Find the next occurrence in weekly pattern
+      const targetDays = (event.recurrenceDays && event.recurrenceDays.length > 0)
+        ? event.recurrenceDays
+        : [event.recurrenceDayOfWeek ?? start.getDay()];
+
+      // Check from current date forward
+      for (let i = 1; i <= 7; i++) {
+        const next = new Date(current);
+        next.setDate(current.getDate() + i);
+        const dayString = next.toISOString().split('T')[0];
+
+        if (targetDays.includes(next.getDay())) {
+          if (dayString >= fromDate) {
+            // Check end date
+            if (event.recurrenceEndDate && dayString > event.recurrenceEndDate) return event.eventDate;
+            return dayString;
+          }
+        }
+      }
+      // If none in this week, jump to next loop iteration from the last day checked
+      current.setDate(current.getDate() + 7);
+    } else if (event.recurrencePattern === 'biweekly') {
+      // Every 2 weeks
+      current.setDate(current.getDate() + 14);
+      const dayString = current.toISOString().split('T')[0];
+      if (dayString >= fromDate) {
+        if (event.recurrenceEndDate && dayString > event.recurrenceEndDate) return event.eventDate;
+        return dayString;
+      }
+    } else if (event.recurrencePattern === 'monthly') {
+      if (event.monthlyOption === 'date') {
+        // Specific dates of the month
+        const targetDates = (event.recurrenceMonthsDates && event.recurrenceMonthsDates.length > 0)
+          ? event.recurrenceMonthsDates
+          : [start.getDate()];
+
+        current.setDate(1); // Start of month
+        let monthsToTry = 24;
+        while (monthsToTry--) {
+          for (const d of targetDates) {
+            const next = new Date(current.getFullYear(), current.getMonth(), d);
+            const dayString = next.toISOString().split('T')[0];
+            if (dayString >= fromDate) {
+              if (event.recurrenceEndDate && dayString > event.recurrenceEndDate) return event.eventDate;
+              return dayString;
+            }
+          }
+          current.setMonth(current.getMonth() + 1);
+        }
+        break;
+      } else {
+        // Nth weekday of the month
+        const targetWeeks = (event.recurrenceWeeks && event.recurrenceWeeks.length > 0)
+          ? event.recurrenceWeeks
+          : [Math.ceil(start.getDate() / 7)];
+        const targetDay = event.recurrenceDayOfWeek ?? start.getDay();
+
+        current.setDate(1);
+        let monthsToTry = 24;
+        while (monthsToTry--) {
+          for (const week of targetWeeks) {
+            // Find Nth targetDay of current month
+            let found = 0;
+            for (let d = 1; d <= 31; d++) {
+              const test = new Date(current.getFullYear(), current.getMonth(), d);
+              if (test.getMonth() !== current.getMonth()) break;
+              if (test.getDay() === targetDay) {
+                found++;
+                if (found === week || (week === -1)) { // -1 could mean last week, but simplified here
+                  const dayString = test.toISOString().split('T')[0];
+                  if (dayString >= fromDate) {
+                    if (event.recurrenceEndDate && dayString > event.recurrenceEndDate) return event.eventDate;
+                    return dayString;
+                  }
+                  if (found === week) break;
+                }
+              }
+            }
+          }
+          current.setMonth(current.getMonth() + 1);
+        }
+        break;
+      }
+    } else {
+      // Default daily or other
+      current.setDate(current.getDate() + 1);
+      const dayString = current.toISOString().split('T')[0];
+      if (dayString >= fromDate) {
+        if (event.recurrenceEndDate && dayString > event.recurrenceEndDate) return event.eventDate;
+        return dayString;
+      }
+    }
+  }
+
+  return event.eventDate;
 }
 
 export function transformRegistration(data: any): EventRegistration {

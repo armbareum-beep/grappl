@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Upload, Save, Trash2, Star, Globe, Instagram, Youtube, Phone, Mail, Building2 } from 'lucide-react';
+import { ArrowLeft, Upload, Save, Trash2, Star, Globe, Instagram, Youtube, Phone, Mail, Building2, Users } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { LoadingScreen } from '../../components/LoadingScreen';
-import { fetchBrandById, createBrand, updateBrand, deleteBrand, setDefaultBrand, getBrandStats } from '../../lib/api-organizers';
+import { cn } from '../../lib/utils';
+import { fetchBrandById, createBrand, updateBrand, deleteBrand, setDefaultBrand, getBrandStats, fetchPendingVerifications, updateVerificationStatus } from '../../lib/api-organizers';
 import { uploadImage } from '../../lib/api';
-import { EventBrand } from '../../types';
+import { EventBrand, GymMemberVerification } from '../../types';
 
 export const ManageBrand: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -20,6 +21,9 @@ export const ManageBrand: React.FC = () => {
     const [deleting, setDeleting] = useState(false);
     const [brand, setBrand] = useState<EventBrand | null>(null);
     const [stats, setStats] = useState<{ totalEvents: number; totalParticipants: number; upcomingEvents: number; completedEvents: number } | null>(null);
+
+    const [pendingRequests, setPendingRequests] = useState<GymMemberVerification[]>([]);
+    const [updatingRequestId, setUpdatingRequestId] = useState<string | null>(null);
 
     // Form state
     const [name, setName] = useState('');
@@ -67,6 +71,10 @@ export const ManageBrand: React.FC = () => {
                 // Fetch stats
                 const statsData = await getBrandStats(id);
                 setStats(statsData);
+
+                // Fetch pending requests for this brand
+                const requests = await fetchPendingVerifications(user!.id, id);
+                setPendingRequests(requests);
             } catch (err: any) {
                 toastError('이벤트 팀을 불러오는 중 오류가 발생했습니다.');
                 navigate('/organizer/dashboard');
@@ -189,6 +197,19 @@ export const ManageBrand: React.FC = () => {
         }
     };
 
+    const handleUpdateStatus = async (requestId: string, status: 'approved' | 'rejected') => {
+        setUpdatingRequestId(requestId);
+        try {
+            await updateVerificationStatus(requestId, status);
+            setPendingRequests(prev => prev.filter(r => r.id !== requestId));
+            success(status === 'approved' ? '승인되었습니다.' : '거절되었습니다.');
+        } catch (err: any) {
+            toastError('상태 변경 중 오류가 발생했습니다.');
+        } finally {
+            setUpdatingRequestId(null);
+        }
+    };
+
     if (authLoading || loading) {
         return <LoadingScreen message="이벤트 팀 정보 불러오는 중..." />;
     }
@@ -235,6 +256,68 @@ export const ManageBrand: React.FC = () => {
                             <div className="text-2xl font-black text-zinc-400">{stats.completedEvents}</div>
                             <div className="text-sm text-zinc-500">완료</div>
                         </div>
+                    </div>
+                )}
+
+                {/* Pending Requests Section */}
+                {!isNewBrand && (
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-8">
+                        <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                            요청 관리
+                            {pendingRequests.length > 0 && (
+                                <span className="px-2 py-0.5 bg-amber-500 text-black text-xs font-black rounded-full text-[10px]">
+                                    {pendingRequests.length}
+                                </span>
+                            )}
+                        </h2>
+
+                        {pendingRequests.length === 0 ? (
+                            <p className="text-sm text-zinc-500 py-4 text-center">대기 중인 요청이 없습니다.</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {pendingRequests.map((request) => (
+                                    <div key={request.id} className="flex items-center justify-between p-4 bg-zinc-800/30 border border-zinc-800/50 rounded-xl">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center text-zinc-500 border border-zinc-700">
+                                                {request.studentName?.charAt(0) || <Users className="w-5 h-5" />}
+                                            </div>
+                                            <div>
+                                                <div className="font-bold flex items-center gap-2">
+                                                    {request.studentName}
+                                                    <span className={cn(
+                                                        "text-[10px] px-1.5 py-0.5 rounded-md font-black uppercase",
+                                                        request.verificationType === 'brand_subscription'
+                                                            ? "bg-amber-500/10 text-amber-500"
+                                                            : "bg-blue-500/10 text-blue-400"
+                                                    )}>
+                                                        {request.verificationType === 'brand_subscription' ? '구독 신청' : '관원 인증'}
+                                                    </span>
+                                                </div>
+                                                <div className="text-[10px] text-zinc-500 mt-0.5">
+                                                    {new Date(request.createdAt).toLocaleDateString()} 신청
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => handleUpdateStatus(request.id, 'rejected')}
+                                                disabled={updatingRequestId === request.id}
+                                                className="px-3 py-1.5 text-xs font-bold text-zinc-500 hover:text-red-400 transition-colors"
+                                            >
+                                                거절
+                                            </button>
+                                            <button
+                                                onClick={() => handleUpdateStatus(request.id, 'approved')}
+                                                disabled={updatingRequestId === request.id}
+                                                className="px-4 py-1.5 text-xs font-black bg-zinc-100 text-black rounded-lg hover:bg-white transition-colors"
+                                            >
+                                                {updatingRequestId === request.id ? '...' : '승인'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 
