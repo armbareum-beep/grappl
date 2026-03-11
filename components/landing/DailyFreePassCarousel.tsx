@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play } from 'lucide-react';
 import useEmblaCarousel from 'embla-carousel-react';
+import { createDailySlides } from '../../lib/daily-utils';
 
 interface DailyFreePassCarouselProps {
     dailyDrill: any;
@@ -33,11 +34,7 @@ export const DailyFreePassCarousel: React.FC<DailyFreePassCarouselProps> = ({
 
     const getCarouselAspect = () => 'aspect-[4/5] md:aspect-square lg:aspect-[16/9] w-full max-w-6xl';
 
-    const slides = [
-        dailyLesson && { type: 'lesson', data: dailyLesson },
-        dailyDrill && { type: 'drill', data: dailyDrill },
-        dailySparring && { type: 'sparring', data: dailySparring }
-    ].filter(Boolean);
+    const slides = createDailySlides(dailyLesson, dailyDrill, dailySparring);
 
     if (slides.length === 0) {
         return (

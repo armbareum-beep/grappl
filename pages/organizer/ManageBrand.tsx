@@ -73,10 +73,11 @@ export const ManageBrand: React.FC = () => {
                 setStats(statsData);
 
                 // Fetch pending requests for this brand
-                const requests = await fetchPendingVerifications(user!.id, id);
+                const requests = await fetchPendingVerifications(brandData.creatorId, id);
                 setPendingRequests(requests);
             } catch (err: any) {
-                toastError('이벤트 팀을 불러오는 중 오류가 발생했습니다.');
+                console.error("ManageBrand Error:", err);
+                toastError(`이벤트 팀을 불러오는 중 오류가 발생했습니다: ${err.message || ''}`);
                 navigate('/organizer/dashboard');
             } finally {
                 setLoading(false);

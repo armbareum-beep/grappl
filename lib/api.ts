@@ -4,6 +4,14 @@ export * from './api-lessons';
 export * from './api-organizers';
 import { transformLesson } from './api-lessons';
 import { supabase } from './supabase';
+import { 
+    fetchDailyDrill, 
+    fetchDailyLesson, 
+    fetchDailySparring,
+    transformToDailyDrill,
+    transformToDailyLesson,
+    transformToDailySparring
+} from './api-daily';
 
 import { Creator, Video, Course, Lesson, TrainingLog, UserSkill, SkillCategory, SkillStatus, BeltLevel, Bundle, Coupon, SkillSubcategory, FeedbackSettings, FeedbackRequest, AppNotification, Difficulty, Drill, DrillRoutine, SparringReview, Testimonial, SparringVideo, CompletedRoutineRecord, SiteSettings } from '../types';
 import { getVimeoVideoInfo, formatDuration } from './vimeo';
@@ -5354,7 +5362,6 @@ export async function createSparringVideo(videoData: Partial<SparringVideo>) {
         brand_id: videoData.brandId || null, // Ensure null for empty string
         is_published: false,
         duration_minutes: videoData.durationMinutes,
-        length: videoData.length,
         is_subscription_excluded: videoData.isSubscriptionExcluded || false,
         price: videoData.price || 0,
         status: 'pending',
@@ -5367,7 +5374,6 @@ export async function createSparringVideo(videoData: Partial<SparringVideo>) {
             if (videoInfo) {
                 if (!dbData.thumbnail_url) dbData.thumbnail_url = videoInfo.thumbnail;
                 if (!dbData.duration_minutes) dbData.duration_minutes = Math.floor(videoInfo.duration / 60);
-                if (!dbData.length) dbData.length = formatDuration(videoInfo.duration);
             }
         } catch (err) {
             console.warn('Failed to auto-fetch Vimeo info for sparring video:', err);
@@ -5667,7 +5673,6 @@ export async function updateSparringVideo(id: string, updates: Partial<SparringV
     if (updates.previewVimeoId !== undefined) dbData.preview_vimeo_id = updates.previewVimeoId;
     if (updates.brandId !== undefined) dbData.brand_id = updates.brandId || null; // Ensure null for empty string
     if (updates.durationMinutes !== undefined) dbData.duration_minutes = updates.durationMinutes;
-    if (updates.length !== undefined) dbData.length = updates.length;
     if (updates.isSubscriptionExcluded !== undefined) dbData.is_subscription_excluded = updates.isSubscriptionExcluded;
     if (updates.creatorId) dbData.creator_id = updates.creatorId;
 
@@ -5876,111 +5881,12 @@ export async function getDailyRoutine() {
  */
 export async function getDailyFreeDrill() {
     try {
-        // 1. Try to get featured drill for today
-        const kstDate = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
-        const { data: featured } = await withTimeout(
-            supabase
-                .from('daily_featured_content')
-                .select('featured_id')
-                .eq('date', kstDate)
-                .eq('featured_type', 'drill')
-                .maybeSingle(),
-            3000
-        );
-
-        let drillId = featured?.featured_id;
-        let selectedDrill = null;
-
-        if (drillId) {
-            const { data: drill } = await withTimeout(
-                supabase
-                    .from('drills')
-                    .select('*')
-                    .eq('id', drillId)
-                    .maybeSingle(),
-                10000
-            );
-            selectedDrill = drill;
-        }
-
-        // 2. Fallback to deterministic random if no featured drill or not found
-        if (!selectedDrill) {
-            // Only select drills that are part of paid routines (Price > 0)
-            const { data: routineDrills, error } = await withTimeout(
-                supabase
-                    .from('routine_drills')
-                    .select('drill_id, drills!inner(*), routines!inner(price)')
-                    .gt('routines.price', 0)
-                    .neq('drills.vimeo_url', '')
-                    .not('drills.vimeo_url', 'like', 'ERROR%')
-                    .limit(100),
-                10000
-            );
-
-            if (error) throw error;
-            if (!routineDrills || routineDrills.length === 0) return { data: null, error: null };
-
-            // Extract unique drills
-            const uniqueDrillsMap = new Map();
-            routineDrills.forEach((rd: any) => {
-                if (rd.drills && !uniqueDrillsMap.has(rd.drills.id)) {
-                    uniqueDrillsMap.set(rd.drills.id, rd.drills);
-                }
-            });
-            const data = Array.from(uniqueDrillsMap.values());
-
-            if (!data || data.length === 0) return { data: null, error: null };
-
-            const today = new Date();
-            const kstParts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(today);
-            const year = parseInt(kstParts.find(p => p.type === 'year')!.value);
-            const month = parseInt(kstParts.find(p => p.type === 'month')!.value);
-            const day = parseInt(kstParts.find(p => p.type === 'day')!.value);
-            const seed = year * 10000 + month * 100 + day;
-            const x = Math.sin(seed + 456) * 10000;
-            const index = Math.floor((x - Math.floor(x)) * data.length);
-            selectedDrill = data[index];
-        }
-
+        const selectedDrill = await fetchDailyDrill();
         if (!selectedDrill) return { data: null, error: null };
 
-        // 3. Fetch creator info (Prioritize creators table, fallback to users)
-        let creatorName = 'Grapplay Team';
-        let creatorProfileImage = undefined;
-
-        if (selectedDrill.creator_id) {
-            // Try fetching from creators table first (Instructor Profile)
-            const { data: creatorData } = await supabase
-                .from('creators')
-                .select('name, profile_image')
-                .eq('id', selectedDrill.creator_id)
-                .maybeSingle();
-
-            if (creatorData) {
-                creatorName = creatorData.name || creatorName;
-                creatorProfileImage = creatorData.profile_image || undefined;
-            } else {
-                // Fallback to users table (Auth Profile)
-                const { data: userData } = await supabase
-                    .from('users')
-                    .select('name, avatar_url')
-                    .eq('id', selectedDrill.creator_id)
-                    .maybeSingle();
-
-                if (userData) {
-                    creatorName = userData.name || creatorName;
-                    creatorProfileImage = userData.avatar_url || undefined;
-                }
-            }
-        }
-
-        const transformed = transformDrill(selectedDrill);
+        const creatorMap = await fetchCreatorsByIds([selectedDrill.creator_id]);
         return {
-            data: {
-                ...transformed,
-                creatorName,
-                creatorProfileImage
-            },
+            data: transformToDailyDrill(selectedDrill, creatorMap[selectedDrill.creator_id]),
             error: null
         };
     } catch (error) {
@@ -5994,113 +5900,12 @@ export async function getDailyFreeDrill() {
  */
 export async function getDailyFreeLesson() {
     try {
-        // 1. Try to get featured lesson for today
-        const kstDate = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
-        const { data: featured } = await withTimeout(
-            supabase
-                .from('daily_featured_content')
-                .select('featured_id')
-                .eq('date', kstDate)
-                .eq('featured_type', 'lesson')
-                .maybeSingle(),
-            3000
-        );
-
-        let lessonId = featured?.featured_id;
-        let selectedLesson = null;
-
-        if (lessonId) {
-            const { data: lesson } = await withTimeout(
-                supabase
-                    .from('lessons')
-                    .select('*, courses!inner(*)')
-                    .eq('id', lessonId)
-                    .maybeSingle(),
-                10000
-            );
-            selectedLesson = lesson;
-        }
-
-        // 2. Fallback to deterministic random if no featured or not found
-        if (!selectedLesson) {
-            // Only select lessons that are part of paid courses (price > 0)
-            const { data: lessons, error } = await withTimeout(
-                supabase
-                    .from('lessons')
-                    .select('*, courses!inner(id, title, creator_id, published, price)')
-                    .not('course_id', 'is', null)
-                    .gt('courses.price', 0)
-                    .neq('vimeo_url', '')
-                    .not('vimeo_url', 'like', 'ERROR%')
-                    .limit(50),
-                10000
-            );
-
-            if (error) throw error;
-            if (!lessons || lessons.length === 0) return { data: null, error: null };
-
-            const today = new Date();
-            const kstParts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(today);
-            const year = parseInt(kstParts.find(p => p.type === 'year')!.value);
-            const month = parseInt(kstParts.find(p => p.type === 'month')!.value);
-            const day = parseInt(kstParts.find(p => p.type === 'day')!.value);
-            const seed = year * 10000 + month * 100 + day;
-            const x = Math.sin(seed + 789) * 10000;
-            const index = Math.floor((x - Math.floor(x)) * lessons.length);
-            selectedLesson = lessons[index];
-        }
-
+        const selectedLesson = await fetchDailyLesson();
         if (!selectedLesson) return { data: null, error: null };
 
-        // 3. Fetch creator info
-        let creatorName = 'Grapplay Team';
-        let creatorProfileImage = undefined;
-        let courseTitle = undefined;
-
-        // Get course info from joined data
-        if (selectedLesson.courses) {
-            courseTitle = selectedLesson.courses.title;
-            const creatorId = selectedLesson.courses.creator_id;
-
-            if (creatorId) {
-                const { data: creatorData } = await supabase
-                    .from('creators')
-                    .select('name, profile_image')
-                    .eq('id', creatorId)
-                    .maybeSingle();
-
-                if (creatorData) {
-                    creatorName = creatorData.name || creatorName;
-                    creatorProfileImage = creatorData.profile_image || undefined;
-                } else {
-                    const { data: userData } = await supabase
-                        .from('users')
-                        .select('name, avatar_url')
-                        .eq('id', creatorId)
-                        .maybeSingle();
-
-                    if (userData) {
-                        creatorName = userData.name || creatorName;
-                        creatorProfileImage = userData.avatar_url || undefined;
-                    }
-                }
-            }
-        }
-
-        // Create a temporary object with 'course' property for transformLesson
-        const lessonForTransform = {
-            ...selectedLesson,
-            course: selectedLesson.courses
-        };
-        const transformed = transformLesson(lessonForTransform);
-
+        const creatorMap = await fetchCreatorsByIds([selectedLesson.courses?.creator_id]);
         return {
-            data: {
-                ...transformed,
-                courseTitle,
-                creatorName,
-                creatorProfileImage
-            },
+            data: transformToDailyLesson(selectedLesson, creatorMap[selectedLesson.courses?.creator_id]),
             error: null
         };
     } catch (error) {
@@ -6111,91 +5916,12 @@ export async function getDailyFreeLesson() {
 
 export async function getDailyFreeSparring() {
     try {
-        // 1. Try to get featured sparring for today
-        const kstDate = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
-        const { data: featured } = await withTimeout(
-            supabase
-                .from('daily_featured_content')
-                .select('featured_id')
-                .eq('date', kstDate)
-                .eq('featured_type', 'sparring')
-                .maybeSingle(),
-            3000
-        );
-
-        let sparringId = featured?.featured_id;
-        let selectedSparring = null;
-
-        if (sparringId) {
-            const { data: sparring } = await withTimeout(
-                supabase
-                    .from('sparring_videos')
-                    .select('*')
-                    .eq('id', sparringId)
-                    .maybeSingle(),
-                10000
-            );
-            selectedSparring = sparring;
-        }
-
-        // 2. Fallback to deterministic random if no featured or not found
-        if (!selectedSparring) {
-            const { data, error } = await withTimeout(
-                supabase
-                    .from('sparring_videos')
-                    .select('*')
-                    .eq('is_published', true)
-                    .is('deleted_at', null)
-                    .gt('price', 0)
-                    .neq('video_url', '')
-                    .not('video_url', 'like', 'ERROR%')
-                    .order('id')
-                    .limit(50),
-                10000
-            );
-
-            if (error) throw error;
-            if (!data || data.length === 0) return { data: null, error: null };
-
-            const today = new Date();
-            const kstParts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(today);
-            const year = parseInt(kstParts.find(p => p.type === 'year')!.value);
-            const month = parseInt(kstParts.find(p => p.type === 'month')!.value);
-            const day = parseInt(kstParts.find(p => p.type === 'day')!.value);
-            const seed = year * 10000 + month * 100 + day;
-            const x = Math.sin(seed + 123) * 10000;
-            const index = Math.floor((x - Math.floor(x)) * data.length);
-            selectedSparring = data[index];
-        }
-
+        const selectedSparring = await fetchDailySparring();
         if (!selectedSparring) return { data: null, error: null };
 
-        // 3. Fetch creator info from users table (Fixes 400 error)
-        let creatorInfo = undefined;
-        if (selectedSparring.creator_id) {
-            const { data: userData } = await supabase
-                .from('users')
-                .select('id, name, avatar_url, profile_image_url')
-                .eq('id', selectedSparring.creator_id)
-                .maybeSingle();
-
-            if (userData) {
-                creatorInfo = {
-                    id: userData.id,
-                    name: userData.name || '알 수 없음',
-                    profileImage: userData.profile_image_url || userData.avatar_url, // Prioritize profile_image_url
-                    bio: '',
-                    subscriberCount: 0
-                };
-            }
-        }
-
+        const creatorMap = await fetchCreatorsByIds([selectedSparring.creator_id]);
         return {
-            data: {
-                ...transformSparringVideo(selectedSparring),
-                previewVimeoId: selectedSparring.preview_vimeo_id,
-                creator: creatorInfo
-            },
+            data: transformToDailySparring(selectedSparring, creatorMap[selectedSparring.creator_id]),
             error: null
         };
     } catch (error) {

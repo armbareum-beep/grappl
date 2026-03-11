@@ -73,18 +73,6 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
     const [startY, setStartY] = useState(0);
     const [scrollTop, setScrollTop] = useState(0);
 
-    // Randomize creators and brands on mount
-    const creators = useMemo(() => {
-        // Safety Filter: Exclude pure organizers and specifically named "Organizer" accounts from instructor list
-        return [...creatorsData]
-            .filter(c => c.creatorType !== 'organizer' && c.name !== 'Organizer')
-            .sort(() => Math.random() - 0.5);
-    }, [creatorsData]);
-
-    const eventBrands = useMemo(() => {
-        return [...eventBrandsData].sort(() => Math.random() - 0.5);
-    }, [eventBrandsData]);
-
     // Drag scroll handlers
     const createDragHandlers = (ref: React.RefObject<HTMLDivElement>) => {
         return {
@@ -130,6 +118,23 @@ export const AllContentFeed: React.FC<AllContentFeedProps> = ({ activeTab, onTab
     const [searchTerm, setSearchTerm] = useState('');
     const [allItems, setAllItems] = useState<UnifiedContentItem[]>([]);
     const [savedMap, setSavedMap] = useState<Map<string, boolean>>(new Map());
+
+    // Randomize creators and brands on mount and filter out empty profiles
+    const creators = useMemo(() => {
+        // Safety Filter: Exclude pure organizers and specifically named "Organizer" accounts from instructor list
+        // Dynamic Filter: Only include creators that have at least one video in allItems (without brandId)
+        return [...creatorsData]
+            .filter(c => c.creatorType !== 'organizer' && c.name !== 'Organizer')
+            .filter(c => allItems.some(item => item.creatorId === c.id && !item.brandId))
+            .sort(() => Math.random() - 0.5);
+    }, [creatorsData, allItems]);
+
+    const eventBrands = useMemo(() => {
+        // Dynamic Filter: Only include brands that have at least one video in allItems
+        return [...eventBrandsData]
+            .filter(b => allItems.some(item => item.brandId === b.id))
+            .sort(() => Math.random() - 0.5);
+    }, [eventBrandsData, allItems]);
 
     // Daily free IDs
     const [, setFreeIds] = useState<{

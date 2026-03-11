@@ -13,6 +13,7 @@ import { useHomeQueries } from '../hooks/use-home-queries';
 import { useVideoPreloadSafe } from '../contexts/VideoPreloadContext';
 import { getOptimizedThumbnail } from '../lib/utils';
 import { LoadingTimeoutGuard } from '../components/common/LoadingTimeoutGuard';
+import { createDailySlides } from '../lib/daily-utils';
 
 export const Home: React.FC = () => {
     const navigate = useNavigate();
@@ -81,11 +82,9 @@ export const Home: React.FC = () => {
         return 'aspect-[3/4] md:aspect-square lg:aspect-[4/3] w-full max-w-6xl';
     };
 
-    const slides = useMemo(() => [
-        dailyLesson && { type: 'lesson', data: dailyLesson },
-        dailyDrill && { type: 'drill', data: dailyDrill },
-        dailySparring && { type: 'sparring', data: dailySparring }
-    ].filter(Boolean), [dailyLesson, dailyDrill, dailySparring]);
+    const slides = useMemo(() => 
+        createDailySlides(dailyLesson, dailyDrill, dailySparring),
+    [dailyLesson, dailyDrill, dailySparring]);
 
     // Only show loading screen if we are loading AND have no content yet
     if (loading && slides.length === 0 && trendingCourses.length === 0) {

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCourse, useCourseLessons, useCourseDrills, useCourseSparring, useRelatedCourses } from '../hooks/use-queries';
-import { getCreatorById, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, toggleCourseLike, checkCourseLiked, getCourseLikeCount, toggleCreatorFollow, checkCreatorFollowStatus, toggleCourseSave, checkCourseSaved, incrementLessonViews } from '../lib/api';
+import { getCreatorById, checkCourseOwnership, getLessonProgress, markLessonComplete, updateLastWatched, enrollInCourse, recordWatchTime, checkCourseCompletion, toggleCourseLike, checkCourseLiked, getCourseLikeCount, toggleCreatorFollow, checkCreatorFollowStatus, toggleCourseSave, checkCourseSaved, incrementLessonViews, checkGymMemberAccess } from '../lib/api';
 import { Course, Lesson, Creator } from '../types';
 import { Button } from '../components/Button';
 import { VideoPlayer } from '../components/VideoPlayer';
@@ -305,8 +305,13 @@ export const CourseDetail: React.FC = () => {
                     }
 
                     let owns = await checkCourseOwnership(user.id, id);
+                    
+                    // Admin and creators have access to all courses
+                    if (course.creatorId === user.id || isAdmin || actualIsAdmin) {
+                        owns = true;
+                    }
 
-                    // Admin and subscribers have access to all courses
+                    // Subscribers and verified gym members have access
                     if (!owns && directUserData && !userQueryError) {
                         const dbIsAdmin = !!(directUserData.is_admin);
                         const dbIsSubscribed = !!(
@@ -314,6 +319,13 @@ export const CourseDetail: React.FC = () => {
                             directUserData.is_complimentary_subscription
                         );
                         if (dbIsAdmin || dbIsSubscribed) {
+                            owns = true;
+                        }
+                    }
+
+                    if (!owns) {
+                        const isVerifiedMember = await checkGymMemberAccess(user.id, course.creatorId);
+                        if (isVerifiedMember) {
                             owns = true;
                         }
                     }
@@ -459,6 +471,7 @@ export const CourseDetail: React.FC = () => {
 
     const canWatchLesson = (lesson: Lesson) => {
         if (actualIsAdmin ?? isAdmin) return true;
+        if (course?.creatorId === user?.id) return true;
         if (ownsCourse) return true;
 
         // Use direct DB check value if available, otherwise fall back to context

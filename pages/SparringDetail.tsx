@@ -9,7 +9,8 @@ import {
     getSparringVideos,
     recordSparringView,
     extractVimeoId,
-    recordWatchTime
+    recordWatchTime,
+    checkGymMemberAccess
 } from '../lib/api';
 import { SparringVideo, Drill } from '../types';
 import { Button } from '../components/Button';
@@ -279,8 +280,18 @@ export const SparringDetail: React.FC = () => {
             .eq('video_id', videoData.id)
             .maybeSingle();
 
-        if (data) setOwns(true);
-        else setOwns(false);
+        if (data) {
+            setOwns(true);
+            return;
+        }
+
+        // Check for verified gym member access
+        const isVerifiedMember = await checkGymMemberAccess(contextUser.id, videoData.creatorId);
+        if (isVerifiedMember) {
+            setOwns(true);
+        } else {
+            setOwns(false);
+        }
     };
 
     const checkInteractions = async (videoData: SparringVideo) => {

@@ -7,45 +7,34 @@
 import { supabase } from './supabase';
 import { withTimeout } from './api';
 import { warmupConnection } from './connection-manager';
-import { Course, DrillRoutine, SparringVideo, Drill } from '../types';
+import { Course, DrillRoutine, SparringVideo } from '../types';
+import { 
+    fetchDailyDrill, 
+    fetchDailyLesson, 
+    fetchDailySparring,
+    transformToDailyDrill,
+    transformToDailyLesson,
+    transformToDailySparring
+} from './api-daily';
 
 // Longer timeout for cold start scenarios
 const API_TIMEOUT = 15000; // 15 seconds (was 3-5 seconds)
 
-// Helper to get KST date string
-function getKSTDateString() {
-    return new Intl.DateTimeFormat('fr-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
-}
-
-// Helper for deterministic random selection based on date
-function getDailyIndex(arrayLength: number, offset: number = 0): number {
-    const today = new Date();
-    const kstParts = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'Asia/Seoul',
-        year: 'numeric',
-        month: 'numeric',
-        day: 'numeric'
-    }).formatToParts(today);
-    const year = parseInt(kstParts.find(p => p.type === 'year')!.value);
-    const month = parseInt(kstParts.find(p => p.type === 'month')!.value);
-    const day = parseInt(kstParts.find(p => p.type === 'day')!.value);
-    const seed = year * 10000 + month * 100 + day + offset;
-    const x = Math.sin(seed) * 10000;
-    return Math.floor((x - Math.floor(x)) * arrayLength);
-}
-
-// Batch fetch creators by IDs (single query)
+// Batch fetch creators by IDs from users table (matching api.ts logic)
 async function batchFetchCreators(creatorIds: string[]): Promise<Map<string, { name: string; profileImage?: string }>> {
     if (creatorIds.length === 0) return new Map();
 
     const { data } = await supabase
-        .from('creators')
-        .select('id, name, profile_image')
+        .from('users')
+        .select('id, name, avatar_url, profile_image_url')
         .in('id', creatorIds);
 
     const map = new Map();
     (data || []).forEach((c: any) => {
-        map.set(c.id, { name: c.name || '알 수 없음', profileImage: c.profile_image });
+        map.set(c.id, { 
+            name: c.name || '알 수 없음', 
+            profileImage: c.profile_image_url || c.avatar_url 
+        });
     });
     return map;
 }
@@ -64,32 +53,21 @@ export interface HomePageData {
 
 /**
  * Fetch all home page data in optimized batches
- * Reduces 10+ sequential API calls to 2-3 parallel batches
  */
 export async function getHomePageData(): Promise<HomePageData> {
-    const kstDate = getKSTDateString();
-
     // Warm up connection before making requests (handles cold start)
     await warmupConnection();
 
-    // ===== BATCH 1: All featured content + raw data in parallel =====
+    // ===== BATCH 1: Raw data pools + Daily selection in parallel =====
     const [
-        featuredResult,
         coursesResult,
         routinesResult,
         sparringResult,
-        drillsResult,
-        lessonsResult
+        dailyDrill,
+        dailyLesson,
+        dailySparring
     ] = await Promise.all([
-        // Featured content for today
-        withTimeout(
-            supabase
-                .from('daily_featured_content')
-                .select('featured_type, featured_id')
-                .eq('date', kstDate),
-            API_TIMEOUT
-        ),
-        // Courses (both trending and new can share this)
+        // Courses
         withTimeout(
             supabase
                 .from('courses')
@@ -108,7 +86,7 @@ export async function getHomePageData(): Promise<HomePageData> {
                 .limit(30),
             API_TIMEOUT
         ),
-        // Sparring videos
+        // Sparring videos (for trending/new carousels)
         withTimeout(
             supabase
                 .from('sparring_videos')
@@ -119,84 +97,16 @@ export async function getHomePageData(): Promise<HomePageData> {
                 .limit(30),
             API_TIMEOUT
         ),
-        // Drills for daily selection (only from paid routines)
-        withTimeout(
-            supabase
-                .from('routine_drills')
-                .select('drill_id, drills!inner(*), routines!inner(price)')
-                .gt('routines.price', 0)
-                .neq('drills.vimeo_url', '')
-                .not('drills.vimeo_url', 'like', 'ERROR%')
-                .limit(100),
-            API_TIMEOUT
-        ),
-        // Lessons for daily selection (only from paid courses)
-        withTimeout(
-            supabase
-                .from('lessons')
-                .select('*, courses!inner(id, title, thumbnail_url, creator_id, price)')
-                .gt('courses.price', 0)
-                .not('vimeo_url', 'is', null)
-                .neq('vimeo_url', '')
-                .limit(100),
-            API_TIMEOUT
-        )
+        // Daily Selection (Centralized to ensure 100% consistency with LandingPage)
+        fetchDailyDrill(),
+        fetchDailyLesson(),
+        fetchDailySparring()
     ]);
-
-    // Parse featured content
-    const featuredMap = new Map<string, string>();
-    ((featuredResult as any)?.data || []).forEach((f: any) => {
-        featuredMap.set(f.featured_type, f.featured_id);
-    });
 
     // Extract raw data
     const courses = (coursesResult as any)?.data || [];
     const routines = (routinesResult as any)?.data || [];
     const sparringVideos = (sparringResult as any)?.data || [];
-    const drillsData = (drillsResult as any)?.data || [];
-    const lessonsData = (lessonsResult as any)?.data || [];
-
-    // ===== PROCESS: Select daily content =====
-
-    // Daily Drill
-    let dailyDrill = null;
-    const featuredDrillId = featuredMap.get('drill');
-    if (featuredDrillId) {
-        const found = drillsData.find((rd: any) => rd.drills?.id === featuredDrillId);
-        if (found) dailyDrill = found.drills;
-    }
-    if (!dailyDrill && drillsData.length > 0) {
-        const uniqueDrills = Array.from(
-            new Map(drillsData.map((rd: any) => [rd.drills?.id, rd.drills])).values()
-        ).filter(Boolean);
-        if (uniqueDrills.length > 0) {
-            dailyDrill = uniqueDrills[getDailyIndex(uniqueDrills.length, 456)];
-        }
-    }
-
-    // Daily Lesson
-    let dailyLesson = null;
-    const featuredLessonId = featuredMap.get('lesson');
-    if (featuredLessonId) {
-        dailyLesson = lessonsData.find((l: any) => l.id === featuredLessonId);
-    }
-    if (!dailyLesson && lessonsData.length > 0) {
-        dailyLesson = lessonsData[getDailyIndex(lessonsData.length, 789)];
-    }
-
-    // Daily Sparring (only paid sparring videos, matching LandingPage logic)
-    let dailySparring = null;
-    const featuredSparringId = featuredMap.get('sparring');
-    if (featuredSparringId) {
-        dailySparring = sparringVideos.find((s: any) => s.id === featuredSparringId);
-    }
-    if (!dailySparring && sparringVideos.length > 0) {
-        // Filter to only paid sparring (price > 0) to match LandingPage
-        const paidSparring = sparringVideos.filter((s: any) => (s.price || 0) > 0);
-        if (paidSparring.length > 0) {
-            dailySparring = paidSparring[getDailyIndex(paidSparring.length, 123)];
-        }
-    }
 
     // ===== BATCH 2: Fetch all creators at once =====
     const allCreatorIds = new Set<string>();
@@ -213,50 +123,12 @@ export async function getHomePageData(): Promise<HomePageData> {
 
     // ===== TRANSFORM: Build final data =====
 
-    // Transform daily drill
-    const transformedDailyDrill = dailyDrill ? {
-        id: dailyDrill.id,
-        title: dailyDrill.title,
-        description: dailyDrill.description,
-        vimeoUrl: dailyDrill.vimeo_url,
-        thumbnailUrl: dailyDrill.thumbnail_url,
-        duration: dailyDrill.duration_seconds,
-        difficulty: dailyDrill.difficulty,
-        creatorName: creatorMap.get(dailyDrill.creator_id)?.name || 'Grapplay Team',
-        creatorProfileImage: creatorMap.get(dailyDrill.creator_id)?.profileImage
-    } : null;
+    // Transform daily content using unified logic
+    const transformedDailyDrill = dailyDrill ? transformToDailyDrill(dailyDrill, creatorMap.get(dailyDrill.creator_id)) : null;
 
-    // Transform daily lesson
-    const transformedDailyLesson = dailyLesson ? {
-        id: dailyLesson.id,
-        title: dailyLesson.title,
-        description: dailyLesson.description,
-        vimeoUrl: dailyLesson.vimeo_url,
-        thumbnailUrl: dailyLesson.thumbnail_url || dailyLesson.courses?.thumbnail_url,
-        duration: dailyLesson.duration,
-        courseId: dailyLesson.course_id,
-        courseTitle: dailyLesson.courses?.title,
-        creatorName: creatorMap.get(dailyLesson.courses?.creator_id)?.name || 'Grapplay Team',
-        creatorProfileImage: creatorMap.get(dailyLesson.courses?.creator_id)?.profileImage
-    } : null;
+    const transformedDailyLesson = dailyLesson ? transformToDailyLesson(dailyLesson, creatorMap.get(dailyLesson.courses?.creator_id)) : null;
 
-    // Transform daily sparring
-    const transformedDailySparring = dailySparring ? {
-        id: dailySparring.id,
-        title: dailySparring.title,
-        description: dailySparring.description,
-        videoUrl: dailySparring.video_url,
-        thumbnailUrl: dailySparring.thumbnail_url,
-        views: dailySparring.views || 0,
-        likes: dailySparring.likes || 0,
-        category: dailySparring.category,
-        difficulty: dailySparring.difficulty,
-        creator: creatorMap.get(dailySparring.creator_id) ? {
-            id: dailySparring.creator_id,
-            name: creatorMap.get(dailySparring.creator_id)?.name || '알 수 없음',
-            profileImage: creatorMap.get(dailySparring.creator_id)?.profileImage
-        } : undefined
-    } : null;
+    const transformedDailySparring = dailySparring ? transformToDailySparring(dailySparring, creatorMap.get(dailySparring.creator_id)) : null;
 
     // Score and rank courses
     const scoredCourses = courses.map((c: any) => ({
@@ -277,10 +149,7 @@ export async function getHomePageData(): Promise<HomePageData> {
         difficulty: c.difficulty || 'Beginner',
         category: c.category || 'General',
         lessonCount: c.lessons?.[0]?.count || 0,
-        totalDuration: c.total_duration || 0,
         views: c.views || 0,
-        likes: c.likes || 0,
-        rating: c.rating || 0,
         createdAt: c.created_at
     });
 
@@ -303,7 +172,7 @@ export async function getHomePageData(): Promise<HomePageData> {
         difficulty: r.difficulty || 'Beginner',
         thumbnailUrl: r.thumbnail_url,
         price: r.price || 0,
-        durationMinutes: r.total_duration_minutes || r.duration_minutes || 10,
+        totalDurationMinutes: r.total_duration_minutes || r.duration_minutes || 10,
         category: r.category || 'General',
         views: r.views || 0,
         likes: r.likes || 0,
@@ -334,10 +203,13 @@ export async function getHomePageData(): Promise<HomePageData> {
         uniformType: s.uniform_type,
         difficulty: s.difficulty,
         isPublished: s.is_published ?? true,
+        relatedItems: s.related_items || [],
         creator: creatorMap.get(s.creator_id) ? {
             id: s.creator_id,
             name: creatorMap.get(s.creator_id)?.name || '알 수 없음',
-            profileImage: creatorMap.get(s.creator_id)?.profileImage
+            profileImage: creatorMap.get(s.creator_id)?.profileImage || '',
+            bio: '',
+            subscriberCount: 0
         } : undefined,
         createdAt: s.created_at
     });
